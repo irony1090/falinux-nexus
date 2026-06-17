@@ -1,0 +1,24 @@
+version: "2"
+sql:
+  # worker — SQLite (modernc.org/sqlite, 설정/메타데이터만 영속)
+  - engine: "sqlite"
+    schema: "internal/worker/db/migrations"
+    queries: "internal/worker/db/query"
+    gen:
+      go:
+        package: "workerdb"
+        out: "internal/worker/db/gen"
+        # SQLite nullable 주의: db_type+nullable 조합 미동작 → 필요 시 아래처럼 column 단위 override
+        # overrides:
+        #   - column: "settings.value"
+        #     go_type: "database/sql.NullString"
+
+  # supervisor — PostgreSQL (pgx/v5 native 타입)
+  - engine: "postgresql"
+    schema: "internal/supervisor/db/migrations"
+    queries: "internal/supervisor/db/query"
+    gen:
+      go:
+        package: "superdb"
+        out: "internal/supervisor/db/gen"
+        sql_package: "pgx/v5"
