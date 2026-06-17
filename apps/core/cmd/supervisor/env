@@ -1,0 +1,6 @@
+# API 서버 URL
+
+WS_SCHEME="ws"
+API_HOST="localhost:5050"
+
+NAME="irony-MAC-ADDress1"
