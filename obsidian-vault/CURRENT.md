@@ -1,53 +1,54 @@
 # CURRENT
 
 ## 현재 날짜
-2026-06-17
+2026-06-18
 
 ## 현재 작업 중인 폴더/프로젝트
-- `/home/jh-bae/irony/nexus/apps/core` — 재사용 구독 매니저 완료, 공유 패키지 채우는 단계
+- `/home/jh-bae/irony/nexus/apps/core`
+- **worker 정체성 영속 한 바퀴 완료** (연결→마이그레이션→등록→저장→재접속, 동작 확인)
+- **supervisor는 임시 골격 상태** — 본격 작업은 "worker 파일 전송 모듈" 착수 시 (아래 supervisor 상태 참조)
 
-## 진행 상황
-- 프로젝트명 **Nexus** 확정
-- 이전 프로젝트(PortBridge / test-jig)에서 신규 방향으로 분리
-- vault 신규 구성 완료 (PortBridge UI/그룹/아이콘 로직 폐기, agent 통신 아키텍처만 계승)
-- **레이아웃 확정**: `apps/core`(Go) + `apps/web`(프론트, 미착수)
-- **git 레포 `nexus` 생성 + 초기 커밋 완료**
-- **apps/core 스캐폴딩 완료** (`go build ./...` OK, 두 바이너리 실행 확인)
-  - 단일 모듈 `nexus`, 멀티 cmd: `cmd/supervisor`, `cmd/worker`
-  - 공유 패키지: `internal/protocol`, `transport`, `execute` (현재 doc.go 스텁만)
-  - worker: SQLite(modernc 예정) / supervisor: PostgreSQL(pgx/v5)
-  - sqlc 두 엔진 설정 + 생성 확인 (workerdb / superdb)
-  - goose 마이그레이션 디렉토리 + 00001_init 스타터(settings / agents)
-  - 마이그레이션 도구 **goose** 채택
-- **재사용 구독 매니저 완료** (`internal/subscribe/manager.go`)
-  - 기존 PortBridge subscribeManager를 리팩터링해서 도메인 제거 + 일반화
-  - `Manager[C comparable]` — 키는 문자열만, 클라이언트는 제네릭
-  - 직렬화(marshal)/전송(send) 전략을 `NewManager`에서 1회 주입
-  - `Publish(key, payload)`: marshal 1번 → 락 밖 N번 전송, send 실패는 `errors.Join`으로 모아 반환(중단 안 함)
-  - `Subscribers(key) []C` 스냅샷 탈출구 제공
-  - worker main.go로 동작 테스트 완료 후 테스트 코드 제거
+## 진행 상황 (요약 — 상세는 HISTORY 2026-06-18)
+- 프로젝트 **Nexus** 분리, 모노레포 `apps/core`(Go) + `apps/web`(미착수), git 초기 커밋
+- apps/core 스캐폴딩 (단일 모듈, `cmd/supervisor`·`cmd/worker`), sqlc 두 엔진(workerdb/superdb), goose
+- **재사용 구독 매니저** `internal/subscribe/manager.go` (`Manager[C]`, 도메인 제거·일반화)
+- **요청/응답 프레임 (3층)**: `call.Correlator[R]`(엔진) + `protocol.Frame`(REQ/RES 봉투+어휘) + `transport.Conn`(Call/Handle/Serve). correlator=고정, protocol=어휘 추가, conn 위 Handle/Call로 동작
+- **등록(REGISTER) 핸드셰이크**: worker=Call / supervisor=Handle. 메인키·서브키 분리 — 내부 조회/active는 `메인키#서브키`, worker엔 서브키(숫자)만 반환. 4시나리오 검증
+- **worker SQLite 정체성 영속 완료**:
+  - `identity` 테이블(main_key PK, sub_key) + sqlc(GetIdentity/UpsertIdentity)
+  - `internal/worker/store/connectManager.go` — `StorePool`+`Transaction` 이식, **PRAGMA를 DSN `_pragma=` 옵션으로**(커넥션별 적용)
+  - goose 자동 마이그레이션(`migrate.go` + 임베드, InitStorePool 바깥 별도 단계, 멱등)
+  - `workerRouter.register()`가 GetIdentity→register→UpsertIdentity 배선
+  - 의존성: `modernc.org/sqlite`, `pressly/goose/v3`
 
 ## 결정 사항 (확정)
-- Go 모듈: 단일 `nexus`, 멀티 cmd
-- PG 드라이버: pgx/v5 (native 타입)
-- worker SQLite: 설정/메타데이터만 영속 (process는 메모리)
-- 마이그레이션: goose (스키마 단일 진실 = goose 마이그레이션 파일, sqlc가 이를 schema로 읽음)
+- Go 모듈: 단일 `nexus`, 멀티 cmd / PG: pgx/v5 / worker SQLite: 설정·메타데이터만 영속(process는 메모리)
+- 마이그레이션: goose (스키마 단일 진실 = 마이그레이션 파일, sqlc가 schema로 읽음)
+- **계층: 2단계 고정** — supervisor → worker만, 중간 노드 없음. 식별자/라우팅/구독 1홉 평면
+- **agent 식별자: 사전 지정 고유키(메인키)** — MAC 폐기. + supervisor가 접속 시 **서브키(숫자)** 부여해 인스턴스 구분. 저장/조회는 `메인키#서브키`
+- **process 영속성**: worker 휘발 / supervisor 영속(PG, 재시작 복구)
+- **worker 재연결 reconciliation**: 끊김→`Done(502)` 비관적 정리 / 재연결→worker가 live 스냅샷 보내 재동기화(정정). 미구현(supervisor 본격 작업 시)
 
 ## 컨셉 정리
 - **Worker Agent**: 본인 process 관리 (실행/모니터링/종료)
-- **Supervisor Agent**: 다수 worker agent 관리 (연결/상태/명령 분배)
-- 계승 자산: `IInteractive`/`AgentInteractive` 추상화, agent↔server 프로토콜, 구독/토픽 모델, SQLite/sqlc 학습
+- **Supervisor Agent**: 다수 worker 관리 (연결/상태/명령 분배)
+- 계승 자산: `IInteractive`/`AgentInteractive` 추상화, agent↔server 프로토콜, 구독/토픽 모델, SQLite/sqlc
+
+## supervisor 상태 (중요)
+- **supervisor는 현재 전부 "임시 로직"** (registry 메모리, REGISTER 핸들러 등 최소 구현). worker 흐름을 굴리기 위한 임시 골격.
+- **본격 작업은 "worker 파일 전송 모듈" 착수 시 시작.** (파일 전송 = PortBridge `UploadInit→Ready→Chunk→Status→Result` 계승 — PLAN-agent-comm.md). 그때 supervisor registry/구독/PG영속 제대로 구현.
 
 ## 다음 할 일
-1. supervisor 도메인 구독 계층: 키 구조체(`Key() string`) + `*transport.Client` 확정 + `NewManager` 전략 주입
-2. `internal/protocol` 메시지 타입 정의 (PLAN-agent-comm.md 기반)
-3. `internal/transport` WebSocket 연결/패킷 송수신 구현
-4. `internal/execute` IInteractive / AgentInteractive 구현
-5. worker DB 코드 작성 시 `modernc.org/sqlite` 의존성 추가 + goose 자동 적용
-6. 최소 동작 골격: supervisor 1 + worker 1 연결 → process 실행/스트리밍 PoC
-7. (이후) `apps/web` 프론트 착수 여부 결정
+1. **worker 파일 전송 모듈** 착수 → 이와 함께 supervisor 본격 구현 시작
+2. 도메인 MsgType + payload 확장 (STATUS/EXEC/KILL/OUTPUT/SNAPSHOT) — protocol에 어휘 추가
+3. supervisor registry 메모리→PG 영속화 (재시작 복구)
+4. supervisor 도메인 구독 계층: 키 구조체 + 클라이언트 타입(`*transport.Conn`?) + `subscribe.NewManager` 전략 주입
+5. `internal/execute` IInteractive/AgentInteractive를 transport.Conn 위에 연결 — 스트리밍 필요 시 EVENT 재도입
+6. 최소 동작 골격: supervisor 1 + worker 1 → process 실행/스트리밍 PoC
+7. (이후) `apps/web` 프론트 착수 여부
 
 ## 미해결 이슈 / 결정 필요
-- supervisor-worker 계층이 2단계 고정인지, N단계 트리인지
-- agent 식별자 체계 (이전엔 MAC 주소 — Nexus에선?)
-- process 영속성 범위 (worker 휘발 / supervisor 영속 유지할지)
+- 서브키 생성/충돌: 현재 숫자(전역 메모리 seq), 저장 `메인키#서브키` → supervisor 재시작 시 seq 리셋되면 옛 서브키와 충돌 가능. PG 영속 + 충돌 안 나는 생성(UUID 등) 검토
+- 발급 이력 미검증: 재접속은 active 아니면 통과(임의 서브키 위조 수락), 최초는 active 체크 건너뜀 → 선점된 미래 seq와 겹칠 수 있음. key↔subkey 매핑 저장·대조로 닫힘
+- 스냅샷 재동기화 프로토콜 메시지 정의 (재연결 시 worker→supervisor `SNAPSHOT` 포맷)
+- (참고) `NewWorkerRouter` defer/goroutine register 흐름, `serveErr` cap1 송신자 2개 누수 가능 — 미수정

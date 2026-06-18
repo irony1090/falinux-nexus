@@ -72,6 +72,15 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - `Subscribers(key) []C`: 특수 전송용 스냅샷 탈출구
 - 설계 원칙: **매니저 책임 = "문자열 키 → 구독 클라이언트 집합" 장부 + 동시성**, 그 외(키/직렬화/전송)는 프로젝트 몫
 
+### 요청/응답 상관관계 프레임 (`internal/call` + `protocol` + `transport`) — 구현 완료
+- 구 PortBridge `agentRouter.go`의 통증 해결: 요청·응답이 두 파일 switch에 흩어지고 짝 ID가 없어 추적 곤란 → 도메인 매니저 조회로 역추적하던 문제
+- **`call.Correlator[R]`**: "요청 ID → 응답 기다리는 채널" 장부 + 동시성만. send 주입, 응답 타입 R 자유. `Call(ctx,payload)`(블록)/`Resolve(id,val,err)`/`Close(err)`(전부 깨움). subscribe.Manager와 동일 철학(코어는 도메인/전송 모름)
+- **`protocol.Frame{Kind,ID,Type,Err,Data}`**: Kind=**REQ/RES** 로 요청/응답 프로토콜 레벨 구분. Data=json.RawMessage(자유 payload). REQ가 ID 채번 → RES가 반사
+- **`transport.Conn`**: `Call`(REQ→RES 블록)/`Handle`(REQ 핸들러)/`Serve`(수신 루프). supervisor·worker 양쪽 대칭 API. `MessageRW` 인터페이스에만 의존(gorilla `*websocket.Conn`이 그대로 만족)
+- 연결 끊김 시 `corr.Close(err)`로 매달린 Call 일괄 실패 = 앞서 정한 Done(502) reconciliation과 같은 정신
+- **예제**: 각 main에 supervisor(WS서버) ↔ worker(WS클라) 1요청→6응답. 동작 확인됨
+- **향후 확장**: 출력 스트리밍은 응답 없는 단방향이라 Call로 하면 안 됨 → EVENT(Kind 추가) + On/Emit 별도 평면으로 재도입 예정. 인메모리 테스트는 `transport.Pipe()` 패턴. (둘 다 이번에 만들었다가 예제 최소화로 제거, git 히스토리에 있음)
+
 ## 기술 스택 (확정)
 - **레포**: `nexus` (git 초기 커밋 완료)
 - **모노레포**: `apps/core`(Go) + `apps/web`(프론트, 미착수)
@@ -104,6 +113,14 @@ sqlc.yaml  README.md  .gitignore
 - **nullable Go 타입**: `sql.NullInt64`/`sql.NullString` → `.Valid`/`.Int64`/`.String` 접근
 - **sqlc 파라미터**: `sqlc.arg(name)` 필수, `sqlc.narg(name)` nullable. `?N` 번호와 unnamed `?` 혼용 금지
 - **process 영속성 설계**: 휘발성(메모리 manager) vs 영속성(DB) — agent는 휘발, 서버는 DB로 재시작 복구
+- **PRAGMA는 DSN `_pragma=`로 (중요)**: `foreign_keys`/`busy_timeout`은 비영구·커넥션별. 풀에서 `db.Exec("PRAGMA ...")`는 *커넥션 1개*에만 먹어 누락 발생 → modernc는 `sql.Open("sqlite","file?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)")`로 **매 커넥션 적용**. (journal_mode는 영구라 어느 쪽이든 OK)
+- **goose 멱등**: `goose_db_version` 테이블로 버전 추적 → `Up`은 미적용분만 적용(데이터 보존), 매 실행 호출 안전. **적용된 마이그레이션 파일 수정은 반영 안 됨** → 스키마 변경은 새 번호(00002_) 추가. 코드 자동적용은 `//go:embed`+`goose.SetBaseFS`+`goose.Up`
+- **context.WithTimeout = 생성 시점부터 절대 데드라인**: 한 ctx를 여러 작업이 공유하면 "각자 N초"가 아니라 "전체 N초". 독립 타임아웃 원하면 작업별로 새 ctx
+
+### worker store 자산 (`internal/worker/store/connectManager.go`) — 구현 완료
+- PortBridge `agentStore` 이식: `StorePool` 싱글턴(DB 1개) + `Transaction`(Begin/Commit/Rollback + AfterRelease 리스너)
+- `InitStorePool(dbFile, pragmas map[string]string)` (PRAGMA 옵션화) / `(s) Migrate(fsys, dir)`(goose, InitStorePool 바깥 별도 단계) / `Queries() *workerdb.Queries`
+- sqlc gen은 별도 패키지 `workerdb`(`internal/worker/db/gen`) → 참조는 `workerdb.New(DBTX)`(*sql.DB·*sql.Tx 모두 가능)
 
 ## 상세 reference
 → `PLAN-agent-comm.md` (agent↔server 통신/PTY 실행 상세)
