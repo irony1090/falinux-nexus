@@ -1,18 +1,27 @@
-// Command worker는 장치에 배포되어 자기 자신의 process를 관리하는 에이전트 진입점이다.
+// Command worker는 supervisor 서버에 접속하는 에이전트다.
+//
+// 등록 흐름:
+//   - 저장된 서브키가 없으면 → 고유키만 보내 최초 등록, 받은 서브키를 파일에 저장
+//   - 저장된 서브키가 있으면 → 고유키+서브키를 보내 재접속(재부팅 시나리오)
+//
+// 같은 고유키로 여러 worker를 띄워보려면 -store 를 다르게 주면 된다:
+//
+//	go run ./cmd/worker -key worker-A -store /tmp/w1.subkey
+//	go run ./cmd/worker -key worker-A -store /tmp/w2.subkey
 package main
 
 import (
 	_ "embed"
-	"fmt"
 	"log"
-	"net/http"
 	"net/url"
-	"nexus/cmd/supervisor/constants"
-	"nexus/internal/web"
 	"os"
 	"path/filepath"
 	"runtime"
-	"time"
+
+	"nexus/cmd/worker/constants"
+	"nexus/cmd/worker/router"
+	"nexus/internal/worker/db/migrations"
+	"nexus/internal/worker/store"
 )
 
 //go:embed env
@@ -20,47 +29,36 @@ var envContent string
 
 func init() {
 	initEnv()
+	env := constants.GetEnv()
+
+	mountStore(env.Sqlite)
+
 }
 
 func main() {
-	log.Println("nexus worker: starting (scaffold)")
-	// TODO: SQLite 연결 (modernc.org/sqlite, WAL) + goose 마이그레이션
-	// TODO: supervisor에 WebSocket 연결 (transport)
-	// TODO: process manager 초기화 (휘발성, 메모리 관리)
+	env := constants.GetEnv()
 
-	// mountWsClient()
+	u := url.URL{Scheme: env.WsScheme, Host: env.WsHost, Path: "/agent"}
+	_, errChan := router.NewWorkerRouter(u, env.Name, store.GetStorePool())
+
+	err := <-errChan
+	log.Printf("접속 종료 %v", err)
 }
 
-func mountWsClient() *web.WsClient {
-	env := constants.GetEnv()
-	host := env.ApiHost
-	u := url.URL{Scheme: env.WsScheme, Host: host, Path: fmt.Sprintf("/agents/%s", env.Name)}
-
-	log.Printf("[WSClient] Connecting to %s", u.String())
-	header := &http.Header{}
-	header.Set("MAC", env.Name)
-
-	c := web.NewWsClient(u, header)
-
-	c.Connect()
-
-	go func() {
-		for {
-			s, err := c.Status()
-			if err != nil {
-				log.Printf("[WSClient-%s-ERR] Connect To %s - %v\n", s, host, err)
-			} else {
-				log.Printf("[WSClient-%s] Connect To %s\n", s, host)
-			}
-
-			if s.IsDone() {
-				time.Sleep(5 * time.Second)
-				c.Connect()
-			}
-		}
-	}()
-
-	return c
+// mountStore는 worker SQLite를 열고(PRAGMA 옵션) goose 마이그레이션을 적용한다.
+// 마이그레이션 적용은 InitStorePool과 분리된 별도 단계(GetStorePool().Migrate).
+func mountStore(dbPath string) {
+	if err := store.InitStorePool(dbPath, map[string]string{
+		"journal_mode": "WAL",
+		"foreign_keys": "1",
+		"busy_timeout": "5000",
+	}); err != nil {
+		log.Fatalf("worker: DB 연결 실패 %v", err)
+	}
+	if err := store.GetStorePool().Migrate(migrations.FS, "."); err != nil {
+		log.Fatalf("worker: 마이그레이션 실패 %v", err)
+	}
+	log.Printf("worker: DB 준비됨 (%s)", dbPath)
 }
 
 func initEnv() {

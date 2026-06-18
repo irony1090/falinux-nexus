@@ -1,6 +1,7 @@
-# API 서버 URL
-
+# SUPERVISOR 정보
 WS_SCHEME="ws"
-API_HOST="localhost:5050"
+WS_HOST="localhost:8080"
+
+SQLITE="./worker-sqlite.db"
 
 NAME="irony-MAC-ADDress1"

@@ -19,8 +19,9 @@ var (
 type EnvVars struct {
 	IsDev       bool
 	Name        string `iniName:"NAME"`
-	ApiHost     string `iniName:"API_HOST"`
+	WsHost      string `iniName:"WS_HOST"`
 	WsScheme    string `iniName:"WS_SCHEME"`
+	Sqlite      string `iniName:"SQLITE"`
 	ProcessRoot string
 	ProjectDir  string
 	Ip          string
@@ -46,12 +47,12 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		}
 	}
 
-	apiHost := os.Getenv(("API_HOST"))
-	if apiHost == "" {
+	wsHost := os.Getenv(("WS_HOST"))
+	if wsHost == "" {
 		if isNil {
-			return nil, fmt.Errorf("환경변수 API_HOST 값 필수")
+			return nil, fmt.Errorf("환경변수 WS_HOST 값 필수")
 		} else {
-			apiHost = env.ApiHost
+			wsHost = env.WsHost
 		}
 	}
 
@@ -59,6 +60,15 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 	if wsScheme == "" {
 		if isNil {
 			return nil, fmt.Errorf("환경변수 WS_SCHEME 값 필수")
+		} else {
+			wsScheme = env.WsScheme
+		}
+	}
+
+	sqlite := os.Getenv(("SQLITE"))
+	if wsScheme == "" {
+		if isNil {
+			return nil, fmt.Errorf("환경변수 SQLITE 값 필수")
 		} else {
 			wsScheme = env.WsScheme
 		}
@@ -81,8 +91,9 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		}
 	}
 	env.Name = name
-	env.ApiHost = apiHost
+	env.WsHost = wsHost
 	env.WsScheme = wsScheme
+	env.Sqlite = pathToAbsolutePath(projectDir, sqlite)
 	// env.StaticDir = pathToAbsolutePath(projectDir, staticDir)
 	env.ProjectDir = projectDir
 	env.Ip = ip
