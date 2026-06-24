@@ -81,6 +81,59 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - **예제**: 각 main에 supervisor(WS서버) ↔ worker(WS클라) 1요청→6응답. 동작 확인됨
 - **향후 확장**: 출력 스트리밍은 응답 없는 단방향이라 Call로 하면 안 됨 → EVENT(Kind 추가) + On/Emit 별도 평면으로 재도입 예정. 인메모리 테스트는 `transport.Pipe()` 패턴. (둘 다 이번에 만들었다가 예제 최소화로 제거, git 히스토리에 있음)
 
+## 파일 전송 모듈 (구현 완료, e2e 미검증 — 2026-06-24)
+
+> supervisor→worker 단일 파일 전송. FileInit→FileChunk×N→FileResult(+FileAbort). 송신/수신 대칭 구조. 상세 HISTORY 2026-06-24.
+
+### 무결성 해시 (`transfer.Hash()`)
+- Hash = **원본 전체 sha256(hex 64자)**. 출력은 입력 크기 무관 고정(32B) → 와이어 부풀음 無, 비용은 선읽기 I/O뿐
+- 둘 다 **스트리밍 fd와 별개의 새 fd(`os.Open(name)`)로 풀읽기** → 커서·카운터·타이머 불간섭
+- `ReadFile.Hash()`: 원본 불변 → `sync.Once` 캐시, 락 불필요 / `SaveFile.Hash()`: 수신중 계속 변함 → **캐시 금지**, "완료 후 1회", `s.mu` 잡음. WriteAt 비순차/재전송/이어받기는 running hash로 못 다룸 → 결과 풀읽기가 정답
+- `SaveFile.Sync()` = rename 직전 fsync
+
+### 송신(SendFile) / 수신(핸들러) 패턴
+- 송신 래퍼 `fileSend{authKey,reader,cancel}` / 수신 래퍼 `fileRecv{save,hash,finalPath}` (FileResult 검증에 init의 hash·경로 필요한데 ResultReq엔 transferId만 실림)
+- 재시도: `maxSendAttempts=3` + backoff. 거부(errRejected)=즉시중단 / 그 외=재시도 / 초과=error
+- 이어받기: 받는 쪽이 `.part` stat으로 resumeOffset 결정 → 송신자 `SeekTo` 후 재개. 같은 transferId·destPath라 재부팅 후도 결정적
+- 수신 완성: **Completed(크기)→Hash일치→Sync→Close→Rename(.part→최종)**. 크기미달=part보존+resumable / hash불일치=part삭제+not resumable
+- traversal 차단: `Clean("/"+destPath)`로 선행 `..` 무력화 → `filepath.Rel(root,final)`로 루트 하위 재확인
+- 끊김 정리: conn 소속만 `FindAll(authKey==key)`로 reader Close (공유변수 X)
+
+### abort (cancel ctx 전파)
+- `SendFile`이 `WithCancel(Background)` ctx 생성→`fileSend.cancel` 저장, **per-call timeout을 이 ctx에서 파생**(Background 아님)해야 cancel이 진행 중 Call로 전파됨. 루프에 `ctx.Err()` 체크로 재시도 차단
+- `AbortFile`: cancel() + worker에 MsgFileAbort(best-effort). reader 정리는 SendFile defer Close가 전담(abort/정상/끊김 한 경로)
+
+### context.cancel 교훈
+- `cancel()`=ctx 타이머·parent등록 해제(연결과 무관). 안 불러도 Background자식은 timeout시 자동정리되나 **그때까지 쌓임** → **루프에선 defer 금지, Call 직후 즉시 cancel**(defer는 함수 끝까지 안 풀려 타이머 수천 개 누적)
+
+## 확정 결정 (불변 — 장기 유지)
+- **계층: 2단계 고정** (supervisor → worker, 중간 노드 없음. 식별자/라우팅/구독 1홉 평면)
+- **agent 식별자: 사전 지정 고유키(메인키)** + supervisor가 접속 시 부여하는 **서브키**. 저장/조회는 `메인키#서브키`(`InstanceKey()`). MAC 폐기
+- **process 영속성**: worker 휘발(메모리) / supervisor 영속(PG, 재시작 복구)
+- **재연결 reconciliation**: 끊김→`Done(502)` 비관적 정리 / 재연결→worker가 live 스냅샷 보내 재동기화. 미구현(supervisor 본격 작업 시)
+
+## 이번 세션 재사용 자산/교훈 (2026-06-19)
+
+### transport.Conn 수명 상태
+- `ConnState`(StateActive=0/StateClosed) + `State()` + `String()`. `atomic.Int32` 필드(zero=Active). Serve 수신루프 종료·Close에서 StateClosed 전이(둘 다 idempotent)
+- 도메인 무지·대칭 유지 — "연결이 살아있나"는 conn 속성, **신원(메인키#서브키)은 라우터 몫**(conn 아님)
+
+### `internal/util/string.util.go` — RandomKey
+- `RandomKey(length int, prefix, suffix string) (string, error)`: base62(`0-9A-Za-z`), length=prefix/suffix **포함** 전체 길이(결과 정확히 length), `crypto/rand`
+- 62는 256 약수 아님 → **거부 샘플링**(>=248 바이트 버림)으로 modulo 편향 제거 (hex 16이면 `b&0x0f`로 충분했음). 타입: `maxByte byte`, 인덱스 `b%byte(len(alphabet))`
+- 용도: 서브키 발급, transferId. `*.util.go`가 util 패키지 컨벤션
+
+### `internal/manager/KeyValManager` (PortBridge 이식)
+- 제네릭 `KeyValManager[K comparable, V any]`: 키→**단일 값** 장부 + `OnCreated`/`OnRemoved` 수명 콜백. `subscribe.Manager`(키→**집합**)와 역할 다름
+- **함정 4개**: ① `FindAll` predicate는 **락 안**에서 실행 → predicate서 매니저 재호출 금지(데드락) ② 콜백은 락 바깥(LIFO defer)이라 TOCTOU 가능 ③ `OnCreated/OnRemoved`는 동시사용 전 1회 세팅(동기화 없음) ④ `Append`는 키 존재 시 false → **반환값 꼭 확인**(무시하면 중복/경합이 조용히 묻힘)
+
+### Go 교훈: 포인터도 "값으로" 복사된다
+- 핸들러가 채운 값을 호출자가 보려면 **호출자가 실제 구조체를 들고 그 주소(`&val`)를 넘겨야** 함. `var p *T`(nil) 넘기고 핸들러가 `p`를 새 구조체로 재할당해도 **호출자 변수엔 안 보임**(포인터 변수 자체가 복사됐으므로) → supervisorRouter cleanup이 안 돌던 원인
+- 응용: 연결별 cleanup은 공유 변수 대신 **스코프의 `conn` 값으로** `FindAll(c==conn)` 하면 레이스·오삭제 둘 다 없앰
+
+### http 서버 구성
+- 패키지 전역 `http.HandleFunc`/`ListenAndServe(_,nil)`는 전역 `DefaultServeMux` 공유 → 라우팅 섞임·서버별 타임아웃/shutdown 불가. **명시적 `http.NewServeMux()` + `&http.Server{}`** 권장. `NewSupervisorRouter`가 mux 내부 생성 후 `*http.Server` 반환하는 형태로 정리됨
+
 ## 기술 스택 (확정)
 - **레포**: `nexus` (git 초기 커밋 완료)
 - **모노레포**: `apps/core`(Go) + `apps/web`(프론트, 미착수)
