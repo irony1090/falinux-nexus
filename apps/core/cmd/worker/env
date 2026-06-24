@@ -1,6 +1,6 @@
-# SUPERVISOR 정보
+# WORKER
 WS_SCHEME="ws"
-WS_HOST="localhost:8080"
+WS_HOST="localhost:5050"
 
 SQLITE="./worker-sqlite.db"
 

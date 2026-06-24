@@ -1,13 +1,5 @@
 // Command worker는 supervisor 서버에 접속하는 에이전트다.
-//
-// 등록 흐름:
-//   - 저장된 서브키가 없으면 → 고유키만 보내 최초 등록, 받은 서브키를 파일에 저장
-//   - 저장된 서브키가 있으면 → 고유키+서브키를 보내 재접속(재부팅 시나리오)
-//
-// 같은 고유키로 여러 worker를 띄워보려면 -store 를 다르게 주면 된다:
-//
-//	go run ./cmd/worker -key worker-A -store /tmp/w1.subkey
-//	go run ./cmd/worker -key worker-A -store /tmp/w2.subkey
+
 package main
 
 import (
@@ -39,7 +31,12 @@ func main() {
 	env := constants.GetEnv()
 
 	u := url.URL{Scheme: env.WsScheme, Host: env.WsHost, Path: "/agent"}
-	_, errChan := router.NewWorkerRouter(u, env.Name, store.GetStorePool())
+	_, errChan := router.NewWorkerRouter(
+		u,
+		env.Name,
+		env.ProcessRoot,
+		store.GetStorePool(),
+	)
 
 	err := <-errChan
 	log.Printf("접속 종료 %v", err)
