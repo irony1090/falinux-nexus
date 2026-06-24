@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"nexus/internal/call"
 	"nexus/internal/protocol"
@@ -14,6 +15,25 @@ import (
 
 // ErrClosed는 Conn이 닫힌 뒤의 동작에 반환된다.
 var ErrClosed = errors.New("transport: conn closed")
+
+// ConnState는 Conn의 수명 상태다(도메인 무관, supervisor·worker 대칭).
+type ConnState int32
+
+const (
+	StateActive ConnState = iota // 수신/송신 가능
+	StateClosed                  // 닫힘: Serve 종료 또는 Close 호출
+)
+
+func (s ConnState) String() string {
+	switch s {
+	case StateActive:
+		return "active"
+	case StateClosed:
+		return "closed"
+	default:
+		return "unknown"
+	}
+}
 
 // MessageRW는 Conn이 의존하는 최소 전송면이다.
 // gorilla *websocket.Conn이 그대로 만족한다.
@@ -34,6 +54,8 @@ type Conn struct {
 
 	mu       sync.RWMutex
 	handlers map[protocol.MsgType]Handler // REQ 핸들러
+
+	state atomic.Int32 // ConnState: 연결 수명 상태(zero=StateActive)
 
 	wmu       sync.Mutex // 쓰기 직렬화
 	closeOnce sync.Once
@@ -70,6 +92,11 @@ func (c *Conn) Handle(t protocol.MsgType, h Handler) {
 	c.mu.Unlock()
 }
 
+// State는 현재 연결 수명 상태를 반환한다.
+func (c *Conn) State() ConnState {
+	return ConnState(c.state.Load())
+}
+
 // Call은 요청을 보내고 짝 응답이 올 때까지 블록한다.
 // 응답이 Err를 담고 있으면 그 에러를 반환한다(모든 실패가 같은 통로).
 func (c *Conn) Call(ctx context.Context, t protocol.MsgType, data any) (protocol.Frame, error) {
@@ -81,7 +108,8 @@ func (c *Conn) Serve() error {
 	for {
 		_, raw, err := c.rw.ReadMessage()
 		if err != nil {
-			c.corr.Close(err) // 끊김 → 모든 대기 Call 실패
+			c.state.Store(int32(StateClosed)) // 수신 루프 종료 = 더는 활성 아님
+			c.corr.Close(err)                 // 끊김 → 모든 대기 Call 실패
 			return err
 		}
 
@@ -145,6 +173,7 @@ func (c *Conn) Close(err error) error {
 	}
 	var closeErr error
 	c.closeOnce.Do(func() {
+		c.state.Store(int32(StateClosed))
 		c.corr.Close(err)
 		closeErr = c.rw.Close()
 	})
