@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -18,9 +19,8 @@ var (
 // EnvVars는 자주 사용하는 환경 변수 값들을 저장하는 구조체
 type EnvVars struct {
 	IsDev       bool
-	Name        string `iniName:"NAME"`
-	ApiHost     string `iniName:"API_HOST"`
-	WsScheme    string `iniName:"WS_SCHEME"`
+	Port        int
+	AgentPath   string
 	ProcessRoot string
 	ProjectDir  string
 	Ip          string
@@ -37,30 +37,21 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		return nil, fmt.Errorf("[%s] 파일 로드 실패: %w", envPath, err)
 	}
 
-	name := os.Getenv(("NAME"))
-	if name == "" {
+	port, err := strconv.Atoi(os.Getenv("PORT"))
+	if err != nil {
 		if isNil {
-			return nil, fmt.Errorf("환경변수 NAME 값 필수")
+			port = 5050
 		} else {
-			name = env.Name
+			port = env.Port
 		}
 	}
 
-	apiHost := os.Getenv(("API_HOST"))
-	if apiHost == "" {
+	agentPath := os.Getenv("AGENT_PATH")
+	if agentPath == "" {
 		if isNil {
-			return nil, fmt.Errorf("환경변수 API_HOST 값 필수")
+			return nil, fmt.Errorf("환경변수 AGENT_PATH 값 필수")
 		} else {
-			apiHost = env.ApiHost
-		}
-	}
-
-	wsScheme := os.Getenv(("WS_SCHEME"))
-	if wsScheme == "" {
-		if isNil {
-			return nil, fmt.Errorf("환경변수 WS_SCHEME 값 필수")
-		} else {
-			wsScheme = env.WsScheme
+			agentPath = env.AgentPath
 		}
 	}
 
@@ -80,9 +71,8 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 			ProcessRoot: os.TempDir(),
 		}
 	}
-	env.Name = name
-	env.ApiHost = apiHost
-	env.WsScheme = wsScheme
+	env.Port = port
+	env.AgentPath = agentPath
 	// env.StaticDir = pathToAbsolutePath(projectDir, staticDir)
 	env.ProjectDir = projectDir
 	env.Ip = ip
