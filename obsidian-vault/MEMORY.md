@@ -79,7 +79,17 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - **`transport.Conn`**: `Call`(REQ→RES 블록)/`Handle`(REQ 핸들러)/`Serve`(수신 루프). supervisor·worker 양쪽 대칭 API. `MessageRW` 인터페이스에만 의존(gorilla `*websocket.Conn`이 그대로 만족)
 - 연결 끊김 시 `corr.Close(err)`로 매달린 Call 일괄 실패 = 앞서 정한 Done(502) reconciliation과 같은 정신
 - **예제**: 각 main에 supervisor(WS서버) ↔ worker(WS클라) 1요청→6응답. 동작 확인됨
-- **향후 확장**: 출력 스트리밍은 응답 없는 단방향이라 Call로 하면 안 됨 → EVENT(Kind 추가) + On/Emit 별도 평면으로 재도입 예정. 인메모리 테스트는 `transport.Pipe()` 패턴. (둘 다 이번에 만들었다가 예제 최소화로 제거, git 히스토리에 있음)
+- **확장 완료**: EVENT 평면(아래) + `transport.Pipe()` 재구현됨(2026-06-25). ※ 이전 메모의 "git 히스토리에 있음"은 **오류** — 작업 트리에서만 만들었다 커밋 전 삭제라 복구 불가였고, 새로 작성함
+
+### EVENT 평면 (단방향 1:N, `protocol`+`transport`) — 구현 완료 (2026-06-25)
+- REQ/RES(제어, 1:1, Call 블록)와 대칭인 **데이터 평면**: 짝 없는 단방향(`Emit` 즉시리턴 / `On` 핸들러). 용도=출력 스트리밍(MsgData), STATUS 푸시. **Correlator 안 거침**
+- `protocol`: `EVENT` Kind + `NewEvent(t,data)`(ID 미채번). Frame 구조 불변(Kind 분기만)
+- `transport.Conn`: `On`(핸들러 등록)/`Emit`(=`write`만)/`dispatch()`(전용 goroutine). streamID는 **payload**에 (transport 도메인 무지 유지, Frame.ID는 REQ 전용)
+- **순서 보존 체인**: 송신 `wmu` 직렬화 → Serve 순차 push → **단일 dispatch goroutine** 순차 호출 = stdout 순서 end-to-end 보존. (REQ는 `go dispatchReq`라 순서 무관, EVENT는 순차 필수)
+- **결정 1(안전종료)**: `events` 채널 **절대 close 안 함** → `Close`에서 `close(done)`만. Serve push는 `select{events<-f; <-done}` 가드 → 끊김 순간 send-to-closed 패닉 차단. transfer의 `done` 패턴 재사용
+- **결정 2(수명계약)**: dispatch는 `New`서 1회 시작, `Close`(owner=라우터)서 종료. 새 부담 아님(rw.Close 때문에 어차피 Close 호출). 안 부르면 goroutine 누수
+- backpressure: `events` 버퍼(256) 차면 Serve 블록(=느린 구독자 신호). On(DATA) 핸들러는 "버퍼 push/forward"라 빨라야 정상
+- `transport.Pipe()`: 인메모리 양방향 MessageRW(한쪽 Close→공유 closed로 양쪽 깨움). 테스트: Emit×1000 순서+개수 / REQ·EVENT 혼류 무간섭, 둘 다 `-race` 통과
 
 ## 파일 전송 모듈 (구현 완료, e2e 미검증 — 2026-06-24)
 

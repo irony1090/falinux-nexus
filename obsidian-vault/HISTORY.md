@@ -5,6 +5,39 @@
 
 ## 과거 작업 기록
 
+### 2026-06-25 - EVENT 평면(단방향 데이터 평면) 재구현 (구현 완료, `-race` 통과)
+
+> 상태: **transport 레벨 EVENT(Emit/On) 평면 골격 완료. `go build ./...`/`go vet ./...`/`go test -race` 전부 통과.** process 출력 스트리밍 토대. 도메인 배선(MsgData/MsgStatus)은 process 모듈에서.
+
+#### 배경 / 정정
+- process 출력 스트리밍은 **응답 없는 단방향(1:N)** → REQ/RES(Correlator=ID→대기채널 1:1) 평면에 안 맞음 → 별도 EVENT 평면 필요
+- vault에 "전에 만들었다 제거, git 히스토리에 있음"이라 적혀 있었으나 **확인 결과 커밋엔 없음**(작업트리에서만 만들었다 커밋 전 삭제). `-S Emit/EVENT`·reflog·dangling·stash 전부 빈 결과 → 복구 불가라 **새로 작성**
+
+#### 설계 결정 (사용자와 C안 합의)
+- 디스패치 전략 3안 중 **C(전용 dispatch goroutine + 버퍼채널)** 채택: A(go마다)=순서깨짐 / B(Serve 동기)=느린핸들러가 수신루프(RES포함) 막음·콜백 데드락 / **C=순서보존+비차단**
+- **결정 1(안전종료)**: `events` 채널 절대 close 안 함 → `Close`에서 `close(done)`만. 닫는 주체(Close=다른 goroutine)와 보내는 주체(Serve)가 달라 `close(events)`면 send-to-closed 패닉. Serve push를 `select{events<-f; <-done}`로 가드. transfer 모듈 `done` 패턴 재사용
+- **결정 2(수명계약)**: dispatch goroutine은 `New`서 1회 시작(단일 시작점=race 없음), `Close`(owner=라우터)서 종료. rw.Close 때문에 owner는 어차피 Close 호출 → 새 부담 아님. 안 부르면 누수
+- streamID는 **payload**에 둠(Frame.ID는 REQ 채번 전용, transport 도메인 무지 유지)
+
+#### 작업 완료
+- `internal/protocol/protocol.go`: `EVENT` Kind + `NewEvent(t,data)`(ID 미채번). Frame 구조 불변
+- `internal/transport/conn.go`: `EventHandler` 타입, `on` 맵·`events`/`done` 채널·`eventBufferSize=256`, `New`서 `go c.dispatch()`, `On`/`Emit`(=write만), `dispatch()`(select{done; events}→핸들러 순차호출, 미등록 무시), `Serve` EVENT 분기(done 가드), `Close` `close(done)`
+- 신규 `internal/transport/pipe.go`: 인메모리 양방향 MessageRW. 공유 `closed`+`sync.Once`로 한쪽 Close→양쪽 Read/Write 깨움. WriteMessage는 버퍼 복사(aliasing 방지)
+- 신규 `internal/transport/conn_test.go`: ①Emit×1000 순서+개수 ②REQ/RES·EVENT 혼류 무간섭(EVENT 폭주 중 Call 정상응답). 둘 다 `-race` 통과
+- Go 1.26 idiom: `for i := range n`로 모던화(lint 반영)
+
+#### 순서 보존 체인 (핵심)
+- 송신 `wmu` 직렬화 → 와이어 순서 = Serve 수신 순서 → Serve가 순서대로 `events` push → **단일 dispatch goroutine**이 하나씩 호출 = stdout 청크 순서 end-to-end 보존. (REQ가 `go dispatchReq`인 건 순서 무관해서, EVENT는 순차 필수라 대비)
+
+#### 의도적 트레이드오프
+- Close 시 `events` 버퍼 잔여분 **버림**(drain 안 함) = drop-on-disconnect = Done(502) 비관적 정리 정신
+- backpressure가 RES 배달에 영향: `events` 꽉 차 Serve 블록 시 RES도 잠시 못 읽음. 단 On(DATA) 핸들러는 버퍼push/forward라 빨라야 정상(느리면 설계결함 신호), 버퍼256이면 현실적 안 닿음
+
+#### 다음 (process 모듈)
+- MsgData(stdout/stderr)·MsgStatus(RUNNING/STOPPED+ExitCode) payload 정의(streamID 포함) → worker `Emit`/supervisor `On` → `AgentInteractive.PushOutput`/`Done(exitCode)` 배선
+
+---
+
 ### 2026-06-24 - 파일 전송 모듈 본체 + abort 구현 (구현 완료, e2e 미검증)
 
 > 상태: **SendFile→완료까지 한 바퀴 + 이어받기 + hash검증 + 재시도 + abort 전부 구현. `go build ./...`/`go vet` 통과. 2프로세스 실제 전송 e2e는 아직 안 돌림.**
@@ -133,7 +166,7 @@
 - `internal/call/correlator.go` — 제네릭 `Correlator[R]`: nextID 채번 + `waiters[id]→chan` 장부 + 동시성. `Call(ctx,payload)`(블록)/`Resolve(id,val,err)`/`Close(err)`(전부 깨움). send 전략 주입. **uint64 nextID는 wrap 안전 → 별도 처리 안 함으로 결정**
 - `internal/protocol/protocol.go` — `Frame{Kind,ID,Type,Err,Data}` 봉투. Kind=REQ/RES. Data=json.RawMessage(자유). `NewRequest/NewResponse/NewError/Encode/Decode/Bind`
 - `internal/transport/conn.go` — `Conn`: `Call`/`Handle`/`Serve`. `MessageRW` 인터페이스(gorilla `*websocket.Conn`이 그대로 만족). 끊김 시 `corr.Close`로 매달린 Call 일괄 정리
-- (한때 만들었다 제거: `transport/pipe.go` 인메모리, EVENT On/Emit, `*_test.go` 2개 — 예제 최소화 요청. git 히스토리에 있음)
+- (한때 만들었다 제거: `transport/pipe.go` 인메모리, EVENT On/Emit, `*_test.go` 2개 — 예제 최소화 요청. ※ **커밋 전 작업트리에서만 삭제라 git엔 없었음** — 2026-06-25 새로 재구현)
 
 #### 작업 완료 — 등록 핸드셰이크
 - `internal/protocol/messages.go` — `MsgRegister` + `RegisterRequest{Key,SubKey}` / `RegisterResponse{SubKey}`

@@ -1,9 +1,14 @@
 # CURRENT
 
 ## 현재 날짜
-2026-06-24
+2026-06-25
 
-## 직전 완료: 파일 전송 모듈 (supervisor → worker) — 구현 완료 / e2e 미검증
+## 직전 완료: EVENT 평면 (transport) — 구현 완료, `-race` 테스트 통과
+- REQ/RES와 대칭인 단방향 데이터 평면(`Emit`/`On`) 구현. process 출력 스트리밍 토대. 상세는 MEMORY "EVENT 평면" + HISTORY 2026-06-25
+- 관련 파일: `internal/protocol/protocol.go`(EVENT/NewEvent), `internal/transport/conn.go`(On/Emit/dispatch), 신규 `transport/pipe.go`·`conn_test.go`
+- 결정 C 채택: 전용 dispatch goroutine + 버퍼채널(256) → 순서 보존 + 비차단. 결정1(events close 안 함, done으로 종료)·결정2(New 시작/Close 종료) 적용
+
+## 이전 완료: 파일 전송 모듈 (supervisor → worker) — 구현 완료 / e2e 미검증
 - 송신/수신 한 바퀴 + 이어받기(resume) + sha256 무결성 검증 + 재시도(3회) + abort 전부 구현
 - `go build ./...` / `go vet` 통과. **2프로세스 실제 전송·이어받기·abort 스모크는 아직 안 돌림.**
 - 상세는 HISTORY 2026-06-24 참조. 관련 파일:
@@ -11,11 +16,11 @@
   - `cmd/supervisor/router/supervisorRouter.go` — SendFile/sendOnce/AbortFile + fileSend
   - `cmd/worker/router/workerRouter.go` — fileInit/fileChunk/fileResult/fileAbort + fileRecv
 
-## 다음 작업 (내일~): process 실행 모듈
+## 다음 작업: process 실행 모듈
 - worker agent의 핵심 = 자기 프로세스 실행/모니터링/종료 (PTY)
 - 계승 자산(MEMORY): `IInteractive` 인터페이스, `*Interactive`(로컬 PTY)/`*AgentInteractive`(원격 래퍼), 실행 흐름(ExecPayload→RUNNING→Done(exitCode))
 - 메시지 어휘 확장 필요: `MsgExec`/`MsgData`(input·output)/`MsgResize`/`MsgKill`/`MsgStatus`(RUNNING/STOPPED+ExitCode)
-- **출력 스트리밍은 응답 없는 단방향** → 현재 REQ/RES 평면으로는 부적합. **EVENT(Kind 추가)+On/Emit 별도 평면 재도입** 검토 (전에 만들었다 예제 최소화로 제거, git 히스토리에 있음)
+- **EVENT 평면 골격은 완료** → 남은 건 도메인 배선: MsgData/MsgStatus payload 정의(streamID 포함) → worker `Emit`/supervisor `On` → `AgentInteractive.PushOutput`/`Done` 연결
 
 ## 전송 모듈 마무리 잔여 (process 작업 전/중 정리)
 1. **e2e 스모크 테스트** — supervisor+worker 띄워 SHA256SUMS 전송 → 이어받기(중간 끊고 재접속) → abort 확인
