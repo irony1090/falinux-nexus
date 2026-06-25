@@ -1,9 +1,13 @@
-package execute
+// Package pty는 로컬 PTY 기반 process 실행(Linux 전용)을 제공한다.
+// 이식 가능한 execute 패키지(IInteractive·AgentInteractive·CommandStatus)와 분리되어,
+// supervisor 등 비-Linux 빌드가 execute만 import할 수 있게 한다.
+package pty
 
 import (
 	"bytes"
 	"context"
 	"fmt"
+	"nexus/internal/execute"
 	"nexus/internal/syncProcess"
 	"nexus/internal/util"
 	"os"
@@ -11,6 +15,9 @@ import (
 	"syscall"
 	"unsafe"
 )
+
+// 컴파일 시 *Interactive가 execute.IInteractive를 만족하는지 확인.
+var _ execute.IInteractive = (*Interactive)(nil)
 
 // openPty는 Linux에서 PTY master/slave를 생성합니다
 func openPty() (master *os.File, slave *os.File, err error) {
@@ -57,7 +64,7 @@ func openPty() (master *os.File, slave *os.File, err error) {
 type Interactive struct {
 	Error    error
 	exitCode int
-	status   *syncProcess.SyncData[CommandStatus]
+	status   *syncProcess.SyncData[execute.CommandStatus]
 	ouput    *syncProcess.SyncData[[]byte]
 	input    *syncProcess.SyncData[[]byte]
 	master   *os.File
@@ -72,10 +79,10 @@ func (i *Interactive) Kill() error {
 }
 
 func (i *Interactive) setStatusPending() {
-	i.status.Push(CommandPending)
+	i.status.Push(execute.CommandPending)
 }
 func (i *Interactive) setStatusProcess() {
-	i.status.Push(CommandProcess)
+	i.status.Push(execute.CommandProcess)
 }
 func (i *Interactive) setStatusCompleted(exitCode int, err error) {
 	defer i.status.Close()
@@ -85,15 +92,15 @@ func (i *Interactive) setStatusCompleted(exitCode int, err error) {
 	i.Error = err
 	i.exitCode = exitCode
 	if exitCode == 0 {
-		i.status.Push(CommandCompleted)
+		i.status.Push(execute.CommandCompleted)
 	} else {
-		i.status.Push(CommandFailed)
+		i.status.Push(execute.CommandFailed)
 	}
 
 }
 
 // Status 명령어 상태 조회. 데이터 없으면 상태가 올 때까지 대기
-func (i *Interactive) Status() (CommandStatus, int, error) {
+func (i *Interactive) Status() (execute.CommandStatus, int, error) {
 	sts, _ := i.status.Shift()
 	return sts, i.exitCode, i.Error
 }
@@ -127,7 +134,7 @@ func (i *Interactive) Layout(cols, rows uint16) syscall.Errno {
 	return errNo
 }
 
-func (i *Interactive) Rfresh() error {
+func (i *Interactive) Refresh() error {
 	i.Write([]byte{0x0c})
 	// err := syscall.Kill(-i.cmd.Process.Pid, syscall.SIGWINCH)
 	// log.Printf("REFRESH~ %v", err)
@@ -163,7 +170,7 @@ func ExecInteractive(ctx context.Context, command string, args ...string) (*Inte
 
 	interactive := &Interactive{
 		exitCode: -1,
-		status:   syncProcess.NewSyncData([]CommandStatus{}),
+		status:   syncProcess.NewSyncData([]execute.CommandStatus{}),
 		ouput:    syncProcess.NewSyncData([][]byte{}),
 		input:    syncProcess.NewSyncData([][]byte{}),
 		master:   master,

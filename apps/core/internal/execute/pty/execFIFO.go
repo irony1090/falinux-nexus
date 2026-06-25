@@ -1,9 +1,10 @@
-package execute
+package pty
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"nexus/internal/execute"
 	"nexus/internal/syncProcess"
 	"os"
 	"os/user"
@@ -15,7 +16,7 @@ type Fifo struct {
 	id     string
 	path   string
 	output *syncProcess.SyncData[[]byte]
-	status *syncProcess.SyncData[CommandStatus]
+	status *syncProcess.SyncData[execute.CommandStatus]
 
 	err error
 
@@ -41,14 +42,14 @@ func (f *Fifo) pending() {
 	err := f.createFifo()
 	// log.Printf("생성 %v", err)
 	f.output = syncProcess.NewSyncData([][]byte{})
-	f.status = syncProcess.NewSyncData([]CommandStatus{})
+	f.status = syncProcess.NewSyncData([]execute.CommandStatus{})
 	f.done = make(chan struct{}) // 완료 채널 초기화
 	if err == nil {
 		f.err = nil
-		f.status.Push(CommandPending)
+		f.status.Push(execute.CommandPending)
 	} else {
 		f.err = err
-		f.status.Push(CommandFailed)
+		f.status.Push(execute.CommandFailed)
 	}
 }
 
@@ -83,10 +84,10 @@ func (f *Fifo) process() {
 			}
 		}
 		f.complete(nil)
-		// f.status.Push(CommandCompleted)
+		// f.status.Push(execute.CommandCompleted)
 	}()
 
-	f.status.Push(CommandProcess)
+	f.status.Push(execute.CommandProcess)
 }
 
 func (f *Fifo) complete(err error) {
@@ -103,9 +104,9 @@ func (f *Fifo) complete(err error) {
 		f.err = err
 	}
 	if f.err == nil {
-		f.status.Push(CommandCompleted)
+		f.status.Push(execute.CommandCompleted)
 	} else {
-		f.status.Push(CommandFailed)
+		f.status.Push(execute.CommandFailed)
 	}
 
 	f.output.Close()
@@ -133,9 +134,9 @@ func (f *Fifo) Kill() error {
 	return err
 }
 
-func (f *Fifo) Status() (CommandStatus, error) {
+func (f *Fifo) Status() (execute.CommandStatus, error) {
 	if f.done == nil {
-		return CommandPending, fmt.Errorf("fifo not connected")
+		return execute.CommandPending, fmt.Errorf("fifo not connected")
 	}
 
 	sts, _ := f.status.Shift()
@@ -168,9 +169,9 @@ func (f *Fifo) Write(data []byte) error {
 func (f *Fifo) Path() string {
 	return f.path
 }
-func (f *Fifo) GetStatus() CommandStatus {
+func (f *Fifo) GetStatus() execute.CommandStatus {
 	if f.done == nil {
-		return CommandPending
+		return execute.CommandPending
 	}
 	return f.status.Last()
 }
@@ -194,6 +195,6 @@ func NewFifo(id string, closeBytes []byte) *Fifo {
 		path:       fifoPath,
 		closeBytes: closeBytes,
 		// output:     syncProcess.NewSyncData([][]byte{}),
-		// status:     syncProcess.NewSyncData([]CommandStatus{}),
+		// status:     syncProcess.NewSyncData([]execute.CommandStatus{}),
 	}
 }

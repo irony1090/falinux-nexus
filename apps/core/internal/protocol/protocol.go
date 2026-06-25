@@ -19,7 +19,7 @@ type MsgType string
 // Data(payload)는 json.RawMessage라 어떤 요청/응답 데이터든 자유롭게 실린다.
 type Frame struct {
 	Kind Kind            `json:"k"`
-	ID   uint64          `json:"id"`          // REQ가 채번, RES가 반사
+	ID   uint64          `json:"id"` // REQ가 채번, RES가 반사
 	Type MsgType         `json:"t"`
 	Err  string          `json:"e,omitempty"` // RES 전용: 비어있지 않으면 실패
 	Data json.RawMessage `json:"d,omitempty"`

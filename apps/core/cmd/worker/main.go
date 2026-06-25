@@ -51,6 +51,7 @@ func main() {
 		res := <-done // 세션 종료까지 대기(끊김/등록실패)
 		if res.Reached {
 			backoff.Reset() // 정상 가동했었으면 다음 재시도는 짧게
+			log.Printf("접속 성공 worker -> supervisor")
 		}
 		log.Printf("세션 종료(reached=%v) %v", res.Reached, res.Err)
 		time.Sleep(backoff.Next())

@@ -9,6 +9,12 @@ import (
 	"sync"
 )
 
+// 개행 시퀀스(줄 파싱용). pty 패키지의 동명 변수와 독립이다(분리 후 각자 보유).
+var (
+	rn = []byte("\r\n")
+	nr = []byte("\n\r")
+)
+
 type CommandStatus uint
 
 const (

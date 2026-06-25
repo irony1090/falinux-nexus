@@ -1,6 +1,10 @@
 package protocol
 
-import "fmt"
+import (
+	"fmt"
+
+	"nexus/internal/execute"
+)
 
 // 이 파일은 Nexus 도메인 메시지(어휘)를 모은다.
 // 봉투(Frame/Kind)는 protocol.go에 있고, 여기엔 "무엇을 주고받는지"만 정의한다.
@@ -150,41 +154,12 @@ type KillRequest struct {
 	UID string `json:"uid"`
 }
 
-// ProcStatus는 process 수명 상태다(와이어용).
-// ★ 값은 execute.CommandStatus와 동일하게 유지해야 한다(경계에서 단순 캐스트로 변환).
-//
-//	execute.CommandStatus: Pending=0 / Process=1 / Completed=2 / Failed=3
-type ProcStatus uint
-
-const (
-	ProcPending   ProcStatus = iota // 0: 시작 전(보통 와이어로는 안 나감)
-	ProcRunning                     // 1: 실행 중 (= CommandProcess)
-	ProcCompleted                   // 2: 정상 종료 (exitCode 0)
-	ProcFailed                      // 3: 비정상 종료 (exitCode != 0)
-)
-
-func (s ProcStatus) IsDone() bool { return s == ProcCompleted || s == ProcFailed }
-
-func (s ProcStatus) String() string {
-	switch s {
-	case ProcPending:
-		return "PENDING"
-	case ProcRunning:
-		return "RUNNING"
-	case ProcCompleted:
-		return "COMPLETED"
-	case ProcFailed:
-		return "FAILED"
-	default:
-		return "UNKNOWN"
-	}
-}
-
 // StatusEvent: process 상태 변화 통보. (MsgStatus EVENT, worker→sup)
-// PID는 RUNNING 시 채워진다(worker OS pid, 보고 전용). ExitCode는 Done(Completed/Failed) 시에만 유효.
+// Status는 execute.CommandStatus를 그대로 사용한다(execute가 이식 가능해져 미러 불필요).
+// PID는 PROCESS(시작) 시 채워진다(worker OS pid, 보고 전용). ExitCode는 종료(Completed/Failed) 시에만 유효.
 type StatusEvent struct {
-	UID      string     `json:"uid"`
-	Status   ProcStatus `json:"status"`
-	PID      int        `json:"pid,omitempty"` // 0 = 아직 모름
-	ExitCode int        `json:"exitCode"`      // Completed/Failed 시에만 의미(0이 정상종료라 omitempty 금지)
+	UID      string                `json:"uid"`
+	Status   execute.CommandStatus `json:"status"`
+	PID      int                   `json:"pid,omitempty"` // 0 = 아직 모름
+	ExitCode int                   `json:"exitCode"`      // Completed/Failed 시에만 의미(0이 정상종료라 omitempty 금지)
 }
