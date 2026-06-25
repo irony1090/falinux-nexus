@@ -95,3 +95,96 @@ type FileAbortRequest struct {
 	TransferID string `json:"transferId"`
 	Reason     string `json:"reason,omitempty"`
 }
+
+// ===== process 실행 (supervisor ↔ worker) =====
+//
+// 제어(REQ/RES): MsgExec / MsgResize / MsgKill — 성패 응답 필요.
+// 스트림(EVENT): MsgData(입력·출력 양방향) / MsgStatus(worker→sup) — 짝 응답 없음.
+// 모든 메시지는 UID로 한 process를 가리킨다. UID는 initiator(보통 supervisor)가 발급하는
+// 시스템 전체 식별자고, 실제 OS PID와는 별개다(PID는 worker 로컬, StatusEvent로 보고된다).
+const (
+	MsgExec   MsgType = "EXEC"   // sup→worker REQ: ProcessSpec → ExecResponse
+	MsgData   MsgType = "DATA"   // EVENT 양방향: 입력(sup→worker) / 출력(worker→sup)
+	MsgResize MsgType = "RESIZE" // sup→worker REQ: ResizeRequest → 빈 응답
+	MsgKill   MsgType = "KILL"   // sup→worker REQ: KillRequest → 빈 응답
+	MsgStatus MsgType = "STATUS" // worker→sup EVENT: StatusEvent
+)
+
+// ProcessSpec: 실행 명세. (MsgExec REQ)
+// UID는 initiator가 발급(RandomKey). 와이어 데이터라 execute가 아닌 여기(protocol)에 둔다
+// — execute는 Linux 전용(PTY ioctl)이므로 protocol/transport의 이식성을 위해 분리.
+type ProcessSpec struct {
+	UID  string   `json:"uid"`
+	Cmd  string   `json:"cmd"`
+	Args []string `json:"args,omitempty"`
+	Cwd  string   `json:"cwd,omitempty"`
+	Env  []string `json:"env,omitempty"`  // "KEY=VALUE" 형식
+	Rows uint16   `json:"rows,omitempty"` // 초기 터미널 창 크기
+	Cols uint16   `json:"cols,omitempty"`
+}
+
+// ExecResponse: 실행 수락/거부. (MsgExec RES)
+// 수락 후 실제 RUNNING(+PID)은 별도 MsgStatus(EVENT)로 비동기 통보된다.
+type ExecResponse struct {
+	Accept bool   `json:"accept"`
+	Reason string `json:"reason,omitempty"`
+}
+
+// DataEvent: 입출력 바이트. (MsgData EVENT, 양방향)
+// 보내는 쪽에 따라 입력(sup→worker)/출력(worker→sup)이 결정된다(받는 쪽 On 핸들러가 구분).
+// Data는 Frame.Data(json) 봉투라 base64로 인코딩되어 나간다.
+type DataEvent struct {
+	UID  string `json:"uid"`
+	Data []byte `json:"data"`
+}
+
+// ResizeRequest: 터미널 창 크기 변경. (MsgResize REQ) → Interactive.Layout 매핑.
+type ResizeRequest struct {
+	UID  string `json:"uid"`
+	Rows uint16 `json:"rows"`
+	Cols uint16 `json:"cols"`
+}
+
+// KillRequest: process 종료. (MsgKill REQ)
+type KillRequest struct {
+	UID string `json:"uid"`
+}
+
+// ProcStatus는 process 수명 상태다(와이어용).
+// ★ 값은 execute.CommandStatus와 동일하게 유지해야 한다(경계에서 단순 캐스트로 변환).
+//
+//	execute.CommandStatus: Pending=0 / Process=1 / Completed=2 / Failed=3
+type ProcStatus uint
+
+const (
+	ProcPending   ProcStatus = iota // 0: 시작 전(보통 와이어로는 안 나감)
+	ProcRunning                     // 1: 실행 중 (= CommandProcess)
+	ProcCompleted                   // 2: 정상 종료 (exitCode 0)
+	ProcFailed                      // 3: 비정상 종료 (exitCode != 0)
+)
+
+func (s ProcStatus) IsDone() bool { return s == ProcCompleted || s == ProcFailed }
+
+func (s ProcStatus) String() string {
+	switch s {
+	case ProcPending:
+		return "PENDING"
+	case ProcRunning:
+		return "RUNNING"
+	case ProcCompleted:
+		return "COMPLETED"
+	case ProcFailed:
+		return "FAILED"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// StatusEvent: process 상태 변화 통보. (MsgStatus EVENT, worker→sup)
+// PID는 RUNNING 시 채워진다(worker OS pid, 보고 전용). ExitCode는 Done(Completed/Failed) 시에만 유효.
+type StatusEvent struct {
+	UID      string     `json:"uid"`
+	Status   ProcStatus `json:"status"`
+	PID      int        `json:"pid,omitempty"` // 0 = 아직 모름
+	ExitCode int        `json:"exitCode"`      // Completed/Failed 시에만 의미(0이 정상종료라 omitempty 금지)
+}
