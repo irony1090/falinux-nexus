@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -25,6 +26,11 @@ import (
 // recvExpire는 청크 사이 idle 허용 시간이다. 초과하면 SaveFile이 닫히지만
 // .part는 디스크에 남아(이어받기 가능) saves 맵에서만 빠진다.
 const recvExpire = 60 * time.Second
+
+type Result struct {
+	Reached bool
+	Err     error
+}
 
 // fileRecv는 수신 중인 한 전송 세션의 상태다.
 // FileResult 검증은 FileInit에서 받은 hash가 필요한데, FileResultRequest엔
@@ -44,17 +50,27 @@ type workerRouter struct {
 
 	mu     sync.RWMutex // subKey 보호(register 고루틴이 쓰고 핸들러가 읽음)
 	subKey string
+
+	reached atomic.Bool // register 성공(정상 가동) 여부. register가 쓰고 Serve 종료 경로가 읽음
 }
 
-func NewWorkerRouter(supervisor url.URL, uniqueKey, baseDir string, store *store.StorePool) (*transport.Conn, chan error) {
+func NewWorkerRouter(supervisor url.URL, uniqueKey, baseDir string, store *store.StorePool) (<-chan Result, error) {
 
 	ws, _, err := websocket.DefaultDialer.Dial(supervisor.String(), nil)
 	if err != nil {
-		log.Fatalf("worker: 연결 실패 %v", err)
+		// log.Fatalf("worker: 연결 실패 %v", err)
+		return nil, err
 	}
 	conn := transport.New(ws)
-	serveErr := make(chan error, 1)
-	go func() { serveErr <- conn.Serve() }() // 응답 수신용
+
+	done := make(chan Result, 1)
+	var once sync.Once
+	finish := func(r Result) {
+		once.Do(func() {
+			done <- r
+			conn.Close(r.Err)
+		})
+	}
 
 	router := &workerRouter{
 		conn:      conn,
@@ -64,19 +80,24 @@ func NewWorkerRouter(supervisor url.URL, uniqueKey, baseDir string, store *store
 		saves:     manager.NewKeyValManager[string, *fileRecv](),
 	}
 
+	// 핸들러는 Serve(수신 루프)보다 먼저 등록한다(등록 전 REQ 수신 창 제거).
 	conn.Handle(protocol.MsgFileInit, router.fileInit)
 	conn.Handle(protocol.MsgFileChunk, router.fileChunk)
 	conn.Handle(protocol.MsgFileResult, router.fileResult)
 	conn.Handle(protocol.MsgFileAbort, router.fileAbort)
 
-	go func() {
-		err = router.register()
-		if err != nil {
-			serveErr <- err
+	go func() { // 수신 루프: 끝나면 세션 종료. reached로 정상 가동 여부 보고.
+		err := conn.Serve()
+		finish(Result{Reached: router.reached.Load(), Err: err})
+	}()
+
+	go func() { // 등록 실패는 세션 종료. 성공 시엔 reached만 세팅하고 종료는 Serve가 담당.
+		if err := router.register(); err != nil {
+			finish(Result{Reached: false, Err: err})
 		}
 	}()
 
-	return conn, serveErr
+	return done, nil
 }
 
 // instanceKey는 저장 경로(인스턴스 폴더)에 쓰는 메인키#서브키다.
@@ -271,6 +292,8 @@ func (r *workerRouter) register() error {
 	r.mu.Lock()
 	r.subKey = rr.SubKey
 	r.mu.Unlock()
+
+	r.reached.Store(true) // supervisor가 받아줌 = 정상 가동 도달(backoff reset 기준)
 
 	if rr.SubKey != subKey {
 		ctx, updateCancel := context.WithTimeout(context.Background(), 5*time.Second)

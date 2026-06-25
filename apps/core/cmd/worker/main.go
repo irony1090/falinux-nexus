@@ -9,9 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"nexus/cmd/worker/constants"
 	"nexus/cmd/worker/router"
+	"nexus/internal/util"
 	"nexus/internal/worker/db/migrations"
 	"nexus/internal/worker/store"
 )
@@ -31,15 +33,28 @@ func main() {
 	env := constants.GetEnv()
 
 	u := url.URL{Scheme: env.WsScheme, Host: env.WsHost, Path: "/agent"}
-	_, errChan := router.NewWorkerRouter(
-		u,
-		env.Name,
-		env.ProcessRoot,
-		store.GetStorePool(),
-	)
+	backoff := util.NewBackoff(0, time.Second*2, time.Second*60)
+	for {
+		log.Printf("접속 시도 worker -> supervisor")
+		done, err := router.NewWorkerRouter(
+			u,
+			env.Name,
+			env.ProcessRoot,
+			store.GetStorePool(),
+		)
+		if err != nil {
+			log.Printf("접속 실패(dial) %v", err)
+			time.Sleep(backoff.Next())
+			continue
+		}
 
-	err := <-errChan
-	log.Printf("접속 종료 %v", err)
+		res := <-done // 세션 종료까지 대기(끊김/등록실패)
+		if res.Reached {
+			backoff.Reset() // 정상 가동했었으면 다음 재시도는 짧게
+		}
+		log.Printf("세션 종료(reached=%v) %v", res.Reached, res.Err)
+		time.Sleep(backoff.Next())
+	}
 }
 
 // mountStore는 worker SQLite를 열고(PRAGMA 옵션) goose 마이그레이션을 적용한다.
