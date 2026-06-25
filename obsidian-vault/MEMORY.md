@@ -63,18 +63,19 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - WS 연결 해제 시 `UnsubscribeAll` 필수 (재연결 중복/dead client publish 방지)
 - 동시성: Lock 구간 분리 (구독자 수집 → Unlock 후 json.Marshal/WriteMessage)
 
-### 재사용 구독 매니저 (`internal/subscribe/manager.go`) — 구현 완료
+### 재사용 구독 허브 (`internal/subscribe/hub.go`) — 구현 완료
+- ※ 명명 최신화(2026-06-25): 타입 **`Hub[C]`**(구 `Manager`), 생성자 **`New`**(구 `NewManager`), 키별 집합 = 비공개 **`topic[C]`**(구 `subscriber`), 파일 **`hub.go`**(구 manager/subscriber.go)
 - PortBridge subscribeManager를 도메인 제거하고 일반화한 코어
-- `Manager[C comparable]`: 키는 **문자열만**, 클라이언트는 **제네릭** (`*Client`/인터페이스 모두 가능)
+- `Hub[C comparable]`: 키는 **문자열만**, 클라이언트는 **제네릭** (`*Client`/인터페이스 모두 가능)
 - 키 생성·도메인 타입은 매니저가 모름 → 프로젝트가 `Key() string`으로 생성해 넘김
-- `NewManager(marshal, send)`: 직렬화/전송 전략 1회 주입 → 호출부는 `Publish(key, payload)` 한 줄
+- `New(marshal, send)`: 직렬화/전송 전략 1회 주입 → 호출부는 `Publish(key, payload)` 한 줄
 - `Publish`: marshal 1번 → 락 밖에서 N번 send, send 실패는 `errors.Join`으로 모아 반환(브로드캐스트 중단 안 함)
 - `Subscribers(key) []C`: 특수 전송용 스냅샷 탈출구
 - 설계 원칙: **매니저 책임 = "문자열 키 → 구독 클라이언트 집합" 장부 + 동시성**, 그 외(키/직렬화/전송)는 프로젝트 몫
 
 ### 요청/응답 상관관계 프레임 (`internal/call` + `protocol` + `transport`) — 구현 완료
 - 구 PortBridge `agentRouter.go`의 통증 해결: 요청·응답이 두 파일 switch에 흩어지고 짝 ID가 없어 추적 곤란 → 도메인 매니저 조회로 역추적하던 문제
-- **`call.Correlator[R]`**: "요청 ID → 응답 기다리는 채널" 장부 + 동시성만. send 주입, 응답 타입 R 자유. `Call(ctx,payload)`(블록)/`Resolve(id,val,err)`/`Close(err)`(전부 깨움). subscribe.Manager와 동일 철학(코어는 도메인/전송 모름)
+- **`call.Correlator[R]`**: "요청 ID → 응답 기다리는 채널" 장부 + 동시성만. send 주입, 응답 타입 R 자유. `Call(ctx,payload)`(블록)/`Resolve(id,val,err)`/`Close(err)`(전부 깨움). subscribe.Hub와 동일 철학(코어는 도메인/전송 모름)
 - **`protocol.Frame{Kind,ID,Type,Err,Data}`**: Kind=**REQ/RES** 로 요청/응답 프로토콜 레벨 구분. Data=json.RawMessage(자유 payload). REQ가 ID 채번 → RES가 반사
 - **`transport.Conn`**: `Call`(REQ→RES 블록)/`Handle`(REQ 핸들러)/`Serve`(수신 루프). supervisor·worker 양쪽 대칭 API. `MessageRW` 인터페이스에만 의존(gorilla `*websocket.Conn`이 그대로 만족)
 - 연결 끊김 시 `corr.Close(err)`로 매달린 Call 일괄 실패 = 앞서 정한 Done(502) reconciliation과 같은 정신
@@ -118,6 +119,15 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 
 ## 확정 결정 (불변 — 장기 유지)
 - **계층: 2단계 고정** (supervisor → worker, 중간 노드 없음. 식별자/라우팅/구독 1홉 평면)
+
+### process 모듈 설계 (2026-06-25 확정, 미구현)
+- **구조체 공유 = 데이터 서술자만**: `ProcessSpec{UID,Cmd,Args,Cwd,Env,Rows,Cols}`/`Status{UID,State,PID,ExitCode}` 공유(`execute` 패키지). 런타임 핸들은 각자 → 행위는 `IInteractive` 인터페이스로 통일(`*Interactive` 로컬 / `*AgentInteractive` 원격). **통째 동일 구조체 박지 말 것**(런타임 핸들 다름)
+- **UID vs PID 분리**: UID=시스템 전체 정체/라우팅 키(**initiator 발급**=supervisor top-down 또는 worker 자기 프론트, RandomKey 전역유일, **모든 메시지에 실림**) / PID=worker 로컬 OS 핸들(worker 발급, RUNNING 시 status에 얹어 위로 보고만, 와이어 라우팅 안 함). **양쪽 manager 모두 UID로 키잉**
+- **평면 매핑**: 제어(Exec/Kill/Resize)=REQ/RES, 스트림(Data/Status)=EVENT(streamID=UID). 입력 키스트로크=EVENT
+- **fan-out 허브 = `IInteractive` 위에서 재사용**: 출력 → ring buffer(SNAPSHOT용) + subscribe.Hub(라이브) + DB sink(영속). 허브는 sink 모름(bind 계층이 배선). **공유 위치 + IInteractive 파라미터화**(supervisor 전용 금지) → worker 자기 프론트도 나중에 mount만으로 붙음(YAGNI: 지금은 안 막기만)
+- **frontend 다리**: 브라우저도 `transport.Conn`(gorilla=MessageRW). 명령=`Call`/`Handle`(REQ/RES), 입력=`Emit`(EVENT), 출력 fan-out=`subscribe.Hub.Publish`(send 전략=`conn.Emit`). 구독=**WS Call로 통일**(REST 안 섞음). SNAPSHOT(스크롤백)+UPDATE(라이브)
+- **느린 소비자 격리(frontend 한정)**: worker→sup `On(Data)` 핸들러가 Publish 동기호출 시 느린 브라우저 1개가 디스패처까지 막음 → **per-client 바운드 큐+writer goroutine**, Emit은 넣기만. 큐 차면 **그 클라만 끊고 재구독 유도**(터미널은 중간유실=화면깨짐이라 끊고 SNAPSHOT 재전송이 깔끔). 저빈도 list 토픽은 동기 OK
+- **인코딩**: 일단 Frame(JSON) 통일. 출력 바이트 base64 ~33% 부풀음 문제되면 **제어=Frame/출력=raw WS 바이너리** 분리(추후 여지만 남김)
 - **agent 식별자: 사전 지정 고유키(메인키)** + supervisor가 접속 시 부여하는 **서브키**. 저장/조회는 `메인키#서브키`(`InstanceKey()`). MAC 폐기
 - **process 영속성**: worker 휘발(메모리) / supervisor 영속(PG, 재시작 복구)
 - **재연결 reconciliation**: 끊김→`Done(502)` 비관적 정리 / 재연결→worker가 live 스냅샷 보내 재동기화. 미구현(supervisor 본격 작업 시)
@@ -134,7 +144,7 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - 용도: 서브키 발급, transferId. `*.util.go`가 util 패키지 컨벤션
 
 ### `internal/manager/KeyValManager` (PortBridge 이식)
-- 제네릭 `KeyValManager[K comparable, V any]`: 키→**단일 값** 장부 + `OnCreated`/`OnRemoved` 수명 콜백. `subscribe.Manager`(키→**집합**)와 역할 다름
+- 제네릭 `KeyValManager[K comparable, V any]`: 키→**단일 값** 장부 + `OnCreated`/`OnRemoved` 수명 콜백. `subscribe.Hub`(키→**집합**)와 역할 다름
 - **함정 4개**: ① `FindAll` predicate는 **락 안**에서 실행 → predicate서 매니저 재호출 금지(데드락) ② 콜백은 락 바깥(LIFO defer)이라 TOCTOU 가능 ③ `OnCreated/OnRemoved`는 동시사용 전 1회 세팅(동기화 없음) ④ `Append`는 키 존재 시 false → **반환값 꼭 확인**(무시하면 중복/경합이 조용히 묻힘)
 
 ### Go 교훈: 포인터도 "값으로" 복사된다

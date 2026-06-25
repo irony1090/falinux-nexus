@@ -8,6 +8,11 @@
 - 관련 파일: `internal/protocol/protocol.go`(EVENT/NewEvent), `internal/transport/conn.go`(On/Emit/dispatch), 신규 `transport/pipe.go`·`conn_test.go`
 - 결정 C 채택: 전용 dispatch goroutine + 버퍼채널(256) → 순서 보존 + 비차단. 결정1(events close 안 함, done으로 종료)·결정2(New 시작/Close 종료) 적용
 
+## 진행 중: process 모듈 설계 (코드 미착수, 설계 합의 단계)
+- UID/PID 분리, fan-out 허브(IInteractive 위 재사용), frontend 다리(transport.Conn+subscribe.Hub), 느린소비자 격리 등 **설계 확정 사항 전부 MEMORY "process 모듈 설계"에 기록**
+- frontend 결정 3건 확정: ①구독=WS Call 통일 ②인코딩=Frame 통일(추후 raw 분리 여지) ③느린 클라=끊고 재구독
+- 다음: 이 설계 기준으로 `execute` 패키지 골격(IInteractive + ProcessSpec/Status + 양쪽 manager UID 키잉)부터 착수
+
 ## 이전 완료: 파일 전송 모듈 (supervisor → worker) — 구현 완료 / e2e 미검증
 - 송신/수신 한 바퀴 + 이어받기(resume) + sha256 무결성 검증 + 재시도(3회) + abort 전부 구현
 - `go build ./...` / `go vet` 통과. **2프로세스 실제 전송·이어받기·abort 스모크는 아직 안 돌림.**
