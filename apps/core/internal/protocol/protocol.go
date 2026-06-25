@@ -7,8 +7,9 @@ import "encoding/json"
 type Kind uint8
 
 const (
-	REQ Kind = iota // 응답을 기대하는 요청 (ID 채번)
-	RES             // REQ에 대한 1:1 응답 (REQ의 ID를 그대로 반사)
+	REQ   Kind = iota // 응답을 기대하는 요청 (ID 채번)
+	RES               // REQ에 대한 1:1 응답 (REQ의 ID를 그대로 반사)
+	EVENT             // 짝(응답) 없는 단방향 알림 (출력 스트리밍 등, ID 미사용)
 )
 
 // MsgType은 도메인 메시지 종류다(예제에선 "ADD").
@@ -53,6 +54,16 @@ func NewResponse(id uint64, t MsgType, data any) (Frame, error) {
 // NewError는 req의 id를 반사한 실패 RES 프레임을 만든다.
 func NewError(id uint64, t MsgType, err error) Frame {
 	return Frame{Kind: RES, ID: id, Type: t, Err: err.Error()}
+}
+
+// NewEvent는 짝(응답) 없는 단방향 EVENT 프레임을 만든다.
+// ID는 채번하지 않는다(0). 받는 쪽은 Type으로 핸들러를 찾는다.
+func NewEvent(t MsgType, data any) (Frame, error) {
+	raw, err := marshalData(data)
+	if err != nil {
+		return Frame{}, err
+	}
+	return Frame{Kind: EVENT, Type: t, Data: raw}, nil
 }
 
 // Encode/Decode는 프레임 ↔ 바이트(WS 메시지) 변환이다.
