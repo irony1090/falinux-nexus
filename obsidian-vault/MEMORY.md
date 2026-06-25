@@ -92,6 +92,11 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - backpressure: `events` 버퍼(256) 차면 Serve 블록(=느린 구독자 신호). On(DATA) 핸들러는 "버퍼 push/forward"라 빨라야 정상
 - `transport.Pipe()`: 인메모리 양방향 MessageRW(한쪽 Close→공유 closed로 양쪽 깨움). 테스트: Emit×1000 순서+개수 / REQ·EVENT 혼류 무간섭, 둘 다 `-race` 통과
 
+### worker 재연결 + 신호 설계 교훈 (2026-06-25)
+- **재연결 정책은 router 바깥(main for문)**: router 필드(conn/saves/subKey)=연결 귀속 상태 → 새 router로 자동 폐기. 장수 상태(store/향후 process매니저)는 main서 만들어 주입. (router=연결 하나, transport.Conn이 스스로 재연결 안 하는 철학과 동일)
+- **★신호 교훈(재사용)**: "끝날 수도 안 끝날 수도 있는 신호 2개(Ready+Done)" 대신 **"반드시 한 번 끝나는 신호 1개에 결과를 실어라"**(`Result{Reached,Err}` 단일 채널). 그러면 "에러 때 Ready도 닫나" 문제가 *풀리는 게 아니라 사라짐*. `sync.Once finish`로 다송신자(Serve/register) 1회 송신+conn 1회 Close까지 동시 해결
+- backoff: `internal/util/retry.util.go` `Backoff{cur,base,max}` `Next()`(2배·상한)/`Reset()`. `reached`(register 성공) 기준 Reset → 정상가동 후 끊김=짧게, 그 전 실패=증가. **jitter 미적용**(worker 다수·supervisor 동시재접속 부하 시 full jitter 추가)
+
 ## 파일 전송 모듈 (구현 완료, e2e 미검증 — 2026-06-24)
 
 > supervisor→worker 단일 파일 전송. FileInit→FileChunk×N→FileResult(+FileAbort). 송신/수신 대칭 구조. 상세 HISTORY 2026-06-24.

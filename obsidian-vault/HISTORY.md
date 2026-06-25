@@ -5,6 +5,24 @@
 
 ## 과거 작업 기록
 
+### 2026-06-25 - worker 재연결 루프 + backoff + subscribe 리네임
+
+#### subscribe 리네임 (refactor)
+- `subscribe.Manager`→**`Hub`**, `NewManager`→**`New`**, 내부 키별집합 `subscriber[C]`→**`topic[C]`**, 파일 `subscriber.go`→**`hub.go`**. 외부 API 의미 동일, 호출부 없어서 churn 최소. doc 주석(call/correlator, supervisor/subscribe) 갱신
+
+#### worker 재연결 (feat)
+- **배경**: 연결 끊기면 N초 쉬고 재접속. "재연결 로직을 router 안 vs 바깥 for문" 고민 → **바깥 for문(main)** 채택
+- **이유**: router 필드(conn/saves/subKey)는 전부 **연결 귀속 상태** → 새 router 만들면 자동 폐기. 장수 상태(store, 향후 process매니저)는 main에서 만들어 주입. router=연결 하나, 재연결 정책=바깥(transport.Conn이 스스로 재연결 안 하는 것과 동일 철학)
+- **신호 설계 — 핵심 교훈**: 처음엔 `Ready`(접속)+`Done`(종료) 두 채널로 갔다가 "에러 때 Ready도 닫아야 하나"로 복잡해짐 → **"끝날 수도 안 끝날 수도 있는 신호 2개" 대신 "반드시 한 번 끝나는 신호 1개에 결과를 실어라"**. `Result{Reached bool, Err error}` 단일 채널로 수렴 → 복잡함이 *풀리는 게 아니라 사라짐*
+- **구현**(`workerRouter`): `done chan Result`(cap1) + `sync.Once finish`(누가 먼저 끝내든 1회 송신 + conn 1회 Close). `reached atomic.Bool`=register 성공 시 set, Serve 종료 경로가 읽어 보고. dial 실패는 `Fatalf`→error 반환. 핸들러를 Serve보다 먼저 등록(등록 전 REQ 수신 창 제거)
+- **`go Serve`를 router 생성 뒤로 이동**(finish가 router.reached 읽어야 하므로). sync.Once가 "cap1 채널 두 송신자(Serve/register) 누수"도 같이 해결
+- **main**: for 루프. `res.Reached`면 `backoff.Reset()`(정상 가동 후 끊김=짧게 재시도), 그 전 실패는 backoff 증가. Ready goroutine 제거로 누수 경로 소멸
+- **backoff**(`internal/util/retry.util.go`): `Backoff{cur,base,max}`, `Next()`(2배·상한)/`Reset()`. **jitter 없음** — worker 수 적어 보류, supervisor 동시재접속이 부하될 때 full jitter 추가 예정
+- **버그(잡음)**: 처음 구현서 `Reached`가 영영 false(필드·set 누락, finish가 false 하드코딩) → reset 무력화. reached 필드+register set+Serve 보고로 수정
+- **하우스키핑**: `.gitignore`에 `/worker`,`/supervisor` 추가(*.exe만 잡혀 Linux ELF 누락). `go build ./cmd/worker/`가 산출물 떨군 것 삭제 → 컴파일확인은 `go build ./...` 사용
+
+---
+
 ### 2026-06-25 - EVENT 평면(단방향 데이터 평면) 재구현 (구현 완료, `-race` 통과)
 
 > 상태: **transport 레벨 EVENT(Emit/On) 평면 골격 완료. `go build ./...`/`go vet ./...`/`go test -race` 전부 통과.** process 출력 스트리밍 토대. 도메인 배선(MsgData/MsgStatus)은 process 모듈에서.
