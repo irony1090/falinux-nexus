@@ -1,9 +1,17 @@
 package router
 
-import "nexus/internal/protocol"
+import (
+	"fmt"
+	"nexus/internal/protocol"
+)
 
-func (r *supervisorRouter) Exec(authKey string) {
+func (r *supervisorRouter) Exec(authKey string, spec protocol.ProcessSpec) error {
 
+	if _, exist := r.workers.Get(authKey); !exist {
+		return fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", authKey)
+	}
+
+	return nil
 }
 
 // ===== process 실행 엔드포인트 (worker → supervisor, 수신) =====

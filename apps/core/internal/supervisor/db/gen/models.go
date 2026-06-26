@@ -8,6 +8,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Process struct {
+	Uid         string
+	Type        string
+	OwnerUserID int64
+	NodeID      pgtype.Int8
+	DeviceKey   string
+	Cmd         string
+	Args        []string
+	Env         []string
+	Cwd         string
+	Rows        int16
+	Cols        int16
+	Status      string
+	Pid         pgtype.Int4
+	ExitCode    pgtype.Int4
+	CreatedAt   pgtype.Timestamptz
+	StartedAt   pgtype.Timestamptz
+	FinishedAt  pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type User struct {
 	ID             int64
 	Identification string
