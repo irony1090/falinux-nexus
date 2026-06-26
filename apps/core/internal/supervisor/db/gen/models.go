@@ -8,10 +8,11 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Agent struct {
-	ID        int64
-	AgentID   string
-	Name      string
-	LastSeen  pgtype.Timestamptz
-	CreatedAt pgtype.Timestamptz
+type User struct {
+	ID             int64
+	Identification string
+	Password       string
+	Nickname       string
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
 }
