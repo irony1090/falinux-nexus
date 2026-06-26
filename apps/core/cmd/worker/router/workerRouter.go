@@ -33,7 +33,8 @@ type workerRouter struct {
 	reached atomic.Bool // register 성공(정상 가동) 여부. register가 쓰고 Serve 종료 경로가 읽음
 }
 
-func NewWorkerRouter(supervisor url.URL, uniqueKey, baseDir string, store *store.StorePool) (<-chan Result, error) {
+// onReady는 register 성공(정상 가동) 시 1회 호출된다(주로 로그용). nil이면 무시.
+func NewWorkerRouter(supervisor url.URL, uniqueKey, baseDir string, store *store.StorePool, onReady func()) (<-chan Result, error) {
 
 	ws, _, err := websocket.DefaultDialer.Dial(supervisor.String(), nil)
 	if err != nil {
@@ -72,6 +73,10 @@ func NewWorkerRouter(supervisor url.URL, uniqueKey, baseDir string, store *store
 	go func() { // 등록 실패는 세션 종료. 성공 시엔 reached만 세팅하고 종료는 Serve가 담당.
 		if err := router.register(); err != nil {
 			finish(Result{Reached: false, Err: err})
+			return
+		}
+		if onReady != nil {
+			onReady()
 		}
 	}()
 

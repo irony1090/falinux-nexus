@@ -32,7 +32,7 @@ func init() {
 func main() {
 	env := constants.GetEnv()
 
-	u := url.URL{Scheme: env.WsScheme, Host: env.WsHost, Path: "/agent"}
+	u := url.URL{Scheme: env.WsScheme, Host: env.WsHost, Path: "/worker"}
 	backoff := util.NewBackoff(0, time.Second*2, time.Second*60)
 	for {
 		log.Printf("접속 시도 worker -> supervisor")
@@ -41,6 +41,7 @@ func main() {
 			env.Name,
 			env.ProcessRoot,
 			store.GetStorePool(),
+			func() { log.Printf("등록 완료, 접속 성공") }, // register 성공 시 호출
 		)
 		if err != nil {
 			log.Printf("접속 실패(dial) %v", err)
@@ -48,10 +49,10 @@ func main() {
 			continue
 		}
 
-		res := <-done // 세션 종료까지 대기(끊김/등록실패)
+		log.Printf("WS 연결됨, 등록 시도 중...") // dial 성공(등록 성공은 위 콜백에서 로그)
+		res := <-done                    // 세션 종료까지 대기(끊김/등록실패)
 		if res.Reached {
 			backoff.Reset() // 정상 가동했었으면 다음 재시도는 짧게
-			log.Printf("접속 성공 worker -> supervisor")
 		}
 		log.Printf("세션 종료(reached=%v) %v", res.Reached, res.Err)
 		time.Sleep(backoff.Next())
