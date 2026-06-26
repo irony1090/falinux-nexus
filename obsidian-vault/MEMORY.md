@@ -124,6 +124,7 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 
 ## 확정 결정 (불변 — 장기 유지)
 - **계층: 2단계 고정** (supervisor → worker, 중간 노드 없음. 식별자/라우팅/구독 1홉 평면)
+- **worker는 메모리 전용 관리**(2026-06-26 확정) — supervisor DB에 worker/agent 테이블 **없음**. 스캐폴딩의 예시 `agents` 테이블은 미사용이라 폐기. worker 신원은 런타임 메모리 레지스트리(`InstanceKey`)로만 관리. → node의 device 결속은 FK 아닌 `device_key TEXT`(위 node 설계 참조)
 
 ### process 모듈 설계 (2026-06-25 확정, Step 1 구현 시작)
 - **★발견: `execute`는 스텁 아님** — PortBridge 이식 완료/미배선. 보유: `IInteractive`(Output/Write/Status/Kill/Layout/ExitCode), `*Interactive`(로컬 PTY — **직접 만든 `/dev/ptmx` ioctl, creack/pty 불필요, Linux 전용**), `*AgentInteractive`(원격 래퍼 onWrite/onLayout/onKill+Push*/Done), 기타 `ExecCommand`/`Fifo`/`TmuxSession`, `syncProcess.SyncData[T]`. 빠진 것=신원(UID/PID)·매니저·배선
@@ -140,6 +141,39 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - **agent 식별자: 사전 지정 고유키(메인키)** + supervisor가 접속 시 부여하는 **서브키**. 저장/조회는 `메인키#서브키`(`InstanceKey()`). MAC 폐기
 - **process 영속성**: worker 휘발(메모리) / supervisor 영속(PG, 재시작 복구)
 - **재연결 reconciliation**: 끊김→`Done(502)` 비관적 정리 / 재연결→worker가 live 스냅샷 보내 재동기화. 미구현(supervisor 본격 작업 시)
+
+## Node/Label 모듈 설계 (frontend 카탈로그, 2026-06-26 확정 — 미구현)
+
+> frontend에서 worker의 "앱/셸"을 나열·실행하는 **supervisor PG 영속 카탈로그**. process 모듈에 "무엇을 실행할지"를 먹이는 계층(**카탈로그=무엇 / process 모듈=어떻게**). DB+CRUD는 process 모듈과 독립 선행 가능, 실제 "실행"은 MsgExec 배선 필요.
+> ★용어 합의 과정: 사용자가 "쉘/앱"이라 부른 것의 실체 = **디바이스(worker) 위 트리에 정리된 실행 정의**. 단일 엔티티가 아니라 folder+script 두 종류가 한 트리에 묶임.
+
+### 통합 노드 트리 (`nodes` 단일 테이블)
+- **두 종류(folder/script)를 한 트리에**: 폴더·스크립트를 frontend 한 목록에 섞어 나열+자유 재정렬해야 함 → 테이블 2개로 쪼개면 UNION+정렬좌표 분산으로 불편 → **단일 `nodes` + `kind` 구분**(파일시스템 inode 패턴). 한 폴더 자식 = `WHERE parent_id=$1 ORDER BY position_x,position_y` 한 줄
+- **folder**=컨테이너(트리 노드, **worker 귀속 + 접속상태 창** 역할) / **script**=리프(셸 본문 텍스트 보관, 실행 시 worker로 인라인 전송 후 PTY)
+- **worker 귀속 = 폴더 단위**(`device_key TEXT`, **FK 아님**). 스크립트 실행 대상 worker = 자기 폴더에서 위로 올라가며 **가장 가까운 device_key 상속**. device_key 없는(NULL) 폴더 = 순수 정리용
+  - ★**worker는 메모리 전용**(DB `agents` 테이블 폐기, 2026-06-26) → `device_key`는 worker의 `InstanceKey`(`메인키#서브키`) **문자열**일 뿐 FK 무결성 없음. 폴더↔worker 결속 검증 = "그 키가 **런타임 메모리 레지스트리에 살아있나**"로 함(끊긴 worker = 키가 메모리에 없음). DB는 키 문자열만 보관
+- **트리** = `parent_id` 자기참조(인접리스트), 루트=NULL
+- **position_x/y = `NUMERIC(5,2)` 실수 0~100**(정수면 한 부모에 101칸뿐 + 두 노드 사이 끼워넣기 불가라 실수 채택). PC=캔버스 **% 절대배치** / 그외=`ORDER BY x,y` 리스트·그리드. **부모별 로컬좌표**, x·y 동률은 name/id 타이브레이크
+- **전송=인라인**: 스크립트가 작은 텍스트라 청크 전송 모듈 불필요(실행 메시지에 `content` 실어 보냄). 큰 바이너리 생기면 그때 transfer 모듈 붙임(YAGNI). ※"전송 후 실행"은 실행 동작에 흡수 — 맨 처음 논의한 파일전송 모듈은 헛다리가 아니라 **순서가 빨랐던 것**
+- **CHECK 정합성**: `content`=script 전용(folder면 NULL), `device_id`=folder 전용(script면 NULL), x/y 0~100
+
+```
+nodes( id, owner_user_id→users, parent_id→nodes NULL,
+       kind 'folder'|'script', name,
+       position_x NUMERIC(5,2), position_y NUMERIC(5,2),  -- 0~100 부모별 로컬
+       device_key TEXT NULL,     -- folder 전용, worker InstanceKey 문자열(FK 아님)
+       content    TEXT NULL,     -- script 전용
+       created_at, updated_at,
+       CHECK(kind='script' OR content    IS NULL),
+       CHECK(kind='folder' OR device_key IS NULL),
+       CHECK(position_x BETWEEN 0 AND 100 AND position_y BETWEEN 0 AND 100) )
+```
+- `users`=구현 완료(2026-06-26, 구 PortBridge 이식) / worker=메모리 전용(DB 테이블 없음)
+
+### Label 모듈 (추후) — 직교하는 두 번째 트리
+- **node 트리 = 구조/배치(부모 1개) vs label 트리 = 횡단 분류 + 공유(M:N)**. 서로 직교
+- `labels(id, owner_user_id, parent_id→labels NULL, name)` 중첩 카테고리(**Gmail 라벨 패턴**) + `node_labels(node_id, label_id)` M:N
+- **공유를 라벨이 떠안음** → 노드 단위 sharing 테이블 **지금 안 만듦**. "노드를 라벨에 담고 → 라벨 공유 → 그 노드 전부 접근". 라벨=순수 가산 join이라 나중에 무통증 추가(YAGNI). 소유는 노드별 `owner_user_id`, 공유는 라벨로
 
 ## 이번 세션 재사용 자산/교훈 (2026-06-19)
 
@@ -174,6 +208,12 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - **마이그레이션**: goose (스키마 단일 진실 = goose 마이그레이션 파일, sqlc가 schema로 읽음)
 - **터미널 출력**: xterm.js (프론트 착수 시)
 
+## 로컬 개발 환경 (DB)
+- **supervisor PostgreSQL = docker 컨테이너 `postgres15`**(이미지 `postgres:15`). 시작: `docker start postgres15` (※ `docker start postgres`는 그런 이름 컨테이너 없음 — 보여지는 건 이미지명)
+- 컨테이너 env가 supervisor env와 일치: user `irony` / pass `!Fa1289` / 포트 `5432:5432`. **단 컨테이너 기본 DB는 `workspace`**(구 PortBridge) → nexus용 `nexus` DB는 **수동 생성함**(`CREATE DATABASE nexus OWNER irony;`, 2026-06-26 1회 완료)
+- supervisor 띄우면 `init()`의 mountStore가 goose 마이그레이션 자동 적용(멱등)
+- **함정 재확인**: 잔류 supervisor 프로세스가 5050 점유 시 `bind: address already in use`(마이그레이션은 init서 돌아 정상, 서버 바인드만 실패). `ss -ltnp | grep :5050`로 pid 찾아 kill
+
 ## apps/core 디렉토리 (스캐폴딩 완료)
 ```
 cmd/{supervisor,worker}/main.go   진입점 (현재 스텁, go run OK)
@@ -203,6 +243,41 @@ sqlc.yaml  README.md  .gitignore
 - PortBridge `agentStore` 이식: `StorePool` 싱글턴(DB 1개) + `Transaction`(Begin/Commit/Rollback + AfterRelease 리스너)
 - `InitStorePool(dbFile, pragmas map[string]string)` (PRAGMA 옵션화) / `(s) Migrate(fsys, dir)`(goose, InitStorePool 바깥 별도 단계) / `Queries() *workerdb.Queries`
 - sqlc gen은 별도 패키지 `workerdb`(`internal/worker/db/gen`) → 참조는 `workerdb.New(DBTX)`(*sql.DB·*sql.Tx 모두 가능)
+
+### supervisor store 자산 (`internal/supervisor/store/connectManager.go`) — 구현 완료 (2026-06-26)
+- 구 PortBridge `internal/store/connectManager.go`(pgx) 이식. worker판과 **API 대칭**: `InitStorePool`/`GetStorePool`/`Queries()`/`Transaction()` + Transaction `Begin/Commit/Rollback/Queries/QueriesPanic/AddAfterRelease/IsStart`
+- 차이는 타입(`*pgxpool.Pool`/`pgx.Tx`)과 시그니처: `InitStorePool(user,pass,host,name string, port int)`(DSN `postgres://...` 조립 + Ping). gen 패키지 `superdb`(`superdb.New(DBTX)`, DBTX는 `*pgxpool.Pool`·`pgx.Tx` 둘 다 만족)
+- worker판이 고친 두 수정 동일 반영: **afterUnsfae→afterUnsafe + 결과 err 전달**(구 버그=인자 무시하고 store.err 넘김) / **InitStorePool 재호출 시 실패연결 정리 후 재시도**(모호한 return nil 제거)
+- `pgxpool` 의존성이 `puddle/v2`를 indirect로 끌어옴(go mod tidy)
+- ★용도: 위 "트랜잭션 미들웨어"(요청 경계 커밋/롤백)의 풀/트랜잭션 공급원. `Transaction()`은 lazy Begin이라 읽기전용 핸들러는 트랜잭션 안 엶
+- **마이그레이션**(`store/migrate.go`, worker판 대칭): `Migrate(fsys, dir)` = goose dialect `postgres`. **단, goose는 `*sql.DB` 요구 / 풀은 pgxpool** → `StorePool.dsn`(InitStorePool서 저장) 재사용해 `sql.Open("pgx", dsn)`로 **마이그레이션 1회용 `*sql.DB`**를 열고 닫음(풀과 무관). `_ "github.com/jackc/pgx/v5/stdlib"`로 "pgx" 드라이버 등록. `db/migrations/embed.go`=`//go:embed *.sql`
+- **배선**: `cmd/supervisor/main.go init()` → `mountStore(GetEnv())`(InitStorePool→Migrate, 실패 Fatalf). env: `cmd/supervisor/constants/env.go`에 DBUser/Pass/Name/Host(필수)+DBPort(기본5432). **인자 순서**: `InitStorePool(user, pass, host string, port int, name string)`(port가 name보다 앞 — 사용자가 조정)
+
+### 트랜잭션 미들웨어 (`cmd/supervisor/router/tx.go`) — 구현 완료 (2026-06-26)
+- 구 PortBridge `web/requestContext.go`(전역 map+RequestScope+도메인 *Context 4종) 대체. **전역 map 폐기**(echo.Context의 c.Set/c.Get이 요청 수명 저장소) + 4개 중복 Context → **단일 `txScope` + 미들웨어 1개**
+- `txScope{pool,tx,err}`: 요청 1건 트랜잭션 수명. 요청마다 새로 만들어 echo.Context에 실림 → **단일 goroutine 전용, 락 불필요**
+- **lazy Begin**: `ensureTx() (*Transaction, error)` 첫 호출 때만 `pool.Transaction()+Begin`(실패 시 `web.Err(500)` **반환**) → 읽기전용 핸들러는 트랜잭션 안 엶. 핸들러에서 `q,err:=TxQueries(c)`(둘 다 `(…,error)`)로 사용
+- `release()`(요청당 1회): err 있으면 Rollback, 없으면 Commit. tx==nil이면 no-op. 커밋/롤백 실패는 로그만(응답 이미 나간 뒤라 못 바꿈)
+- **`txMiddleware(pool)`**: scope 생성→c.Set→defer{recover면 err기록+release+재panic / 정상이면 err=핸들러반환값+release}. **error 반환·panic 둘 다 롤백**(주 경로=error 반환[return-style], panic은 안전망). 등록 위치=PanicMiddleware 안쪽
+- **등록 위치 중요**: `e.Use` 순서 = `PanicMiddleware → Log → txMiddleware → CORS`. tx는 **PanicMiddleware 안쪽**이라야 재-panic이 PanicMiddleware로 전파돼 JSON 응답됨. WS 업그레이드 라우트도 전역 래핑되나 Tx() 안 부르면 무해(no-op)
+- **commit-in-defer는 c.JSON 이후 실행**(응답 먼저, 커밋 나중) — 구 HttpProcess와 동일 한계, 현재 허용
+
+### ★에러 처리 규약: panic-style로 회귀 (PanicMiddleware) — 2026-06-26 재확정 (return-style 폐기)
+- **결론 번복**: 아래 return-style은 사용자가 "맘에 안 든다"고 되돌림 → **다시 panic-style**. `util.go`를 panic 기반으로 재반입(`ClientError{Status int, Error error}` = `Error`가 **필드**라 error 인터페이스 미구현 / `Err(...)`는 `ClientError` 반환 / `PanicMiddleware`가 recover→ClientError면 `{message,type}` JSON, 아니면 500). **`HTTPErrorHandler` 없음**
+- **현재 규약(panic-style)**: 핸들러는 `panic(web.Err(status, fmt, ...))`. tx 헬퍼 `ensureTx()/Tx(c)/TxQueries(c)`는 **error 반환 제거**(panic; TxQueries=`Tx(c).QueriesPanic()`). `requireSession`도 단일 반환+401 panic. DB/Save 에러도 `panic(web.Err(500,"%v",err))`로 통일. 성공만 `return c.JSON(...)`. txMiddleware는 불변(recover→롤백→재-panic→PanicMiddleware 렌더). **빌드/vet 통과**(2026-06-26)
+- 아래는 **폐기된 과거 결정**(참고용 보존):
+- ~~**핸들러는 panic 대신 `error`를 반환한다**. `web.Err(status, format, ...)` → `web.ClientError`(이제 `error` 구현) 반환 → `e.HTTPErrorHandler = web.HTTPErrorHandler`가 JSON `{message,type}`로 렌더. type=SERVER(>=500)/CLIENT~~
+- **계기**: `web.Panic`(래퍼 함수)은 Go "종료문(terminating statement)"이 아니라 컴파일러/분석기가 "이후 실행 안 됨"을 모름 → `missing return` / gopls nilness 오경고(`getSessionOrPanic` 뒤 `return sess`가 nil 가능하다고 판단). 빌트인 `panic(...)`만 종료문. 대안 2: `panic(web.Err(...))`(빌트인이라 경고 해소되나 비관용·untyped) vs **return(타입안전·echo 정석)**. 코드베이스 일관성 위해 헬퍼도 함께 전환 → **return 채택**
+- **전환 범위**: `web.Panic`·`web.HttpProcess` **삭제**. `ClientError{Status,Msg}`+`Error()`. `PanicMiddleware`는 **안전망으로 단순화**(예기치 못한 panic/ tx 재-panic을 recover→error 환원→HTTPErrorHandler로). `Tx(c)`/`TxQueries(c)`/`ensureTx`가 **`(…, error)` 반환**(구 `QueriesPanic`·`web.Panic(500)` 대신 `t.Queries()`·`web.Err`). 핸들러는 `q, err := TxQueries(c); if err!=nil { return err }`
+- **여전히 필요한 panic 인프라**: 진짜 버그(nil 역참조)·`txMiddleware` 재-panic 때문에 PanicMiddleware(또는 recover)는 유지. tx 롤백은 error 반환·panic 둘 다 처리(미들웨어 defer)
+- e2e 9시나리오 재검증 통과(동작 불변, 경고만 소멸). 향후 모든 supervisor echo 핸들러 이 규약 따를 것
+
+### user 가입/로그인 핸들러 (`cmd/supervisor/router/user.go`) — 구현+e2e 완료 (2026-06-26)
+- **web.HttpProcess 폐기, echo 기본 핸들러**(func(c)error, **return web.Err** + `q,err:=TxQueries(c)`). 라우트: POST `/users`(가입)·POST `/users/session`(로그인)·GET(세션확인)·DELETE(로그아웃). `supervisorRouter.mountUsers(e)`
+- **★별도 User 타입 안 만듦**: 세션이 `superdb.User`의 export 기본형 필드 직접 직렬화 → `session.SessionManager[superdb.User]` 그대로(키 `"irony"/"sid"`, nameFn=nil). supervisorRouter에 `sessions` 필드
+- `requireSession(c) (*SessionElement, error)`(구 getSessionOrPanic) = 구 flag 사슬 → `sess==nil||IsNew||Data.ID==0` 단락 OR → `web.Err(401)`. `toHash`(sha256 hex)로 식별자·비번 저장/조회
+- **함정**: checkSession은 세션 복원값이라 `pgtype.Timestamptz`(CreatedAt/UpdatedAt) **0/누락**(gob 직렬화 대상 아님). 타임스탬프 필요하면 `sess.Data.ID`로 DB 재조회. 응답 identification=해시. Password 해시가 세션 쿠키에 적재됨
+- e2e 8시나리오 통과(가입/중복/미로그인/로그인/세션확인/오답/로그아웃/로그아웃후). 세션키 `"irony"` 하드코딩 → env화 잔여
 
 ## 상세 reference
 → `PLAN-agent-comm.md` (agent↔server 통신/PTY 실행 상세)
