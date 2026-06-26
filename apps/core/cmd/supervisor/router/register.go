@@ -19,17 +19,17 @@ func (r *supervisorRouter) register(conn *transport.Conn, body *protocol.Registe
 			for {
 				subKey, _ := util.RandomKey(8, "", "")
 				body.SubKey = subKey
-				if _, exist := r.connectors.Get(body.InstanceKey()); !exist {
+				if _, exist := r.workers.Get(body.InstanceKey()); !exist {
 					break
 				}
 			}
 			key = body.InstanceKey()
-		} else if _, exist := r.connectors.Get(key); exist {
+		} else if _, exist := r.workers.Get(key); exist {
 			body.Key = ""
 			body.SubKey = ""
 			return "", fmt.Errorf("서브키 %q 는 이미 접속 중", key)
 		}
-		r.connectors.Append(key, conn)
+		r.workers.Append(key, conn)
 
 		return protocol.RegisterResponse{SubKey: body.SubKey}, nil
 	}

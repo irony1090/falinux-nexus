@@ -16,6 +16,8 @@ import (
 
 	"nexus/cmd/supervisor/constants"
 	"nexus/cmd/supervisor/router"
+	"nexus/internal/supervisor/db/migrations"
+	"nexus/internal/supervisor/store"
 )
 
 //go:embed env
@@ -23,12 +25,25 @@ var envContent string
 
 func init() {
 	initEnv()
-
+	mountStore(constants.GetEnv())
 }
 func main() {
 	env := constants.GetEnv()
-	srv, _ := router.NewSupervisorRouter(fmt.Sprintf("localhost:%d", env.Port), env.AgentPath)
-	log.Fatal(srv.ListenAndServe())
+	addr := fmt.Sprintf("localhost:%d", env.Port)
+	e, _ := router.NewSupervisorRouter(env.WorkerPath)
+	log.Fatal(e.Start(addr))
+}
+
+// mountStore는 supervisor PostgreSQL 풀을 열고 goose 마이그레이션을 적용한다.
+// 마이그레이션 적용은 InitStorePool과 분리된 별도 단계(GetStorePool().Migrate).
+func mountStore(env constants.EnvVars) {
+	if err := store.InitStorePool(env.DBUser, env.DBPass, env.DBHost, env.DBPort, env.DBName); err != nil {
+		log.Fatalf("supervisor: DB 연결 실패 %v", err)
+	}
+	if err := store.GetStorePool().Migrate(migrations.FS, "."); err != nil {
+		log.Fatalf("supervisor: 마이그레이션 실패 %v", err)
+	}
+	log.Printf("supervisor: DB 준비됨 (%s@%s:%d/%s)", env.DBUser, env.DBHost, env.DBPort, env.DBName)
 }
 
 func initEnv() {

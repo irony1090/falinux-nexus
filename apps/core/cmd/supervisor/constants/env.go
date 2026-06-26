@@ -20,10 +20,15 @@ var (
 type EnvVars struct {
 	IsDev       bool
 	Port        int
-	AgentPath   string
+	WorkerPath  string
 	ProcessRoot string
 	ProjectDir  string
 	Ip          string
+	DBUser      string
+	DBPass      string
+	DBName      string
+	DBHost      string
+	DBPort      int
 	// UploadDir string `iniName:"UPLOAD_DIR"`
 	// AssetsDir string `iniName:"ASSETS_DIR"`
 }
@@ -46,12 +51,12 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		}
 	}
 
-	agentPath := os.Getenv("AGENT_PATH")
-	if agentPath == "" {
+	workerPath := os.Getenv("WORKER_PATH")
+	if workerPath == "" {
 		if isNil {
-			return nil, fmt.Errorf("환경변수 AGENT_PATH 값 필수")
+			return nil, fmt.Errorf("환경변수 WORKER_PATH 값 필수")
 		} else {
-			agentPath = env.AgentPath
+			workerPath = env.WorkerPath
 		}
 	}
 
@@ -64,6 +69,51 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		}
 	}
 
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" {
+		if isNil {
+			return nil, fmt.Errorf("환경변수 DB_USER 값 필수")
+		} else {
+			dbUser = env.DBUser
+		}
+	}
+
+	dbPass := os.Getenv("DB_PASS")
+	if dbPass == "" {
+		if isNil {
+			return nil, fmt.Errorf("환경변수 DB_PASS 값 필수")
+		} else {
+			dbPass = env.DBPass
+		}
+	}
+
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" {
+		if isNil {
+			return nil, fmt.Errorf("환경변수 DB_NAME 값 필수")
+		} else {
+			dbName = env.DBName
+		}
+	}
+
+	dbHost := os.Getenv("DB_HOST")
+	if dbHost == "" {
+		if isNil {
+			return nil, fmt.Errorf("환경변수 DB_HOST 값 필수")
+		} else {
+			dbHost = env.DBHost
+		}
+	}
+
+	dbPort, err := strconv.Atoi(os.Getenv("DB_PORT"))
+	if err != nil {
+		if isNil {
+			dbPort = 5432
+		} else {
+			dbPort = env.DBPort
+		}
+	}
+
 	if isNil {
 		// 환경 변수 값으로 구조체 초기화
 		env = &EnvVars{
@@ -72,10 +122,15 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		}
 	}
 	env.Port = port
-	env.AgentPath = agentPath
+	env.WorkerPath = workerPath
 	// env.StaticDir = pathToAbsolutePath(projectDir, staticDir)
 	env.ProjectDir = projectDir
 	env.Ip = ip
+	env.DBUser = dbUser
+	env.DBPass = dbPass
+	env.DBName = dbName
+	env.DBHost = dbHost
+	env.DBPort = dbPort
 
 	log.Printf("root path %s", projectDir)
 	log.Printf("Loaded %v", env)

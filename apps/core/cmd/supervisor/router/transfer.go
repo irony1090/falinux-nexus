@@ -44,7 +44,7 @@ func (r *supervisorRouter) AbortFile(transferId, reason string) error {
 	}
 	fs.cancel()
 
-	if conn, ok := r.connectors.Get(fs.authKey); ok {
+	if conn, ok := r.workers.Get(fs.authKey); ok {
 		ctx, cancel := context.WithTimeout(context.Background(), sendCallTimeout)
 		defer cancel()
 		if _, err := conn.Call(ctx, protocol.MsgFileAbort, protocol.FileAbortRequest{
@@ -69,7 +69,7 @@ func (r *supervisorRouter) SendFile(authKey string, reader *transfer.ReadFile) (
 	if reader == nil {
 		return "", fmt.Errorf("파일이 존재하지 않습니다")
 	}
-	if _, exist := r.connectors.Get(authKey); !exist {
+	if _, exist := r.workers.Get(authKey); !exist {
 		return "", fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", authKey)
 	}
 
@@ -98,7 +98,7 @@ func (r *supervisorRouter) SendFile(authKey string, reader *transfer.ReadFile) (
 	var lastErr error
 	for attempt := 1; attempt <= maxSendAttempts; attempt++ {
 		// 재접속 대비 매 시도마다 최신 연결을 다시 조회한다.
-		conn, exist := r.connectors.Get(authKey)
+		conn, exist := r.workers.Get(authKey)
 		if !exist {
 			lastErr = fmt.Errorf("대상 연결 없음: %s", authKey)
 		} else if err := r.sendOnce(ctx, conn, transferId, destPath, reader, hash); err == nil {
