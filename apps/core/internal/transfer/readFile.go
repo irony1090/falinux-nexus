@@ -82,6 +82,10 @@ func (r *ReadFile) Perm() fs.FileMode {
 	return r.info.Mode().Perm()
 }
 
+// SetOnClose는 Close() 시점에 1회 불릴 콜백을 건다(전송 맵에서 자기 제거 등).
+// OnClose 필드는 인터페이스로 노출 못 하므로 transfer.Reader는 이 세터로 받는다.
+func (r *ReadFile) SetOnClose(fn func()) { r.OnClose = fn }
+
 // Hash는 파일 전체의 sha256(hex)을 반환한다. 결과는 1회 계산 후 캐시된다.
 // 스트리밍에 쓰는 r.source 와 별개의 fd로 풀읽기하므로 읽기 커서·진행
 // 카운터(r.read)·expire 타이머에 간섭하지 않는다 → 호출 순서·진행 상태와

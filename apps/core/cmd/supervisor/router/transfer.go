@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
+	"os"
 	"time"
 
 	"nexus/internal/protocol"
@@ -24,12 +26,16 @@ const (
 // errRejected는 수신측이 FileInit을 거부한 영구 실패다(재시도해도 의미 없음).
 var errRejected = errors.New("수신측이 전송을 거부함")
 
-// fileSend는 송신 중인 한 전송 세션이다. authKey를 함께 들고 있어
+// sendJob은 송신 중인 한 전송 작업이다. authKey를 함께 들고 있어
 // 연결이 끊기면 그 연결 소속 미완 전송만 골라 정리할 수 있다.
-// cancel은 진행 중인 SendFile 루프를 중단시키는 손잡이다(AbortFile에서 호출).
-type fileSend struct {
+// name(destPath)·perm은 reader에서 캐내지 않고 작업이 직접 들고 있다 — reader는
+// 메타 없는 순수 바이트 스트림(transfer.Reader)이라 파일/메모리 어느 쪽이든 받는다.
+// cancel은 진행 중인 send 루프를 중단시키는 손잡이다(AbortFile에서 호출).
+type sendJob struct {
 	authKey string
-	reader  *transfer.ReadFile
+	name    string // 수신측 저장명(destPath)
+	perm    fs.FileMode
+	reader  transfer.Reader
 	cancel  context.CancelFunc
 }
 
@@ -38,13 +44,13 @@ type fileSend struct {
 // ② worker에 MsgFileAbort를 보내 .part를 지우게 한다(best-effort).
 // reader 정리는 SendFile의 defer Close가 맡으므로 여기서 따로 닫지 않는다.
 func (r *supervisorRouter) AbortFile(transferId, reason string) error {
-	fs, ok := r.readers.Get(transferId)
+	job, ok := r.readers.Get(transferId)
 	if !ok {
 		return fmt.Errorf("진행 중인 전송 없음: %s", transferId)
 	}
-	fs.cancel()
+	job.cancel()
 
-	if conn, ok := r.workers.Get(fs.authKey); ok {
+	if conn, ok := r.workers.Get(job.authKey); ok {
 		ctx, cancel := context.WithTimeout(context.Background(), sendCallTimeout)
 		defer cancel()
 		if _, err := conn.Call(ctx, protocol.MsgFileAbort, protocol.FileAbortRequest{
@@ -57,18 +63,34 @@ func (r *supervisorRouter) AbortFile(transferId, reason string) error {
 	return nil
 }
 
-// SendFile은 authKey 대상 worker에게 reader가 가리키는 파일을 전송한다.
-// 저장 위치(destPath)는 원본 파일명으로 정한다(수신측이 traversal 검증).
-// 한 번 발급한 transferId로 최대 maxSendAttempts회까지 시도하며, 실패 시
-// 이어받기(같은 transferId·destPath라 수신측 .part 보존)로 재개한다.
-// 전 과정을 블로킹으로 수행하므로 호출자가 필요하면 고루틴으로 돌린다.
-//
-// 주의: reader는 expire 없이(0) 생성해야 한다 — 청크 사이 왕복이 길어도
-// idle 타이머에 닫히지 않도록.
+// SendFile은 authKey 대상 worker에게 디스크 파일(reader)을 전송한다.
+// 저장명(destPath)·권한은 파일 메타(Info().Name()/Perm())에서 도출한다.
 func (r *supervisorRouter) SendFile(authKey string, reader *transfer.ReadFile) (string, error) {
 	if reader == nil {
 		return "", fmt.Errorf("파일이 존재하지 않습니다")
 	}
+	return r.send(authKey, reader.Info().Name(), reader.Perm(), reader)
+}
+
+// SendBuffer는 authKey 대상 worker에게 메모리 버퍼(reader)를 전송한다.
+// 저장명·권한은 버퍼 생성 시 호출자가 지정한 값(reader.Name()/Perm())을 쓴다.
+// (EDIT seed처럼 디스크 파일이 아닌 내용을 그대로 보낼 때.)
+func (r *supervisorRouter) SendBuffer(authKey string, reader *transfer.ReadBuffer, name string, perm os.FileMode) (string, error) {
+	if reader == nil {
+		return "", fmt.Errorf("전송할 데이터가 없습니다")
+	}
+	return r.send(authKey, name, perm, reader)
+}
+
+// send는 reader 종류(파일/메모리)와 무관한 전송 코어다: transferId 발급 → 등록 →
+// hash → FileInit→청크→FileResult 한 바퀴를 maxSendAttempts회까지 시도하며, 실패
+// 시 이어받기(같은 transferId·destPath라 수신측 .part 보존)로 재개한다.
+// 저장명(name=destPath)·권한(perm)은 호출 래퍼가 구체 reader에서 뽑아 넘긴다.
+// 전 과정을 블로킹으로 수행하므로 호출자가 필요하면 고루틴으로 돌린다.
+//
+// 주의: reader는 expire 없이(0) 생성해야 한다 — 청크 사이 왕복이 길어도
+// idle 타이머에 닫히지 않도록.
+func (r *supervisorRouter) send(authKey, name string, perm fs.FileMode, reader transfer.Reader) (string, error) {
 	if _, exist := r.workers.Get(authKey); !exist {
 		return "", fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", authKey)
 	}
@@ -83,17 +105,16 @@ func (r *supervisorRouter) SendFile(authKey string, reader *transfer.ReadFile) (
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel() // 정상 종료 시 ctx 자원 정리
 
-	if !r.readers.Append(transferId, &fileSend{authKey: authKey, reader: reader, cancel: cancel}) {
+	if !r.readers.Append(transferId, &sendJob{authKey: authKey, name: name, perm: perm, reader: reader, cancel: cancel}) {
 		return "", fmt.Errorf("transferId 충돌: %s", transferId)
 	}
-	reader.OnClose = func() { r.readers.Remove(transferId) }
+	reader.SetOnClose(func() { r.readers.Remove(transferId) })
 	defer reader.Close() // 전송 종료 시 reader 정리(+readers에서 제거)
 
 	hash, err := reader.Hash()
 	if err != nil {
 		return "", fmt.Errorf("해시 계산 실패: %w", err)
 	}
-	destPath := reader.Info().Name()
 
 	var lastErr error
 	for attempt := 1; attempt <= maxSendAttempts; attempt++ {
@@ -101,8 +122,8 @@ func (r *supervisorRouter) SendFile(authKey string, reader *transfer.ReadFile) (
 		conn, exist := r.workers.Get(authKey)
 		if !exist {
 			lastErr = fmt.Errorf("대상 연결 없음: %s", authKey)
-		} else if err := r.sendOnce(ctx, conn, transferId, destPath, reader, hash); err == nil {
-			log.Printf("[SendFile] %s 전송 완료 → %s", transferId, destPath)
+		} else if err := r.sendOnce(ctx, conn, transferId, name, perm, reader, hash); err == nil {
+			log.Printf("[send] %s 전송 완료 → %s", transferId, name)
 			return transferId, nil // 성공
 		} else if errors.Is(err, errRejected) {
 			return transferId, err // 영구 실패 → 재시도 안 함
@@ -115,7 +136,7 @@ func (r *supervisorRouter) SendFile(authKey string, reader *transfer.ReadFile) (
 			return transferId, fmt.Errorf("전송 중단됨: %w", ctx.Err())
 		}
 
-		log.Printf("[SendFile] %s 시도 %d/%d 실패: %v", transferId, attempt, maxSendAttempts, lastErr)
+		log.Printf("[send] %s 시도 %d/%d 실패: %v", transferId, attempt, maxSendAttempts, lastErr)
 		if attempt < maxSendAttempts {
 			time.Sleep(retryBackoff)
 		}
@@ -124,17 +145,16 @@ func (r *supervisorRouter) SendFile(authKey string, reader *transfer.ReadFile) (
 }
 
 // sendOnce는 FileInit → 청크 루프 → FileResult 한 바퀴를 수행한다.
-func (r *supervisorRouter) sendOnce(ctx context.Context, conn *transport.Conn, transferId, destPath string, reader *transfer.ReadFile, hash string) error {
-	info := reader.Info()
-
+// name(destPath)·perm은 reader가 아니라 작업 메타로 넘어온다(reader는 스트림 전용).
+func (r *supervisorRouter) sendOnce(ctx context.Context, conn *transport.Conn, transferId, name string, perm fs.FileMode, reader transfer.Reader, hash string) error {
 	// 1) FileInit — 수락 여부 + 이어받기 시작 위치.
 	initCtx, cancel := context.WithTimeout(ctx, sendCallTimeout)
 	res, err := conn.Call(initCtx, protocol.MsgFileInit, protocol.FileInitRequest{
 		TransferID: transferId,
-		Name:       info.Name(),
-		DestPath:   destPath,
+		Name:       name,
+		DestPath:   name,
 		Size:       reader.Size(),
-		Mode:       uint32(reader.Perm()),
+		Mode:       uint32(perm),
 		Hash:       hash,
 		Resume:     true,
 	})

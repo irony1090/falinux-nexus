@@ -32,7 +32,7 @@ var upgrader = websocket.Upgrader{
 
 type supervisorRouter struct {
 	workers  *manager.KeyValManager[string, *transport.Conn]
-	readers  *manager.KeyValManager[string, *fileSend]
+	readers  *manager.KeyValManager[string, *sendJob]
 	sessions *session.SessionManager[superdb.User]
 }
 
@@ -44,7 +44,7 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 	log.Printf("[supervisor] SERVER 실행")
 	router := &supervisorRouter{
 		workers:  manager.NewKeyValManager[string, *transport.Conn](),
-		readers:  manager.NewKeyValManager[string, *fileSend](),
+		readers:  manager.NewKeyValManager[string, *sendJob](),
 		sessions: session.NewSessionManager[superdb.User]("irony", "sid", nil),
 	}
 
@@ -93,7 +93,7 @@ func (router *supervisorRouter) handleAgentWS(c echo.Context) error {
 	key := auth.InstanceKey()
 	if key != "" {
 		router.workers.Remove(key)
-		for _, fr := range router.readers.FindAll(func(_ string, v *fileSend) bool {
+		for _, fr := range router.readers.FindAll(func(_ string, v *sendJob) bool {
 			return v.authKey == key
 		}) {
 			fr.Val.reader.Close() // OnClose가 readers에서 제거
