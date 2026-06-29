@@ -67,6 +67,7 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 
 	e.GET(workerPath, router.handleAgentWS)
 	router.mountUsers(e)
+	router.mountNodes(e)
 
 	return e, router
 }

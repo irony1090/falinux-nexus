@@ -28,3 +28,24 @@ GET http://{{HOST}}/users/session
 ###
 
 DELETE http://{{HOST}}/users/session
+
+###
+POST http://{{HOST}}/nodes
+Content-Type: application/json
+
+{
+    "kind": "FOLDER",
+    "Name": "TEST"
+}
+
+###
+
+PATCH http://{{HOST}}/nodes/1
+Content-Type: application/json
+
+{
+    "Name": {
+        "valid": true,
+        "value": "안녕하세요!@~"
+    }
+}

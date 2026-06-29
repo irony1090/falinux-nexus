@@ -8,6 +8,21 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Node struct {
+	ID          int64
+	OwnerUserID int64
+	ParentID    pgtype.Int8
+	Kind        string
+	Name        string
+	Ord         int64
+	PositionX   pgtype.Numeric
+	PositionY   pgtype.Numeric
+	DeviceKey   pgtype.Text
+	Content     pgtype.Text
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type Process struct {
 	Uid         string
 	Type        string
