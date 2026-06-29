@@ -5,6 +5,37 @@
 
 ---
 
+### 2026-06-29 - reader 추상화(인터페이스) + 메모리 전송(SendBuffer) (build/vet 통과)
+
+> 동기: EDIT seed(에디터 초기 내용)를 디스크 파일 거치지 않고 그대로 worker에 보내기. 전송 코어는 reader 종류와 무관하므로 인터페이스로 추상화하고 파일/메모리 두 래퍼로 가름. **설계 논의→결정→반영 한 세션.**
+
+#### 결정 경로 (대화에서 확정)
+- EDIT seed 운반 = A안(선전송 파일+경로참조) vs B안(인라인 Seed) 비교 → **B안(인라인) 채택**: EDIT은 "내려주고→편집→회수"하는 단일 논리연산, read-back(EditResult)이 이미 인라인이라 대칭, tmp 생명주기를 worker가 소유. A안 범용 스테이징은 큰 입력파일 실제 수요 생기면 그때(YAGNI)
+- 그 곁가지로 "SendFile reader가 항시 파일"인 제약을 풀어 메모리 버퍼도 보내게 → reader 인터페이스화
+
+#### `transfer.Reader` 인터페이스 (`reader.go` 신규)
+- 순수 바이트 스트림 계약: `Size/Hash/SeekTo/Read/Close/SetOnClose`. **메타(name/perm) 제외** — 세션(`sendJob`) 소유, 래퍼가 구체 reader에서 뽑음
+- **`Info() os.FileInfo`가 핵심 걸림돌**: 메모리엔 FileInfo가 존재 못 함 → 인터페이스에서 빼고, 소비처(`reader.Info().Name()`)를 세션 name으로 대체
+- **`SetOnClose`만 메서드로 둔 이유**: `OnClose`는 *필드*라 인터페이스 노출 불가 + 정리 콜백이 캡처할 `transferId`는 `send()` 안에서 생성(구체 래퍼 시점엔 없음) → 세터 우회. (대안 "OnClose 제거+명시적 Remove"는 폐기 — 기존 자기제거 메커니즘 유지가 변경 더 적음)
+
+#### `ReadBuffer` (`readBuffer.go` 신규, 메모리 전용)
+- `NewReadBuffer(data, expire)` — **name/perm 안 가짐**(최종형: 순수 스트림). 초안엔 name/perm 들고 있었으나 사용자가 제거 → 메타는 SendBuffer 인자로
+- 해시 `sha256.Sum256(data)` 한 방(별도 fd 풀읽기 불필요, IO에러 없어 err 항상 nil이나 `(string,error)` 시그니처는 ReadFile과 맞춤)
+- `Read`=불변 data에서 새 버퍼로 복사(호출자 보관/변형 대비). expire 타이머·락·SeekTo·Completed는 ReadFile 미러링. `Remove()` 없음(디스크 객체 없음)
+
+#### 송신부 분리 (`cmd/supervisor/router/transfer.go`)
+- `fileSend`→**`sendJob{authKey,name,perm,reader Reader,cancel}`**(이름: session은 user세션과 혼동 → job 채택). name(destPath)/perm을 세션이 소유
+- `SendFile(*ReadFile)` = 파일 메타(`Info().Name()`/`Perm()`)에서 도출 / `SendBuffer(*ReadBuffer, name, perm)` = 호출자 명시 → 공유 코어 **`send(authKey,name,perm,reader)`**로 합류(옛 SendFile 본문)
+- `sendOnce`도 name/perm 인자로(옛 `reader.Info()` 제거). 맵 자기제거 `reader.SetOnClose(()=>readers.Remove(id))` — OnClose 메커니즘 유지 → 끊김정리 루프 무변경
+- `ReadFile`엔 `SetOnClose` 추가(인터페이스 충족), `Info()/Perm()` 유지
+- `io/fs` import 추가, AbortFile 로컬변수 `fs`→`job`(패키지명 충돌 회피). `supervisorRouter.go` readers 맵 타입 `*fileSend`→`*sendJob` 3곳
+
+#### 미검증/잔여
+- **여전히 e2e 미검증**: build/vet만. SendBuffer 실제 왕복(메모리→worker 저장→hash)·`-race` 스모크 안 돌림
+- EDIT seed 배선(`SendBuffer` 호출처)은 process 모듈 EDIT 타입 구현 시 연결 — 지금은 운반 수단만 마련
+
+---
+
 ### 2026-06-24 - 파일 전송 모듈 본체 + abort 구현 (구현 완료, e2e 미검증)
 
 > 상태: **SendFile→완료까지 한 바퀴 + 이어받기 + hash검증 + 재시도 + abort 전부 구현. `go build ./...`/`go vet` 통과. 2프로세스 실제 전송 e2e는 아직 안 돌림.**

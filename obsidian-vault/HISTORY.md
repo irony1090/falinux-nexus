@@ -12,6 +12,7 @@
 - 2026-06-18 요청/응답 상관관계 프레임(call.Correlator) + 등록(REGISTER) 핸드셰이크
 
 ### `history/transfer.md` — 파일 전송 모듈
+- 2026-06-29 reader 추상화(인터페이스) + 메모리 전송(SendBuffer) — EDIT seed 운반 수단
 - 2026-06-24 파일 전송 본체 + abort 구현 (구현 완료, e2e 미검증)
 - 2026-06-18 `internal/transfer` 검토 (readFile/saveFile, 미수정)
 - 2026-06-19 `internal/transfer` 🔴 누수·레이스 수정 (done 채널 방식)

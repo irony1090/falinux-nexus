@@ -1,7 +1,7 @@
 # CURRENT
 
 ## 현재 날짜
-2026-06-26
+2026-06-29
 
 ---
 
@@ -22,6 +22,7 @@
 ### 구도 핵심 (정정)
 - **worker = `pty.Interactive`(실제 PTY)** / **supervisor = `AgentInteractive`(프록시 핸들)**. 양쪽 UID→핸들 레지스트리(KeyValManager)
 - 범위 밖(이후): frontend fan-out(bind/subscribe/Hub) → apps/web xterm.js → **EDIT 타입**(seed→read-back)
+  - ✅ EDIT seed **운반 수단 준비됨**(2026-06-29): transfer reader 인터페이스화 + `SendBuffer`(메모리 전송)로 디스크 안 거치고 seed 전송 가능 → `REF-transfer.md`. 배선(호출처)은 EDIT 타입 구현 시 연결
 
 ---
 
