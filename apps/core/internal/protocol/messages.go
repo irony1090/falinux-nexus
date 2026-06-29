@@ -104,6 +104,18 @@ type FileAbortRequest struct {
 //
 // 제어(REQ/RES): MsgExec / MsgResize / MsgKill — 성패 응답 필요.
 // 스트림(EVENT): MsgData(입력·출력 양방향) / MsgStatus(worker→sup) — 짝 응답 없음.
+// 실행 종류(ProcessSpec.Type): EXEC=일반 인터랙티브 실행 / EDIT=에디터로 편집 후 내용 회수.
+//
+//	둘 다 같은 PTY 엔진을 쓰며 Type만 다르다.
+//	- EXEC: Cmd를 그대로 실행(argv = Cmd + Args).
+//	- EDIT: 편집 대상 파일은 미리 깔아 둔다 — 초기 내용은 SendBuffer(메모리 전송)로 worker에
+//	        먼저 보내거나 기존 파일을 그대로 쓴다(인라인 Seed 주입은 폐기). EDIT는 그 경로를
+//	        에디터로 열고, 종료 시 MsgEditResult(REQ)로 파일 내용을 read-back한다.
+//	        에디터 = Cmd(있으면) / 없으면 worker가 $EDITOR(→없으면 OS 기본) 해석.
+//	★경로 치환: supervisor는 worker의 실제 경로를 모르므로 Cmd/Args/Cwd/Env에 치환 토큰
+//	({WORKER_BASE})을 박아 보내고, worker가 실행 직전 실제 값으로 치환한다(알 수 없는 {..}는
+//	그대로 둠). → 토큰 상수는 아래 Placeholder*.
+//
 // 모든 메시지는 UID로 한 process를 가리킨다. UID는 initiator(보통 supervisor)가 발급하는
 // 시스템 전체 식별자고, 실제 OS PID와는 별개다(PID는 worker 로컬, StatusEvent로 보고된다).
 const (
@@ -112,19 +124,53 @@ const (
 	MsgResize MsgType = "RESIZE" // sup→worker REQ: ResizeRequest → 빈 응답
 	MsgKill   MsgType = "KILL"   // sup→worker REQ: KillRequest → 빈 응답
 	MsgStatus MsgType = "STATUS" // worker→sup EVENT: StatusEvent
+
+	MsgEditResult MsgType = "EDIT_RESULT" // worker→sup REQ: EditResult → 빈 응답 (EDIT 전용)
+)
+
+// ExecType은 실행 종류를 구분한다(MsgExec 공통 — 같은 PTY 엔진 위의 named recipe).
+//
+//	EXEC = 일반 인터랙티브 실행(산출물 없음, 종료코드만).
+//	EDIT = 에디터로 띄워 편집 → 종료 시 파일 내용 회수(MsgEditResult). 초기 내용은 미리
+//	       전송(SendBuffer)해 깔아 둔다(인라인 주입 아님).
+//
+// 빈 값은 EXEC로 간주한다(하위호환 기본값 — Kind() 사용).
+type ExecType string
+
+const (
+	ExecTypeExec ExecType = "EXEC"
+	ExecTypeEdit ExecType = "EDIT"
+)
+
+// Placeholder*는 명령 치환 토큰이다. supervisor가 Cmd/Args/Cwd/Env에 그대로 박아 보내면
+// worker가 실행 직전 실제 값으로 치환한다(매칭 안 되는 {..}는 그대로 둔다). 양쪽이 같은
+// 문자열을 참조하도록 여기에 둔다 — worker는 치환, supervisor는 명령 빌드에 사용.
+const (
+	PlaceholderWorkerBase = "{WORKER_BASE}" // worker 베이스 디렉토리(ProcessRoot)
 )
 
 // ProcessSpec: 실행 명세. (MsgExec REQ)
 // UID는 initiator가 발급(RandomKey). 와이어 데이터라 execute가 아닌 여기(protocol)에 둔다
 // — execute는 Linux 전용(PTY ioctl)이므로 protocol/transport의 이식성을 위해 분리.
+// 공통 필드(UID/Cmd/Args/...) + 종류 구분(Type). EDIT의 초기 내용은 별도 전송(SendBuffer)이라
+// 여기에 인라인 필드를 두지 않는다.
 type ProcessSpec struct {
 	UID  string   `json:"uid"`
-	Cmd  string   `json:"cmd"`
+	Type ExecType `json:"type,omitempty"` // EXEC(기본·빈값) | EDIT
+	Cmd  string   `json:"cmd,omitempty"`  // EDIT: 비우면 worker가 $EDITOR 해석
 	Args []string `json:"args,omitempty"`
 	Cwd  string   `json:"cwd,omitempty"`
 	Env  []string `json:"env,omitempty"`  // "KEY=VALUE" 형식
 	Rows uint16   `json:"rows,omitempty"` // 초기 터미널 창 크기
 	Cols uint16   `json:"cols,omitempty"`
+}
+
+// Kind는 Type을 정규화해 반환한다(빈 값 → EXEC). worker/supervisor는 이걸로 분기한다.
+func (s ProcessSpec) Kind() ExecType {
+	if s.Type == ExecTypeEdit {
+		return ExecTypeEdit
+	}
+	return ExecTypeExec
 }
 
 // ExecResponse: 실행 수락/거부. (MsgExec RES)
@@ -162,4 +208,13 @@ type StatusEvent struct {
 	Status   execute.CommandStatus `json:"status"`
 	PID      int                   `json:"pid,omitempty"` // 0 = 아직 모름
 	ExitCode int                   `json:"exitCode"`      // Completed/Failed 시에만 의미(0이 정상종료라 omitempty 금지)
+}
+
+// EditResult: EDIT 종료 시 worker가 회수한 최종 파일 내용. (MsgEditResult REQ, worker→sup → 빈 응답)
+// 저장 여부 판별은 supervisor가 한다: 노드의 현재 content와 비교해 바뀌었을 때만 UPDATE.
+// (vi는 :wq·:q! 모두 정상종료라 종료코드로 저장여부 못 가림 → 무조건 read-back 후 supervisor가 diff.)
+// 에디터 비정상 종료(예: :cq)는 별도 MsgStatus(Failed)로 통보되니 supervisor가 취소로 처리할 수 있다.
+type EditResult struct {
+	UID     string `json:"uid"`
+	Content []byte `json:"content"`
 }

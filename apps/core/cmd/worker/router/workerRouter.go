@@ -65,6 +65,8 @@ func NewWorkerRouter(supervisor url.URL, uniqueKey, baseDir string, store *store
 	conn.Handle(protocol.MsgFileResult, router.fileResult)
 	conn.Handle(protocol.MsgFileAbort, router.fileAbort)
 
+	conn.Handle(protocol.MsgExec, router.exec)
+
 	go func() { // 수신 루프: 끝나면 세션 종료. reached로 정상 가동 여부 보고.
 		err := conn.Serve()
 		finish(Result{Reached: router.reached.Load(), Err: err})
