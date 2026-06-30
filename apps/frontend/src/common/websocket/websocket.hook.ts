@@ -127,11 +127,15 @@ export const createWebsocketHook = (url: string, option: WebsocketOption = {}) =
         };
 
         const connect = () => {
+            // 연결 시도가 이미 진행 중이면 중복 소켓 생성 방지(#3).
+            // 재연결 경로의 닫힌 옛 소켓(readyState CLOSED)은 통과시킨다.
+            if (ws.value && ws.value.readyState === WebSocket.CONNECTING) return;
             // 살아있는 연결이면 조용히 교체.
             if (ws.value && isConnected(status.value)) {
                 ws.value.onclose = () => {};
                 ws.value.close();
             }
+            manualDisconnect = false;
             retry.value += 1;
             const sock = new WebSocket(url);
             sock.binaryType = 'arraybuffer'; // Go BinaryMessage 수신용
