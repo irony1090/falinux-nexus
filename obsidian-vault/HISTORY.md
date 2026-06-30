@@ -24,7 +24,11 @@
 - 2026-06-26 supervisor PG 스토어 이식 + DB 배선/마이그레이션 자동적용
 
 ### `history/node-label.md` — Node/Label 모듈
+- 2026-06-29 Node 모듈 구현 (스키마·쿼리·핸들러·PatchNode·internal/patch, build/vet 통과)
 - 2026-06-26 Node/Label 모듈 설계 (frontend 카탈로그)
+
+### `history/frontend.md` — 프론트엔드 (apps/frontend)
+- 2026-06-30 apps/frontend 초기 스캐폴딩 (Vue3+TS+Vuetify, Router/Pinia X, Noto 폰트, .gitignore, 커밋 e511359)
 
 ### `history/project.md` — 프로젝트 셋업 / worker 기반
 - 2026-06-17 Nexus 프로젝트 분리 & vault 신규 구성

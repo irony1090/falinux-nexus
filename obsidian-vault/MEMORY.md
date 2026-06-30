@@ -19,14 +19,17 @@
 
 ## 확정 결정 (불변 — 장기 유지)
 - **계층: 2단계 고정** (supervisor → worker, 중간 노드 없음. 식별자/라우팅/구독 1홉 평면)
-- **worker는 메모리 전용 관리**(2026-06-26) — supervisor DB에 worker/agent 테이블 **없음**. worker 신원은 런타임 메모리 레지스트리(`InstanceKey`=`메인키#서브키`)로만. → node의 device 결속은 FK 아닌 `device_key TEXT` (→ `REF-node-label.md`)
+- **worker 라우팅/신원 = 메모리 레지스트리**(`InstanceKey`=`메인키#서브키`) — 살아있는 연결로만 라우팅, **DB가 라우팅 authority 아님**. ※구 `agents` 테이블 제거(2026-06-26)는 "영속 금지 원칙"이 아니라 **이름·역할 불명** 때문이었음 — 영속 자체는 가능(2026-06-29 정정)
+  - **관측용 roster는 DB 허용**: `worker_instances(main_key, sub_key, last_seen)` = UI에 main_key별 인스턴스 활성/비활성 표시용. online은 저장 말고 레지스트리로 **파생**(roster ≠ authority). 착수 예정 (→ `REF-node-label.md`)
+  - node의 device 결속 = FK 아닌 `device_key TEXT`(**= main_key**, 폴더는 장비 클래스에 묶임 / subkey는 실행 시 런타임 선택) (→ `REF-node-label.md`)
 - **agent 식별자: 사전 지정 메인키 + supervisor가 접속 시 부여하는 서브키.** 저장/조회는 `메인키#서브키`(`InstanceKey()`). MAC 폐기
 - **process 영속성**: worker 휘발(메모리) / supervisor 영속(PG, 재시작 복구)
 - **재연결 reconciliation**: 끊김→`Done(502)` 비관적 정리 / 재연결→worker가 live 스냅샷 재동기화 (미구현)
 - **에러 처리 = panic-style**(2026-06-26 재확정): 핸들러 `panic(web.Err(...))` → `PanicMiddleware` 렌더 (→ `REF-supervisor-web.md`)
 
 ## 기술 스택 (확정)
-- **레포**: `nexus` / 모노레포 `apps/core`(Go) + `apps/web`(프론트, 미착수)
+- **레포**: `nexus` / 모노레포 `apps/core`(Go) + `apps/frontend`(프론트, 스캐폴딩 완료 2026-06-30)
+- **프론트**: Vue3 + TS + Vuetify4 (scratch preset, Router=standard / **Pinia 미사용**, CSS framework 없음). 상태공유=provide/inject(+컴포넌트 밖 필요 시 reactive 모듈 패턴). 기본폰트=Noto Sans Korean (→ `REF-frontend.md`)
 - **Go**: 단일 모듈 `nexus`, 멀티 cmd(`cmd/supervisor`, `cmd/worker`), Go 1.26
 - **DB**: worker → SQLite(`modernc.org/sqlite`, CGO 없음) / supervisor → PostgreSQL(`pgx/v5`)
 - **sqlc**: 두 엔진 한 `sqlc.yaml` → `workerdb`/`superdb` 분리 생성
@@ -58,10 +61,12 @@ sqlc.yaml  README.md  .gitignore
 | 파일 전송 (transfer) | 구현 완료, e2e 미검증 | `REF-transfer.md` |
 | DB/스토어 (sqlc·goose·store) | 구현 완료 | `REF-db.md` |
 | supervisor web (tx·error·user·session) | 구현+e2e 완료 | `REF-supervisor-web.md` |
-| Node/Label 카탈로그 | 설계 확정, **구현 착수** | `REF-node-label.md` |
+| Node 카탈로그 | DB+CRUD+핸들러 구현(e2e 미검증), roster/label 남음 | `REF-node-label.md` |
+| 공용 PATCH 래퍼 (`internal/patch`) | `patch.Field[T]` 3-state(`{valid,value}`), worker도 재사용 예정 | `REF-node-label.md` |
+| 프론트엔드 (apps/frontend) | 스캐폴딩 완료(2026-06-30, 커밋 e511359), 폰트 적용. UI/socket 연동 미착수 | `REF-frontend.md` |
 
 ## reference 인덱스
-- 설계/재사용 지식: `REF-infra.md` `REF-process.md` `REF-transfer.md` `REF-db.md` `REF-supervisor-web.md` `REF-node-label.md`
-- 작업 이력(주제별): `history/transport.md` `history/transfer.md` `history/supervisor-web.md` `history/node-label.md` `history/project.md`
+- 설계/재사용 지식: `REF-infra.md` `REF-process.md` `REF-transfer.md` `REF-db.md` `REF-supervisor-web.md` `REF-node-label.md` `REF-frontend.md`
+- 작업 이력(주제별): `history/transport.md` `history/transfer.md` `history/supervisor-web.md` `history/node-label.md` `history/frontend.md` `history/project.md`
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md`
