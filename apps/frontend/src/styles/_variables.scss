@@ -1,0 +1,31 @@
+$base-spacing: 4px;
+$base-font: 1rem;
+
+
+$spacing-xs: $base-spacing * 0.5; 	// 2px
+$spacing-sm: $base-spacing; 		// 4px
+$spacing-md: $base-spacing * 2; 	// 8px
+$spacing-lg: $base-spacing * 3; 	// 12px
+$spacing-xl: $base-spacing * 4; 	// 16px
+
+@function spacing($multiplier) {
+	@return $base-spacing * $multiplier;
+}
+
+$weight-xs: 300;
+$weight-sm: 400;
+$weight-md: 500;
+$weight-lg: 700;
+$weight-xl: 900;
+
+@function fontLevel($level) {
+	@return $base-font + (($level * 0.125) - 0.625 )
+}
+
+$alpha-sm: 0.875;
+$alpha-md: 0.75;
+$alpha-lg: 0.5;
+$alpha-xl: 0.25;
+
+
+$nav-alpha: 0.75;
