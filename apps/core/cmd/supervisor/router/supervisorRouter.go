@@ -1,12 +1,14 @@
 package router
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
 	"nexus/internal/manager"
 	"nexus/internal/manager/session"
 	"nexus/internal/protocol"
+	"nexus/internal/subscribe"
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/supervisor/store"
 	"nexus/internal/transport"
@@ -31,9 +33,10 @@ var upgrader = websocket.Upgrader{
 }
 
 type supervisorRouter struct {
-	workers  *manager.KeyValManager[string, *transport.Conn]
-	readers  *manager.KeyValManager[string, *sendJob]
-	sessions *session.SessionManager[superdb.User]
+	workers      *manager.KeyValManager[string, *transport.Conn]
+	readers      *manager.KeyValManager[string, *sendJob]
+	sessions     *session.SessionManager[superdb.User]
+	subscribeHub *subscribe.Hub[*transport.Conn, protocol.MsgType]
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -42,10 +45,17 @@ type supervisorRouter struct {
 func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 
 	log.Printf("[supervisor] SERVER 실행")
+	subscribeHub := subscribe.New(
+		json.Marshal,
+		func(c *transport.Conn, k protocol.MsgType, b []byte) error {
+			return c.Emit(k, json.RawMessage(b))
+		},
+	)
 	router := &supervisorRouter{
-		workers:  manager.NewKeyValManager[string, *transport.Conn](),
-		readers:  manager.NewKeyValManager[string, *sendJob](),
-		sessions: session.NewSessionManager[superdb.User]("irony", "sid", nil),
+		workers:      manager.NewKeyValManager[string, *transport.Conn](),
+		readers:      manager.NewKeyValManager[string, *sendJob](),
+		sessions:     session.NewSessionManager[superdb.User]("irony", "sid", nil),
+		subscribeHub: subscribeHub,
 	}
 
 	e := echo.New()
@@ -65,18 +75,20 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 		AllowHeaders: []string{"Content-Type", "Authorization", "MAC"},
 	}))
 
-	e.GET(workerPath, router.handleAgentWS)
+	// worker router
+	e.GET(workerPath, router.handleWorkerWS)
+	e.GET("/subscribe", router.handleSubscribeWS)
 	router.mountUsers(e)
 	router.mountNodes(e)
 
 	return e, router
 }
 
-// handleAgentWS는 worker의 WS 업그레이드를 받아 transport.Conn으로 다룬다.
+// handleWorkerWS worker의 WS 업그레이드를 받아 transport.Conn으로 다룬다.
 // 업그레이드 성공 시 연결이 hijack되므로 echo는 비켜선다 → 본문은 기존 net/http
 // 핸들러와 동일하고, 끝에서 반드시 nil을 반환해야 한다(에러 반환 시 echo가 hijack된
 // 연결에 응답을 쓰려다 실패). upgrade 실패도 gorilla가 이미 HTTP 에러를 썼으므로 nil.
-func (router *supervisorRouter) handleAgentWS(c echo.Context) error {
+func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
 	if err != nil {
 		log.Printf("supervisor: upgrade 실패 %v", err)

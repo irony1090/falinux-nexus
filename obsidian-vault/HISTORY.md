@@ -30,6 +30,9 @@
 ### `history/frontend.md` — 프론트엔드 (apps/frontend)
 - 2026-06-30 apps/frontend 초기 스캐폴딩 (Vue3+TS+Vuetify, Router/Pinia X, Noto 폰트, .gitignore, 커밋 e511359)
 
+### `history/realtime.md` — 실시간 push (socket)
+- 2026-06-30 supervisor↔웹 socket 전송 토대 완성 + 3모드(call/emit/on) e2e 검증 (Hub Kind 추가·subscribe.go 인증교정·프론트 hook 재설계)
+
 ### `history/project.md` — 프로젝트 셋업 / worker 기반
 - 2026-06-17 Nexus 프로젝트 분리 & vault 신규 구성
 - 2026-06-17 apps/core 스캐폴딩 & 레포 초기 커밋

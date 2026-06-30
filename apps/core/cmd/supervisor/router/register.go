@@ -31,6 +31,20 @@ func (r *supervisorRouter) register(conn *transport.Conn, body *protocol.Registe
 		}
 		r.workers.Append(key, conn)
 
+		// d := transfer.NewReadBuffer([]byte("IRONY TEST\nHello World"), time.Second*2)
+		// k, err := r.SendBuffer(key, d, "ironyMemory.txt", 0777)
+		// if err != nil {
+		// 	log.Printf("[SendBuffer] Err: %v", err)
+		// } else {
+		// 	log.Printf("[SendBuffer] Suc: %s", k)
+		// }
+		// uid, _ := util.RandomKey(8, "", "")
+		// r.Exec(key, protocol.ProcessSpec{
+		// 	UID:  uid,
+		// 	Cmd:  fmt.Sprintf("vi %s", protocol.PlaceholderWorkerBase),
+		// 	Args: []string{fmt.Sprintf("%s/TEST", protocol.PlaceholderWorkerBase)},
+		// })
+
 		return protocol.RegisterResponse{SubKey: body.SubKey}, nil
 	}
 }

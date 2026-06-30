@@ -26,7 +26,7 @@
 - 기본 폰트 = **Noto Sans Korean**.
 - 로드: `public/fonts/` 정적 에셋 + `src/styles/noto-sans-korean.scss`(`@font-face`), `main.ts`에서 import.
 - 적용: Vuetify `$body-font-family` 오버라이드(`src/styles/settings.scss`의 `@use 'vuetify/settings' with (...)`).
-- unplugin-fonts(Roboto fontsource)는 주석 처리/제거 방향. `@fontsource/roboto`는 죽은 의존성(삭제 가능). `import 'unfonts.css'`도 Fonts 플러그인 제거 시 함께 제거.
+- ✅ Roboto 정리 완료(2026-06-30): `@fontsource/roboto` 삭제, `main.ts` `import 'unfonts.css'` 주석화, `vite.config.mts` unplugin-fonts `Fonts()` 주석화. 기본폰트는 `settings.scss` `$body-font-family` 오버라이드로 적용 확인.
 - weight 200/600 `@font-face` 없음 → 사용 시 브라우저 합성(faux). 필요 시 추가.
 
 ## scss 구조
@@ -34,6 +34,22 @@
 - `settings.scss`: Vuetify 내부 변수 오버라이드 전용(`configFile`로 연결). 폰트 등은 여기서.
 - 둘 역할 분리 — 혼용 금지.
 
+## WebSocket hook (socket 전송계층) — `src/common/websocket/websocket.hook.ts`
+> 실시간 push 아키텍처(인가/라우팅·토픽·서버측) → `REF-realtime.md`. 여기는 프론트 hook 자체.
+
+- **Go `transport.Conn` 1:1 대응**: `call`↔Call(REQ→RES) / `emit`↔Emit(EVENT↑) / `on`↔On(EVENT↓) / `status`=watch 기반(Serve 루프 대용).
+- `createWebsocketHook(url, opts)` → composable `useX(): SocketContext`. **url당 단일 ctx 공유**(소켓·correlator·핸들러).
+- `SocketContext` = `{ status, event, connect, disconnect, call, emit, on }`.
+- **`Protocol` 주입형(frame 가변 전제)**: 코어는 프레임 필드를 모르고 "의도(request/event) → 와이어" + "와이어 → 분류(Inbound: response/event/request/unknown)"만 위임. frame 바뀌면 **Protocol 구현 1개 교체**. 기본 `jsonFrame` = Go Frame `{k,id,t,e,d}`(REQ0/RES1/EVENT2) 미러.
+- 구현 결정(확정):
+  - `binaryType='arraybuffer'`(Go BinaryMessage 수신) — 전송계층 설정.
+  - **correlator**: `++seq` number id, `pending Map<id>`. **끊김(onclose/disconnect) 시 pending 일괄 reject**(Go corr.Close 대응).
+  - `call`: 미연결 시 즉시 reject. `callTimeout`(기본 10000, 0=무제한) + per-call `timeout`/`AbortSignal`.
+  - `emit`: 미연결 시 조용히 drop.
+  - `on`: type당 **다중 핸들러(Set)**, 해제 함수 반환 + `onUnmounted` 자동 해제.
+  - **브라우저에 `Handle` 없음**(서버→브라우저 REQ 미수신, 비대칭).
+- 검증: 3모드 e2e 통과(2026-06-30) — `REF-realtime.md`/`history/realtime.md`.
+
 ## 미착수/다음
 - node 카탈로그 UI = 트리 + 캔버스(% 절대배치). 터미널(xterm.js)은 EXEC/EDIT용 별개.
-- supervisor → socket으로 node 변경 push 연동(채널/이벤트 형식 미설계).
+- socket 수신 핸들러 실연동: `on('node.created'|'process.output'|…)` → 트리/터미널 갱신 (→ `REF-realtime.md`).

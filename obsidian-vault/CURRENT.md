@@ -5,6 +5,17 @@
 
 ---
 
+## ✅ socket 실시간 push — 전송 토대 완성 + 3모드 e2e 검증 (2026-06-30, **uncommitted**)
+
+> supervisor↔웹 socket 계층. 상세 → `REF-realtime.md`, 이력 → `history/realtime.md`, 프론트 hook → `REF-frontend.md`.
+- **설계 확정**: 인가(DB,구독1회)/라우팅(메모리 `subscribe.Hub`) 분리. 토픽=**펼친 폴더** `NODE:<parentId>`. 비대칭(브라우저 call→서버 Handle / 서버 Emit→브라우저 on).
+- **supervisor**: `hub.go` Publish에 Kind 추가 / `supervisorRouter` `subscribeHub`+`/subscribe` 라우트(send=`Emit(k, json.RawMessage(b))`) / `subscribe.go` 인증 2버그 교정(requireSession을 upgrade 전).
+- **프론트**: `websocket.hook.ts` 옛 createWebsocketHook 폐기 → transport.Conn 대응 재작성(call/emit/on/status + 주입형 Protocol). `index.vue` 마이그레이션. vue-tsc 통과.
+- **e2e**: call(TEST→RES)/emit(TEST_ON)/on(TTTT) 3모드 실서버 통과.
+- **남은 것**: 동적 `MsgSubscribe`/`MsgUnsubscribe`+DB인가(NODE:0 고정·TEST 스모크 대체) / node·process CRUD commit 후 `Publish` 배선 / 프론트 `on` 실제 핸들러.
+
+---
+
 ## ✅ 프론트엔드 스캐폴딩 완료 (2026-06-30, 커밋 e511359)
 
 > `apps/frontend` 생성 — Vue3 + TS + Vuetify4(scratch, Router=standard / **Pinia X** / CSS framework 없음). 상세 → `REF-frontend.md`, 이력 → `history/frontend.md`.
@@ -12,9 +23,9 @@
 - `.gitignore` 작성(`.env`/node_modules/dist 무시), 81개 파일 커밋.
 - 상태관리 = provide/inject (컴포넌트 밖 접근 필요 시 reactive 모듈 패턴 검토).
 
-### 프론트 마무리 잔여 (선택)
-- 기본폰트 적용 = Vuetify `$body-font-family` 오버라이드(`settings.scss`) 확인.
-- Roboto 정리: `@fontsource/roboto` 삭제 + `import 'unfonts.css'` 제거(Fonts 플러그인 주석화 상태).
+### 프론트 마무리 잔여 — ✅ 완료 (2026-06-30)
+- 기본폰트: `settings.scss` `$body-font-family: ('Noto Sans Korean', sans-serif)` 적용 확인.
+- Roboto 정리: `@fontsource/roboto` 삭제 + `main.ts` `import 'unfonts.css'` 주석화 + `vite.config.mts` unplugin-fonts `Fonts()` 주석화.
 
 ---
 
@@ -22,13 +33,16 @@
 
 > node CRUD(REST)는 구현 완료, 프론트 스캐폴딩 완료. 이제 **supervisor가 node 변화를 socket으로 프론트에 push**(실시간 반영) + node 카탈로그 UI(트리+캔버스) 구현.
 
-### 방향 (설계 필요)
-- **흐름**: node 변경(생성/이동/수정/삭제) 발생 → supervisor가 socket으로 결과 push → 프론트 트리/캔버스 갱신
-- **미설계(내일 정할 것)**:
-  - socket 채널/이벤트 형식(어떤 단위로 push: 노드 1건 delta vs 부모 자식목록 갱신)
-  - 구독 범위(유저별 node 트리) — 기존 `internal/subscribe`(Hub)·EVENT 평면 재사용 여부
-  - REST(요청) ↔ socket(브로드캐스트) 정합(자기 요청 결과도 socket으로 받을지/낙관적 갱신)
-- **프론트**: `apps/frontend` 스캐폴딩 완료. node 카탈로그 UI = 트리 + 캔버스(% 절대배치) / 터미널(xterm.js)은 EXEC·EDIT용 별개 (UI 미착수)
+### 방향 (전송 토대 완성 → 도메인 배선 단계)
+- **흐름**: node 변경(생성/이동/수정/삭제) → supervisor가 commit 후 socket push → 프론트 트리/캔버스 갱신
+- **확정**(2026-06-30, → `REF-realtime.md`):
+  - 토픽 = **펼친 폴더 단위** `NODE:<parentId>`(이동/삭제=old+new 2토픽). 유저 트리 전체 토픽 안 씀.
+  - `internal/subscribe.Hub`(+EVENT 평면) 재사용 확정. 인가=DB 1회 / 라우팅=메모리.
+- **남은 설계/배선**:
+  - 동적 `MsgSubscribe`/`MsgUnsubscribe` 어휘 + 핸들러 안에서 DB 인가.
+  - Kind(MsgType) 어휘: `node.created/moved/deleted/renamed`, `process.output/status`.
+  - REST↔socket 정합: 자기 echo는 idempotent 재적용(초기), commit **후** Publish(롤백 누설 방지).
+- **프론트**: socket hook 완성. node 카탈로그 UI = 트리 + 캔버스(% 절대배치) / 터미널(xterm.js)은 EXEC·EDIT용 별개 (UI 미착수). `on` 수신 핸들러 실연동 남음.
 
 ---
 

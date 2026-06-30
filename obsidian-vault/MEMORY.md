@@ -26,6 +26,7 @@
 - **process 영속성**: worker 휘발(메모리) / supervisor 영속(PG, 재시작 복구)
 - **재연결 reconciliation**: 끊김→`Done(502)` 비관적 정리 / 재연결→worker가 live 스냅샷 재동기화 (미구현)
 - **에러 처리 = panic-style**(2026-06-26 재확정): 핸들러 `panic(web.Err(...))` → `PanicMiddleware` 렌더 (→ `REF-supervisor-web.md`)
+- **실시간 push = 인가/라우팅 분리**(2026-06-30): 인가=DB(구독 시점 1회) / 라우팅=메모리(`subscribe.Hub` topic Publish, DB 무접촉). 수신자=presence(구독)≠소유자 → 공유·다중 유저 동일 화면 흡수. 토픽 단위=**펼친 폴더** `NODE:<parentId>`. "DB≠라우팅 authority"를 browser 평면으로 확장. 비대칭: 브라우저 call→서버 Handle / 서버 Emit→브라우저 on (→ `REF-realtime.md`)
 
 ## 기술 스택 (확정)
 - **레포**: `nexus` / 모노레포 `apps/core`(Go) + `apps/frontend`(프론트, 스캐폴딩 완료 2026-06-30)
@@ -63,10 +64,11 @@ sqlc.yaml  README.md  .gitignore
 | supervisor web (tx·error·user·session) | 구현+e2e 완료 | `REF-supervisor-web.md` |
 | Node 카탈로그 | DB+CRUD+핸들러 구현(e2e 미검증), roster/label 남음 | `REF-node-label.md` |
 | 공용 PATCH 래퍼 (`internal/patch`) | `patch.Field[T]` 3-state(`{valid,value}`), worker도 재사용 예정 | `REF-node-label.md` |
-| 프론트엔드 (apps/frontend) | 스캐폴딩 완료(2026-06-30, 커밋 e511359), 폰트 적용. UI/socket 연동 미착수 | `REF-frontend.md` |
+| 프론트엔드 (apps/frontend) | 스캐폴딩 완료(커밋 e511359) + **socket hook 재설계·3모드 e2e 검증**(2026-06-30). 카탈로그 UI 미착수 | `REF-frontend.md` |
+| 실시간 push (socket) | 전송 토대 완성·3모드(call/emit/on) e2e 검증. 동적 구독·DB인가·Publish 배선 남음 | `REF-realtime.md` |
 
 ## reference 인덱스
-- 설계/재사용 지식: `REF-infra.md` `REF-process.md` `REF-transfer.md` `REF-db.md` `REF-supervisor-web.md` `REF-node-label.md` `REF-frontend.md`
-- 작업 이력(주제별): `history/transport.md` `history/transfer.md` `history/supervisor-web.md` `history/node-label.md` `history/frontend.md` `history/project.md`
+- 설계/재사용 지식: `REF-infra.md` `REF-process.md` `REF-transfer.md` `REF-db.md` `REF-supervisor-web.md` `REF-node-label.md` `REF-frontend.md` `REF-realtime.md`
+- 작업 이력(주제별): `history/transport.md` `history/transfer.md` `history/supervisor-web.md` `history/node-label.md` `history/frontend.md` `history/realtime.md` `history/project.md`
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md`

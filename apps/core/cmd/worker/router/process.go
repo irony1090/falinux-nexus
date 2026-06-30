@@ -1,16 +1,33 @@
 package router
 
-import "nexus/internal/protocol"
+import (
+	"log"
+	"nexus/cmd/worker/constants"
+	"nexus/internal/protocol"
+	"strings"
+)
 
 // ===== process 실행 엔드포인트 (supervisor → worker) =====
 
 // exec: MsgExec(REQ). ProcessSpec을 받아 PTY로 process를 실행한다. → ExecResponse
 func (r *workerRouter) exec(req protocol.Frame) (any, error) {
+	env := constants.GetEnv()
+	var body protocol.ProcessSpec
+	req.Bind(&body)
+
+	body.Cmd = strings.ReplaceAll(body.Cmd, protocol.PlaceholderWorkerBase, env.ProcessRoot)
+
+	for i, v := range body.Args {
+		body.Args[i] = strings.ReplaceAll(v, protocol.PlaceholderWorkerBase, env.ProcessRoot)
+	}
+	log.Printf("body %v", body)
+
 	return nil, nil
 }
 
 // resize: MsgResize(REQ). 터미널 창 크기를 변경한다(Layout).
 func (r *workerRouter) resize(req protocol.Frame) (any, error) {
+
 	return nil, nil
 }
 

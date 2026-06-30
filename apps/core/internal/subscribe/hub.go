@@ -63,22 +63,22 @@ func (s *topic[C]) snapshot() []C {
 }
 
 // Hub는 키별 구독자(토픽)를 관리한다. 동시성 안전.
-type Hub[C comparable] struct {
+type Hub[C comparable, T comparable] struct {
 	mu         sync.Mutex
 	records    map[string]*topic[C] // key → 토픽(구독자 집합)
 	keyRecords map[C][]string       // client → 구독 중인 키들
 
 	marshal func(any) ([]byte, error) // 직렬화 전략 (Publish에서 사용)
-	send    func(C, []byte) error     // 전송 전략   (Publish에서 사용)
+	send    func(C, T, []byte) error  // 전송 전략   (Publish에서 사용)
 }
 
 // New는 직렬화/전송 전략을 주입받아 허브를 만든다.
 // Subscribers만 쓰고 Publish를 쓰지 않을 거라면 marshal/send에 nil을 줘도 된다.
-func New[C comparable](
+func New[C comparable, T comparable](
 	marshal func(any) ([]byte, error),
-	send func(C, []byte) error,
-) *Hub[C] {
-	return &Hub[C]{
+	send func(C, T, []byte) error,
+) *Hub[C, T] {
+	return &Hub[C, T]{
 		records:    make(map[string]*topic[C]),
 		keyRecords: make(map[C][]string),
 		marshal:    marshal,
@@ -87,7 +87,7 @@ func New[C comparable](
 }
 
 // getOrCreateUnsafe는 m.mu 보유 상태에서 호출해야 한다.
-func (m *Hub[C]) getOrCreateUnsafe(key string, create bool) *topic[C] {
+func (m *Hub[C, T]) getOrCreateUnsafe(key string, create bool) *topic[C] {
 	if sc, ok := m.records[key]; ok {
 		return sc
 	}
@@ -100,7 +100,7 @@ func (m *Hub[C]) getOrCreateUnsafe(key string, create bool) *topic[C] {
 }
 
 // Subscribe는 client를 key에 구독시킨다.
-func (m *Hub[C]) Subscribe(key string, client C) {
+func (m *Hub[C, T]) Subscribe(key string, client C) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	sc := m.getOrCreateUnsafe(key, true)
@@ -110,14 +110,14 @@ func (m *Hub[C]) Subscribe(key string, client C) {
 }
 
 // Unsubscribe는 client를 key 구독에서 해제한다.
-func (m *Hub[C]) Unsubscribe(key string, client C) {
+func (m *Hub[C, T]) Unsubscribe(key string, client C) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.unsubscribeUnsafe(key, client)
 }
 
 // UnsubscribeAll은 client의 모든 구독을 해제한다(연결 종료 시 호출).
-func (m *Hub[C]) UnsubscribeAll(client C) {
+func (m *Hub[C, T]) UnsubscribeAll(client C) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	keys := append([]string(nil), m.keyRecords[client]...) // 순회 중 변경되므로 복사
@@ -127,7 +127,7 @@ func (m *Hub[C]) UnsubscribeAll(client C) {
 }
 
 // unsubscribeUnsafe는 m.mu 보유 상태에서 호출해야 한다.
-func (m *Hub[C]) unsubscribeUnsafe(key string, client C) {
+func (m *Hub[C, T]) unsubscribeUnsafe(key string, client C) {
 	sc := m.getOrCreateUnsafe(key, false)
 	if sc == nil {
 		return
@@ -153,7 +153,7 @@ func (m *Hub[C]) unsubscribeUnsafe(key string, client C) {
 
 // Subscribers는 key 구독자들의 스냅샷(복사본)을 반환한다.
 // 직접 전송 루프를 짜고 싶은 특수 케이스용 탈출구.
-func (m *Hub[C]) Subscribers(key string) []C {
+func (m *Hub[C, T]) Subscribers(key string) []C {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	sc, ok := m.records[key]
@@ -166,7 +166,7 @@ func (m *Hub[C]) Subscribers(key string) []C {
 // Publish는 payload를 1번 marshal한 뒤 key 구독자들에게 전송한다.
 // 전송은 락 밖에서 수행하며, 특정 클라이언트 전송 실패가 나머지를 막지 않는다.
 // 발생한 send 에러들은 모아서 함께 반환한다.
-func (m *Hub[C]) Publish(key string, payload any) error {
+func (m *Hub[C, T]) Publish(key string, Kind T, payload any) error {
 	clients := m.Subscribers(key)
 	if len(clients) == 0 {
 		return nil
@@ -177,7 +177,7 @@ func (m *Hub[C]) Publish(key string, payload any) error {
 	}
 	var errs []error
 	for _, c := range clients {
-		if e := m.send(c, data); e != nil {
+		if e := m.send(c, Kind, data); e != nil {
 			errs = append(errs, e)
 		}
 	}

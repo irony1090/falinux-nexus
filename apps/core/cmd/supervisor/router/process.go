@@ -1,15 +1,25 @@
 package router
 
 import (
+	"context"
 	"fmt"
 	"nexus/internal/protocol"
 )
 
-func (r *supervisorRouter) Exec(authKey string, spec protocol.ProcessSpec) error {
-
-	if _, exist := r.workers.Get(authKey); !exist {
+func (r *supervisorRouter) ExecEdit(authKey string, spec protocol.ProcessSpec) error {
+	conn, exist := r.workers.Get(authKey)
+	if !exist {
 		return fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", authKey)
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // 정상 종료 시 ctx 자원 정리
+
+	if spec.Type == protocol.ExecTypeEdit {
+
+	}
+
+	conn.Call(ctx, protocol.MsgExec, spec)
 
 	return nil
 }

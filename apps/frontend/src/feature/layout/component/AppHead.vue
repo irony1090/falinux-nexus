@@ -3,7 +3,7 @@
     <template #prepend>
         <v-avatar v-ripple image="@/assets/logo.png" size="28" @click="moveIndex"/>
     </template>
-    <v-app-bar-title class="text-primary">{{ '흠~' }}</v-app-bar-title>
+    <v-app-bar-title class="text-primary">{{ auth?.nickname ?? '-' }}</v-app-bar-title>
     <template #append>
         <v-app-bar-nav-icon @click="toggleNaiv"/>
     </template>
@@ -15,15 +15,22 @@ import { VAppBar, VAppBarNavIcon, VAvatar } from 'vuetify/components'
 import { useAppHead } from '../store/appHead.store';
 import { useAppNav } from '../store/appNav.store';
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/feature/user/store/auth.store';
 
 const router = useRouter();
 // @ts-ignore
 const { vElRef } = useAppHead()
 const { open } = useAppNav();
+const { auth, logout } = useAuthStore();
 
-const toggleNaiv = () => open.value = !open.value
+const toggleNaiv = () => {
+    // open.value = !open.value
+    if (!auth.value) router.push('/login')
+    else logout()
+}
 
 const moveIndex = () => router.push('/')
+
 
 
 // const title = computed(() => titles.value[0])
