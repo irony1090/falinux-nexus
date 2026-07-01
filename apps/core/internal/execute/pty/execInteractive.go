@@ -109,6 +109,13 @@ func (i *Interactive) Status() (execute.CommandStatus, int, error) {
 func (i *Interactive) Output() ([]byte, error) {
 	return i.ouput.Shift()
 }
+func (i *Interactive) OutputAll() ([]byte, error) {
+	batch, err := i.ouput.ShiftAll()
+	if err != nil {
+		return nil, err
+	}
+	return bytes.Join(batch, nil), nil
+}
 func (i *Interactive) Write(data []byte) error {
 	return i.input.Push(data)
 }

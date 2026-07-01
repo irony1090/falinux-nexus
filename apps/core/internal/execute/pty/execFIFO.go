@@ -150,6 +150,16 @@ func (f *Fifo) Output() ([]byte, error) {
 
 	return f.output.Shift()
 }
+func (f *Fifo) OutputAll() ([]byte, error) {
+	if f.done == nil {
+		return nil, fmt.Errorf("fifo not connected")
+	}
+	batch, err := f.output.ShiftAll()
+	if err != nil {
+		return nil, err
+	}
+	return bytes.Join(batch, nil), nil
+}
 func (f *Fifo) Write(data []byte) error {
 	if f.done == nil {
 		return fmt.Errorf("fifo not connected")

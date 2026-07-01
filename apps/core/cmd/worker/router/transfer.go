@@ -25,19 +25,21 @@ type fileRecv struct {
 	finalPath string // 성공 시 .part를 rename할 최종 경로
 }
 
-// resolveDest는 수신 상대경로를 인스턴스 루트 하위의 절대경로로 푼다.
-// traversal(절대경로/`..`)을 차단하고, 최종 경로가 루트 하위인지 재확인한다.
+// resolveDest는 수신 경로를 worker 루트(ProcessRoot) 하위의 절대경로로 푼다.
+// supervisor가 조립한 치환 토큰({WORKER_BASE} 등)을 실제 값으로 지역화한 뒤(placeholder
+// 치환은 worker 책임), traversal(`..`)을 차단하고 최종 경로가 루트 하위인지 재확인한다.
+// 실행 경로(exec 핸들러의 {WORKER_BASE} 치환)와 동일 규칙을 써서 선배치 위치와 실행 대상이
+// 정확히 일치하게 한다.
 func (r *workerRouter) resolveDest(destPath string) (string, error) {
-	root := filepath.Join(r.baseDir, r.instanceKey())
+	root := workerBase()
 
-	// "/" 접두 후 Clean → 루트 위로 빠지는 선행 ".."를 무력화한 뒤 상대경로화.
-	clean := filepath.Clean(string(filepath.Separator) + destPath)
-	clean = strings.TrimPrefix(clean, string(filepath.Separator))
-	if clean == "" {
-		return "", fmt.Errorf("destPath 비어있음")
+	// placeholder 치환(supervisor 조립 → worker 지역화). 매칭 안 되는 {..}는 그대로 둔다.
+	dest := strings.ReplaceAll(destPath, protocol.PlaceholderWorkerBase, root)
+	if !filepath.IsAbs(dest) {
+		dest = filepath.Join(root, dest) // 토큰 없는 순수 상대경로 하위호환
 	}
+	final := filepath.Clean(dest)
 
-	final := filepath.Join(root, clean)
 	rel, err := filepath.Rel(root, final)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("destPath 경로 이탈: %q", destPath)

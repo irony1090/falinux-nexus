@@ -1,6 +1,6 @@
 # REF — process 실행 모듈 (execute / pty / agent comm)
 
-> worker 프로세스 실행/모니터링/종료(PTY) 설계와 계승 자산. **설계 확정, Step1(메시지 어휘) 완료, 도메인 배선 미착수.**
+> worker 프로세스 실행/모니터링/종료(PTY) 설계와 계승 자산. **설계 확정 + supervisor 측 도메인 배선 완료(build/vet 통과). 남은 것=worker 실제 PTY 실행 + router 제어/재접속 배선.**
 > 출력 스트리밍 토대는 `REF-infra.md` EVENT 평면. 통신 상세는 `PLAN-agent-comm.md`.
 
 ## Agent↔Server 통신 프로토콜 (계승)
@@ -72,4 +72,34 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - **이름**: `EXEC`/`EDIT` 둘 다 **동사로 일관**. `EDITOR`(도구명—레이어 샘) 기각, `RETURN`(모호—exit code도 return) 기각. RETURN은 EDIT의 후보명이었을 뿐 동의어
 - **의존성**: process 도메인 배선 선행 필수(현재 Step1만). frontend xterm.js 필요(apps/web 미착수) — e2e는 테스트 클라 conn으로 PTY 왕복 검증 가능
 - **YAGNI**: "인터랙티브 세션이 아티팩트 반환" 거창한 프레임워크 금지. **EDIT 한 동작만**. 비인터랙티브 출력 캡처(CAPTURE류)는 실수요 나올 때 별 type으로
-- **프로토콜 어휘 구현됨(2026-06-26)** `protocol/messages.go`: `ExecType`(EXEC|EDIT) + `ProcessSpec.Type`(빈값=EXEC, `Kind()` 정규화) + `ProcessSpec.Seed []byte`(EDIT 전용 초기 내용) + `MsgEditResult`(worker→sup REQ) + `EditResult{UID,Content}`. 와이어 = 공통 ProcessSpec + Type 구분 + EDIT addendum(Seed/EditResult), 별 메시지 안 가름. 저장판별=supervisor diff. **배선(worker bracket/supervisor 핸들)은 미구현**
+- **프로토콜 어휘 구현됨(2026-06-26)** `protocol/messages.go`: `ExecType`(EXEC|EDIT) + `ProcessSpec.Type`(빈값=EXEC, `Kind()` 정규화) + `MsgEditResult`(worker→sup REQ) + `EditResult{UID,Content}`. 와이어 = 공통 ProcessSpec + Type 구분. 저장판별=supervisor diff. ※구 `ProcessSpec.Seed []byte`/"인라인 content" 서술 폐기 → 아래 2026-07-01 절 참조(파일 선배치 + WorkerNodePath).
+
+## supervisor 측 아키텍처 (2026-07-01) — manager/entry/bind/router 역할분리
+> 구현(빌드·vet 통과): `cmd/supervisor/process/{manager.go,entry.go}`, `internal/supervisor/bind/relay.go`, `cmd/supervisor/router/process.go`(골격). 다이어그램=스크래치 `process-exec-structure.md`.
+
+- **역할 경계** — 규칙: **"누구(who)를 찾고 전송" = router / "무엇을 상태로" = manager**.
+  - **manager = 상태**: UID 발급·spec 내부작성·pool 영속·AgentInteractive 생성. 레지스트리·hub·세션 **모름**(worker conn은 받되 찾지 않음).
+  - **router = wire**: authKey→worker conn 조회·MsgExec 전송·bind.Relay 기동·소켓 핸들러. **트리거는 router**(소켓 Handle→`router.Exec(owner,authKey,kind,node)`→manager 호출). 소켓이 manager를 직접 부르면 manager가 router화됨.
+  - **bind.Relay = fan-out**: `Output()/Status()` 드레인→`hub.Publish`. `IInteractive` 위 재사용(AgentInteractive/로컬PTY 무관).
+- **ProcessEntry**(memory 값, 키=UID) = `{Record *superdb.Process, Inter *AgentInteractive}`. **folder=Inter nil**(레코드-only, worker 무접촉). `HasProcess()`=Inter有 / `NodeID()` / `Spec()`=Record→MsgExec용 ProcessSpec 투영.
+- **spec은 파라미터 아님 → node로부터 내부작성**: manager가 UID 발급 후 node로 구성→CreateProcessParams로 persist. **바인딩=Record 하나(진실의 출처)**, 와이어 spec은 `entry.Spec()`으로 필요할 때 파생(별도 상주 금지—resize 등 drift 방지). 초기 Rows/Cols=0(**resize-on-attach**).
+- **content 전달 = 파일 선배치**(인라인 폐기, 2026-07-01(2) 구현 완료): EXEC·EDIT 둘 다 worker에 파일 먼저 깔고 경로를 가리킴.
+  - **경로 조립=supervisor / 지역화=worker** 책임 분리(핵심). 조립 헬퍼 = `cmd/supervisor/process.WorkerNodePath(node superdb.Node, proc superdb.Process)` → **`{WORKER_BASE}/<node.ID>/<proc.Uid>`**. superdb 구조체 의존이라 **protocol엔 못 둠**(이식성) → process pkg. 구 `protocol.WorkerNodePath(id)` 폐기.
+  - 형식에 **`proc.Uid` 포함 = 실행 인스턴스별 격리**(동시/재실행 충돌 방지). process PK=uid(numeric id 없음)라 "process.Id"=Uid. node.ID = 어떤 스크립트인지.
+  - 이 문자열을 **router 전송(DestPath)과 manager Cmd/Args가 함께** 사용(불일치=버그). manager는 Record 생성 전이라 발급된 uid로 `superdb.Process{Uid: uid}` 넘겨 조립.
+  - **worker 치환(양 채널 동일 규칙)**: `resolveDest`(수신)·`exec`(실행) 둘 다 `{WORKER_BASE}→ProcessRoot` 치환 후 ProcessRoot 하위 traversal 검증 → 선배치=실행 경로 일치. ⚠️ resolveDest의 구 `baseDir/instanceKey` 루트 폐기(instanceKey별 격리 포기, `baseDir`·`instanceKey()`는 dead code화).
+  - **EXEC**: `Cmd=path`, `Args=[]`, 전송 perm 0755. (content→실행 세부정책=TODO: 직접실행 vs `sh -c`)
+  - **EDIT**: `Cmd={WORKER_EDITOR}`(치환 토큰 — vi 하드코딩 폐기), `Args=[path]`, perm 0644. worker `localize()`가 `{WORKER_EDITOR}`도 치환=`resolveEditor()`=`$VISUAL>$EDITOR>vi`. **TUI 에디터 강제 + PTY `$TERM` 세팅**은 실제 PTY 실행부(TODO)에서.
+- **bind.Relay / 배치 드레인**: `NewRelay(uid, IInteractive, publish).Start()`→`pumpOutput`(MsgData)/`pumpStatus`(MsgStatus). `SyncData.ShiftAll()`+`IInteractive.OutputAll()`(연결바이트) 추가로 **락경합·프레임 수 감소**. publish=클로저(`hub.Publish("PROC:"+uid,…)`)로 Hub 제네릭 결합 회피.
+- **EDIT 계약 2개(프로토콜 밖, 배선에서 보장)**: ① 전송 `DestPath`==MsgExec `Args` 경로 일치 ② `MsgEditResult`(UID→NodeID→`UpdateNodeContent`) **처리 전 엔트리 teardown 금지**(EditResult엔 nodeId 없어 UID 매핑 필요).
+
+## 종료 / 재접속 모델 (2026-07-01 확정) — status 단일 깔때기
+> MEMORY의 "끊김→Done(502)" 폐기. 이 절이 최신.
+
+- **`status` = 모든 상태전이의 유일 수렴점.** 어떤 종료든 process 라우터 `status`로. 두 진입: ① worker `On(MsgStatus)` ② worker 끊김 시 supervisor **합성 호출**. → `status(ev Frame)` 안쪽에 **`applyStatus(uid,status,pid,exit)` 코어** 분리(양쪽 재사용).
+- **종료 시나리오**: 자연종료 / **터미널입력**(Ctrl+C=입력 0x03, kill 아님—프로그램이 결정, 입력경로) / **명시 kill**(종료버튼=MsgKill, 제어경로) / worker끊김(→PENDING) / EDIT취소(:cq→Failed→content UPDATE 안 함) / worker외부kill(OOM). **Ctrl+C≠kill 반드시 구분**.
+- **frontend 끊김 ≠ 종료**: 명시적 종료 시그널 전까진 계속 실행(브라우저 종료 무시). **같은 세션 재접속=화면 그대로 복원** → 필요: process별 **ring buffer(SNAPSHOT, 이제 필수)** + **세션→보던 uid 원장**(conn 단위 Hub 구독과 별개) + 재접속 시 SNAPSHOT→live.
+- **worker 끊김 = PENDING(낙관적)**: 죽이지 않고 관련 process 전부 PENDING. 재접속 시 worker가 live 상태 보고→재동기화(보고=PENDING→PROCESS / 미보고=끊긴 사이 사망→합성 종료). 매칭=worker가 **같은 InstanceKey(subkey resume)** 복귀 전제(`RegisterRequest.SubKey`).
+- **⚠️ 재접속 conn 재바인딩(난점)**: 메모리 entry의 AgentInteractive `onWrite/onKill/onLayout`이 죽은 옛 conn을 클로저로 잡음 → 재접속 시 **출력/상태 SyncData 채널 유지**(relay·frontend 구독 보존)한 채 **콜백만 새 conn으로 교체**(또는 entry가 swappable conn 참조 보유).
+- **PENDING 의미 확장**: "RUNNING前" + "끊김·상태미상" 둘 다 = "확정 live 아님".
+- **미해결**: 끊긴 창 입력/kill(죽은 conn→"재연결 대기" 거절 or 큐잉) / 공유 process kill 인가(소유자/write공유자?) / kill 에스컬레이션(worker측 SIGTERM→SIGKILL) / supervisor 재시작 시 ring 소실→DB 출력sink(후순위).

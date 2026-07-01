@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"nexus/cmd/supervisor/process"
 	"nexus/internal/manager"
 	"nexus/internal/manager/session"
 	"nexus/internal/protocol"
@@ -37,6 +38,7 @@ type supervisorRouter struct {
 	readers      *manager.KeyValManager[string, *sendJob]
 	sessions     *session.SessionManager[superdb.User]
 	subscribeHub *subscribe.Hub[*transport.Conn, protocol.MsgType]
+	process      *process.ProcessManager // 실행 상태 레지스트리(UID→entry). 라우팅은 여기 router가.
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -56,6 +58,7 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 		readers:      manager.NewKeyValManager[string, *sendJob](),
 		sessions:     session.NewSessionManager[superdb.User]("irony", "sid", nil),
 		subscribeHub: subscribeHub,
+		process:      process.NewProcessManager(),
 	}
 
 	e := echo.New()
@@ -99,6 +102,11 @@ func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 
 	var auth protocol.RegisterRequest
 	conn.Handle(protocol.MsgRegister, router.register(conn, &auth))
+
+	// worker→sup process 이벤트: 출력/상태=EVENT, EDIT read-back=REQ.
+	conn.On(protocol.MsgData, router.output)               // 출력 바이트 → Inter.PushOutput
+	conn.On(protocol.MsgStatus, router.status)             // 상태전이 → applyStatus 깔때기
+	conn.Handle(protocol.MsgEditResult, router.editResult) // UID→NodeID→content UPDATE
 
 	err = conn.Serve()
 

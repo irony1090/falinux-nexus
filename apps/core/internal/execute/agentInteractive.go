@@ -1,6 +1,7 @@
 package execute
 
 import (
+	"bytes"
 	"nexus/internal/syncProcess"
 	"sync"
 	"syscall"
@@ -35,6 +36,14 @@ func NewAgentInteractive(
 
 func (a *AgentInteractive) Output() ([]byte, error) {
 	return a.output.Shift()
+}
+
+func (a *AgentInteractive) OutputAll() ([]byte, error) {
+	batch, err := a.output.ShiftAll()
+	if err != nil {
+		return nil, err
+	}
+	return bytes.Join(batch, nil), nil
 }
 
 func (a *AgentInteractive) Write(data []byte) error { return a.onWrite(data) }

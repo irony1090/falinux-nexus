@@ -145,8 +145,12 @@ const (
 // Placeholder*는 명령 치환 토큰이다. supervisor가 Cmd/Args/Cwd/Env에 그대로 박아 보내면
 // worker가 실행 직전 실제 값으로 치환한다(매칭 안 되는 {..}는 그대로 둔다). 양쪽이 같은
 // 문자열을 참조하도록 여기에 둔다 — worker는 치환, supervisor는 명령 빌드에 사용.
+// 치환 토큰. supervisor가 Cmd/Args/Cwd/Env/전송 DestPath에 그대로 박아 보내면 worker가
+// 실행/저장 직전 실제 값으로 치환한다(매칭 안 되는 {..}는 그대로). 경로 조립은 supervisor가
+// process/node 구조체로 하고(→ process.WorkerNodePath), worker는 placeholder만 지역화한다.
 const (
-	PlaceholderWorkerBase = "{WORKER_BASE}" // worker 베이스 디렉토리(ProcessRoot)
+	PlaceholderWorkerBase   = "{WORKER_BASE}"   // worker 베이스 디렉토리(ProcessRoot)
+	PlaceholderWorkerEditor = "{WORKER_EDITOR}" // worker 기본 텍스트 에디터($VISUAL>$EDITOR>vi)
 )
 
 // ProcessSpec: 실행 명세. (MsgExec REQ)

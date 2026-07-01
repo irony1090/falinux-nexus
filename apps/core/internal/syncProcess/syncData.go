@@ -63,6 +63,28 @@ func (q *SyncData[T]) Shift() (T, error) {
 	return result, nil
 }
 
+// ShiftAll 대기 중인 모든 요소를 한 번에 꺼내 반환. 데이터가 없으면 최소 1건이 올 때까지 대기.
+// Shift와 종료 의미 동일: 닫혔고 남은 데이터가 없으면 (nil, io.EOF), 닫혔더라도 남은 데이터가
+// 있으면 그것을 먼저 반환(err=nil)한다. 고빈도 스트림에서 항목당 락을 잡는 Shift 대신
+// 한 번의 락으로 배치 드레인해 락 경합을 줄인다.
+func (q *SyncData[T]) ShiftAll() ([]T, error) {
+	q.mutex.Lock()
+	defer q.mutex.Unlock()
+
+	// data가 없으면 최소 1건이 올 때까지 대기
+	for len(q.data) == 0 {
+		if q.closed {
+			return nil, io.EOF
+		}
+		q.signal.Wait()
+	}
+
+	// 대기분 전체를 넘기고 백킹 배열을 새로 분리(q.data[1:] 방식의 head 잔존 회피)
+	result := q.data
+	q.data = make([]T, 0)
+	return result, nil
+}
+
 // Close 큐를 닫음. 이후 Push/Shift는 오류 반환
 func (q *SyncData[T]) Close() {
 	q.mutex.Lock()
