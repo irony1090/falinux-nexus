@@ -45,6 +45,11 @@ func (p *ProcessManager) Exec(
 	if node.Kind == superdb.NodeKindFolder {
 		return p.openFolder(workerKey, node, owner)
 	}
+
+	if worker == nil {
+		return nil, fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", workerKey)
+	}
+
 	// Cmd/Args는 파라미터가 아니라 execScript가 node로부터 WorkerNodePath로 내부작성한다
 	// (router 선배치 DestPath와 단일 출처 공유). content는 router가 파일로 먼저 깔아 둔다.
 	return p.execScript(worker, workerKey, protocol.ExecTypeExec, node, owner)
@@ -60,6 +65,9 @@ func (p *ProcessManager) ExecEdit(
 	node superdb.Node,
 	owner superdb.User,
 ) (*ProcessEntry, error) {
+	if worker == nil {
+		return nil, fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", workerKey)
+	}
 	if node.Kind != superdb.NodeKindScript {
 		return nil, fmt.Errorf("수정할 수 없는 대상입니다")
 	}

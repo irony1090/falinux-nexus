@@ -28,6 +28,7 @@
 - 2026-06-26 Node/Label 모듈 설계 (frontend 카탈로그)
 
 ### `history/process.md` — process 실행 모듈 (supervisor 측)
+- 2026-07-03 folder-open 버그 수정 + worker EDITOR env + PTY 실행부 선행(ExecInteractive env·Pid 접근자)
 - 2026-07-01(2) process 도메인 배선 완료 + 경로 조립(sup)/치환(worker) 책임 분리 `{WORKER_BASE}/nodeID/uid`
 - 2026-07-01 supervisor ProcessManager·bind·router 골격 + 종료/재접속 모델(status 깔때기·worker끊김→PENDING) 확정
 

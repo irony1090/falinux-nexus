@@ -3,7 +3,6 @@ package router
 import (
 	"nexus/cmd/worker/constants"
 	"nexus/internal/protocol"
-	"os"
 	"strings"
 )
 
@@ -13,13 +12,10 @@ import (
 // 같은 값을 써야 선배치 위치와 실행 대상 경로가 일치한다.
 func workerBase() string { return constants.GetEnv().ProcessRoot }
 
-// resolveEditor는 {WORKER_EDITOR} 치환 값을 정한다: $VISUAL > $EDITOR > "vi" 폴백.
+// resolveEditor는 {WORKER_EDITOR} 치환 값을 정한다: $VISUAL > $EDITOR > env(EDITOR) > "vi" 폴백.
 // (편집기 선택은 worker 책임 — supervisor는 토큰만 보낸다.)
 func resolveEditor() string {
-	if v := os.Getenv("VISUAL"); v != "" {
-		return v
-	}
-	if v := os.Getenv("EDITOR"); v != "" {
+	if v := constants.GetEnv().Editor; v != "" {
 		return v
 	}
 	return "vi"

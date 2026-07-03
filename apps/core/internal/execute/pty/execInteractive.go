@@ -151,8 +151,21 @@ func (i *Interactive) ExitCode() int {
 	return i.exitCode
 }
 
-// ExecInteractive 명령어를 PTY에서 대화형으로 실행
-func ExecInteractive(ctx context.Context, command string, args ...string) (*Interactive, error) {
+// Pid는 worker 로컬 OS 프로세스 ID를 반환한다(미기동/종료 시 -1).
+// RUNNING 보고(MsgStatus PROCESS)에 얹어 supervisor로 올린다. 와이어 라우팅 키는 UID이고
+// PID는 관측/제어 참고값이다(REF-process "UID vs PID 분리").
+func (i *Interactive) Pid() int {
+	if i.cmd == nil || i.cmd.Process == nil {
+		return -1
+	}
+	return i.cmd.Process.Pid
+}
+
+// ExecInteractive 명령어를 PTY에서 대화형으로 실행한다.
+// env는 자식 프로세스 환경변수("KEY=VALUE" 목록)다. nil이면 worker 프로세스 환경(os.Environ())을
+// 그대로 상속한다. 값을 넘기면 그 목록으로 완전히 대체되므로(상속 안 함), 호출자가 필요한 베이스
+// (os.Environ())·TERM 등을 미리 조립해 넘긴다. TUI 에디터(vi 등)엔 TERM 지정이 사실상 필수.
+func ExecInteractive(ctx context.Context, command string, env []string, args ...string) (*Interactive, error) {
 	master, slave, err := openPty()
 	if err != nil {
 		return nil, err
@@ -161,6 +174,9 @@ func ExecInteractive(ctx context.Context, command string, args ...string) (*Inte
 	cmd.Stdin = slave
 	cmd.Stdout = slave
 	cmd.Stderr = slave
+	if env != nil {
+		cmd.Env = env
+	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setsid:  true,
 		Setctty: true,

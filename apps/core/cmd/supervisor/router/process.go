@@ -27,10 +27,7 @@ import (
 // Exec은 frontend의 "이 노드 실행/편집" 요청을 받아 worker에 명령하는 진입점이다.
 // kind로 manager.Exec(EXEC/folder) vs manager.ExecEdit(EDIT)를 고른다.
 func (r *supervisorRouter) Exec(owner superdb.User, authKey string, kind protocol.ExecType, node superdb.Node) error {
-	worker, exist := r.workers.Get(authKey)
-	if !exist {
-		return fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", authKey)
-	}
+	worker, _ := r.workers.Get(authKey)
 
 	// 1. 상태 등록(manager). UID·spec·Inter는 manager가 authoritative하게 만든다.
 	//    method value로 EXEC/EDIT 분기(entry 타입 추론 → process 패키지 직접 import 회피).

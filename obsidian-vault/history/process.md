@@ -3,6 +3,25 @@
 > 설계·재사용 지식 → `REF-process.md` / 현재 진행 → `CURRENT.md`
 > 통신 인프라 → `REF-infra.md` / 카탈로그(노드) → `REF-node-label.md` / 실시간 push → `REF-realtime.md`
 
+## 2026-07-03 — folder-open 버그 수정 + worker EDITOR env + PTY 실행부 선행작업 (build/vet 통과)
+
+worker 실제 PTY 실행부 착수 전 준비 작업. 세 갈래.
+
+**① folder-open 버그 수정 (2026-07-02 발견분 클로즈)**
+- `router.Exec`의 사전 게이트(`worker, exist := r.workers.Get(authKey); if !exist { return err }`) 제거 → `worker, _ := r.workers.Get(authKey)`(nil 허용). worker 필요 검증은 manager로 단일 위임.
+- `manager.Exec`: folder 분기(`openFolder`, worker 무접촉) **뒤에** `if worker == nil` 검사 추가. `ExecEdit`도 동일 검사 선행 추가. `execScript`엔 기존부터 있던 검사 유지(3중이지만 createKey 전 조기차단+에러위치 명확 이점, 무해).
+- 결과: device 오프라인이어도 카탈로그 폴더 열람 가능. SCRIPT/EDIT은 worker 없으면 종전대로 에러.
+
+**② worker EDITOR env 필드**
+- `cmd/worker/constants/env.go`: `EnvVars`에 `Editor string \`iniName:"EDITOR"\`` 추가 + `LoadEnv`에서 `EDITOR`를 **선택값**으로 로드(비면 리로드 시 기존값 유지, 최종 폴백은 resolveEditor). `.env`의 godotenv.Overload가 OS env도 세팅.
+- `resolveEditor`(worker/router/process.go): 폴백 체인 재정의 → **`env.Editor > "vi"`**(사용자가 구 `$VISUAL>$EDITOR` OS 조회 제거, `os` import도 제거). `{WORKER_EDITOR}` 치환값 출처.
+
+**③ pty 실행 primitive 확장 (worker 실행부 선행)**
+- `execute/pty/execInteractive.go` `ExecInteractive`에 **`env []string`** 파라미터 추가(`command` 뒤, `args` 앞). **nil=os.Environ() 상속**(cmd.Env 미설정) / **목록=완전 대체**. → 호출자(worker exec)가 `os.Environ()+spec.Env+TERM`을 조립해 넘기는 정책. TUI(vi)엔 `TERM=xterm-256color` 사실상 필수.
+- `pty.Interactive`에 **`Pid() int`** 접근자 추가(미기동/종료 시 -1). MsgStatus(PROCESS)로 PID 보고용. **`IInteractive` 인터페이스엔 넣지 않음** — PID는 worker 로컬 개념, 원격 래퍼(AgentInteractive)엔 실 PID 없음. worker는 `*pty.Interactive` 구체타입 보유라 직접 호출.
+
+**남은 것(다음)**: worker 실행부 본체 = `workerRouter.procs`(uid→*procEntry) 매니저 + `exec()` 실체화 + 출력/상태 **pump goroutine** + input/resize/kill + EDIT read-back. 계획 → CURRENT.md / REF-process.md "worker 실행부" 절.
+
 ## 2026-07-01 (2) — process 도메인 배선 + 경로 조립/치환 책임 분리 (build/vet 통과)
 
 골격을 실동작 가능한 배선으로 채웠다. 핵심은 **경로 조립=supervisor / 지역화(placeholder 치환)=worker** 책임 분리로, 이전에 막혀 있던 "선배치 위치 ≠ 실행 위치" blocker를 닫은 것.

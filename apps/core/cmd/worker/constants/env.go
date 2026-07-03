@@ -22,6 +22,7 @@ type EnvVars struct {
 	WsHost      string `iniName:"WS_HOST"`
 	WsScheme    string `iniName:"WS_SCHEME"`
 	Sqlite      string `iniName:"SQLITE"`
+	Editor      string `iniName:"EDITOR"`
 	ProcessRoot string
 	ProjectDir  string
 	Ip          string
@@ -83,6 +84,12 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		}
 	}
 
+	// EDITOR는 선택값 — 비면 worker의 resolveEditor가 $VISUAL>$EDITOR>vi로 폴백한다.
+	editor := os.Getenv(("EDITOR"))
+	if editor == "" && !isNil {
+		editor = env.Editor
+	}
+
 	if isNil {
 		// 환경 변수 값으로 구조체 초기화
 		env = &EnvVars{
@@ -97,6 +104,7 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 	// env.StaticDir = pathToAbsolutePath(projectDir, staticDir)
 	env.ProjectDir = projectDir
 	env.Ip = ip
+	env.Editor = editor
 
 	log.Printf("root path %s", projectDir)
 	log.Printf("Loaded %v", env)

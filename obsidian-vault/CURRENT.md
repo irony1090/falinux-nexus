@@ -1,7 +1,7 @@
 # CURRENT
 
 ## 현재 날짜
-2026-07-01
+2026-07-03
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
@@ -39,8 +39,13 @@
 3. `Exec` 오케스트레이션 + content 선배치(`SendBuffer`) + relay 기동 + `MsgExec` Call.
 4. `WorkerNodePath`(process pkg) + worker `localize()`(WORKER_BASE/WORKER_EDITOR 치환) + `resolveEditor`.
 
+**✅ 완료 (2026-07-03)** — worker 실행부 선행작업 (→ `history/process.md` 2026-07-03)
+- folder-open 버그 수정(router 사전 게이트 제거 → manager 단일 검증 위임).
+- worker `EnvVars.Editor`(`EDITOR`) 필드 + `resolveEditor=env.Editor>vi` 재정의.
+- `pty.ExecInteractive`에 `env []string`(nil=상속/목록=대체) + `pty.Interactive.Pid()` 접근자.
+
 **다음 배선 (우선순위)**
-1. **worker 실제 PTY 실행**: `exec`가 치환된 spec으로 execute/pty 기동 → PID `MsgStatus(PROCESS)` 보고 / 출력 `MsgData(EVENT)` 스트리밍 / 종료 `MsgStatus` / **EDIT 종료 후 Args[0] read-back→`MsgEditResult`**. $TERM 세팅·TUI 에디터 강제. (현재 `ExecResponse{Accept:true}`만 반환하는 스텁)
+1. **worker 실제 PTY 실행 (본체)**: 관리 객체 = `workerRouter.procs KeyValManager[uid→*procEntry]`(supervisor ProcessManager 미러). 흐름: `exec()` localize→env조립(os.Environ+spec.Env+`TERM=xterm-256color`)→`pty.ExecInteractive`→Append→`go pump`. **pump goroutine**=Status/OutputAll 드레인→`Emit(MsgStatus/MsgData)`(PROCESS시 `Pid()`, 종료시 ExitCode), EDIT면 editPath read-back→`Call(MsgEditResult)`→Remove. input/resize/kill=`procs.Get(uid).inter.*`(kill은 Remove 안 함, pump가 단일 teardown). 핸들러 등록 `On(MsgData)=input`/`Handle(MsgResize/MsgKill)`. 상세 → `REF-process.md` "worker 실행부" 절.
 2. **frontend 트리거·제어**: 소켓 `Handle(실행요청)`→`router.Exec` / `input(MsgData)`→`Inter.Write` / `kill`→`Inter.Kill` (Ctrl+C=input, 버튼=kill 구분).
 3. **worker 끊김 처리**: 레지스트리 `OnRemoved`→`memory.FindAll(device_key)`→각 process PENDING **합성 `applyStatus` 호출**. **Done(502) 아님**.
 4. **재접속 재바인딩**: entry.Inter 콜백을 새 conn으로 교체(SyncData 채널 유지). worker live 보고 재동기화.

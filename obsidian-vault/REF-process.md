@@ -82,6 +82,7 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
   - **router = wire**: authKey→worker conn 조회·MsgExec 전송·bind.Relay 기동·소켓 핸들러. **트리거는 router**(소켓 Handle→`router.Exec(owner,authKey,kind,node)`→manager 호출). 소켓이 manager를 직접 부르면 manager가 router화됨.
   - **bind.Relay = fan-out**: `Output()/Status()` 드레인→`hub.Publish`. `IInteractive` 위 재사용(AgentInteractive/로컬PTY 무관).
 - **ProcessEntry**(memory 값, 키=UID) = `{Record *superdb.Process, Inter *AgentInteractive}`. **folder=Inter nil**(레코드-only, worker 무접촉). `HasProcess()`=Inter有 / `NodeID()` / `Spec()`=Record→MsgExec용 ProcessSpec 투영.
+- **folder-open은 worker 연결 여부와 무관**(2026-07-02 발견 → 2026-07-03 수정 완료): folder(`openFolder`)는 worker 무접촉이 설계 의도. 구 `router.Exec`가 `node.Kind` 분기 전에 `r.workers.Get(authKey)` 존재를 선검증해 오프라인 device의 폴더 열람까지 막던 버그. **수정 = router 사전 게이트 제거**(`worker, _ := r.workers.Get(authKey)`, nil 허용) → worker 필요 검증을 manager로 단일 위임. manager 측 검증 위치 = `Exec`(folder 분기 뒤 `worker==nil`) + `ExecEdit` + `execScript`(기존). device 오프라인이어도 folder 열림 / SCRIPT·EDIT은 worker 없으면 에러.
 - **spec은 파라미터 아님 → node로부터 내부작성**: manager가 UID 발급 후 node로 구성→CreateProcessParams로 persist. **바인딩=Record 하나(진실의 출처)**, 와이어 spec은 `entry.Spec()`으로 필요할 때 파생(별도 상주 금지—resize 등 drift 방지). 초기 Rows/Cols=0(**resize-on-attach**).
 - **content 전달 = 파일 선배치**(인라인 폐기, 2026-07-01(2) 구현 완료): EXEC·EDIT 둘 다 worker에 파일 먼저 깔고 경로를 가리킴.
   - **경로 조립=supervisor / 지역화=worker** 책임 분리(핵심). 조립 헬퍼 = `cmd/supervisor/process.WorkerNodePath(node superdb.Node, proc superdb.Process)` → **`{WORKER_BASE}/<node.ID>/<proc.Uid>`**. superdb 구조체 의존이라 **protocol엔 못 둠**(이식성) → process pkg. 구 `protocol.WorkerNodePath(id)` 폐기.
@@ -92,6 +93,21 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
   - **EDIT**: `Cmd={WORKER_EDITOR}`(치환 토큰 — vi 하드코딩 폐기), `Args=[path]`, perm 0644. worker `localize()`가 `{WORKER_EDITOR}`도 치환=`resolveEditor()`=`$VISUAL>$EDITOR>vi`. **TUI 에디터 강제 + PTY `$TERM` 세팅**은 실제 PTY 실행부(TODO)에서.
 - **bind.Relay / 배치 드레인**: `NewRelay(uid, IInteractive, publish).Start()`→`pumpOutput`(MsgData)/`pumpStatus`(MsgStatus). `SyncData.ShiftAll()`+`IInteractive.OutputAll()`(연결바이트) 추가로 **락경합·프레임 수 감소**. publish=클로저(`hub.Publish("PROC:"+uid,…)`)로 Hub 제네릭 결합 회피.
 - **EDIT 계약 2개(프로토콜 밖, 배선에서 보장)**: ① 전송 `DestPath`==MsgExec `Args` 경로 일치 ② `MsgEditResult`(UID→NodeID→`UpdateNodeContent`) **처리 전 엔트리 teardown 금지**(EditResult엔 nodeId 없어 UID 매핑 필요).
+
+## worker 실행부 (2026-07-03 선행작업 완료 + 본체 계획)
+> supervisor 측 대칭. supervisor=원격 래퍼(AgentInteractive)·pool 영속 / worker=로컬 PTY(`*pty.Interactive`)·**휘발**(DB 없음).
+
+**선행작업 완료 (2026-07-03)**
+- **pty primitive 확장**: `ExecInteractive(ctx, command, env []string, args...)` — **nil=os.Environ() 상속 / 목록=완전 대체**(cmd.Env 세팅). `Interactive.Pid() int`(미기동/종료 -1). `Pid()`는 **`IInteractive` 밖**(worker 로컬 개념, 구체타입 전용).
+- **env 조립 정책**: 완전 대체이므로 호출자가 베이스 조립 책임 — `os.Environ()` + `spec.Env`(치환됨) + **`TERM=xterm-256color` 강제**(TUI/vi 필수, REF 구 "$TERM 세팅" 요구 충족). PATH/HOME/LANG은 os.Environ() 상속으로 자동.
+- **EDITOR 출처**: `resolveEditor()` = `constants.GetEnv().Editor > "vi"`. env 필드 = `EnvVars.Editor`(`iniName:"EDITOR"`, 선택값).
+
+**본체 계획 (다음)**: 관리 객체 = **supervisor `ProcessManager` 패턴 미러링**(새 자료구조 X). REF-process:46 "양쪽 manager 모두 UID로 키잉" 준수.
+- **관리 객체 = `workerRouter.procs manager.KeyValManager[string, *procEntry]`**(`saves` 옆 필드). worker는 pool·spec내부작성 없어 전용 매니저 타입까진 불필요(커지면 `cmd/worker/process` 패키지로 승격). `procEntry{uid, kind ExecType, editPath, inter *pty.Interactive}`.
+- **exec()**: localize → env 조립 → `pty.ExecInteractive(ctx,cmd,env,args...)` → `procs.Append(uid,entry)` → `go pump(entry)` → `ExecResponse{Accept}`.
+- **pump goroutine(핵심)**: `inter.Status()`/`inter.OutputAll()` 드레인 → `conn.Emit(MsgStatus/MsgData)`. PROCESS=`Pid()` 얹어 보고 / 종료=ExitCode. 종료 감지 시 **EDIT면 editPath read-back → `conn.Call(MsgEditResult)`** → `procs.Remove(uid)`. (출력=`OutputAll` 배치 권장, 락경합↓)
+- **input/resize/kill**: `procs.Get(uid).inter.Write/Layout/Kill`. **kill은 Remove 안 함** — kill→프로세스 종료→pump가 감지→Remove로 **단일 teardown 경로**(이중정리 방지).
+- **핸들러 등록**(NewWorkerRouter): `On(MsgData)=input`, `Handle(MsgResize)=resize`, `Handle(MsgKill)=kill`. `exec`는 이미 등록됨.
 
 ## 종료 / 재접속 모델 (2026-07-01 확정) — status 단일 깔때기
 > MEMORY의 "끊김→Done(502)" 폐기. 이 절이 최신.
