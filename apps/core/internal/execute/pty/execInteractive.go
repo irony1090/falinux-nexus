@@ -232,10 +232,10 @@ func streamOutputLogic(master *os.File, output *syncProcess.SyncData[[]byte]) {
 		n, err := master.Read(buffer)
 		if n > 0 {
 			lines = append(lines, buffer[:n]...)
-			ok, newLine := publishLine(lines, output)
-			if ok {
-				lines = newLine
-			}
+			holdback := util.IncompleteTailLen(lines)
+			safe := lines[:len(lines)-holdback]
+			publishLine(safe, output)
+			lines = append([]byte{}, lines[len(lines)-holdback:]...)
 
 		} else if err != nil {
 			// log.Printf("[INTERACTIVE] ERR - %v", err)
