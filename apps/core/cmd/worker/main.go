@@ -34,6 +34,7 @@ func main() {
 
 	u := url.URL{Scheme: env.WsScheme, Host: env.WsHost, Path: "/worker"}
 	backoff := util.NewBackoff(0, time.Second*2, time.Second*60)
+	state := router.NewWorkerState() // 재접속 루프 동안 procs·live conn 유지(재바인딩 기반)
 	for {
 		log.Printf("접속 시도 worker -> supervisor")
 		done, err := router.NewWorkerRouter(
@@ -41,6 +42,7 @@ func main() {
 			env.Name,
 			env.ProcessRoot,
 			store.GetStorePool(),
+			state,
 			func() { log.Printf("등록 완료, 접속 성공") }, // register 성공 시 호출
 		)
 		if err != nil {

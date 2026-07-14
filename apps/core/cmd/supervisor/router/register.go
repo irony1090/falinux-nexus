@@ -1,9 +1,13 @@
 package router
 
 import (
+	"context"
 	"fmt"
+	"log"
 
 	"nexus/internal/protocol"
+	superdb "nexus/internal/supervisor/db/gen"
+	"nexus/internal/supervisor/store"
 	"nexus/internal/transport"
 	"nexus/internal/util"
 )
@@ -31,19 +35,21 @@ func (r *supervisorRouter) register(conn *transport.Conn, body *protocol.Registe
 		}
 		r.workers.Append(key, conn)
 
-		// d := transfer.NewReadBuffer([]byte("IRONY TEST\nHello World"), time.Second*2)
-		// k, err := r.SendBuffer(key, d, "ironyMemory.txt", 0777)
-		// if err != nil {
-		// 	log.Printf("[SendBuffer] Err: %v", err)
-		// } else {
-		// 	log.Printf("[SendBuffer] Suc: %s", k)
-		// }
-		// uid, _ := util.RandomKey(8, "", "")
-		// r.Exec(key, protocol.ProcessSpec{
-		// 	UID:  uid,
-		// 	Cmd:  fmt.Sprintf("vi %s", protocol.PlaceholderWorkerBase),
-		// 	Args: []string{fmt.Sprintf("%s/TEST", protocol.PlaceholderWorkerBase)},
-		// })
+		q := store.GetStorePool().Queries()
+		ctx := context.Background()
+		n, err := q.GetNode(ctx, superdb.GetNodeParams{ID: 3, OwnerUserID: 3})
+		u, err := q.GetUser(ctx, n.OwnerUserID)
+		if err == nil {
+
+			err := r.Exec(u, key, protocol.ExecTypeExec, n)
+			if err != nil {
+				log.Printf("[PROCESS ERR] %v", err)
+			} else {
+				log.Printf("[PROCESS SUC]")
+			}
+		} else {
+			log.Printf("[ERR] %v", err)
+		}
 
 		return protocol.RegisterResponse{SubKey: body.SubKey}, nil
 	}

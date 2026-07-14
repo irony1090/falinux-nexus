@@ -126,6 +126,8 @@ const (
 	MsgStatus MsgType = "STATUS" // worker→sup EVENT: StatusEvent
 
 	MsgEditResult MsgType = "EDIT_RESULT" // worker→sup REQ: EditResult → 빈 응답 (EDIT 전용)
+
+	MsgSync MsgType = "SYNC" // worker→sup EVENT: SyncEvent (재접속 직후 자기 procs 스냅샷 자발 보고)
 )
 
 // ExecType은 실행 종류를 구분한다(MsgExec 공통 — 같은 PTY 엔진 위의 named recipe).
@@ -221,4 +223,23 @@ type StatusEvent struct {
 type EditResult struct {
 	UID     string `json:"uid"`
 	Content []byte `json:"content"`
+}
+
+// ===== 재접속 재바인딩 (worker→sup) =====
+//
+// worker 끊김 시 supervisor는 관련 process를 전부 PENDING으로 낙관적 전이한다(REF-process
+// "worker 끊김→PENDING"). 재접속하면 worker가 자기 로컬 procs를 스냅샷해 MsgSync로 자발적
+// 보고하고, supervisor는 DB(PENDING/PROCESS)와 3-way 대조해 재바인딩한다. RegisterRequest에
+// 얹지 않고 별도 메시지로 분리한다 — 식별자 핸드셰이크와 도메인 상태 동기화는 관심사가 다르다.
+
+// SyncEntry: worker가 보고하는 개별 process 상태 한 줄.
+type SyncEntry struct {
+	UID    string                `json:"uid"`
+	Status execute.CommandStatus `json:"status"`
+	PID    int                   `json:"pid,omitempty"`
+}
+
+// SyncEvent: MsgSync payload. (worker→sup EVENT, register 성공 직후 1회 자발 전송)
+type SyncEvent struct {
+	Procs []SyncEntry `json:"procs"`
 }

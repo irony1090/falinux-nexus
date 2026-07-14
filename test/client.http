@@ -2,6 +2,10 @@
 @COOKIE=sid=MTc4MjQ1NjU2N3xEWDhFQVFMX2dBQUJFQUVRQUFELUFRZl9nQUFFQm5OMGNtbHVad3dFQUFKSlJBVnBiblEyTkFRQ0FBWUdjM1J5YVc1bkRCQUFEa2xrWlc1MGFXWnBZMkYwYVc5dUJuTjBjbWx1Wnd4Q0FFQmxNVEJpWWpWa00ySXdPVEZrTXpKaVlqa3hZVEprWVdZM1kySTFOV1F5T0RZME1HWTBNall5T0RneE5HSTRZbU5oTUdSbE9ESmtOV0ZpT1RsbE1EYzJCbk4wY21sdVp3d0tBQWhRWVhOemQyOXlaQVp6ZEhKcGJtY01RZ0JBTnpWbU5HUXlaV1k0T1dGbU0yVmhOREZrTldRMk5UQmlOVFl6TURCaU5ETm1ZMlJtTXpnMFpHTmlaREJpTWpjeE4yWXhZMlJqTUdFMllqWTFaakpsWkFaemRISnBibWNNQ2dBSVRtbGphMjVoYldVR2MzUnlhVzVuREE0QURPeVZoT3lkdE91aG5PdUxpQT09fFwGrrbZDtIwtqoK39IQMSJWtnoq6XaDiqPB6NwZbRKf;
 
 ###
+GET http://{{HOST}}/test
+
+###
+###
 POST http://{{HOST}}/users
 Content-Type: application/json
 
@@ -33,11 +37,16 @@ DELETE http://{{HOST}}/users/session
 POST http://{{HOST}}/nodes
 Content-Type: application/json
 
-{
-    "kind": "FOLDER",
-    "Name": "TEST"
-}
+# {
+#     "kind": "FOLDER",
+#     "Name": "TEST"
+# }
 
+{
+    "kind": "SCRIPT",
+    "name": "HTOP_TEST_SH",
+    "content": "#!/bin/bash\nhtop"
+}
 ###
 
 PATCH http://{{HOST}}/nodes/1

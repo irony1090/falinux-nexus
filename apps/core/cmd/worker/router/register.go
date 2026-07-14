@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"nexus/internal/execute"
 	"nexus/internal/protocol"
 	workerdb "nexus/internal/worker/db/gen"
 )
@@ -63,5 +64,26 @@ func (r *workerRouter) register() error {
 		}
 	}
 
+	r.sendSync() // 재접속 재바인딩(REF-process): 살아남은 procs 스냅샷을 자발적으로 보고
+
 	return nil
+}
+
+// sendSync는 r.procs(재접속 넘어 유지되는 공유 맵)에 남은 process를 MsgSync로 보고한다.
+// teardown이 종료된 uid를 즉시 procs.Remove하므로, 맵에 남아있다는 것 자체가 "아직 실행
+// 중"이라는 불변조건이다 — 매번 Status()를 다시 읽지 않는다(그 채널은 pumpStatus 고루틴의
+// 단일 소비자용이라 여기서 또 읽으면 이벤트를 가로채 레이스가 난다).
+func (r *workerRouter) sendSync() {
+	snapshot := r.procs.FindAll(func(_ string, _ *procEntry) bool { return true })
+	procs := make([]protocol.SyncEntry, 0, len(snapshot))
+	for _, e := range snapshot {
+		procs = append(procs, protocol.SyncEntry{
+			UID:    e.Val.uid,
+			Status: execute.CommandProcess,
+			PID:    e.Val.inter.Pid(),
+		})
+	}
+	if err := r.conn.Emit(protocol.MsgSync, protocol.SyncEvent{Procs: procs}); err != nil {
+		log.Printf("[WORKER-REGISTER] MsgSync 전송 실패 %v", err)
+	}
 }

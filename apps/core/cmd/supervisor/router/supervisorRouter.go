@@ -34,11 +34,11 @@ var upgrader = websocket.Upgrader{
 }
 
 type supervisorRouter struct {
-	workers      *manager.KeyValManager[string, *transport.Conn]
-	readers      *manager.KeyValManager[string, *sendJob]
-	sessions     *session.SessionManager[superdb.User]
-	subscribeHub *subscribe.Hub[*transport.Conn, protocol.MsgType]
-	process      *process.ProcessManager // 실행 상태 레지스트리(UID→entry). 라우팅은 여기 router가.
+	workers        *manager.KeyValManager[string, *transport.Conn]
+	readers        *manager.KeyValManager[string, *sendJob]
+	sessions       *session.SessionManager[superdb.User]
+	subscribeHub   *subscribe.Hub[*transport.Conn, protocol.MsgType]
+	processManager *process.ProcessManager // 실행 상태 레지스트리(UID→entry). 라우팅은 여기 router가.
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -54,11 +54,11 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 		},
 	)
 	router := &supervisorRouter{
-		workers:      manager.NewKeyValManager[string, *transport.Conn](),
-		readers:      manager.NewKeyValManager[string, *sendJob](),
-		sessions:     session.NewSessionManager[superdb.User]("irony", "sid", nil),
-		subscribeHub: subscribeHub,
-		process:      process.NewProcessManager(),
+		workers:        manager.NewKeyValManager[string, *transport.Conn](),
+		readers:        manager.NewKeyValManager[string, *sendJob](),
+		sessions:       session.NewSessionManager[superdb.User]("irony", "sid", nil),
+		subscribeHub:   subscribeHub,
+		processManager: process.NewProcessManager(),
 	}
 
 	e := echo.New()
@@ -77,6 +77,15 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 		AllowMethods: []string{"GET", "POST", "PATCH", "DELETE", "PUT", "OPTIONS"},
 		AllowHeaders: []string{"Content-Type", "Authorization", "MAC"},
 	}))
+
+	e.GET("/test", func(c echo.Context) error {
+		log.Printf("[TEST]")
+		router.processManager.Test(func(s string, pe *process.ProcessEntry) bool {
+			log.Printf("[%s] - %v", s, pe)
+			return true
+		})
+		return nil
+	})
 
 	// worker router
 	e.GET(workerPath, router.handleWorkerWS)
@@ -103,17 +112,19 @@ func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 	var auth protocol.RegisterRequest
 	conn.Handle(protocol.MsgRegister, router.register(conn, &auth))
 
-	// worker→sup process 이벤트: 출력/상태=EVENT, EDIT read-back=REQ.
+	// worker→sup process 이벤트: 출력/상태=EVENT, EDIT read-back=REQ, 재접속 스냅샷=EVENT.
 	conn.On(protocol.MsgData, router.output)               // 출력 바이트 → Inter.PushOutput
 	conn.On(protocol.MsgStatus, router.status)             // 상태전이 → applyStatus 깔때기
 	conn.Handle(protocol.MsgEditResult, router.editResult) // UID→NodeID→content UPDATE
+	conn.On(protocol.MsgSync, router.sync(conn, &auth))    // 재접속 재바인딩(REF-process)
 
 	err = conn.Serve()
 
-	// 연결 종료: 등록 해제 + 이 연결 소속 미완 전송(reader) 정리.
+	// 연결 종료: 등록 해제 + 이 연결 소속 미완 전송(reader) 정리 + 소유 process PENDING 전이.
 	key := auth.InstanceKey()
 	if key != "" {
 		router.workers.Remove(key)
+		router.reconcileDisconnect(key)
 		for _, fr := range router.readers.FindAll(func(_ string, v *sendJob) bool {
 			return v.authKey == key
 		}) {

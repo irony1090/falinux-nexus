@@ -165,7 +165,8 @@ func (i *Interactive) Pid() int {
 // env는 자식 프로세스 환경변수("KEY=VALUE" 목록)다. nil이면 worker 프로세스 환경(os.Environ())을
 // 그대로 상속한다. 값을 넘기면 그 목록으로 완전히 대체되므로(상속 안 함), 호출자가 필요한 베이스
 // (os.Environ())·TERM 등을 미리 조립해 넘긴다. TUI 에디터(vi 등)엔 TERM 지정이 사실상 필수.
-func ExecInteractive(ctx context.Context, command string, env []string, args ...string) (*Interactive, error) {
+// dir은 작업 디렉토리다. 빈 문자열이면 worker 프로세스의 cwd를 상속한다(exec.Cmd.Dir 기본값과 동일).
+func ExecInteractive(ctx context.Context, command string, env []string, dir string, args ...string) (*Interactive, error) {
 	master, slave, err := openPty()
 	if err != nil {
 		return nil, err
@@ -176,6 +177,9 @@ func ExecInteractive(ctx context.Context, command string, env []string, args ...
 	cmd.Stderr = slave
 	if env != nil {
 		cmd.Env = env
+	}
+	if dir != "" {
+		cmd.Dir = dir
 	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setsid:  true,

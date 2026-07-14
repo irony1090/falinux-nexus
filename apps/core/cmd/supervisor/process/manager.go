@@ -24,6 +24,10 @@ func NewProcessManager() *ProcessManager {
 	}
 }
 
+func (p *ProcessManager) Test(predicate func(string, *ProcessEntry) bool) []manager.FindResult[string, *ProcessEntry] {
+	return p.memory.FindAll(predicate)
+}
+
 // Get은 uid로 실행 엔트리를 조회한다. worker→sup의 MsgData/MsgStatus 핸들러가
 // 해당 process의 AgentInteractive를 되찾을 때 쓴다.
 func (p *ProcessManager) Get(uid string) (*ProcessEntry, bool) {
@@ -169,17 +173,42 @@ func (p *ProcessManager) execScript(
 	return entry, nil
 }
 
+// Rebind는 재접속한 worker 위에 uid의 process를 재바인딩한다("폐기 후 재생성" —
+// REF-process 2026-07-14). DB Record는 그대로 두고(진실의 출처), 죽은 conn을 캡처했던 옛
+// AgentInteractive 대신 새 conn 위에 새 AgentInteractive를 만들어 memory에 재등록한다.
+// 끊김 처리(applyStatus의 CommandPending 분기)가 이미 memory에서 Remove했으므로 충돌 없이
+// Append된다.
+func (p *ProcessManager) Rebind(uid string, worker *transport.Conn) (*ProcessEntry, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	rec, err := p.pool.Queries().GetProcess(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+
+	inter := newWorkerInteractive(worker, uid)
+	entry := &ProcessEntry{Record: &rec, Inter: inter}
+	if !p.memory.Append(uid, entry) {
+		return nil, fmt.Errorf("이미 재바인딩된 process: %s", uid)
+	}
+	return entry, nil
+}
+
 // newWorkerInteractive는 worker conn 위에 원격 process 프록시를 만든다. 콜백은 uid를
 // 클로저로 잡아 이 process를 가리킨다: 입력=EVENT(MsgData), 리사이즈/킬=REQ(MsgResize/MsgKill).
 func newWorkerInteractive(worker *transport.Conn, uid string) *execute.AgentInteractive {
 	return execute.NewAgentInteractive(
 		func(data []byte) error { // onWrite: 입력 키스트로크
+			// log.Printf("NEW_INTER ARGS1")
 			return worker.Emit(protocol.MsgData, protocol.DataEvent{UID: uid, Data: data})
 		},
 		func(cols, rows uint16) { // onLayout
+			// log.Printf("NEW_INTER ARGS2")
 			_, _ = worker.Call(context.Background(), protocol.MsgResize, protocol.ResizeRequest{UID: uid, Rows: rows, Cols: cols})
 		},
 		func() error { // onKill
+			// log.Printf("NEW_INTER ARGS3")
 			_, err := worker.Call(context.Background(), protocol.MsgKill, protocol.KillRequest{UID: uid})
 			return err
 		},

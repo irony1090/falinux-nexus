@@ -242,6 +242,40 @@ func (q *Queries) MarkProcessDone(ctx context.Context, arg MarkProcessDoneParams
 	return i, err
 }
 
+const markProcessPending = `-- name: MarkProcessPending :one
+UPDATE processes
+SET status     = 'PENDING',
+    updated_at = NOW()
+WHERE uid = $1
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at
+`
+
+func (q *Queries) MarkProcessPending(ctx context.Context, uid string) (Process, error) {
+	row := q.db.QueryRow(ctx, markProcessPending, uid)
+	var i Process
+	err := row.Scan(
+		&i.Uid,
+		&i.Type,
+		&i.OwnerUserID,
+		&i.NodeID,
+		&i.DeviceKey,
+		&i.Cmd,
+		&i.Args,
+		&i.Env,
+		&i.Cwd,
+		&i.Rows,
+		&i.Cols,
+		&i.Status,
+		&i.Pid,
+		&i.ExitCode,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const markProcessRunning = `-- name: MarkProcessRunning :one
 UPDATE processes
 SET status     = 'PROCESS',

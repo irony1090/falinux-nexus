@@ -26,6 +26,13 @@ SET status     = 'PROCESS',
 WHERE uid = $1
 RETURNING *;
 
+-- name: MarkProcessPending :one
+UPDATE processes
+SET status     = 'PENDING',
+    updated_at = NOW()
+WHERE uid = $1
+RETURNING *;
+
 -- name: MarkProcessDone :one
 UPDATE processes
 SET status      = $2,

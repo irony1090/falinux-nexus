@@ -14,6 +14,7 @@ import (
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/supervisor/store"
 	"nexus/internal/transfer"
+	"nexus/internal/transport"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -31,9 +32,9 @@ func (r *supervisorRouter) Exec(owner superdb.User, authKey string, kind protoco
 
 	// 1. 상태 등록(manager). UID·spec·Inter는 manager가 authoritative하게 만든다.
 	//    method value로 EXEC/EDIT 분기(entry 타입 추론 → process 패키지 직접 import 회피).
-	register := r.process.Exec
+	register := r.processManager.Exec
 	if kind == protocol.ExecTypeEdit {
-		register = r.process.ExecEdit
+		register = r.processManager.ExecEdit
 	}
 	entry, err := register(worker, authKey, node, owner)
 	if err != nil {
@@ -59,7 +60,7 @@ func (r *supervisorRouter) Exec(owner superdb.User, authKey string, kind protoco
 		perm = 0644
 	}
 	if _, err := r.SendBuffer(authKey, transfer.NewReadBuffer(content, 0), destPath, perm); err != nil {
-		r.process.Remove(uid)
+		r.processManager.Remove(uid)
 		return fmt.Errorf("content 선배치 실패: %w", err)
 	}
 
@@ -74,16 +75,16 @@ func (r *supervisorRouter) Exec(owner superdb.User, authKey string, kind protoco
 	defer cancel()
 	res, err := worker.Call(ctx, protocol.MsgExec, entry.Spec())
 	if err != nil {
-		r.process.Remove(uid)
+		r.processManager.Remove(uid)
 		return fmt.Errorf("MsgExec 전송 실패: %w", err)
 	}
 	var execRes protocol.ExecResponse
 	if err := res.Bind(&execRes); err != nil {
-		r.process.Remove(uid)
+		r.processManager.Remove(uid)
 		return err
 	}
 	if !execRes.Accept {
-		r.process.Remove(uid)
+		r.processManager.Remove(uid)
 		return fmt.Errorf("worker가 실행을 거부했습니다: %s", execRes.Reason)
 	}
 	return nil
@@ -108,7 +109,7 @@ func (r *supervisorRouter) output(ev protocol.Frame) {
 		log.Printf("[process] output 디코드 실패: %v", err)
 		return
 	}
-	entry, ok := r.process.Get(body.UID)
+	entry, ok := r.processManager.Get(body.UID)
 	if !ok || entry.Inter == nil {
 		return // 이미 정리됐거나 folder-only 엔트리 → 버림
 	}
@@ -127,22 +128,27 @@ func (r *supervisorRouter) status(ev protocol.Frame) {
 }
 
 // applyStatus는 모든 상태전이의 유일 수렴점이다(REF-process "status 단일 깔때기").
-// 진입: ① worker On(MsgStatus) ② worker 끊김 시 supervisor 합성 호출.
-// PID를 아는 여기서 pool 상태(MarkProcessRunning/Done)를 갱신하고, Inter에도 반영한다.
+// 진입: ① worker On(MsgStatus) ② worker 끊김 시 supervisor 합성 호출(CommandPending)
+// ③ 재접속 3-way 대조 결과(CommandProcess=재바인딩 성공 / CommandFailed=worker측 소실).
+// PID를 아는 여기서 pool 상태(MarkProcessRunning/Pending/Done)를 갱신하고, Inter에도 반영한다.
+//
+// ⚠️ memory entry 없어도(=이미 정리됨) DB 반영은 계속한다 — 재접속 "supervisor만 앎" 분기는
+// 끊김 처리 때 이미 processManager.Remove된 uid에 대해 DB만 Failed로 닫아야 하기 때문이다.
+// entry가 필요한 동작(Inter 반영·memory 정리)만 존재 여부로 가드한다.
 //
 // ⚠️ EDIT는 Completed에서 즉시 teardown 금지 — editResult(read-back) 처리가 UID→NodeID
 // 매핑을 위해 엔트리를 필요로 한다. 따라서 EDIT 엔트리 제거는 editResult가 맡는다.
 func (r *supervisorRouter) applyStatus(uid string, status execute.CommandStatus, pid, exit int) {
-	entry, ok := r.process.Get(uid)
-	if !ok {
-		return
-	}
+	entry, ok := r.processManager.Get(uid)
 
 	q := store.GetStorePool().Queries()
 	ctx := context.Background()
 
 	switch {
 	case status == execute.CommandProcess:
+		if !ok {
+			return // 이미 정리된 uid의 스퓨리어스 이벤트 → 무시
+		}
 		if _, err := q.MarkProcessRunning(ctx, superdb.MarkProcessRunningParams{
 			Uid: uid,
 			Pid: pgtype.Int4{Int32: int32(pid), Valid: pid > 0},
@@ -154,6 +160,7 @@ func (r *supervisorRouter) applyStatus(uid string, status execute.CommandStatus,
 		}
 
 	case status.IsCompleted():
+		// entry 유무와 무관하게 DB는 항상 닫는다(주석 참조).
 		if _, err := q.MarkProcessDone(ctx, superdb.MarkProcessDoneParams{
 			Uid:      uid,
 			Status:   status.String(),
@@ -161,17 +168,120 @@ func (r *supervisorRouter) applyStatus(uid string, status execute.CommandStatus,
 		}); err != nil {
 			log.Printf("[process] MarkProcessDone uid=%s: %v", uid, err)
 		}
+		if !ok {
+			return
+		}
 		if entry.Inter != nil {
 			entry.Inter.Done(exit) // output/status 채널 close → relay 드레인 종료
 		}
 		// EDIT는 editResult 처리 후 제거(위 주석). EXEC 등은 여기서 memory 정리.
 		if entry.Record == nil || protocol.ExecType(entry.Record.Type) != protocol.ExecTypeEdit {
-			r.process.Remove(uid)
+			r.processManager.Remove(uid)
 		}
 
-	default: // Pending 등 확정 live 아님
+	case status == execute.CommandPending:
+		// worker 끊김 합성 호출 전용(REF-process "worker 끊김→PENDING"). 정상 경로에선 끊김
+		// 직후 entry가 아직 memory에 있을 때만 호출된다 — 없으면 이미 정리된 것.
+		if !ok {
+			return
+		}
+		if _, err := q.MarkProcessPending(ctx, uid); err != nil {
+			log.Printf("[process] MarkProcessPending uid=%s: %v", uid, err)
+		}
+		r.processManager.Remove(uid) // Inter.Done(502) 포함(안전망, sync.Once) → relay 드레인 종료
+
+	default: // 기타 확정 live 아닌 상태
+		if !ok {
+			return
+		}
 		if entry.Inter != nil {
 			entry.Inter.PushStatus(status)
+		}
+	}
+}
+
+// reconcileDisconnect는 worker 연결이 끊겼을 때 그 device 소유 활성 process를 전부
+// PENDING으로 낙관적 전이한다(REF-process "worker 끊김→PENDING"). deviceKey=InstanceKey
+// (workers 레지스트리 키와 동일). FOLDER는 pool 미저장이라 ListActiveByDevice에 안 잡혀
+// 자동 제외된다.
+func (r *supervisorRouter) reconcileDisconnect(deviceKey string) {
+	q := store.GetStorePool().Queries()
+	ctx := context.Background()
+
+	rows, err := q.ListActiveByDevice(ctx, deviceKey)
+	if err != nil {
+		log.Printf("[process] ListActiveByDevice(disconnect) deviceKey=%s: %v", deviceKey, err)
+		return
+	}
+	for _, row := range rows {
+		r.applyStatus(row.Uid, execute.CommandPending, 0, 0)
+	}
+}
+
+// sync: MsgSync(EVENT, worker→sup). 재접속 직후 worker가 보고하는 procs 스냅샷을 받아
+// reconcileReconnect로 넘긴다. conn/auth는 register 핸들러와 동일하게 클로저로 캡처한다
+// (register 완료 후에만 MsgSync가 오므로 auth는 이 시점에 항상 채워져 있다).
+func (r *supervisorRouter) sync(conn *transport.Conn, auth *protocol.RegisterRequest) transport.EventHandler {
+	return func(ev protocol.Frame) {
+		var body protocol.SyncEvent
+		if err := ev.Bind(&body); err != nil {
+			log.Printf("[process] sync 디코드 실패: %v", err)
+			return
+		}
+		deviceKey := auth.InstanceKey()
+		if deviceKey == "" {
+			return // register 전(비정상 순서) — 무시
+		}
+		r.reconcileReconnect(deviceKey, conn, body.Procs)
+	}
+}
+
+// reconcileReconnect는 재접속한 worker의 보고(reported)와 DB의 활성(PENDING/PROCESS) uid
+// 목록을 3-way 대조한다(REF-process "재접속 재바인딩"):
+//   - 교집합: Rebind로 새 Inter 장착 + relay 재기동 + applyStatus로 보고 상태 동기화.
+//   - DB만 앎(worker 재부팅 소실): CommandFailed로 종결(성공/실패 알 길 없어 Failed로 닫음).
+//   - worker만 앎(고아): 로그만 남기고 무시(YAGNI, kill 지시 안 함).
+func (r *supervisorRouter) reconcileReconnect(deviceKey string, worker *transport.Conn, reported []protocol.SyncEntry) {
+	q := store.GetStorePool().Queries()
+	ctx := context.Background()
+
+	dbRows, err := q.ListActiveByDevice(ctx, deviceKey)
+	if err != nil {
+		log.Printf("[process] ListActiveByDevice(reconnect) deviceKey=%s: %v", deviceKey, err)
+		return
+	}
+
+	dbUIDs := make(map[string]struct{}, len(dbRows))
+	for _, row := range dbRows {
+		dbUIDs[row.Uid] = struct{}{}
+	}
+	reportedByUID := make(map[string]protocol.SyncEntry, len(reported))
+	for _, e := range reported {
+		reportedByUID[e.UID] = e
+	}
+
+	for uid := range dbUIDs {
+		entry, ok := reportedByUID[uid]
+		if !ok {
+			// supervisor만 앎: worker 재부팅으로 소실 → 성공/실패 알 길 없어 Failed로 종결.
+			r.applyStatus(uid, execute.CommandFailed, 0, 502)
+			continue
+		}
+
+		newEntry, err := r.processManager.Rebind(uid, worker)
+		if err != nil {
+			log.Printf("[process] Rebind uid=%s: %v", uid, err)
+			continue
+		}
+		bind.NewRelay(uid, newEntry.Inter, func(k protocol.MsgType, p any) error {
+			return r.subscribeHub.Publish(processTopic(uid), k, p)
+		}).Start()
+		r.applyStatus(uid, entry.Status, entry.PID, 0)
+	}
+
+	for uid := range reportedByUID {
+		if _, ok := dbUIDs[uid]; !ok {
+			log.Printf("[process] worker만 아는 고아 process 무시 uid=%s deviceKey=%s", uid, deviceKey)
 		}
 	}
 }
@@ -184,7 +294,7 @@ func (r *supervisorRouter) editResult(req protocol.Frame) (any, error) {
 	if err := req.Bind(&body); err != nil {
 		return nil, err
 	}
-	entry, ok := r.process.Get(body.UID)
+	entry, ok := r.processManager.Get(body.UID)
 	if !ok {
 		return nil, fmt.Errorf("알 수 없는 편집 세션: %s", body.UID)
 	}
@@ -212,6 +322,6 @@ func (r *supervisorRouter) editResult(req protocol.Frame) (any, error) {
 		}
 	}
 
-	r.process.Remove(body.UID) // EDIT 세션 teardown(엔트리 제거)
+	r.processManager.Remove(body.UID) // EDIT 세션 teardown(엔트리 제거)
 	return nil, nil
 }
