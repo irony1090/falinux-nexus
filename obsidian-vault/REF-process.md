@@ -94,7 +94,7 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - **bind.Relay / 배치 드레인**: `NewRelay(uid, IInteractive, publish).Start()`→`pumpOutput`(MsgData)/`pumpStatus`(MsgStatus). `SyncData.ShiftAll()`+`IInteractive.OutputAll()`(연결바이트) 추가로 **락경합·프레임 수 감소**. publish=클로저(`hub.Publish("PROC:"+uid,…)`)로 Hub 제네릭 결합 회피.
 - **EDIT 계약 2개(프로토콜 밖, 배선에서 보장)**: ① 전송 `DestPath`==MsgExec `Args` 경로 일치 ② `MsgEditResult`(UID→NodeID→`UpdateNodeContent`) **처리 전 엔트리 teardown 금지**(EditResult엔 nodeId 없어 UID 매핑 필요).
 
-## worker 실행부 (2026-07-03 선행작업 완료 + 본체 계획)
+## worker 실행부 (2026-07-13 본체 구현 완료)
 > supervisor 측 대칭. supervisor=원격 래퍼(AgentInteractive)·pool 영속 / worker=로컬 PTY(`*pty.Interactive`)·**휘발**(DB 없음).
 
 **선행작업 완료 (2026-07-03)**
@@ -102,12 +102,19 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - **env 조립 정책**: 완전 대체이므로 호출자가 베이스 조립 책임 — `os.Environ()` + `spec.Env`(치환됨) + **`TERM=xterm-256color` 강제**(TUI/vi 필수, REF 구 "$TERM 세팅" 요구 충족). PATH/HOME/LANG은 os.Environ() 상속으로 자동.
 - **EDITOR 출처**: `resolveEditor()` = `constants.GetEnv().Editor > "vi"`. env 필드 = `EnvVars.Editor`(`iniName:"EDITOR"`, 선택값).
 
-**본체 계획 (다음)**: 관리 객체 = **supervisor `ProcessManager` 패턴 미러링**(새 자료구조 X). REF-process:46 "양쪽 manager 모두 UID로 키잉" 준수.
-- **관리 객체 = `workerRouter.procs manager.KeyValManager[string, *procEntry]`**(`saves` 옆 필드). worker는 pool·spec내부작성 없어 전용 매니저 타입까진 불필요(커지면 `cmd/worker/process` 패키지로 승격). `procEntry{uid, kind ExecType, editPath, inter *pty.Interactive}`.
-- **exec()**: localize → env 조립 → `pty.ExecInteractive(ctx,cmd,env,args...)` → `procs.Append(uid,entry)` → `go pump(entry)` → `ExecResponse{Accept}`.
-- **pump goroutine(핵심)**: `inter.Status()`/`inter.OutputAll()` 드레인 → `conn.Emit(MsgStatus/MsgData)`. PROCESS=`Pid()` 얹어 보고 / 종료=ExitCode. 종료 감지 시 **EDIT면 editPath read-back → `conn.Call(MsgEditResult)`** → `procs.Remove(uid)`. (출력=`OutputAll` 배치 권장, 락경합↓)
-- **input/resize/kill**: `procs.Get(uid).inter.Write/Layout/Kill`. **kill은 Remove 안 함** — kill→프로세스 종료→pump가 감지→Remove로 **단일 teardown 경로**(이중정리 방지).
-- **핸들러 등록**(NewWorkerRouter): `On(MsgData)=input`, `Handle(MsgResize)=resize`, `Handle(MsgKill)=kill`. `exec`는 이미 등록됨.
+**본체 구현 완료 (2026-07-13, build/vet 통과 + e2e 스모크 확인)**: 관리 객체 = **supervisor `ProcessManager` 패턴 미러링**. REF-process:46 "양쪽 manager 모두 UID로 키잉" 준수.
+- **관리 객체 = `workerRouter.procs manager.KeyValManager[string, *procEntry]`**(`saves` 옆 필드, `cmd/worker/router/process.go`). `procEntry{uid, kind protocol.ExecType, editPath string, inter *pty.Interactive}`.
+- **exec()**: localize(기존) → `env := os.Environ()+body.Env+"TERM=xterm-256color"` → `pty.ExecInteractive(ctx,cmd,env,dir,args...)` → `procs.Append(uid,entry)`(중복 시 `inter.Kill()`+거부) → `go pump(uid,entry)` → `ExecResponse{Accept}`.
+- **pump = 서브 고루틴 2개**(`bind.Relay`의 `pumpOutput`/`pumpStatus` 쌍을 그대로 미러링): `go pumpOutput`(별도 고루틴) + `pumpStatus`(호출된 고루틴 자신이 실행, `pump()` 자체가 블로킹 리턴 없이 여기서 상주).
+  - `pumpOutput`: `inter.OutputAll()` 배치 드레인 → `conn.Emit(MsgData)`. 채널 close(err) 시 종료.
+  - `pumpStatus`: `inter.Status()` 드레인 → `conn.Emit(MsgStatus)`(PROCESS 전이 시만 `Pid()` 얹음). **`IsCompleted()` 감지 시 `teardown()` 호출 후 자기 자신 종료** — 종료 감지·teardown이 **단일 지점**(pumpStatus)으로 수렴, pumpOutput은 채널 close로 뒤따라 자연 종료.
+  - `teardown(uid,entry)`: EDIT면 `os.ReadFile(editPath)` → `conn.Call(MsgEditResult)`(실패해도 계속 진행) → `procs.Remove(uid)`. 저장판별(diff)은 여기서 안 함 — supervisor `editResult` 책임(REF 상단 EDIT 계약 그대로).
+- **input/resize/kill**: `procs.Get(uid).inter.Write/Layout/Kill`. **kill은 Remove 안 함** — kill→프로세스 종료→`pumpStatus`가 `IsCompleted()`로 감지→`teardown`이 **단일 teardown 경로**(이중정리 방지). `resize`/`kill`은 없는 uid면 에러 RES, `input`은 EVENT라 짝 응답 없어 조용히 무시.
+- **핸들러 등록**(`workerRouter.go`): `On(MsgData)=input`, `Handle(MsgResize)=resize`, `Handle(MsgKill)=kill` 추가(`exec`는 기존 등록 유지).
+
+**Cwd 배선 (2026-07-13, 본체 구현과 함께)**: `pty.ExecInteractive`에 `dir string` 파라미터 추가(`env` 다음, variadic `args` 앞) — **빈 문자열=worker 프로세스 cwd 상속**(`cmd.Dir` 미설정, env의 nil-상속 정책과 결 맞춤), 비면 `cmd.Dir=dir`. `body.Cwd`(localize 완료)를 그대로 전달. 콜사이트가 worker `exec()` 하나뿐이라 파급 없음. **traversal 검증은 안 함** — 파일 전송 쪽 `resolveDest`와 달리 지금 `Cmd`/`Args`도 검증 없이 localize만 거치는 기존 정책과 대칭 유지(비대칭 방지).
+
+**⚠️ 발견 — PROC 토픽 무구독 (미해결, 다음 단계 선행조건)**: worker `pumpOutput`/`pumpStatus` → sup `On(MsgData)/On(MsgStatus)` → `entry.Inter.Push*` → `bind.Relay` 드레인까지는 정상 도달하지만, `subscribeHub.Publish("PROC:"+uid, ...)`가 **구독자 0명이면 에러·로그 없이 조용히 폐기**(`internal/subscribe` Publish: `len(clients)==0 → return nil`). 현재 프론트는 `NODE:0` 고정구독뿐이라 `PROC:<uid>` 동적 구독 경로가 없어 출력이 여기서 끊김. e2e 확인은 worker 로그(Emit 직전)로 했음 — supervisor~프론트 구간은 "frontend 트리거·제어"(동적 구독 포함, 아래 순번 2) 배선 전까진 검증 불가. → `REF-realtime.md`(동적 구독 설계)와 연결 지점.
 
 ## 종료 / 재접속 모델 (2026-07-01 확정) — status 단일 깔때기
 > MEMORY의 "끊김→Done(502)" 폐기. 이 절이 최신.
@@ -119,3 +126,50 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - **⚠️ 재접속 conn 재바인딩(난점)**: 메모리 entry의 AgentInteractive `onWrite/onKill/onLayout`이 죽은 옛 conn을 클로저로 잡음 → 재접속 시 **출력/상태 SyncData 채널 유지**(relay·frontend 구독 보존)한 채 **콜백만 새 conn으로 교체**(또는 entry가 swappable conn 참조 보유).
 - **PENDING 의미 확장**: "RUNNING前" + "끊김·상태미상" 둘 다 = "확정 live 아님".
 - **미해결**: 끊긴 창 입력/kill(죽은 conn→"재연결 대기" 거절 or 큐잉) / 공유 process kill 인가(소유자/write공유자?) / kill 에스컬레이션(worker측 SIGTERM→SIGKILL) / supervisor 재시작 시 ring 소실→DB 출력sink(후순위).
+
+## worker 끊김 → PENDING → 재접속 재바인딩 (2026-07-14 설계 확정 + 구현 완료 + e2e 검증)
+> 위 절의 "⚠️ 재접속 conn 재바인딩(난점)"(콜백을 새 conn으로 교체) 대체. **교체 대신 폐기 후 재생성**으로 단순화 — `AgentInteractive`는 특정 conn을 캡처한 일회성 핸들이라 제자리 교체 시도가 오히려 복잡했음.
+> **구현 완료(2026-07-14)**: 아래 설계 그대로 구현 + 실제 worker/supervisor 프로세스를 kill/restart해가며 3경로(끊김→PENDING / 재접속·소실→FAILED / 재접속·교집합→Rebind) e2e 검증(수동, DB 상태로 확인). `go build`/`go vet`/`gofmt` 클린.
+
+- **끊김** (`handleWorkerWS`, `conn.Serve()` 리턴 직후, `workers.Remove(key)` 부근): `ListActiveByDevice(deviceKey)`(기존 존재·미사용 쿼리, `device_key`=InstanceKey) → 해당 worker 소유 PENDING/PROCESS 레코드 uid 목록 조회.
+  - **FOLDER는 여기 자동 제외**됨 — `openFolder()`가 애초에 `CreateProcess`(DB persist)를 호출하지 않음(`entry.go` "pool 미저장" 주석 그대로). DB 조회 기반이라 별도 타입 필터 불필요, folder entry는 worker 연결 여부와 무관하게 memory에 영구 잔존(frontend 끊김 기준은 별개 이슈).
+  - 각 uid에 대해 3단계:
+    1. `entry, ok := processManager.Get(uid)`; `ok && entry.Inter != nil`이면 **`entry.Inter.Done(sentinel)`** 먼저 호출 — 안 하면 `bind.Relay`의 `pumpOutput`/`pumpStatus` 고루틴이 죽은 conn 채널을 계속 블로킹 읽으며 leak.
+    2. `MarkProcessPending(ctx, uid)`(신규 쿼리, DB status→PENDING. `MarkProcessRunning`/`MarkProcessDone`과 대칭 네이밍).
+    3. `processManager.Remove(uid)` — memory에서 **완전 제거**(Record-only로 남겨두지 않음). 재접속 시 3-way 대조는 memory가 아니라 DB(`ListActiveByDevice`)를 다시 읽으므로 memory에 잔존시킬 이유가 없음.
+  - `applyStatus`에 **`case status == execute.CommandPending`을 `default`가 아닌 명시적 분기로 승격**해 위 3단계를 구현. 실사용상 Pending은 worker가 자발적으로 보고하는 경우가 사실상 없어(RUNNING 진입이 즉시) 이 분기는 사실상 이 합성 호출 전용.
+  - EDIT/EXEC 구분 없이 동일 경로(합의됨) — EDIT 도중 끊겨도 그냥 PENDING, teardown은 안 함(editResult 못 받은 채로 대기).
+
+- **재접속** (register 완료 직후): worker가 자기 `procs`(`cmd/worker/router/process.go`의 `procEntry` map)를 훑어 **`MsgSync{uid,status,pid}[]`을 자발적으로 전송**. `RegisterRequest`에 얹지 않고 별도 메시지로 분리(합의됨) — 식별자 핸드셰이크와 도메인 상태 동기화는 관심사가 다름.
+  - supervisor: `ListActiveByDevice(deviceKey)`로 자기 쪽 PENDING/PROCESS uid 목록(위 끊김 처리로 memory에선 이미 제거된 상태 — DB만 진실)과 worker 보고를 3-way 대조:
+    - **교집합**(양쪽 다 살아있음): `newWorkerInteractive(신규conn, uid)`로 **새 Inter 생성**(재사용/교체 안 함) → memory에 재등록(`ProcessManager`에 신규 메서드 필요, 가칭 `Rebind(uid, worker) (*ProcessEntry, error)` — DB에서 Record 다시 읽어 entry 재구성 + Inter 장착) → `applyStatus(uid, 보고된 status, pid, 0)`로 현재 상태 동기화(RUNNING 보고 시 PENDING→PROCESS 복귀).
+    - **supervisor만 앎**(worker 보고에 없음 = worker 재부팅으로 소실): `applyStatus(uid, CommandFailed, 0, sentinel)`로 종결. 성공/실패 알 길 없어 Failed로 닫음(합의됨 — 별도 "LOST" 상태 신설 안 함).
+    - **worker만 앎**(고아, supervisor 기록 소실 등 극단 케이스): 로그만 남기고 무시(YAGNI, 합의됨). kill 지시 안 함.
+
+**구현 목록** (완료, 위치):
+
+| 항목 | 위치 |
+|---|---|
+| `MarkProcessPending` 쿼리 신설 | `internal/supervisor/db/query/processes.sql` (+sqlc generate) |
+| `applyStatus`에 `CommandPending` 명시 분기 + **가드 완화**(아래 별도 절) | `cmd/supervisor/router/process.go` |
+| `reconcileDisconnect(deviceKey)`: `ListActiveByDevice` 순회 → `applyStatus(uid, CommandPending, 0, 0)` | `cmd/supervisor/router/process.go`, 호출은 `supervisorRouter.go` `handleWorkerWS`(`workers.Remove(key)` 직후) |
+| `MsgSync`(worker→sup EVENT, `SyncEntry{UID,Status,PID}[]`) 프로토콜 신설 | `internal/protocol/messages.go` |
+| worker: register 완료 직후 `sendSync()`(procs 스냅샷 전송) | `cmd/worker/router/register.go` |
+| supervisor: `sync()` 핸들러(conn/auth 클로저) + `reconcileReconnect`(3-way partition + Rebind/applyStatus) | `cmd/supervisor/router/process.go`, 등록은 `supervisorRouter.go` `handleWorkerWS` |
+| `ProcessManager.Rebind(uid, worker) (*ProcessEntry, error)`(DB에서 Record 재조회+새 Inter 장착) | `cmd/supervisor/process/manager.go` |
+
+### `applyStatus` 가드 완화 (구현 중 발견한 설계 공백 해소, 2026-07-14)
+원래 `applyStatus`는 진입 시 `entry, ok := processManager.Get(uid); if !ok { return }`로 memory entry 없으면 즉시 리턴했다. 그런데 재접속의 "supervisor만 앎(worker 소실)" 분기는 `applyStatus(uid, CommandFailed, ...)`를 호출하는 시점에 그 uid가 **이미 끊김 처리(`CommandPending` 분기)에서 `processManager.Remove`된 뒤**라 entry가 없다 — 원 설계 그대로면 DB가 Failed로 안 닫힘.
+**해소**: 상단 가드 제거, `switch` 각 `case` 내부에서 개별적으로 `ok` 처리.
+- `CommandProcess`: entry 없으면 스킵(스퓨리어스 이벤트 방어, 기존과 동일 동작).
+- `IsCompleted()`: **entry 유무와 무관하게 `MarkProcessDone` 먼저 실행** → entry 있을 때만 `Inter.Done`/memory 정리.
+- `CommandPending`: entry 없으면 스킵(정상 경로는 항상 entry 있을 때 호출됨).
+- "모든 상태전이는 `applyStatus` 단일 깔때기" 원칙은 그대로 유지(별도 경로로 우회하지 않음).
+
+### worker측 기반 문제 발견 + `WorkerState` (구현 중 발견, 2026-07-14)
+REF 설계는 "재접속 시 worker가 자기 procs 스냅샷을 보고한다"를 전제하지만, 기존 구현은 `cmd/worker/main.go`의 재접속 루프가 매 시도마다 `NewWorkerRouter`를 새로 호출하고 그 안에서 `procs`(살아있는 PTY 핸들 맵)를 **매번 새로 생성**했다 — ws가 끊겼다 재접속하면 새 `workerRouter`가 빈 `procs`로 시작해 끊기기 전 PTY를 전부 잃는다. 게다가 `pumpOutput`/`pumpStatus`가 옛 `workerRouter`의 `r.conn`(죽은 conn)을 메서드 리시버로 영구 캡처해, 재접속해도 새 conn으로 못 옮겨가고 죽은 conn에 계속 씀.
+
+**해소 = `WorkerState`**(`cmd/worker/router/workerRouter.go`): `procs *manager.KeyValManager[string,*procEntry]` + `conn atomic.Pointer[transport.Conn]`을 묶어 **`main.go`의 재접속 루프 밖에서 1회 생성**, 매 `NewWorkerRouter` 호출에 그대로 넘긴다.
+- `procs`는 identity를 그대로 재사용(새 workerRouter도 `router.procs = state.procs`) → 재접속해도 이전 PTY 엔트리가 살아있음.
+- `NewWorkerRouter`가 dial 성공 직후 `state.conn.Store(conn)`으로 "현재 conn"을 교체. `pumpOutput`/`pumpStatus`/`teardown`은 `r.conn` 대신 `r.state.currentConn()`을 매 전송 시점에 읽는다 — 옛 세대의 pump 고루틴이라도 공유된 `state`를 통해 최신 conn을 즉시 얻는다(nil이면 그 순간만 전송 스킵, 드레인은 계속).
+- worker의 `sendSync()`는 `r.procs`에 남아있는 엔트리를 전부 `CommandProcess`로 보고한다 — `teardown()`이 종료된 uid를 즉시 `procs.Remove`하므로 "맵에 남아있다=아직 실행 중"이 불변조건이라, `entry.inter.Status()`를 다시 읽지 않는다(그 채널은 `pumpStatus` 고루틴 전용 단일 소비자라 여기서 또 읽으면 이벤트를 가로채 레이스가 난다).

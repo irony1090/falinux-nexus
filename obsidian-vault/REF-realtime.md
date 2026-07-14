@@ -40,7 +40,7 @@
   - **`requireSession(c)`를 upgrade 전에** 호출(실패 시 panic 401 — 아직 hijack 전이라 정상 렌더). upgrade 후 panic은 hijack된 연결에 응답 못 씀.
   - `transport.New(ws)` → 구독 → `conn.Serve()` → `conn.Close(err)` → `subscribeHub.UnsubscribeAll(conn)`.
   - `nodeSubscribeKey(parentId int64) = "NODE:%d"`.
-  - 현재 `NODE:0` 고정 구독 + 검증용 `Handle("TEST")`/`On("TEST_ON")`/`Emit("TTTT")` (스모크, 추후 제거).
+  - 현재 `NODE:0` 고정 구독만 남음. 검증용 `Handle("TEST")`/`On("TEST_ON")`/`Emit("TTTT")` 스모크는 **worktree에서 제거됨**(2026-07-13 확인, 커밋 아직 안 됨 — `apps/frontend/src/pages/index.vue` 쪽 대응 코드도 함께 제거된 상태).
 
 ## 주의점 (배선 시 반드시)
 
@@ -52,7 +52,7 @@
 
 ## 현재 상태 / 다음
 
-- ✅ **전송 토대 완성 + 3모드 e2e 검증**(2026-06-30): call(TEST→RES) / emit(TEST_ON) / on(TTTT). → `history/realtime.md`
+- ✅ **전송 토대 완성 + 3모드 e2e 검증**(2026-06-30, 커밋 3a8e92e + hook 견고성 e28252b): call(TEST→RES) / emit(TEST_ON) / on(TTTT). → `history/realtime.md`
 - ⬜ **동적 구독 어휘**: `MsgSubscribe`/`MsgUnsubscribe` 핸들러 + 그 안에서 **DB 인가** → `NODE:0` 고정 구독 대체.
 - ⬜ **발행처 배선**: node/process CRUD 핸들러에서 commit 후 `subscribeHub.Publish(topic, kind, payload)`.
 - ⬜ **프론트 수신**: `on('node.created'|'process.output'|…)` 실제 핸들러 → 트리/터미널 갱신.

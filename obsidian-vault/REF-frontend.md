@@ -5,7 +5,7 @@
 
 ## 위치/정체성
 - 경로: `apps/frontend` (package name `frontend-nexus-supervisor`)
-- 커밋: `e511359` (2026-06-30, 초기 스캐폴딩)
+- 커밋: `e511359`(초기 스캐폴딩) → `3a8e92e`(socket hook 재설계 + user/login·다이얼로그 WIP) → `e28252b`(hook 재연결 견고성) (모두 2026-06-30)
 
 ## 스택 확정 (불변)
 - **Vue3 + TypeScript + Vuetify 4** (`npm create vuetify`, **scratch** preset)
@@ -50,6 +50,13 @@
   - **브라우저에 `Handle` 없음**(서버→브라우저 REQ 미수신, 비대칭).
 - 검증: 3모드 e2e 통과(2026-06-30) — `REF-realtime.md`/`history/realtime.md`.
 
+## user/login + 공용 API + 전역 다이얼로그 (WIP, 커밋 3a8e92e)
+> 아직 마무리 전(실서버 연동·라우터 가드 남음). 구조만 자리잡음.
+- **인증**: `feature/user/store/auth.store.ts`(auth 상태) + `feature/user/api/user.api.ts`. `pages/Login.vue` + 라우트 `/login`(router/index.ts, 수동 정의).
+- **공용 API 계층**: `common/api/api.util.ts`(fetch 래퍼) + `query.util.ts`. socket hook과 별개의 REST 호출 통로.
+- **전역 다이얼로그**: `feature/layout/component/AppDialog.vue` + `store/appDialog.store.ts`(reactive 모듈 패턴 — 컴포넌트 밖에서 다이얼로그 open). layout store 계열: `appHead`/`appNav`/`appWindown`/`appDialog`.
+
 ## 미착수/다음
+- user/login 마무리: 실서버 인증 왕복·라우터 가드(비로그인 → `/login`)·세션 복원.
 - node 카탈로그 UI = 트리 + 캔버스(% 절대배치). 터미널(xterm.js)은 EXEC/EDIT용 별개.
 - socket 수신 핸들러 실연동: `on('node.created'|'process.output'|…)` → 트리/터미널 갱신 (→ `REF-realtime.md`).

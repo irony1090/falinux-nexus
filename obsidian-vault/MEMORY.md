@@ -58,7 +58,7 @@ sqlc.yaml  README.md  .gitignore
 | 모듈 | 상태 | 문서 |
 |------|------|------|
 | 통신 인프라 (transport/subscribe/call/EVENT/util) | 구현 완료 | `REF-infra.md` |
-| process 실행 (execute/pty/manager/bind) | supervisor 측 배선 완료(빌드/vet 통과): manager·entry·path·relay·router 본문 + status 깔때기 + 경로계약 `{WORKER_BASE}/nodeID/uid`. 남은 것=worker 실제 PTY 실행·router 제어/재접속 | `REF-process.md` |
+| process 실행 (execute/pty/manager/bind) | supervisor+worker 양측 배선 완료(빌드/vet 통과, e2e 확인): manager·entry·path·relay·router + worker procs/exec/pump/teardown + worker 끊김→PENDING→재접속 재바인딩(`WorkerState`) 완료. 남은 것=frontend 트리거·제어+PROC 동적구독 | `REF-process.md` |
 | 파일 전송 (transfer) | 구현 완료, e2e 미검증 | `REF-transfer.md` |
 | DB/스토어 (sqlc·goose·store) | 구현 완료 | `REF-db.md` |
 | supervisor web (tx·error·user·session) | 구현+e2e 완료 | `REF-supervisor-web.md` |

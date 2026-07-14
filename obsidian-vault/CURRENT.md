@@ -1,7 +1,7 @@
 # CURRENT
 
 ## 현재 날짜
-2026-07-03
+2026-07-14
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
@@ -44,13 +44,22 @@
 - worker `EnvVars.Editor`(`EDITOR`) 필드 + `resolveEditor=env.Editor>vi` 재정의.
 - `pty.ExecInteractive`에 `env []string`(nil=상속/목록=대체) + `pty.Interactive.Pid()` 접근자.
 
+**✅ 완료 (2026-07-13)** — worker 실행부 본체 + Cwd 배선 (build/vet 통과, e2e 스모크 확인 → `history/process.md` 2026-07-13 / `REF-process.md` "worker 실행부")
+- `workerRouter.procs KeyValManager[uid→*procEntry]` + `exec()` 실체화(env 조립→`pty.ExecInteractive`→Append→`go pump`) + `pump`(pumpOutput/pumpStatus 쌍)→`Emit(MsgData/MsgStatus)`, 종료 감지 시 `teardown`(EDIT read-back→`Call(MsgEditResult)`→`Remove`) 단일 지점.
+- `input`/`resize`/`kill` 실구현(kill은 Remove 안 함, pumpStatus가 단일 teardown). 핸들러 3개 등록 완료.
+- `pty.ExecInteractive`에 `dir string`(Cwd) 파라미터 추가.
+- SCRIPT 노드(`#!/bin/bash\nhtop`)로 e2e 스모크 확인(worker PTY 기동+출력).
+- **미해결 발견**: `subscribeHub.Publish("PROC:<uid>",...)` 구독자 0명 → 조용히 폐기. 프론트가 아직 이 토픽을 동적 구독 안 함(아래 1번의 선행조건) → supervisor~프론트 구간 미검증.
+
+**✅ 완료 (2026-07-14)** — worker 끊김→PENDING→재접속 재바인딩 구현 + e2e 검증(→ `history/process.md` 2026-07-14(2) / `REF-process.md` "worker 끊김→PENDING→재접속 재바인딩")
+- `applyStatus`에 `CommandPending` 분기 추가 + 상단 가드 완화(entry 없어도 DB는 닫히도록) + `reconcileDisconnect`/`reconcileReconnect`/`sync` 핸들러 + `ProcessManager.Rebind` + `MsgSync` 프로토콜.
+- worker측 기반 문제(재접속마다 `procs`/conn이 새로 생성돼 이전 PTY를 잃던 것) 함께 해소: `WorkerState`(재접속 루프 밖에서 1회 생성, procs identity + 공유 conn 참조)를 `main.go`가 `NewWorkerRouter`에 주입.
+- 실제 worker/supervisor 프로세스 kill/restart로 3경로(끊김→PENDING / 재접속·소실→FAILED / 재접속·교집합→Rebind+새 conn으로 정상 종료 보고까지) e2e 검증 완료.
+
 **다음 배선 (우선순위)**
-1. **worker 실제 PTY 실행 (본체)**: 관리 객체 = `workerRouter.procs KeyValManager[uid→*procEntry]`(supervisor ProcessManager 미러). 흐름: `exec()` localize→env조립(os.Environ+spec.Env+`TERM=xterm-256color`)→`pty.ExecInteractive`→Append→`go pump`. **pump goroutine**=Status/OutputAll 드레인→`Emit(MsgStatus/MsgData)`(PROCESS시 `Pid()`, 종료시 ExitCode), EDIT면 editPath read-back→`Call(MsgEditResult)`→Remove. input/resize/kill=`procs.Get(uid).inter.*`(kill은 Remove 안 함, pump가 단일 teardown). 핸들러 등록 `On(MsgData)=input`/`Handle(MsgResize/MsgKill)`. 상세 → `REF-process.md` "worker 실행부" 절.
-2. **frontend 트리거·제어**: 소켓 `Handle(실행요청)`→`router.Exec` / `input(MsgData)`→`Inter.Write` / `kill`→`Inter.Kill` (Ctrl+C=input, 버튼=kill 구분).
-3. **worker 끊김 처리**: 레지스트리 `OnRemoved`→`memory.FindAll(device_key)`→각 process PENDING **합성 `applyStatus` 호출**. **Done(502) 아님**.
-4. **재접속 재바인딩**: entry.Inter 콜백을 새 conn으로 교체(SyncData 채널 유지). worker live 보고 재동기화.
-5. **화면복원**: bind에 ring buffer(SNAPSHOT) 상시 적재 + 세션→uid 원장 + 재접속 SNAPSHOT 전송.
-6. EXEC content→실행 세부정책(직접실행 vs `sh -c`).
+1. **frontend 트리거·제어 + PROC 동적 구독**: 소켓 `Handle(실행요청)`→`router.Exec` / `input(MsgData)`→`Inter.Write` / `kill`→`Inter.Kill`(Ctrl+C=input, 버튼=kill 구분). **`PROC:<uid>` 토픽 동적 구독 배선도 여기 포함**(안 하면 출력이 `subscribeHub.Publish`에서 계속 조용히 폐기됨) — `REF-realtime.md` "동적 구독 어휘"와 합류 지점.
+2. **화면복원**: bind에 ring buffer(SNAPSHOT) 상시 적재 + 세션→uid 원장 + 재접속 SNAPSHOT 전송.
+3. EXEC content→실행 세부정책(직접실행 vs `sh -c`).
 
 **결정 필요**: 끊긴 창 입력/kill 거절 vs 큐잉 / 공유 kill 인가 / kill 에스컬레이션.
 **정리 잔여(구)**: `register.go` 주석 SendBuffer 테스트. worker `baseDir` 필드·`instanceKey()`가 resolveDest 재설계로 dead code화(정리 여부 판단).
@@ -61,10 +70,10 @@
 ---
 
 ## 미해결 이슈 (이월)
+- **PROC 토픽 무구독**(2026-07-13 발견): worker→sup 출력이 `subscribeHub.Publish("PROC:<uid>",...)`에서 구독자 0명이면 조용히 폐기(에러·로그 없음). 프론트 동적 구독 배선 전까진 process 출력이 브라우저에 절대 안 닿음. → 위 "다음 배선" 1번.
 - **파일 전송**: 구현 완료 / e2e 미검증. 잔여: e2e 스모크 / abort sentinel (register 임시전송은 주석처리됨)
 - **서브키 충돌/위조**: key↔subkey 결속 검증 미구현(node roster에서 닫을지 보류)
 - **supervisor 영속성**: registry 메모리 → PG 미착수
-- **재연결 reconciliation**: 끊김→Done(502) / 재연결→worker live 스냅샷 재동기화 미구현
 
 ## 잔여 (틈날 때)
 - `SESSION_KEY` 등 env화(현재 `"irony"` 하드코딩)

@@ -27,7 +27,10 @@
 - 2026-06-29 Node 모듈 구현 (스키마·쿼리·핸들러·PatchNode·internal/patch, build/vet 통과)
 - 2026-06-26 Node/Label 모듈 설계 (frontend 카탈로그)
 
-### `history/process.md` — process 실행 모듈 (supervisor 측)
+### `history/process.md` — process 실행 모듈 (supervisor 측 + worker 측)
+- 2026-07-14 (2) worker 끊김→PENDING→재접속 재바인딩 구현 완료 + e2e 검증(applyStatus 가드 완화, worker `WorkerState` 신설 포함)
+- 2026-07-14 (1) 위 설계 확정(코드 변경 없음, 순수 설계)
+- 2026-07-13 worker 실행부 본체 구현 완료(procs/exec/pump/teardown/input·resize·kill) + Cwd 배선 + e2e 스모크(htop). PROC 토픽 무구독 미해결 발견
 - 2026-07-03 folder-open 버그 수정 + worker EDITOR env + PTY 실행부 선행(ExecInteractive env·Pid 접근자)
 - 2026-07-01(2) process 도메인 배선 완료 + 경로 조립(sup)/치환(worker) 책임 분리 `{WORKER_BASE}/nodeID/uid`
 - 2026-07-01 supervisor ProcessManager·bind·router 골격 + 종료/재접속 모델(status 깔때기·worker끊김→PENDING) 확정
