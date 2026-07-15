@@ -24,7 +24,7 @@
   - node의 device 결속 = FK 아닌 `device_key TEXT`(**= main_key**, 폴더는 장비 클래스에 묶임 / subkey는 실행 시 런타임 선택) (→ `REF-node-label.md`)
 - **agent 식별자: 사전 지정 메인키 + supervisor가 접속 시 부여하는 서브키.** 저장/조회는 `메인키#서브키`(`InstanceKey()`). MAC 폐기
 - **process 영속성**: worker 휘발(메모리) / supervisor 영속(PG, 재시작 복구)
-- **재연결 reconciliation (2026-07-01 개정 — 구 `Done(502)` 비관 폐기)**: worker 끊김→관련 process **PENDING**(죽이지 않음) / 재접속→worker가 자기 live 상태 보고로 재동기화(낙관적). **모든 상태전이=process 라우터 `status` 단일 깔때기**(worker 보고 or 끊김 시 supervisor 합성). **frontend 끊김≠종료**(명시적 kill 전까진 실행 유지, 브라우저 종료 무시), **같은 세션 재접속=보던 화면 복원**(ring+세션원장) (→ `REF-process.md` "종료/재접속 모델")
+- **재연결 reconciliation (2026-07-01 개정 — 구 `Done(502)` 비관 폐기)**: worker 끊김→관련 process **PENDING**(죽이지 않음) / 재접속→worker가 자기 live 상태 보고로 재동기화(낙관적). **모든 상태전이=process 라우터 `status` 단일 깔때기**(worker 보고 or 끊김 시 supervisor 합성). **frontend 끊김≠종료**(명시적 kill 전까진 실행 유지, 브라우저 종료 무시), **같은 세션 재접속=보던 화면 복원**(ring+세션원장) (→ `REF-process-reconnect.md` "종료/재접속 모델")
 - **에러 처리 = panic-style**(2026-06-26 재확정): 핸들러 `panic(web.Err(...))` → `PanicMiddleware` 렌더 (→ `REF-supervisor-web.md`)
 - **실시간 push = 인가/라우팅 분리**(2026-06-30): 인가=DB(구독 시점 1회) / 라우팅=메모리(`subscribe.Hub` topic Publish, DB 무접촉). 수신자=presence(구독)≠소유자 → 공유·다중 유저 동일 화면 흡수. 토픽 단위=**펼친 폴더** `NODE:<parentId>`. "DB≠라우팅 authority"를 browser 평면으로 확장. 비대칭: 브라우저 call→서버 Handle / 서버 Emit→브라우저 on (→ `REF-realtime.md`)
 
@@ -58,7 +58,7 @@ sqlc.yaml  README.md  .gitignore
 | 모듈 | 상태 | 문서 |
 |------|------|------|
 | 통신 인프라 (transport/subscribe/call/EVENT/util) | 구현 완료 | `REF-infra.md` |
-| process 실행 (execute/pty/manager/bind) | supervisor+worker 양측 배선 완료(빌드/vet 통과, e2e 확인): manager·entry·path·relay·router + worker procs/exec/pump/teardown + worker 끊김→PENDING→재접속 재바인딩(`WorkerState`) 완료. 남은 것=frontend 트리거·제어+PROC 동적구독 | `REF-process.md` |
+| process 실행 (execute/pty/manager/bind) | supervisor+worker 양측 배선 완료(빌드/vet 통과, e2e 확인): manager·entry·path·relay·router + worker procs/exec/pump/teardown + worker 끊김→PENDING→재접속 재바인딩(`WorkerState`) 완료. 세션→uid 원장(`process_subscribers`) 설계 진행중(미구현). 남은 것=frontend 트리거·제어+PROC 동적구독 | `REF-process.md`(+`-wiring`/`-reconnect`) |
 | 파일 전송 (transfer) | 구현 완료, e2e 미검증 | `REF-transfer.md` |
 | DB/스토어 (sqlc·goose·store) | 구현 완료 | `REF-db.md` |
 | supervisor web (tx·error·user·session) | 구현+e2e 완료 | `REF-supervisor-web.md` |
@@ -68,7 +68,7 @@ sqlc.yaml  README.md  .gitignore
 | 실시간 push (socket) | 전송 토대·3모드(call/emit/on) e2e 커밋(3a8e92e). 동적 구독·DB인가·Publish 배선 남음 | `REF-realtime.md` |
 
 ## reference 인덱스
-- 설계/재사용 지식: `REF-infra.md` `REF-process.md` `REF-transfer.md` `REF-db.md` `REF-supervisor-web.md` `REF-node-label.md` `REF-frontend.md` `REF-realtime.md`
-- 작업 이력(주제별): `history/transport.md` `history/transfer.md` `history/supervisor-web.md` `history/node-label.md` `history/process.md` `history/frontend.md` `history/realtime.md` `history/project.md`
+- 설계/재사용 지식: `REF-infra.md` `REF-process.md` `REF-process-wiring.md` `REF-process-reconnect.md` `REF-transfer.md` `REF-db.md` `REF-supervisor-web.md` `REF-node-label.md` `REF-frontend.md` `REF-realtime.md`
+- 작업 이력(주제별): `history/transport.md` `history/transfer.md` `history/supervisor-web.md` `history/node-label.md` `history/process-wiring.md` `history/process-reconnect.md` `history/frontend.md` `history/realtime.md` `history/project.md`
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md`

@@ -11,7 +11,7 @@ import (
 
 // NameFunc는 세션에서 표시용 이름(또는 식별자)을 도출하는 전략이다.
 // NewSessionManager에 주입되어 SessionElement.Name()이 호출한다(nil이면 "" 반환).
-type NameFunc[T any] func(data T, session *sessions.Session, key string) string
+type NameFunc[T any] func(data T, session *sessions.Session, req *http.Request, key string) string
 
 type SessionElement[T any] struct {
 	key     string
@@ -77,7 +77,7 @@ func (se *SessionElement[T]) Name() string {
 	if se.nameFn == nil {
 		return ""
 	}
-	return se.nameFn(*se.Data, se.Session, se.key)
+	return se.nameFn(*se.Data, se.Session, se.req, se.key)
 }
 
 func (se *SessionElement[T]) Save() error {

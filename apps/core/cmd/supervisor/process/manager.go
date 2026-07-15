@@ -215,6 +215,54 @@ func newWorkerInteractive(worker *transport.Conn, uid string) *execute.AgentInte
 	)
 }
 
+// SubscribeProcess는 sid를 uid의 구독자로 등록한다. entry.AddSubscriber(memory, 저렴·되돌리기
+// 쉬움)를 먼저 반영하고 나서 pool에 write-through한다(execScript와 동일 순서) — DB insert가
+// 실패하면 memory를 롤백해 두 저장소가 어긋나지 않게 한다.
+func (p *ProcessManager) SubscribeProcess(uid string, sub Subscriber) error {
+	entry, ok := p.memory.Get(uid)
+	if !ok {
+		return fmt.Errorf("존재하지 않는 process입니다: %s", uid)
+	}
+	entry.AddSubscriber(sub)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := p.pool.Queries().CreateProcessSubscriber(ctx, superdb.CreateProcessSubscriberParams{
+		ProcessUid:  uid,
+		OwnerUserID: sub.OwnerUserID,
+		Sid:         sub.Sid,
+	}); err != nil {
+		entry.RemoveSubscriber(sub.Sid) // 롤백
+		return err
+	}
+	return nil
+}
+
+// UnsubscribeProcess는 sid를 uid의 구독자에서 뺀다. entry가 이미 memory에서 정리된 뒤(process
+// 완료 등)라도 DB 원장은 남아있을 수 있어 entry 유무와 무관하게 DB delete는 항상 시도한다.
+func (p *ProcessManager) UnsubscribeProcess(uid string, sid string) error {
+	if entry, ok := p.memory.Get(uid); ok {
+		entry.RemoveSubscriber(sid)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return p.pool.Queries().DeleteProcessSubscriber(ctx, superdb.DeleteProcessSubscriberParams{
+		ProcessUid: uid,
+		Sid:        sid,
+	})
+}
+
+// ListSubscriptions는 sid가 구독 중인 process 목록을 반환한다. memory가 아니라 DB에서 직접
+// 조회한다 — memory엔 sid→uid 역인덱스가 없고(전체 entry 스캔 필요), 이 조회는 재접속/화면복원
+// 시 1회성이라 그 인프라를 둘 실익이 없음. memory는 휘발성(재시작 시 소실)이라 재시작 직후
+// 복원 목적과도 맞지 않음 — status 컬럼도 write-through로 최신화되어 DB 단독으로 충분하다.
+func (p *ProcessManager) ListSubscriptions(sid string) ([]superdb.Process, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	return p.pool.Queries().ListProcessesBySid(ctx, sid)
+}
+
 // Remove는 실행 엔트리를 정리한다. Inter가 있으면 Done(502)로 안전망을 건다(이미 Done이면
 // sync.Once로 no-op) — bind.Relay 드레인 고루틴을 확실히 해제한다. pool 행은 남긴다(이력).
 func (p *ProcessManager) Remove(uid string) {

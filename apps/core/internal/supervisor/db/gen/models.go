@@ -44,6 +44,13 @@ type Process struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
+type ProcessSubscriber struct {
+	ProcessUid  string
+	OwnerUserID int64
+	Sid         string
+	CreatedAt   pgtype.Timestamptz
+}
+
 type User struct {
 	ID             int64
 	Identification string

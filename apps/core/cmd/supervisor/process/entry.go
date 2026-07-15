@@ -1,10 +1,21 @@
 package process
 
 import (
+	"sync"
+
 	"nexus/internal/execute"
 	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
 )
+
+// Subscriber는 이 process를 보고 있는 브라우저 세션 하나를 가리킨다.
+// DB(process_subscribers) row를 그대로 미러링하지 않는다 — process_uid는 엔트리 자신의
+// 스코프라 중복이고 created_at은 DB 감사 목적이라 런타임 라우팅엔 불필요(2026-07-15 확정,
+// REF-process-reconnect.md "ProcessEntry 인메모리 구독자 필드").
+type Subscriber struct {
+	Sid         string
+	OwnerUserID int64
+}
 
 // ProcessEntry는 memory 레지스트리(KeyValManager)의 값이다.
 // DB 스냅샷(Record)과 런타임 I/O 핸들(Inter)을 한데 묶는다.
@@ -15,6 +26,46 @@ import (
 type ProcessEntry struct {
 	Record *superdb.Process          // 상태/영속 스냅샷 (folder도 메모리엔 존재)
 	Inter  *execute.AgentInteractive // I/O 라우팅 핸들. folder면 nil
+
+	subMu       sync.RWMutex
+	subscribers []Subscriber
+}
+
+// IsSubscribed는 sid가 이 process를 구독 중인지 반환한다.
+func (e *ProcessEntry) IsSubscribed(sid string) bool {
+	e.subMu.RLock()
+	defer e.subMu.RUnlock()
+	for _, s := range e.subscribers {
+		if s.Sid == sid {
+			return true
+		}
+	}
+	return false
+}
+
+// AddSubscriber는 s를 구독자 목록에 더한다. 이미 같은 sid가 있으면 중복 추가하지 않는다
+// (DB 쪽 ON CONFLICT DO NOTHING과 동일 시맨틱).
+func (e *ProcessEntry) AddSubscriber(s Subscriber) {
+	e.subMu.Lock()
+	defer e.subMu.Unlock()
+	for _, existing := range e.subscribers {
+		if existing.Sid == s.Sid {
+			return
+		}
+	}
+	e.subscribers = append(e.subscribers, s)
+}
+
+// RemoveSubscriber는 sid를 구독자 목록에서 제거한다. 없으면 no-op.
+func (e *ProcessEntry) RemoveSubscriber(sid string) {
+	e.subMu.Lock()
+	defer e.subMu.Unlock()
+	for i, s := range e.subscribers {
+		if s.Sid == sid {
+			e.subscribers = append(e.subscribers[:i], e.subscribers[i+1:]...)
+			return
+		}
+	}
 }
 
 // HasProcess는 worker에 실제 프로세스가 물려 있는지(=Inter 존재) 반환한다.

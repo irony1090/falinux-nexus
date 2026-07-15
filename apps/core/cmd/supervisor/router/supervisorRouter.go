@@ -16,6 +16,7 @@ import (
 	"nexus/internal/web"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/gorilla/sessions"
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -53,10 +54,18 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 			return c.Emit(k, json.RawMessage(b))
 		},
 	)
+
+	getSessionKey := func(data superdb.User, session *sessions.Session, req *http.Request, key string) string {
+		c, err := req.Cookie(key)
+		if err != nil {
+			return ""
+		}
+		return c.Value
+	}
 	router := &supervisorRouter{
 		workers:        manager.NewKeyValManager[string, *transport.Conn](),
 		readers:        manager.NewKeyValManager[string, *sendJob](),
-		sessions:       session.NewSessionManager[superdb.User]("irony", "sid", nil),
+		sessions:       session.NewSessionManager("irony", "sid", getSessionKey),
 		subscribeHub:   subscribeHub,
 		processManager: process.NewProcessManager(),
 	}
@@ -70,12 +79,8 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins:     []string{"http*://*", "ws*://*"},
 		AllowCredentials: true,
-		// AllowOriginFunc: func(origin string) (bool, error) {
-		// 	log.Printf("[FUNC] %s\n", origin)
-		// 	return true, nil
-		// },
-		AllowMethods: []string{"GET", "POST", "PATCH", "DELETE", "PUT", "OPTIONS"},
-		AllowHeaders: []string{"Content-Type", "Authorization", "MAC"},
+		AllowMethods:     []string{"GET", "POST", "PATCH", "DELETE", "PUT", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization", "MAC"},
 	}))
 
 	e.GET("/test", func(c echo.Context) error {

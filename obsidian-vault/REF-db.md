@@ -31,7 +31,7 @@
 - **배선**: `cmd/supervisor/main.go init()` → `mountStore(GetEnv())`(InitStorePool→Migrate, 실패 Fatalf). env: `cmd/supervisor/constants/env.go`에 DBUser/Pass/Name/Host(필수)+DBPort(기본5432)
 
 ## processes 모델 (supervisor superdb) — 설계 확정 (2026-06-26)
-> process **영속 = supervisor PG 전용**(worker 메모리 전용이라 worker DB엔 없음). in-memory 레지스트리의 **write-through 영속층**(재시작 복구·frontend 목록). 도메인 배선과 1:1. → process 배선 `REF-process.md`, 현재 `CURRENT.md`.
+> process **영속 = supervisor PG 전용**(worker 메모리 전용이라 worker DB엔 없음). in-memory 레지스트리의 **write-through 영속층**(재시작 복구·frontend 목록). 도메인 배선과 1:1. → process 배선 `REF-process-wiring.md`, 현재 `CURRENT.md`.
 - **이번 범위 = `processes` 메타데이터 1테이블만**. 출력 스크롤백 영속(DB sink)=**나중**(frontend SNAPSHOT 붙일 때 `process_outputs` 별 테이블, YAGNI)
 - **마이그레이션 = `00002_processes.sql`** (nodes/labels → 00003/00004로 밀림)
 - **키/타입 결정(사용자 확정)**:

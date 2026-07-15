@@ -30,35 +30,14 @@
 - 핸들러 책임 미적용: parentId owner 일치 검증 / 자기 자손으로 Move 사이클 방지
 
 ### process 도메인 배선 (supervisor 측 완료 → worker 실행부·router 제어 남음)
-> 설계·결정 상세 `REF-process.md`(2026-07-01·(2) 절) / 이력 `history/process.md`.
-> **supervisor 측 배선 완료·빌드/vet 통과**: `process/{manager,entry,path}.go`, `bind/relay.go`, `router/process.go`(본문), supervisorRouter 필드+핸들러 등록. 경로 계약 `{WORKER_BASE}/<node.ID>/<proc.Uid>` 확정, worker `resolveDest`·`exec` placeholder 치환.
+> 설계·결정 상세 `REF-process-wiring.md` / 이력 `history/process-wiring.md`. 재접속·세션 복원은 `REF-process-reconnect.md` / `history/process-reconnect.md`.
 
-**✅ 완료 (2026-07-01(2))**
-1. `supervisorRouter.process` 필드 + 생성 + `On(MsgData)=output`/`On(MsgStatus)=status`/`Handle(MsgEditResult)=editResult` 등록.
-2. `status` 깔때기 = `applyStatus(uid,status,pid,exit)` 분리 + pool `MarkProcessRunning/Done`. (worker 끊김 합성 진입은 아직 — 아래 5)
-3. `Exec` 오케스트레이션 + content 선배치(`SendBuffer`) + relay 기동 + `MsgExec` Call.
-4. `WorkerNodePath`(process pkg) + worker `localize()`(WORKER_BASE/WORKER_EDITOR 치환) + `resolveEditor`.
-
-**✅ 완료 (2026-07-03)** — worker 실행부 선행작업 (→ `history/process.md` 2026-07-03)
-- folder-open 버그 수정(router 사전 게이트 제거 → manager 단일 검증 위임).
-- worker `EnvVars.Editor`(`EDITOR`) 필드 + `resolveEditor=env.Editor>vi` 재정의.
-- `pty.ExecInteractive`에 `env []string`(nil=상속/목록=대체) + `pty.Interactive.Pid()` 접근자.
-
-**✅ 완료 (2026-07-13)** — worker 실행부 본체 + Cwd 배선 (build/vet 통과, e2e 스모크 확인 → `history/process.md` 2026-07-13 / `REF-process.md` "worker 실행부")
-- `workerRouter.procs KeyValManager[uid→*procEntry]` + `exec()` 실체화(env 조립→`pty.ExecInteractive`→Append→`go pump`) + `pump`(pumpOutput/pumpStatus 쌍)→`Emit(MsgData/MsgStatus)`, 종료 감지 시 `teardown`(EDIT read-back→`Call(MsgEditResult)`→`Remove`) 단일 지점.
-- `input`/`resize`/`kill` 실구현(kill은 Remove 안 함, pumpStatus가 단일 teardown). 핸들러 3개 등록 완료.
-- `pty.ExecInteractive`에 `dir string`(Cwd) 파라미터 추가.
-- SCRIPT 노드(`#!/bin/bash\nhtop`)로 e2e 스모크 확인(worker PTY 기동+출력).
-- **미해결 발견**: `subscribeHub.Publish("PROC:<uid>",...)` 구독자 0명 → 조용히 폐기. 프론트가 아직 이 토픽을 동적 구독 안 함(아래 1번의 선행조건) → supervisor~프론트 구간 미검증.
-
-**✅ 완료 (2026-07-14)** — worker 끊김→PENDING→재접속 재바인딩 구현 + e2e 검증(→ `history/process.md` 2026-07-14(2) / `REF-process.md` "worker 끊김→PENDING→재접속 재바인딩")
-- `applyStatus`에 `CommandPending` 분기 추가 + 상단 가드 완화(entry 없어도 DB는 닫히도록) + `reconcileDisconnect`/`reconcileReconnect`/`sync` 핸들러 + `ProcessManager.Rebind` + `MsgSync` 프로토콜.
-- worker측 기반 문제(재접속마다 `procs`/conn이 새로 생성돼 이전 PTY를 잃던 것) 함께 해소: `WorkerState`(재접속 루프 밖에서 1회 생성, procs identity + 공유 conn 참조)를 `main.go`가 `NewWorkerRouter`에 주입.
-- 실제 worker/supervisor 프로세스 kill/restart로 3경로(끊김→PENDING / 재접속·소실→FAILED / 재접속·교집합→Rebind+새 conn으로 정상 종료 보고까지) e2e 검증 완료.
+**완료 상태**: supervisor 배선(manager/entry/bind/router, 경로 계약 `{WORKER_BASE}/<node.ID>/<proc.Uid>`) + worker 실행부 본체(procs/exec/pump/teardown/input·resize·kill, Cwd 배선) + worker 끊김→PENDING→재접속 재바인딩(`WorkerState`) — 전부 구현·build/vet 통과·e2e 검증 완료(2026-07-01~07-14). 상세 → `history/process-wiring.md`, `history/process-reconnect.md`.
 
 **다음 배선 (우선순위)**
 1. **frontend 트리거·제어 + PROC 동적 구독**: 소켓 `Handle(실행요청)`→`router.Exec` / `input(MsgData)`→`Inter.Write` / `kill`→`Inter.Kill`(Ctrl+C=input, 버튼=kill 구분). **`PROC:<uid>` 토픽 동적 구독 배선도 여기 포함**(안 하면 출력이 `subscribeHub.Publish`에서 계속 조용히 폐기됨) — `REF-realtime.md` "동적 구독 어휘"와 합류 지점.
 2. **화면복원**: bind에 ring buffer(SNAPSHOT) 상시 적재 + 세션→uid 원장 + 재접속 SNAPSHOT 전송.
+   - **세션→uid 원장 구체 설계 완료(2026-07-14), 구현은 미착수**: sid 추출 배선(코드 완료) + `process_subscribers`(process_uid,owner_user_id,sid,created_at) 테이블/쿼리 3종 설계 → `REF-process-reconnect.md` "세션→uid 원장 구체화" 절. 남은 것=마이그레이션·쿼리 파일 생성+`sqlc generate`, CREATE/DELETE 실제 호출 지점(동적 구독·UNSUBSCRIBE 배선과 합류, 위 1번과 동시 진행 필요).
 3. EXEC content→실행 세부정책(직접실행 vs `sh -c`).
 
 **결정 필요**: 끊긴 창 입력/kill 거절 vs 큐잉 / 공유 kill 인가 / kill 에스컬레이션.
@@ -78,3 +57,4 @@
 ## 잔여 (틈날 때)
 - `SESSION_KEY` 등 env화(현재 `"irony"` 하드코딩)
 - checkSession createdAt=0(pgtype.Timestamptz gob 미직렬화) → sess.Data.ID로 DB 재조회
+- `supervisorRouter.go` `getSessionKey`: `req.Cookie(key)` 에러 미가드 → 쿠키 없을 때 nil pointer panic(2026-07-14 발견, → `REF-process-reconnect.md` "세션→uid 원장")

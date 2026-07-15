@@ -24,7 +24,7 @@
 
 ## user 가입/로그인 핸들러 (`cmd/supervisor/router/user.go`) — 구현+e2e 완료 (2026-06-26)
 - **echo 기본 핸들러**(func(c)error, panic-style + `TxQueries(c)`). 라우트: POST `/users`(가입)·POST `/users/session`(로그인)·GET(세션확인)·DELETE(로그아웃). `supervisorRouter.mountUsers(e)`
-- **★별도 User 타입 안 만듦**: 세션이 `superdb.User`의 export 기본형 필드 직접 직렬화 → `session.SessionManager[superdb.User]` 그대로(키 `"irony"/"sid"`, nameFn=nil). supervisorRouter에 `sessions` 필드
+- **★별도 User 타입 안 만듦**: 세션이 `superdb.User`의 export 기본형 필드 직접 직렬화 → `session.SessionManager[superdb.User]` 그대로(키 `"irony"/"sid"`). supervisorRouter에 `sessions` 필드. nameFn은 2026-07-14부터 `getSessionKey`(아래 절 + `REF-process-reconnect.md` "세션→uid 원장" 참조) — 구 nil에서 변경
 - `requireSession(c) (*SessionElement, error)`(구 getSessionOrPanic) = `sess==nil||IsNew||Data.ID==0` 단락 OR → `web.Err(401)`. `toHash`(sha256 hex)로 식별자·비번 저장/조회
 - **함정**: checkSession은 세션 복원값이라 `pgtype.Timestamptz`(CreatedAt/UpdatedAt) **0/누락**(gob 직렬화 대상 아님). 타임스탬프 필요하면 `sess.Data.ID`로 DB 재조회. 응답 identification=해시. Password 해시가 세션 쿠키에 적재됨
 - e2e 8~9시나리오 통과(가입/중복/미로그인/로그인/세션확인/오답/로그아웃/로그아웃후)
@@ -32,3 +32,4 @@
 
 ## 세션 매니저 (`internal/manager/session/sessionManager.go`)
 - 구 PortBridge 이식(`echo/v4`+`gorilla/sessions`). 제네릭 `SessionManager[T]`. 로직 버그 3건 수정(saveData 비공개필드 패닉 / T 비-struct 패닉 / GetSession 디코드실패 잠금) + `Name()`을 `NameFunc[T]` 주입 전략으로 전환
+- **2026-07-14**: `NameFunc[T]`에 `req *http.Request` 파라미터 추가(`func(data T, session *sessions.Session, req *http.Request, key string) string`). 목적 = 브라우저별(로그인 인스턴스별) 안정 식별자 확보 — `key`는 쿠키 "이름"("sid")일 뿐 값이 아니고 `session.Values`엔 원본 쿠키 문자열이 안 남아서, `req.Cookie(key)`로 원본을 직접 읽어야만 가능했음. `supervisorRouter.go`가 `getSessionKey` nameFn으로 배선(현재 `err` 미가드 nil panic 버그 있음). 설계 전체 배경·용도 → `REF-process-reconnect.md` "세션→uid 원장 구체화" 절

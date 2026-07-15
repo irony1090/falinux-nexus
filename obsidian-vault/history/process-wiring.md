@@ -1,49 +1,12 @@
-# history/process — process 실행 모듈 (supervisor 측)
+# history/process-wiring — process 실행 배선 (supervisor 아키텍처 + worker 실행부)
 
-> 설계·재사용 지식 → `REF-process.md` / 현재 진행 → `CURRENT.md`
+> 설계·재사용 지식 → `REF-process-wiring.md` / 계약·원칙 → `REF-process.md` / 현재 진행 → `CURRENT.md`
 > 통신 인프라 → `REF-infra.md` / 카탈로그(노드) → `REF-node-label.md` / 실시간 push → `REF-realtime.md`
-
-## 2026-07-14 (2) — worker 끊김→PENDING→재접속 재바인딩 구현 완료 + e2e 검증
-
-아래 "설계 확정" 절 그대로 구현. 상세 = `REF-process.md` "worker 끊김 → PENDING → 재접속 재바인딩" 절(구현 목록 표 + `applyStatus` 가드 완화 + `WorkerState` 두 하위 절 포함).
-
-**변경 파일**
-- `internal/supervisor/db/query/processes.sql` — `MarkProcessPending` (+sqlc generate)
-- `internal/protocol/messages.go` — `MsgSync`/`SyncEntry`/`SyncEvent`
-- `cmd/supervisor/process/manager.go` — `ProcessManager.Rebind`
-- `cmd/supervisor/router/process.go` — `applyStatus` 가드 완화+`CommandPending` 분기, `reconcileDisconnect`, `sync` 핸들러, `reconcileReconnect`
-- `cmd/supervisor/router/supervisorRouter.go` — 끊김 시 `reconcileDisconnect` 호출 + `MsgSync` 핸들러 등록
-- `cmd/worker/router/workerRouter.go` — `WorkerState`(재접속 넘어 사는 procs+conn) 신설
-- `cmd/worker/router/process.go` — pump/teardown이 `state.currentConn()` 참조하도록 변경
-- `cmd/worker/router/register.go` — 등록 성공 직후 `sendSync()`
-- `cmd/worker/main.go` — `WorkerState`를 재접속 루프 밖에서 1회 생성해 전달
-
-**구현 중 발견해 원 설계에 없던 것 두 가지** (상세는 REF 두 하위 절)
-1. `applyStatus`가 memory entry 없으면 조기 리턴하던 가드가 "재접속·supervisor만 앎" 분기(entry가 끊김 처리 때 이미 Remove된 상태)를 막고 있어 DB가 Failed로 안 닫히는 공백 발견 → 가드를 case별로 완화(사용자에게 두 대안 제시 후 "가드 완화" 채택).
-2. `cmd/worker/main.go`가 재접속마다 `NewWorkerRouter`를 새로 호출하며 `procs`(PTY 핸들 맵)를 매번 새로 만들던 기존 구조가 "재접속해도 procs가 산다"는 설계 전제와 충돌 발견(구현 도중 발견, 사용자에게 "지금 같이 고칠지" 확인 후 진행) → `WorkerState` 도입으로 해소.
-
-**e2e 검증(수동, 실제 프로세스 kill/restart)**: 로컬 supervisor+worker 기동(postgres15 컨테이너, node id=2 스크립트를 `sleep N`으로 임시 교체) 후
-- worker 프로세스 kill → supervisor 로그에 `E N D`, DB `PROCESS→PENDING` 확인.
-- (PENDING 상태에서) 빈 procs로 새 worker 재접속 → DB `PENDING→FAILED(exit_code=502)` 확인("supervisor만 앎" 분기 = 가드 완화가 실제로 살리는 경로).
-- worker는 살려둔 채 supervisor만 kill/재기동 → 재접속 시 DB가 `PROCESS`로 재차 갱신(`updated_at` 확인, Rebind+relay 재기동 성공) → 그 프로세스가 자연 종료(sleep 만료)할 때까지 대기해 **새 conn을 통해** `COMPLETED, exit_code=0`까지 정상 보고됨을 확인(교집합/Rebind 경로 + worker측 conn 스왑 둘 다 실증).
-- 테스트 후 node content 원복, 테스트 프로세스 정리. `go build`/`go vet`/`gofmt -l .` 클린.
-
-## 2026-07-14 (1) — worker 끊김→PENDING→재접속 재바인딩 설계 확정 (코드 변경 없음, 순수 설계)
-
-CURRENT.md "다음 배선" 2번 착수를 위한 설계 대화. 결과는 `REF-process.md` "worker 끊김 → PENDING → 재접속 재바인딩" 절에 반영(이 절이 최신, 구 "⚠️ 재접속 conn 재바인딩(난점)" 대체).
-
-**핵심 결정**
-- 재접속 시 죽은 conn을 캡처한 `AgentInteractive` 콜백을 "교체"하려던 기존 난제를 폐기 — 대신 끊기면 **버리고**(`Inter.Done(sentinel)`로 `bind.Relay` 고루틴 정지 후 `processManager.Remove`), 재접속하면 **새로 만든다**(`newWorkerInteractive` 재호출). 훨씬 단순.
-- 3-way 재동기화는 memory가 아니라 **DB(`ListActiveByDevice`, 기존 존재하나 미사용이던 쿼리)를 진실로 삼음** — memory에 Record-only placeholder를 남겨둘 필요 없음이 드러남(사용자 질문으로 발견).
-- **FOLDER 타입은 원천적으로 안전**: `openFolder()`가 애초에 `CreateProcess`(DB persist)를 안 부름 → `ListActiveByDevice`에 안 걸림 → 끊김 처리 루프가 자동으로 건드리지 않음(별도 필터 불필요). 근거는 `entry.go` `HasProcess()` 기존 주석("folder는 제외 — frontend 끊김 기준")과 일치.
-- worker→sup 재접속 보고는 `RegisterRequest`에 얹지 않고 별도 `MsgSync{uid,status,pid}[]`로 분리(식별자 핸드셰이크와 도메인 상태 동기화는 관심사 분리).
-- 3-way 대조 처리: 교집합=`Rebind`(신규 메서드)로 재장착, supervisor만 앎=`Failed`+sentinel로 종결(LOST 상태 신설 안 함), worker만 앎(고아)=로그만(YAGNI).
-
-**구현·검증은 위 2026-07-14 (2) 참조.**
+> 재접속/세션 복원 이력은 → `history/process-reconnect.md`
 
 ## 2026-07-13 — worker 실행부 본체 구현 완료 + Cwd 배선 (build/vet 통과, e2e 스모크 확인)
 
-`cmd/worker/router/process.go` 실체화 + `workerRouter.go` 배선. 계획 → REF-process.md 2026-07-03절 "본체 계획" 그대로 따르되 세부는 완료 절로 이전 반영(→ `REF-process.md` "worker 실행부" 절 최신).
+`cmd/worker/router/process.go` 실체화 + `workerRouter.go` 배선. 계획 → REF-process-wiring.md 2026-07-03절 "본체 계획" 그대로 따르되 세부는 완료 절로 이전 반영(→ `REF-process-wiring.md` "worker 실행부" 절 최신).
 
 **구현**
 - `procEntry{uid, kind, editPath, inter *pty.Interactive}` + `workerRouter.procs KeyValManager[string,*procEntry]`(`saves` 옆).
@@ -81,7 +44,7 @@ worker 실제 PTY 실행부 착수 전 준비 작업. 세 갈래.
 - `execute/pty/execInteractive.go` `ExecInteractive`에 **`env []string`** 파라미터 추가(`command` 뒤, `args` 앞). **nil=os.Environ() 상속**(cmd.Env 미설정) / **목록=완전 대체**. → 호출자(worker exec)가 `os.Environ()+spec.Env+TERM`을 조립해 넘기는 정책. TUI(vi)엔 `TERM=xterm-256color` 사실상 필수.
 - `pty.Interactive`에 **`Pid() int`** 접근자 추가(미기동/종료 시 -1). MsgStatus(PROCESS)로 PID 보고용. **`IInteractive` 인터페이스엔 넣지 않음** — PID는 worker 로컬 개념, 원격 래퍼(AgentInteractive)엔 실 PID 없음. worker는 `*pty.Interactive` 구체타입 보유라 직접 호출.
 
-**남은 것(다음)**: worker 실행부 본체 = `workerRouter.procs`(uid→*procEntry) 매니저 + `exec()` 실체화 + 출력/상태 **pump goroutine** + input/resize/kill + EDIT read-back. 계획 → CURRENT.md / REF-process.md "worker 실행부" 절.
+**남은 것(다음)**: worker 실행부 본체 = `workerRouter.procs`(uid→*procEntry) 매니저 + `exec()` 실체화 + 출력/상태 **pump goroutine** + input/resize/kill + EDIT read-back. 계획 → CURRENT.md / REF-process-wiring.md "worker 실행부" 절.
 
 ## 2026-07-01 (2) — process 도메인 배선 + 경로 조립/치환 책임 분리 (build/vet 통과)
 
@@ -118,7 +81,7 @@ worker 실제 PTY 실행부 착수 전 준비 작업. 세 갈래.
 - `cmd/supervisor/router/process.go` — 골격: `Exec`(오케스트레이션 트리거) / `output`·`status`(EVENT 수신) / `editResult`(REQ, EDIT read-back). **구 `exec`·`execEdit`(spec 받던 것) 삭제**.
 - `internal/protocol/messages.go` — `PlaceholderWorkerEditor = "{WORKER_EDITOR}"` 추가.
 
-**확정 설계 결정** (상세 → `REF-process.md` 2026-07-01 절)
+**확정 설계 결정** (상세 → `REF-process-wiring.md` 2026-07-01 절, 종료/재접속은 → `REF-process-reconnect.md`)
 - 역할분리: manager=상태 / router=wire·트리거 / bind.Relay=fan-out. "누구=router, 무엇=manager".
 - spec은 Record 파생(`entry.Spec()`), 별도 상주 금지. content=파일 선배치 + 공유 헬퍼 `WorkerNodePath`. EDIT `Cmd={WORKER_EDITOR}`.
 - **종료/재접속 개정**: `status` 단일 깔때기 / worker 끊김→**PENDING**(구 `Done(502)` 폐기) / frontend 끊김≠종료 + 같은 세션 화면복원(ring+세션원장) / 재접속 conn 재바인딩.
