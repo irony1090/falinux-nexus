@@ -78,6 +78,17 @@ func (i *Interactive) Kill() error {
 	return syscall.Kill(-i.cmd.Process.Pid, syscall.SIGKILL)
 }
 
+// exitCodeOf는 종료된 프로세스의 exit code를 유닉스 관례로 계산한다. 시그널로 죽었으면(Kill()의
+// SIGKILL 포함 — 외부에서 kill된 경우도 동일) Go의 ProcessState.ExitCode()는 -1을 줘서 "정상
+// 종료했지만 코드가 0이 아님(진짜 실패)"과 구분이 안 된다. bash/docker/systemd와 동일하게
+// 128+시그널번호(SIGKILL=137)로 인코딩해 두 케이스를 구분 가능하게 한다.
+func exitCodeOf(state *os.ProcessState) int {
+	if ws, ok := state.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+		return 128 + int(ws.Signal())
+	}
+	return state.ExitCode()
+}
+
 func (i *Interactive) setStatusPending() {
 	i.status.Push(execute.CommandPending)
 }
@@ -99,10 +110,13 @@ func (i *Interactive) setStatusCompleted(exitCode int, err error) {
 
 }
 
-// Status 명령어 상태 조회. 데이터 없으면 상태가 올 때까지 대기
+// Status 명령어 상태 조회. 데이터 없으면 상태가 올 때까지 대기.
+// 세 번째 반환값은 큐 종료 신호(Shift 자신의 err)다 — i.Error(cmd.Wait()의 종료 에러, 0이
+// 아닌 코드/시그널 종료 시 항상 non-nil)를 여기 얹으면 호출자(pumpStatus 등)의 "err != nil =
+// 더 이상 없음" 관례와 충돌해 마지막 상태(Failed)를 못 보내고 조기 리턴하게 된다.
 func (i *Interactive) Status() (execute.CommandStatus, int, error) {
-	sts, _ := i.status.Shift()
-	return sts, i.exitCode, i.Error
+	sts, err := i.status.Shift()
+	return sts, i.exitCode, err
 }
 
 // Output 대화형 출력 읽기. 데이터가 없으면 데이터가 올 때까지 대기
@@ -208,7 +222,7 @@ func ExecInteractive(ctx context.Context, command string, env []string, dir stri
 		interactive.setStatusProcess()
 		err = cmd.Wait()
 		master.Close()
-		interactive.setStatusCompleted(cmd.ProcessState.ExitCode(), err)
+		interactive.setStatusCompleted(exitCodeOf(cmd.ProcessState), err)
 		// term.Restore(int(os.Stdin.Fd()), oldState)
 	}()
 

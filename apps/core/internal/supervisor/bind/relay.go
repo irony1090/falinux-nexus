@@ -12,7 +12,7 @@ import (
 // 타입(Conn/MsgType)에 직접 묶이지 않도록, 호출자가 토픽 키를 클로저로 감싸 주입한다.
 //
 //	예) bind.NewRelay(uid, inter, func(k protocol.MsgType, p any) error {
-//	        return hub.Publish("PROC:"+uid, k, p)
+//	        return hub.Publish("PROCESS:"+uid, k, p)
 //	    })
 type Publish func(kind protocol.MsgType, payload any) error
 

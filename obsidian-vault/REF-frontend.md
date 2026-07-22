@@ -38,7 +38,10 @@
 > 실시간 push 아키텍처(인가/라우팅·토픽·서버측) → `REF-realtime.md`. 여기는 프론트 hook 자체.
 
 - **Go `transport.Conn` 1:1 대응**: `call`↔Call(REQ→RES) / `emit`↔Emit(EVENT↑) / `on`↔On(EVENT↓) / `status`=watch 기반(Serve 루프 대용).
-- `createWebsocketHook(url, opts)` → composable `useX(): SocketContext`. **url당 단일 ctx 공유**(소켓·correlator·핸들러).
+- `createWebsocketHook(url, opts)` → **url당 단일 ctx 공유**(소켓·correlator·핸들러).
+- **설계 결정(2026-07-21, 구현 완료)**: 반환 형태를 `useX(): SocketContext` 단일 함수 → **`[provideSocket, useSocket]` 튜플**로 변경. 기존엔 모듈 스코프 `let ctx`가 첫 호출 시점에 암묵적으로 build()돼 생명주기가 불투명 → `appDialog.store.ts`와 동일한 provide/inject 패턴(`provide(KEY, ctx)` + `inject<T>(KEY)!` 후 `if(!context) throw`)으로 초기화 지점을 명시화(root에서 `provideSocket()` 1회 호출 → 하위 트리 `useSocket()`).
+  - **주입 키 = `Symbol()`(문자열 아님)** — `appDialog`는 앱에 인스턴스가 하나뿐이라 문자열 키로 충분하지만, **소켓은 여러 인스턴스(복수 url)를 만들 예정이 확정**돼 있어 팩토리 호출마다 새로 생성되는 `Symbol()`로 인스턴스 간 키 충돌을 원천 차단.
+  - 기존 `useSocket` 내부의 `onUnmounted` 로컬 구독 해제 로직은 그대로 유지.
 - `SocketContext` = `{ status, event, connect, disconnect, call, emit, on }`.
 - **`Protocol` 주입형(frame 가변 전제)**: 코어는 프레임 필드를 모르고 "의도(request/event) → 와이어" + "와이어 → 분류(Inbound: response/event/request/unknown)"만 위임. frame 바뀌면 **Protocol 구현 1개 교체**. 기본 `jsonFrame` = Go Frame `{k,id,t,e,d}`(REQ0/RES1/EVENT2) 미러.
 - 구현 결정(확정):
@@ -56,7 +59,16 @@
 - **공용 API 계층**: `common/api/api.util.ts`(fetch 래퍼) + `query.util.ts`. socket hook과 별개의 REST 호출 통로.
 - **전역 다이얼로그**: `feature/layout/component/AppDialog.vue` + `store/appDialog.store.ts`(reactive 모듈 패턴 — 컴포넌트 밖에서 다이얼로그 open). layout store 계열: `appHead`/`appNav`/`appWindown`/`appDialog`.
 
+## REST API 클라이언트 (`feature/{node,process}/api`, 2026-07-21)
+- `feature/node/api/node.api.ts`: `createNode`/`listChildren`/`getNode`/`patchNode`/`deleteNode` (node.go+nodeDto.go 미러) + vue-query `useListChildren`/`useGetNode`/`useNodeQueryClient`(invalidateAll/-Force). `Q_KEY`는 `LIST(parentId?)`/`DETAIL(id)`.
+  - `PatchNodeRequest`는 백엔드 `patch.Field[T]`({valid,value})를 호출부에 노출하지 않는다 — 평범한 `T|null|undefined` 값만 받고 `patchNode()` 내부의 `toPatchField()`가 undefined→`{valid:false}` / null·값→`{valid:true,value}`로 변환(관리 부담 축소가 목적).
+  - Response/Dto 패턴은 `user.api.ts`와 동일: camelCase `XResponse`(Date) + `Replace`로 파생한 `XResponseDto`(unix sec) + 변환 함수.
+- `feature/process/api/process.api.ts`: `listSubscriptions`/`subscribeProcess`/`unsubscribeProcess`/`execProcess`/`killProcess` (processApi.go 미러).
+  - **선행 배선**: `listSubscriptions`가 원래 DTO 없이 `superdb.Process`(json 태그 없는 sqlc raw, PascalCase+RFC3339)를 그대로 내려보내던 걸 발견 → **백엔드에 `processDto.go` 신설**(`processResponse`+`newProcessResponse(s)`, nodeDto.go와 대칭)해 camelCase+unix sec로 정정한 뒤에 프론트 타입을 작성함(2026-07-21). 순서: 백엔드 응답 정합 먼저 → 프론트 타입은 그 위에.
+- 둘 다 아직 실제로 호출하는 UI 컴포넌트는 없음(함수만 존재).
+
 ## 미착수/다음
 - user/login 마무리: 실서버 인증 왕복·라우터 가드(비로그인 → `/login`)·세션 복원.
 - node 카탈로그 UI = 트리 + 캔버스(% 절대배치). 터미널(xterm.js)은 EXEC/EDIT용 별개.
 - socket 수신 핸들러 실연동: `on('node.created'|'process.output'|…)` → 트리/터미널 갱신 (→ `REF-realtime.md`).
+- 위 REST 클라이언트 함수들을 실제로 호출하는 컴포넌트/페이지(node 카탈로그 UI, process 실행/종료 트리거).

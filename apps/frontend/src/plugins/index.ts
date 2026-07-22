@@ -1,4 +1,5 @@
 import router from '../router';
+import vueQuery, { vueQueryPluginOption } from './vueQuery'
 /**
  * plugins/index.ts
  *
@@ -12,6 +13,7 @@ import type { App } from 'vue'
 import vuetify from './vuetify'
 
 export function registerPlugins (app: App) {
- app.use(vuetify)
- app.use(router);
+    app.use(vuetify)
+    .use(router)
+    .use(vueQuery, vueQueryPluginOption)
 }

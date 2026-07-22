@@ -1,8 +1,10 @@
 package router
 
 import (
+	"log"
 	"strconv"
 
+	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/web"
 
@@ -30,6 +32,31 @@ func paramID(c echo.Context) int64 {
 		panic(web.Err(400, "잘못된 id입니다"))
 	}
 	return id
+}
+
+// parentOrRoot는 pgtype.Int8 parentId를 토픽 키로 정규화한다(NULL=루트=0, subscribe.go의
+// "NODE:0 고정 구독" 규약과 동일).
+func parentOrRoot(p pgtype.Int8) int64 {
+	if p.Valid {
+		return p.Int64
+	}
+	return 0
+}
+
+// publishNode는 node의 (현재) 부모 폴더 토픽에 kind 이벤트를 발행한다. 커밋 성공 후에만
+// 실행되도록 반드시 AfterCommit(c, func(){ router.publishNode(...) })로 예약해서 부른다
+// (REF-realtime.md "commit 이후 Publish" — tx 안에서 바로 부르면 롤백 시 누설).
+func (router *supervisorRouter) publishNode(kind protocol.MsgType, node superdb.Node) {
+	router.publishNodeTopic(nodeSubscribeTopic(parentOrRoot(node.ParentID)), kind, node)
+}
+
+// publishNodeTopic은 명시적 토픽에 발행한다 — 이동(parentId 변경)이 old parent 쪽에도
+// 알려야 할 때(REF-realtime.md "이동/삭제 = old parent + new parent 2개 토픽") publishNode와
+// 함께 쓴다. 마찬가지로 AfterCommit 안에서만 호출한다.
+func (router *supervisorRouter) publishNodeTopic(topic string, kind protocol.MsgType, node superdb.Node) {
+	if err := router.subscribeHub.Publish(topic, kind, newNodeResponse(node)); err != nil {
+		log.Printf("[node] Publish 실패 topic=%s kind=%s: %v", topic, kind, err)
+	}
 }
 
 // createNode는 FOLDER/SCRIPT 노드를 만든다. ord 미지정 시 형제 끝에 append.
@@ -77,6 +104,7 @@ func (router *supervisorRouter) createNode(c echo.Context) error {
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
+	AfterCommit(c, func() { router.publishNode(protocol.MsgNodeCreate, node) })
 	return c.JSON(200, newNodeResponse(node))
 }
 
@@ -124,22 +152,52 @@ func (router *supervisorRouter) patchNode(c echo.Context) error {
 	sess := router.requireSession(c)
 	id := paramID(c)
 	body := bindPatchRequest(c)
+	ctx := c.Request().Context()
 
-	node, err := TxQueries(c).PatchNode(c.Request().Context(), body.toParams(id, sess.Data.ID))
+	// parentId가 바뀌는(=이동) 요청이면 발행 시 old parent 토픽에도 알려야 하므로 미리 조회.
+	var oldParent pgtype.Int8
+	moving := body.ParentID.Set
+	if moving {
+		old, err := TxQueries(c).GetNode(ctx, superdb.GetNodeParams{ID: id, OwnerUserID: sess.Data.ID})
+		if err != nil {
+			panic(web.Err(404, "노드를 찾을 수 없습니다"))
+		}
+		oldParent = old.ParentID
+	}
+
+	node, err := TxQueries(c).PatchNode(ctx, body.toParams(id, sess.Data.ID))
 	if err != nil {
 		panic(web.Err(500, "%v", err))
+	}
+
+	AfterCommit(c, func() { router.publishNode(protocol.MsgNodeUpdate, node) })
+	if moving {
+		oldTopic := nodeSubscribeTopic(parentOrRoot(oldParent))
+		newTopic := nodeSubscribeTopic(parentOrRoot(node.ParentID))
+		if oldTopic != newTopic {
+			AfterCommit(c, func() { router.publishNodeTopic(oldTopic, protocol.MsgNodeUpdate, node) })
+		}
 	}
 	return c.JSON(200, newNodeResponse(node))
 }
 
 // deleteNode는 노드를 삭제한다. FOLDER면 하위 subtree가 FK ON DELETE CASCADE로 동반 삭제.
+// 발행 payload는 "삭제 직전 스냅샷"이라(REF-realtime.md) 삭제 전에 미리 조회해 둔다.
 func (router *supervisorRouter) deleteNode(c echo.Context) error {
 	sess := router.requireSession(c)
-	if err := TxQueries(c).DeleteNode(c.Request().Context(), superdb.DeleteNodeParams{
-		ID:          paramID(c),
+	id := paramID(c)
+	ctx := c.Request().Context()
+
+	victim, err := TxQueries(c).GetNode(ctx, superdb.GetNodeParams{ID: id, OwnerUserID: sess.Data.ID})
+	if err != nil {
+		panic(web.Err(404, "노드를 찾을 수 없습니다"))
+	}
+	if err := TxQueries(c).DeleteNode(ctx, superdb.DeleteNodeParams{
+		ID:          id,
 		OwnerUserID: sess.Data.ID,
 	}); err != nil {
 		panic(web.Err(500, "%v", err))
 	}
+	AfterCommit(c, func() { router.publishNode(protocol.MsgNodeDelete, victim) })
 	return c.JSON(200, map[string]any{})
 }

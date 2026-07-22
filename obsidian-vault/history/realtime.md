@@ -3,6 +3,32 @@
 > 요약·재사용 지식 → `REF-realtime.md` / 현재 진행 → `CURRENT.md`
 > 전송 인프라 → `REF-infra.md` / 프론트 hook → `REF-frontend.md`
 
+## 2026-07-16 (2) — node CRUD 발행처 배선 구현 완료
+
+- 대상: `createNode`/`patchNode`/`deleteNode`(`cmd/supervisor/router/node.go`).
+- `internal/protocol/messages.go`에 `MsgNodeCreate`/`MsgNodeUpdate`/`MsgNodeDelete`(`"NODE:CREATE/UPDATE/DELETE"`) 상수 추가.
+- **commit 후 flush 보장**을 위해 `tx.go`에 범용 `AfterCommit(c, fn)` 훅 신설 — `txScope.hooks`에 쌓고 `release()`가 커밋 성공 시에만 실행. 핸들러가 tx 안에서 직접 Publish하던 기존 위험(롤백 시 누설)을 구조적으로 막음.
+- `node.go`에 `publishNode`/`publishNodeTopic` 헬퍼 + `parentOrRoot`(NULL parentId→0 정규화) 추가.
+- **이동 처리**: `patchNode`는 요청에 `parentId`가 포함된 경우만 PATCH 전 old parent를 조회해두고, PATCH 후 새 토픽에 `UPDATE` + old≠new면 old 토픽에도 한 번 더(2토픽 원칙).
+- **삭제 처리**: `deleteNode`는 `DeleteNode`가 `:exec`(반환행 없음)라 삭제 전에 대상을 조회해 "삭제 직전 스냅샷"을 payload로 확보 후 발행.
+- 빌드/vet 통과. e2e(실제 소켓 수신) 미검증 — 프론트가 `NODE:0` 밖 토픽을 구독할 방법이 아직 없어 눈으로 보이는 건 루트뿐.
+- 남은 것: `NODE:<parentId>` 동적 구독 어휘 결정, 프론트 `on()` 핸들러.
+
+상세 → `REF-realtime.md` "node CRUD 발행처 배선" 절 / `REF-supervisor-web.md` "AfterCommit 훅" 절.
+
+## 2026-07-16 (1) — node 도메인 Kind 어휘 확정 + process 동적 구독은 REST로 배선(별도 상세는 history/process-reconnect.md)
+
+### Kind 어휘 대화 흐름
+1. frontend↔supervisor 소켓 프로토콜에 필요한 것 브레인스토밍(핸드셰이크/구독-해지/node CRUD/process 상호작용 + device presence·강제해지·세션생명주기·에러포맷 추가 제안).
+2. node CRUD 알림을 `node.change{op,node}` 단일 봉투안으로 초안(idempotent 재적용과 잘 맞음, content 변경도 op=U로 자연 흡수) — 하지만 **최종적으로 기각**, `NODE:CREATE`/`NODE:UPDATE`/`NODE:DELETE` 개별 kind 채택(사용자 결정).
+3. 후속 확정: 이동(move)/이름변경(rename)은 별도 kind 없이 `NODE:UPDATE`에 흡수(payload는 항상 전체 구조체) / `NODE:DELETE`도 전체 구조체로 통일(C/U/D 포맷 대칭).
+4. device presence(worker online/offline)는 같은 개별-kind 스타일로 갈지 미정으로 이월.
+
+상세 → `REF-realtime.md` "Kind(MsgType) 어휘 — node 도메인 확정" 절. **코드 변경 없음(설계 대화 + vault 기록만)** — Publish 배선 자체는 여전히 미착수.
+
+### process 도메인은 REST로 갈라짐
+같은 세션에서 이어진 "process 재접속 시 구독 목록 전달" 논의는 소켓 kind가 아니라 **REST 엔드포인트**로 결론남(프론트 `on()` 레이스 문제) — 구현 상세는 `history/process-reconnect.md` "2026-07-16" 항목.
+
 ## 2026-06-30 — supervisor↔웹 socket 전송 토대 완성 + 3모드 e2e 검증
 
 ### 설계 (이번 세션 확정)

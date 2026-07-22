@@ -58,17 +58,17 @@ sqlc.yaml  README.md  .gitignore
 | 모듈 | 상태 | 문서 |
 |------|------|------|
 | 통신 인프라 (transport/subscribe/call/EVENT/util) | 구현 완료 | `REF-infra.md` |
-| process 실행 (execute/pty/manager/bind) | supervisor+worker 양측 배선 완료(빌드/vet 통과, e2e 확인): manager·entry·path·relay·router + worker procs/exec/pump/teardown + worker 끊김→PENDING→재접속 재바인딩(`WorkerState`) 완료. 세션→uid 원장(`process_subscribers`) 설계 진행중(미구현). 남은 것=frontend 트리거·제어+PROC 동적구독 | `REF-process.md`(+`-wiring`/`-reconnect`) |
+| process 실행 (execute/pty/manager/bind) | supervisor+worker 양측 배선 완료(빌드/vet 통과, e2e 확인): manager·entry·path·relay·router + worker procs/exec/pump/teardown + worker 끊김→PENDING→재접속 재바인딩(`WorkerState`) + 세션→uid 원장(`process_subscribers`, REST 구독/해지+`browsers` registry) + **frontend 트리거(exec/kill REST, 자동구독)+종료 후 Hub 구독정리**(`startRelay`/`cleanupProcessTopic`) 전부 구현 완료(2026-07-16). **kill 실사용 테스트로 발견한 상태동기화 버그 3건 수정 완료**(PENDING 오삭제/entry.Record 박제/`Status()` 에러계약, 2026-07-22). 남은 것=input/resize+ring buffer SNAPSHOT(설계 논의만 진행, 미착수 — `REF-process-snapshot.md`) | `REF-process.md`(+`-wiring`/`-trigger`/`-reconnect`/`-subscription`/`-snapshot`) |
 | 파일 전송 (transfer) | 구현 완료, e2e 미검증 | `REF-transfer.md` |
 | DB/스토어 (sqlc·goose·store) | 구현 완료 | `REF-db.md` |
 | supervisor web (tx·error·user·session) | 구현+e2e 완료 | `REF-supervisor-web.md` |
 | Node 카탈로그 | DB+CRUD+핸들러+PatchNode 커밋(9c9d22e, e2e 미검증), roster/label 남음 | `REF-node-label.md` |
 | 공용 PATCH 래퍼 (`internal/patch`) | `patch.Field[T]` 3-state(`{valid,value}`), worker도 재사용 예정 | `REF-node-label.md` |
-| 프론트엔드 (apps/frontend) | 스캐폴딩(e511359) + socket hook 3모드 e2e(3a8e92e/e28252b) + user·login·전역다이얼로그 WIP. 카탈로그 UI 미착수 | `REF-frontend.md` |
-| 실시간 push (socket) | 전송 토대·3모드(call/emit/on) e2e 커밋(3a8e92e). 동적 구독·DB인가·Publish 배선 남음 | `REF-realtime.md` |
+| 프론트엔드 (apps/frontend) | 스캐폴딩(e511359) + socket hook 3모드 e2e(3a8e92e/e28252b) + user·login·전역다이얼로그 WIP + node/process REST 클라이언트(2026-07-21, UI 미연결) + websocket hook provide/inject 전환. 카탈로그 UI 미착수 | `REF-frontend.md` |
+| 실시간 push (socket) | 전송 토대·3모드 e2e 커밋(3a8e92e). node Kind 어휘 확정 + process 동적구독 REST 완료 + **node CRUD 발행처 배선 완료**(`AfterCommit` 훅, 이동=2토픽, 2026-07-16, 빌드/vet 통과·e2e 미검증). 남은 것=NODE 동적구독 어휘·프론트 수신 | `REF-realtime.md` |
 
 ## reference 인덱스
-- 설계/재사용 지식: `REF-infra.md` `REF-process.md` `REF-process-wiring.md` `REF-process-reconnect.md` `REF-transfer.md` `REF-db.md` `REF-supervisor-web.md` `REF-node-label.md` `REF-frontend.md` `REF-realtime.md`
-- 작업 이력(주제별): `history/transport.md` `history/transfer.md` `history/supervisor-web.md` `history/node-label.md` `history/process-wiring.md` `history/process-reconnect.md` `history/frontend.md` `history/realtime.md` `history/project.md`
+- 설계/재사용 지식: `REF-infra.md` `REF-process.md` `REF-process-wiring.md` `REF-process-trigger.md` `REF-process-reconnect.md` `REF-process-subscription.md` `REF-process-snapshot.md` `REF-transfer.md` `REF-db.md` `REF-supervisor-web.md` `REF-node-label.md` `REF-frontend.md` `REF-realtime.md`
+- 작업 이력(주제별): `history/transport.md` `history/transfer.md` `history/supervisor-web.md` `history/node-label.md` `history/process-wiring.md` `history/process-trigger.md` `history/process-reconnect.md` `history/process-subscription.md` `history/process-snapshot.md` `history/frontend.md` `history/realtime.md` `history/project.md`
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md`

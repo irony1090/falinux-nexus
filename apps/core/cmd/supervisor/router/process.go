@@ -26,8 +26,10 @@ import (
 // bind.Relay 기동. folder-open은 worker 무접촉이라 presence만 남기고 조기 반환한다.
 
 // Exec은 frontend의 "이 노드 실행/편집" 요청을 받아 worker에 명령하는 진입점이다.
-// kind로 manager.Exec(EXEC/folder) vs manager.ExecEdit(EDIT)를 고른다.
-func (r *supervisorRouter) Exec(owner superdb.User, authKey string, kind protocol.ExecType, node superdb.Node) error {
+// kind로 manager.Exec(EXEC/folder) vs manager.ExecEdit(EDIT)를 고른다. sub는 요청자를
+// 자동 구독시킬 세션이다(processApi.go execProcess가 넘김) — 별도 구독 요청 없이도 실행
+// 즉시 출력/상태를 받아보게 하기 위함(성공 시 uid, 실패 시 error를 돌려준다).
+func (r *supervisorRouter) Exec(owner superdb.User, authKey string, kind protocol.ExecType, node superdb.Node, sub process.Subscriber) (string, error) {
 	worker, _ := r.workers.Get(authKey)
 
 	// 1. 상태 등록(manager). UID·spec·Inter는 manager가 authoritative하게 만든다.
@@ -38,14 +40,14 @@ func (r *supervisorRouter) Exec(owner superdb.User, authKey string, kind protoco
 	}
 	entry, err := register(worker, authKey, node, owner)
 	if err != nil {
-		return err
-	}
-
-	// 2. folder-open: worker 무접촉 → presence만 남기고 조기 종료(전송/relay 없음).
-	if !entry.HasProcess() {
-		return nil
+		return "", err
 	}
 	uid := entry.Record.Uid
+
+	// 2. folder-open: worker 무접촉 → presence만 남기고 조기 종료(전송/relay 없음 → 구독도 무의미).
+	if !entry.HasProcess() {
+		return uid, nil
+	}
 
 	// 3. content 선배치: node 본문을 실행 경로에 파일로 먼저 깐다. DestPath는 manager가 spec에
 	//    쓴 것과 동일한 WorkerNodePath라 실행 대상과 정확히 일치한다(worker가 양쪽 동일 치환).
@@ -61,42 +63,75 @@ func (r *supervisorRouter) Exec(owner superdb.User, authKey string, kind protoco
 	}
 	if _, err := r.SendBuffer(authKey, transfer.NewReadBuffer(content, 0), destPath, perm); err != nil {
 		r.processManager.Remove(uid)
-		return fmt.Errorf("content 선배치 실패: %w", err)
+		return "", fmt.Errorf("content 선배치 실패: %w", err)
 	}
 
-	// 4. fan-out relay 기동: Output()/Status() 드레인 → PROC:<uid> 토픽으로 Publish.
-	//    Hub 제네릭 결합을 피하려 토픽 키를 클로저로 감싸 주입한다.
-	bind.NewRelay(uid, entry.Inter, func(k protocol.MsgType, p any) error {
-		return r.subscribeHub.Publish(processTopic(uid), k, p)
-	}).Start()
+	// 4. 요청자 자동 구독(subscribeSid, processApi.go — 수동 구독과 동일 경로 재사용). 반드시
+	//    relay Start() 이전이라야 RUNNING 등 초기 이벤트를 놓치지 않는다. 실패해도 실행 자체는
+	//    막지 않는다(구독은 부가기능 — 나중에 수동 구독 REST로 복구 가능).
+	if err := r.subscribeSid(uid, sub); err != nil {
+		log.Printf("[process] 실행 시 자동구독 실패 uid=%s: %v", uid, err)
+	}
 
-	// 5. worker에 실행 명령. spec은 Record에서 파생(단일 진실의 출처).
+	// 5. fan-out relay 기동: Output()/Status() 드레인 → PROCESS:<uid> 토픽으로 Publish.
+	//    종료 시 구독 정리(cleanupProcessTopic)까지 묶어서 한다 — startRelay 참조.
+	r.startRelay(uid, entry.Inter)
+
+	// 6. worker에 실행 명령. spec은 Record에서 파생(단일 진실의 출처).
 	ctx, cancel := context.WithTimeout(context.Background(), sendCallTimeout)
 	defer cancel()
 	res, err := worker.Call(ctx, protocol.MsgExec, entry.Spec())
 	if err != nil {
 		r.processManager.Remove(uid)
-		return fmt.Errorf("MsgExec 전송 실패: %w", err)
+		return "", fmt.Errorf("MsgExec 전송 실패: %w", err)
 	}
 	var execRes protocol.ExecResponse
 	if err := res.Bind(&execRes); err != nil {
 		r.processManager.Remove(uid)
-		return err
+		return "", err
 	}
 	if !execRes.Accept {
 		r.processManager.Remove(uid)
-		return fmt.Errorf("worker가 실행을 거부했습니다: %s", execRes.Reason)
+		return "", fmt.Errorf("worker가 실행을 거부했습니다: %s", execRes.Reason)
 	}
-	return nil
+	return uid, nil
 }
 
 // processTopic은 한 process의 fan-out 토픽 키다(구독/발행 단일 출처).
-func processTopic(uid string) string { return "PROC:" + uid }
+func processTopic(processId string) string { return "PROCESS:" + processId }
 
-// TODO(frontend → supervisor 제어): 실행 중 process에 대한 입력/리사이즈/종료 핸들러.
+// startRelay는 bind.Relay를 기동하고, 드레인이 끝나는 즉시(=더 이상 이 토픽에 발행될 일이
+// 없어지는 시점) Hub 구독을 정리하는 감시 고루틴을 함께 붙인다. Exec(최초 실행)과
+// reconcileReconnect(재바인딩) 둘 다 이 지점 하나로 relay를 기동해야 종료 후 정리가 누락되지
+// 않는다.
+func (r *supervisorRouter) startRelay(uid string, inter execute.IInteractive) {
+	relay := bind.NewRelay(uid, inter, func(k protocol.MsgType, p any) error {
+		return r.subscribeHub.Publish(processTopic(uid), k, p)
+	})
+	relay.Start()
+	go func() {
+		relay.Wait() // pumpOutput/pumpStatus가 채널 close까지 완전히 드레인(마지막 Completed/Failed 발행 포함)한 뒤에만 반환
+		r.cleanupProcessTopic(uid)
+	}()
+}
+
+// cleanupProcessTopic은 process가 완전히 끝난 뒤(relay.Wait() 반환 후) 그 토픽에 남아있는
+// Hub 구독을 전부 해제한다. Kill()은 신호만 보낼 뿐 실제 종료는 비동기(MsgStatus)로 오므로
+// killProcess 안에서 바로 구독해지하면 마지막 상태 이벤트를 놓칠 race가 생긴다 — 그래서 정리는
+// 여기, "더 이상 아무것도 발행되지 않는다"가 보장된 시점에서만 한다. process_subscribers
+// DB row는 이력으로 남긴다(ListSubscriptions는 이미 processManager.Get 가드로 죽은 process
+// 재구독을 막고 있어 기능상 문제 없음 — REF-process-wiring.md 참조).
+func (r *supervisorRouter) cleanupProcessTopic(uid string) {
+	topic := processTopic(uid)
+	for _, conn := range r.subscribeHub.Subscribers(topic) {
+		r.subscribeHub.Unsubscribe(topic, conn)
+	}
+}
+
+// TODO(frontend → supervisor 제어): 실행 중 process에 대한 입력/리사이즈 핸들러(종료는
+// processApi.go killProcess로 구현 완료).
 //   input(MsgData)  → r.process.Get(uid).Inter.Write(data)
 //   resize(MsgResize) → .Inter.Layout(cols, rows)
-//   kill(MsgKill)     → .Inter.Kill()
 // frontend 평면 어휘 확정 후 추가(worker용 MsgExec와 별개 타입일 수 있음).
 
 // ===== worker → supervisor: process 이벤트 수신 =====
@@ -124,6 +159,7 @@ func (r *supervisorRouter) status(ev protocol.Frame) {
 		log.Printf("[process] status 디코드 실패: %v", err)
 		return
 	}
+	log.Printf("[PROCESS.GO] status %v", body)
 	r.applyStatus(body.UID, body.Status, body.PID, body.ExitCode)
 }
 
@@ -143,17 +179,23 @@ func (r *supervisorRouter) applyStatus(uid string, status execute.CommandStatus,
 
 	q := store.GetStorePool().Queries()
 	ctx := context.Background()
-
+	log.Printf("[PROCESS.GO] applyStatus:%s:%s", uid, status.String())
+	if ok && entry.Record != nil && entry.Record.Status == status.String() { // 현재와 똑같은 상태일 경우 무시
+		return
+	}
 	switch {
 	case status == execute.CommandProcess:
 		if !ok {
 			return // 이미 정리된 uid의 스퓨리어스 이벤트 → 무시
 		}
-		if _, err := q.MarkProcessRunning(ctx, superdb.MarkProcessRunningParams{
+		row, err := q.MarkProcessRunning(ctx, superdb.MarkProcessRunningParams{
 			Uid: uid,
 			Pid: pgtype.Int4{Int32: int32(pid), Valid: pid > 0},
-		}); err != nil {
+		})
+		if err != nil {
 			log.Printf("[process] MarkProcessRunning uid=%s: %v", uid, err)
+		} else {
+			entry.SetRecord(&row) // DB RETURNING 결과로 memory record 전체 교체(Pid·StartedAt 포함 항상 동기화)
 		}
 		if entry.Inter != nil {
 			entry.Inter.PushStatus(status)
@@ -161,15 +203,19 @@ func (r *supervisorRouter) applyStatus(uid string, status execute.CommandStatus,
 
 	case status.IsCompleted():
 		// entry 유무와 무관하게 DB는 항상 닫는다(주석 참조).
-		if _, err := q.MarkProcessDone(ctx, superdb.MarkProcessDoneParams{
+		row, err := q.MarkProcessDone(ctx, superdb.MarkProcessDoneParams{
 			Uid:      uid,
 			Status:   status.String(),
 			ExitCode: pgtype.Int4{Int32: int32(exit), Valid: true},
-		}); err != nil {
+		})
+		if err != nil {
 			log.Printf("[process] MarkProcessDone uid=%s: %v", uid, err)
 		}
 		if !ok {
 			return
+		}
+		if err == nil {
+			entry.SetRecord(&row) // ExitCode·FinishedAt 포함 항상 동기화
 		}
 		if entry.Inter != nil {
 			entry.Inter.Done(exit) // output/status 채널 close → relay 드레인 종료
@@ -185,14 +231,21 @@ func (r *supervisorRouter) applyStatus(uid string, status execute.CommandStatus,
 		if !ok {
 			return
 		}
-		if _, err := q.MarkProcessPending(ctx, uid); err != nil {
+		row, err := q.MarkProcessPending(ctx, uid)
+		if err != nil {
 			log.Printf("[process] MarkProcessPending uid=%s: %v", uid, err)
+		} else {
+			entry.SetRecord(&row)
 		}
+
 		r.processManager.Remove(uid) // Inter.Done(502) 포함(안전망, sync.Once) → relay 드레인 종료
 
-	default: // 기타 확정 live 아닌 상태
+	default: // 기타 확정 live 아닌 상태(DB에 대응 컬럼 없음 — memory Status만 반영)
 		if !ok {
 			return
+		}
+		if entry.Record != nil {
+			entry.Record.Status = status.String()
 		}
 		if entry.Inter != nil {
 			entry.Inter.PushStatus(status)
@@ -273,9 +326,7 @@ func (r *supervisorRouter) reconcileReconnect(deviceKey string, worker *transpor
 			log.Printf("[process] Rebind uid=%s: %v", uid, err)
 			continue
 		}
-		bind.NewRelay(uid, newEntry.Inter, func(k protocol.MsgType, p any) error {
-			return r.subscribeHub.Publish(processTopic(uid), k, p)
-		}).Start()
+		r.startRelay(uid, newEntry.Inter)
 		r.applyStatus(uid, entry.Status, entry.PID, 0)
 	}
 

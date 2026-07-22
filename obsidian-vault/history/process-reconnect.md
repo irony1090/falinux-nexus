@@ -1,32 +1,22 @@
-# history/process-reconnect — 종료/재접속 모델 + 세션 복원
+# history/process-reconnect — 종료/재접속 모델 (worker 끊김→PENDING→재바인딩)
 
 > 설계·재사용 지식 → `REF-process-reconnect.md` / 계약·원칙 → `REF-process.md` / 현재 진행 → `CURRENT.md`
-> supervisor 아키텍처·worker 실행부 배선 이력은 → `history/process-wiring.md`
+> supervisor 아키텍처·worker 실행부 배선 이력은 → `history/process-wiring.md` / frontend 트리거·버그수정 이력은 → `history/process-trigger.md`
+> 세션→uid 원장·REST 구독 배선 이력은 → `history/process-subscription.md`
 
-## 2026-07-14 (3) — 세션→uid 원장 설계 착수: sid 추출 배선(코드 완료) + process_subscribers 테이블 설계(미구현)
+## 2026-07-22 — PENDING 오삭제 버그(정상 실행 vs 끊김 합성 혼동) 수정
 
-**코드 변경** (사용자 직접 작업, 대화로 검토)
-- `internal/manager/session/sessionManager.go`: `NameFunc[T]`에 `req *http.Request` 파라미터 추가, `Name()`이 전달하도록 변경.
-- `cmd/supervisor/router/supervisorRouter.go`: `getSessionKey` nameFn 구현 배선 — `req.Cookie(key)`로 원본 sid 값 추출해 `NewSessionManager`의 세 번째 인자로 주입(기존 `nil`).
-- 확인된 미해결 버그(코드리뷰로 발견, 아직 미수정): `getSessionKey`가 쿠키를 못 찾을 때(`err != nil`) 가드 없이 `c.Value`에 접근 → nil pointer panic 가능(PanicMiddleware가 잡아 500으로는 렌더됨).
+사용자가 frontend에서 process를 실행하면 worker가 PENDING을 보고하자마자 supervisor가 즉시 `processManager`에서 지워버려 정지된 것처럼 보인다고 보고 → 조사 착수(fork 조사 에이전트로 `applyStatus`/`pty.ExecInteractive` 흐름 추적).
 
-**설계 대화 흐름**
-1. "UserID 제외, 새로고침에도 안 바뀌는 브라우저별 식별자가 있는가" 질문 → 세션 저장 구조(`gorilla/sessions.CookieStore`, `sid` 쿠키) 조사. 처음엔 `Identification`(로그인 아이디 해시) 후보로 나왔으나 UserID와 사실상 1:1이라 기각.
-2. "다른 브라우저에서 같은 User로 로그인해도 같은 사람으로 묶이는 걸 피하고 싶다"로 요구 명확화 → `sid` 쿠키 **원본 문자열**이 로그인(`Save()`) 시점 timestamp 때문에 브라우저(로그인 인스턴스)마다 다르고, 같은 브라우저 내에선 로그아웃 전까지 고정됨을 확인(MAC 서명 구조 분석 + `Save()` 호출부가 `signIn`/`signOut` 두 곳뿐임을 grep으로 확인).
-3. "`NewSessionManager` 3번째 인자(`nameFn`)로 sid를 뺄 수 있는가" 질문 → 당시 시그니처(`func(data T, session *sessions.Session, key string) string`)로는 `req`가 없어 불가 판정, 대안(직접 `c.Request().Cookie` 읽기 or `SessionElement.req` 노출)을 제시.
-4. 사용자가 직접 `NameFunc`에 `req *http.Request` 추가 → 가능해짐 확인, 빌드/vet 통과 확인.
-5. 사용자가 `supervisorRouter.go`에 `getSessionKey` 배선 완료 → 코드 리뷰 중 nil-cookie panic 버그 발견해 알림(아직 미수정).
-6. 이어서 `process_subscribers`(userId, sid, createdAt) 릴레이션 테이블 설계 요청 — 기존 스키마/sqlc 컨벤션(마이그레이션+query+gen 3분리, `processes` 테이블 FK/CHECK 패턴) 조사 후 DDL·쿼리 3종 초안.
-7. DELETE 트리거 시점을 먼저 확정(소켓 끊김 vs 명시적 구독해제) → **명시적 구독해제만**(새로고침=소켓끊김과 서버 입장에서 구분 불가라서, 소켓끊김에 걸면 복원 기능 자체가 무너짐).
-8. CREATE 트리거 시점 — 1안(소켓 끊길 때 스냅샷) vs 2안(구독 요청/해지마다 즉시 반영) 비교 제시 → **2안 채택**(DELETE와 트리거 대칭 + supervisor 자체 재시작에도 데이터 유실 없음).
+**원인**: `worker의 pty.ExecInteractive`가 실행 시작 시 `CommandPending`을 항상 먼저 push(정상 시퀀스의 일부)하는데, `applyStatus`의 `CommandPending` 분기는 "끊김 시 supervisor 합성 호출 전용"이라는 주석상 가정(2026-07-14 설계, `REF-process-reconnect.md` 구현 목록 표 하단)에 기대 무조건 `Remove(uid)`를 호출하고 있었음 — 정상 실행 직후 보고와 끊김 합성 호출이 같은 분기를 공유해 구분이 안 됨.
 
-상세 설계(DDL·쿼리·트리거 근거) → `REF-process-reconnect.md` "세션→uid 원장 구체화" 절.
+**논의·구현 흐름**
+1. 사용자가 "entry의 현재 상태가 PENDING인데 또 PENDING을 보내면 무시" 아이디어 제시 → memory `entry.Record.Status`가 생성 이후 갱신된 적 없는(항상 `PENDING`) 박제 필드라 이대로 적용하면 **진짜 끊김 케이스까지 다 무시**돼 재접속 `Rebind`가 "이미 재바인딩된 process" 에러를 내는 부작용을 짚어줌.
+2. 사용자가 일반화된 대안("모든 상태에 대해 현재==들어옴이면 무시") 제시 → 두 가지 다 memory `Record.Status`가 실시간이어야 성립함을 재확인.
+3. 사용자가 직접 가드(`applyStatus` 진입부, `if ok && entry.Record.Status == status.String() { return }`)를 구현 → 코드 리뷰로 정상 exec/끊김/재접속 세 경로를 트레이스해 검증(가드 자체는 올바르게 동작).
+4. 이어서 "memory entry가 항상 DB 값과 동일해야 한다"는 사용자 요구로 `entry.Record` 전체 동기화 작업(→ `history/process-trigger.md` "2026-07-22" 참조)까지 같은 세션에서 이어짐 — 이 가드가 정확히 동작하기 위한 전제조건이었기 때문.
 
-**남은 것 (다음 세션)**
-- 마이그레이션(`00004_process_subscribers.sql`) + query 파일 생성 + `sqlc generate`.
-- CREATE 실제 호출 지점(동적 구독 배선과 합류) / DELETE 실제 호출 지점(UNSUBSCRIBE 프로토콜 신설 여부).
-- `getSessionKey` nil-cookie panic 가드.
-- sid 원본 vs 해시 저장 여부 최종 결정.
+상세 설계 근거 → `REF-process-reconnect.md` "PENDING 오삭제 버그" 절. `go build`/`go vet` 클린, 정상 exec 후 process 유지 확인 + kill 재테스트로 최종 검증.
 
 ## 2026-07-14 (2) — worker 끊김→PENDING→재접속 재바인딩 구현 완료 + e2e 검증
 

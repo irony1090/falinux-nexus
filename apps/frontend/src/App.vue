@@ -18,6 +18,7 @@ import { provideAppNav } from '@/feature/layout/store/appNav.store';
 import { provideAppWindow } from '@/feature/layout/store/appWindown.store';
 import { provideAppDialog } from '@/feature/layout/store/appDialog.store';
 import { provideAuthStore } from '@/feature/user/store/auth.store';
+import { provideTestSocket } from '@/common/websocket/websocket.hook';
 
 provideAppWindow()
 provideAppHead()
@@ -26,4 +27,7 @@ provideAppNav()
 provideAuthStore();
 
 provideAppDialog();
+
+provideTestSocket();
+
 </script>

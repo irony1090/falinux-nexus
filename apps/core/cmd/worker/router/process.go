@@ -127,6 +127,7 @@ func (r *workerRouter) pumpOutput(uid string, entry *procEntry) {
 func (r *workerRouter) pumpStatus(uid string, entry *procEntry) {
 	for {
 		st, code, err := entry.inter.Status()
+		// log.Printf("[PROCESS.GO] pumpStatus %s", st.String())
 		if err != nil {
 			return
 		}
@@ -194,6 +195,7 @@ func (r *workerRouter) kill(req protocol.Frame) (any, error) {
 	if err := req.Bind(&body); err != nil {
 		return nil, err
 	}
+	// log.Printf("[PROCESS.go] kill-req:%v", body)
 	entry, ok := r.procs.Get(body.UID)
 	if !ok {
 		return nil, fmt.Errorf("존재하지 않는 process: %s", body.UID)

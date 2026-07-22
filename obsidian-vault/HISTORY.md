@@ -33,10 +33,23 @@
 - 2026-07-01(2) process 도메인 배선 완료 + 경로 조립(sup)/치환(worker) 책임 분리 `{WORKER_BASE}/nodeID/uid`
 - 2026-07-01 supervisor ProcessManager·bind·router 골격 + 종료/재접속 모델(status 깔때기·worker끊김→PENDING) 확정
 
-### `history/process-reconnect.md` — 종료/재접속 모델 + 세션 복원
-- 2026-07-14 (3) 세션→uid 원장 설계 착수: sid 추출 배선(코드 완료, NameFunc에 req 추가) + `process_subscribers` 테이블 설계(미구현)
+### `history/process-trigger.md` — frontend REST 트리거(exec/kill) + 상태동기화 버그 수정
+- 2026-07-22 entry.Record memory 동기화(SetRecord) + kill exit code 유닉스 관례화 + `pty.Interactive.Status()` 에러 계약 버그 수정 — kill 실사용 검증 완료
+- 2026-07-21(2) `processDto.go` 신설: `listSubscriptions` 응답 DTO 정정
+- 2026-07-21(1) 토픽 접두사 `PROC:`→`PROCESS:` 정정
+- 2026-07-16 frontend 트리거(exec/kill) REST 배선 완료(`router.Exec` 시그니처 변경 + `subscribeSid` 자동구독) + 종료 후 Hub 구독 정리(`startRelay`/`cleanupProcessTopic`) — PROC 토픽 무구독 백엔드 해소
+
+### `history/process-snapshot.md` — 화면복원 스냅샷 (ring buffer)
+- 2026-07-16 ring buffer 설계 논의 착수(코드 없음, 순수 설계): supervisor-side 채택 + 스케일 검토 + worker-side 이전 시 필요한 protocol(RingBuffer/offset/MsgSnapshot) + snapshot↔live 이음매 race 발견(Hub 구조상 conn별 차등 라우팅 불가, `bind.CatchUp` 미완성)
+
+### `history/process-reconnect.md` — 종료/재접속 모델 (worker 끊김→PENDING→재바인딩)
+- 2026-07-22 PENDING 오삭제 버그(정상 실행 vs 끊김 합성 혼동) 수정
 - 2026-07-14 (2) worker 끊김→PENDING→재접속 재바인딩 구현 완료 + e2e 검증(applyStatus 가드 완화, worker `WorkerState` 신설 포함)
 - 2026-07-14 (1) 위 설계 확정(코드 변경 없음, 순수 설계)
+
+### `history/process-subscription.md` — 세션→uid 원장 + REST 구독/해지 배선
+- 2026-07-16 REST 구독/해지(GET/POST/DELETE /processes/*) + `browsers`(conn→sid) registry 배선 완료 — 세션→uid 원장 마지막 조각
+- 2026-07-14 (3) 세션→uid 원장 설계 착수: sid 추출 배선(코드 완료, NameFunc에 req 추가) + `process_subscribers` 테이블 설계(미구현)
 
 ### `history/frontend.md` — 프론트엔드 (apps/frontend)
 - 2026-06-30 apps/frontend 초기 스캐폴딩 (Vue3+TS+Vuetify, Router/Pinia X, Noto 폰트, .gitignore, 커밋 e511359)
@@ -44,6 +57,8 @@
 - 2026-06-30 user/login + 공용 API + 전역 다이얼로그 WIP (커밋 3a8e92e 동반)
 
 ### `history/realtime.md` — 실시간 push (socket)
+- 2026-07-16 (2) node CRUD 발행처 배선 구현 완료(`AfterCommit` 훅 신설 + create/patch/delete 3핸들러 배선, 이동=2토픽)
+- 2026-07-16 (1) node 도메인 Kind 어휘 확정(`NODE:CREATE/UPDATE/DELETE`, `node.change` 단일봉투안 기각) + process 동적구독은 REST로 결론(상세는 process-reconnect.md)
 - 2026-06-30 supervisor↔웹 socket 전송 토대 완성 + 3모드(call/emit/on) e2e 검증 (Hub Kind 추가·subscribe.go 인증교정·프론트 hook 재설계)
 
 ### `history/project.md` — 프로젝트 셋업 / worker 기반

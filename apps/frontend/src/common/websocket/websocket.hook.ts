@@ -1,4 +1,4 @@
-import { onUnmounted, ref, watch, type Ref } from 'vue';
+import { inject, onUnmounted, provide, ref, watch, type Ref } from 'vue';
 import type { Connect } from '../util/index.type';
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -107,6 +107,8 @@ export const createWebsocketHook = (url: string, option: WebsocketOption = {}) =
 
     // url 당 단일 컨텍스트(소켓·correlator·핸들러)를 모든 호출부가 공유.
     let ctx: SocketContext | null = null;
+    // 인스턴스별 고유 주입 키(여러 url로 여러 번 호출될 수 있어 문자열 키 충돌을 피함).
+    const key = Symbol(`WebsocketContext:${url}`);
 
     const build = (): SocketContext => {
         const retry = ref(0);
@@ -282,9 +284,17 @@ export const createWebsocketHook = (url: string, option: WebsocketOption = {}) =
         return { status, event, connect, disconnect, call, emit, on };
     };
 
-    return (): SocketContext => {
+    // root(App.vue 등) setup에서 한 번 호출 — build()+provide(key, ctx)로 생명주기 초기화 지점을 명시.
+    const provideSocket = (): SocketContext => {
         if (!ctx) ctx = build();
-        const shared = ctx;
+        provide(key, ctx);
+        return ctx;
+    };
+
+    // 하위 트리 어디서나 호출 — provideSocket()이 상위에서 안 불렸으면 즉시 throw.
+    const useSocket = (): SocketContext => {
+        const shared = inject<SocketContext>(key)!;
+        if (!shared) throw new Error(`websocket: provideSocket()이 상위에서 호출되지 않았습니다 (url=${url})`);
 
         // 이 호출부(컴포넌트)에서 등록한 on 구독은 unmount 시 자동 해제.
         const localUnsubs: Array<() => void> = [];
@@ -304,9 +314,12 @@ export const createWebsocketHook = (url: string, option: WebsocketOption = {}) =
 
         return wrapped;
     };
+
+    return [provideSocket, useSocket] as const;
 };
 
-// 서버 subscribe.go 의 TEST 핸들러 왕복 검증용:
+// 서버 subscribe.go 의 TEST 핸들러 왕복 검증용 (root에서 provideTestSocket() 먼저 호출):
+//   provideTestSocket();
 //   const s = useTestSocket(); s.connect();
 //   s.call('TEST', 'hello').then(console.log) // → 'RES'
-export const useTestSocket = createWebsocketHook('ws://localhost:5050/subscribe', { maxRetries: 2 });
+export const [provideTestSocket, useTestSocket] = createWebsocketHook('ws://localhost:5050/subscribe', { maxRetries: 2 });

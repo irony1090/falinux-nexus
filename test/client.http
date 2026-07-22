@@ -44,8 +44,8 @@ Content-Type: application/json
 
 {
     "kind": "SCRIPT",
-    "name": "HTOP_TEST_SH",
-    "content": "#!/bin/bash\nhtop"
+    "name": "ECH_HELLO_WORLD",
+    "content": "#!/bin/bash\necho \"hello world\""
 }
 ###
 
@@ -55,6 +55,6 @@ Content-Type: application/json
 {
     "Name": {
         "valid": true,
-        "value": "안녕하세요!@~"
+        "value": "HTOP_TEST_SH_MODI"
     }
 }

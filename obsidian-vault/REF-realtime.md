@@ -41,6 +41,13 @@
   - `transport.New(ws)` → 구독 → `conn.Serve()` → `conn.Close(err)` → `subscribeHub.UnsubscribeAll(conn)`.
   - `nodeSubscribeKey(parentId int64) = "NODE:%d"`.
   - 현재 `NODE:0` 고정 구독만 남음. 검증용 `Handle("TEST")`/`On("TEST_ON")`/`Emit("TTTT")` 스모크는 **worktree에서 제거됨**(2026-07-13 확인, 커밋 아직 안 됨 — `apps/frontend/src/pages/index.vue` 쪽 대응 코드도 함께 제거된 상태).
+- **node CRUD 발행처 배선 — 구현 완료 (2026-07-16)**: `cmd/supervisor/router/node.go`
+  - `publishNode(kind, node)` = `node.ParentID`(NULL→0 정규화, `parentOrRoot`)로 토픽을 계산해 `publishNodeTopic`으로 위임. `publishNodeTopic(topic, kind, node)` = `subscribeHub.Publish(topic, kind, newNodeResponse(node))`(에러는 로그만).
+  - **커밋 후 flush 보장**: tx 안에서 직접 Publish하면 롤백 시 누설되므로(위 "주의점 1"), `tx.go`에 신설한 **범용 `AfterCommit(c, fn)`** 훅으로 예약 — `txScope.hooks`에 쌓아 두고 `release()`가 **커밋 성공 시에만** 순서대로 실행(커밋 실패·롤백이면 실행 안 됨). 상세 메커니즘 → `REF-supervisor-web.md` "트랜잭션 미들웨어" 절.
+  - `createNode`: 새 부모 토픽에 `NODE:CREATE` 1회.
+  - `patchNode`: 요청에 `parentId`가 포함된 경우만 PATCH 전 old parent를 미리 조회(이동 여부 판단용) → 새 부모 토픽에 `NODE:UPDATE`, old≠new면 **old 부모 토픽에도 동일 payload로 한 번 더**(이동/이름변경 2토픽 원칙 그대로 적용).
+  - `deleteNode`: 삭제 전에 대상 row를 조회해 "삭제 직전 스냅샷"을 확보(DeleteNode는 `:exec`라 반환행 없음) → 그 부모 토픽에 `NODE:DELETE`.
+  - **자기 echo**는 아직 처리 안 함(프론트가 idempotent 재적용하기로 한 초기 방침 그대로, 백엔드 dedupe 없음).
 
 ## 주의점 (배선 시 반드시)
 
@@ -50,10 +57,20 @@
 4. **binaryType** — Go BinaryMessage라 프론트 `ws.binaryType='arraybuffer'` 필수.
 5. **다중 탭/다중 유저는 공짜** — Hub가 연결(client) 단위 구독이므로 자연 처리.
 
+## Kind(MsgType) 어휘 — node 도메인 확정 (2026-07-16)
+
+- **`NODE:CREATE` / `NODE:UPDATE` / `NODE:DELETE` 3종으로 확정.** 세분화 kind(`node.created/moved/deleted/renamed` 등) 대신 **CRUD 3종 + payload=항상 전체 node 구조체**로 통일(초안이던 `node.change{op,node}` 단일봉투안은 기각 — 개별 kind 방식 채택).
+- **이동(move)/이름변경(rename) = 별도 kind 없이 `NODE:UPDATE`에 흡수** — payload의 `parent_id`/`name` 필드 변화로 프론트가 판별. 기존 **"이동/삭제=old parent+new parent 2토픽 발행"** 원칙은 그대로 유지(라우팅은 topic이 담당, kind와 무관 — 서버가 mutation 직전 old `parent_id` 캡처해 두 토픽에 동일 payload 발행).
+- **`NODE:DELETE`도 전체 구조체 payload**(id만 보내지 않음) — C/U/D 포맷 통일, 프론트 파싱 분기 단순화.
+- 프론트 사용 형태: `socket.on<Node>('NODE:CREATE', handler)` 식으로 kind별 개별 등록(`websocket.hook.ts`의 `on(type, handler)` 그대로 재사용, 제네릭 payload=Node 구조체).
+- **미정**: device presence(worker main#sub online/offline) kind 스타일 — 같은 개별-kind 패턴(`DEVICE:ONLINE`/`DEVICE:OFFLINE`)으로 갈지 별도 결정 필요.
+
 ## 현재 상태 / 다음
 
 - ✅ **전송 토대 완성 + 3모드 e2e 검증**(2026-06-30, 커밋 3a8e92e + hook 견고성 e28252b): call(TEST→RES) / emit(TEST_ON) / on(TTTT). → `history/realtime.md`
-- ⬜ **동적 구독 어휘**: `MsgSubscribe`/`MsgUnsubscribe` 핸들러 + 그 안에서 **DB 인가** → `NODE:0` 고정 구독 대체.
-- ⬜ **발행처 배선**: node/process CRUD 핸들러에서 commit 후 `subscribeHub.Publish(topic, kind, payload)`.
-- ⬜ **프론트 수신**: `on('node.created'|'process.output'|…)` 실제 핸들러 → 트리/터미널 갱신.
-- ⬜ Kind(MsgType) 어휘 확정: `node.created/moved/deleted/renamed`, `process.output/status` 등.
+- ✅ **node 도메인 Kind 어휘 확정**(2026-07-16, 위 절) — 구현은 미착수.
+- ✅ **process 도메인 동적 구독/해지**(2026-07-16) — 소켓 메시지(`MsgSubscribe`/`MsgUnsubscribe`) 대신 **REST**로 확정·구현 완료. `browsers`(conn→sid) registry 포함. 상세 → `REF-process-subscription.md` "REST 구독/해지 배선" 절.
+- ✅ **node CRUD 발행처 배선**(2026-07-16) — 위 절. `AfterCommit` 훅으로 커밋 후에만 Publish, 이동은 old+new 2토픽.
+- ⬜ **NODE:<parentId> 동적 구독 어휘**: 위 process 쪽과 달리 아직 미정 — REST로 갈지(위 결정과 일관성) 소켓 메시지로 갈지부터 정해야 함. DB 인가 포함, `NODE:0` 고정 구독 대체. **발행은 이미 되지만** 프론트가 펼친 폴더 토픽을 구독할 방법이 없어 `NODE:0` 밖 변경은 아직 안 닿음.
+- ⬜ **프론트 수신**: `on('NODE:CREATE'|'NODE:UPDATE'|'NODE:DELETE'|'process.output'|…)` 실제 핸들러 → 트리/캔버스 갱신. REST 클라이언트 함수(`GET/POST/DELETE /processes/subscribe*`)도 프론트에 아직 없음.
+- ⬜ device presence kind 결정(`DEVICE:ONLINE`/`OFFLINE` 후보, 미확정) + process 도메인 kind는 기존 `MsgData`/`MsgStatus` 유지(REF-process-wiring.md, 재검토 불필요).

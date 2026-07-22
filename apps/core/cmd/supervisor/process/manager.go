@@ -3,6 +3,7 @@ package process
 import (
 	"context"
 	"fmt"
+	"log"
 	"nexus/internal/execute"
 	"nexus/internal/manager"
 	"nexus/internal/protocol"
@@ -31,6 +32,11 @@ func (p *ProcessManager) Test(predicate func(string, *ProcessEntry) bool) []mana
 // Get은 uid로 실행 엔트리를 조회한다. worker→sup의 MsgData/MsgStatus 핸들러가
 // 해당 process의 AgentInteractive를 되찾을 때 쓴다.
 func (p *ProcessManager) Get(uid string) (*ProcessEntry, bool) {
+	// log.Printf("[MANAGER] memory.Get")
+	// p.memory.FindAll(func(s string, pe *ProcessEntry) bool {
+	// 	log.Printf("[MANAGER] manager.items: %s", s)
+	// 	return false
+	// })
 	return p.memory.Get(uid)
 }
 
@@ -100,6 +106,7 @@ func (p *ProcessManager) openFolder(workerKey string, node superdb.Node, owner s
 	if !p.memory.Append(uid, entry) {
 		return nil, fmt.Errorf("중복되는 키가 존재합니다: %s", uid)
 	}
+
 	return entry, nil
 }
 
@@ -127,7 +134,6 @@ func (p *ProcessManager) execScript(
 	if !p.memory.Append(uid, entry) {
 		return nil, fmt.Errorf("중복되는 키가 존재합니다: %s", uid)
 	}
-
 	// spec 필드는 node로부터 내부 작성한다(파라미터 아님). content 자체는 router가 파일로
 	// 선배치(WorkerNodePath)하므로 여기선 그 경로만 가리킨다. 초기 Rows/Cols는 요청시점
 	// 정보라 0으로 두고 attach 후 MsgResize로 맞춘다(resize-on-attach).
@@ -169,7 +175,7 @@ func (p *ProcessManager) execScript(
 		p.memory.Remove(uid) // 영속 실패 → 메모리 등록 롤백(고아 엔트리 방지)
 		return nil, err
 	}
-	entry.Record = &rec
+	entry.SetRecord(&rec)
 	return entry, nil
 }
 
@@ -266,9 +272,14 @@ func (p *ProcessManager) ListSubscriptions(sid string) ([]superdb.Process, error
 // Remove는 실행 엔트리를 정리한다. Inter가 있으면 Done(502)로 안전망을 건다(이미 Done이면
 // sync.Once로 no-op) — bind.Relay 드레인 고루틴을 확실히 해제한다. pool 행은 남긴다(이력).
 func (p *ProcessManager) Remove(uid string) {
+	log.Printf("[MANAGER.go] Remove: %s", uid)
 	if entry, ok := p.memory.Get(uid); ok && entry.Inter != nil {
 		entry.Inter.Done(502)
+	} else {
+
+		log.Printf("[MANAGER.go] Remove entry: %v", entry)
 	}
+
 	p.memory.Remove(uid)
 }
 

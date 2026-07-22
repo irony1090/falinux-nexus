@@ -22,9 +22,10 @@ const txContextKey = "txScope"
 // txScope는 요청 1건의 트랜잭션 수명을 담는다.
 // 요청마다 새로 만들어 echo.Context에 실리므로 단일 goroutine 전용 → 락 불필요.
 type txScope struct {
-	pool *store.StorePool
-	tx   *store.Transaction
-	err  error
+	pool  *store.StorePool
+	tx    *store.Transaction
+	err   error
+	hooks []func() // 커밋 성공 후에만 실행(AfterCommit 참조) — 예: socket Publish
 }
 
 // ensureTx는 트랜잭션을 lazy하게 시작한다(처음 호출 때만 Begin).
@@ -55,6 +56,10 @@ func (s *txScope) release() {
 	}
 	if cErr := s.tx.Commit(context.Background()); cErr != nil {
 		log.Printf("[tx] commit 실패: %v", cErr)
+		return
+	}
+	for _, fn := range s.hooks {
+		fn()
 	}
 }
 
@@ -94,4 +99,13 @@ func Tx(c echo.Context) *store.Transaction {
 // TxQueries는 현재 요청 트랜잭션의 sqlc Queries를 바로 꺼내는 단축 헬퍼.
 func TxQueries(c echo.Context) *superdb.Queries {
 	return Tx(c).QueriesPanic()
+}
+
+// AfterCommit은 fn을 이 요청의 트랜잭션이 성공적으로 커밋된 뒤에만 실행되도록 예약한다
+// (롤백되거나 commit 자체가 실패하면 실행되지 않음). socket Publish처럼 "커밋 후 flush"가
+// 필요한 부수효과(REF-realtime.md 주의점 1)를 핸들러 안에서 등록해 두는 용도.
+// 등록 순서대로, release() 시점(핸들러 반환 후)에 동기 실행된다.
+func AfterCommit(c echo.Context, fn func()) {
+	scope := c.Get(txContextKey).(*txScope)
+	scope.hooks = append(scope.hooks, fn)
 }

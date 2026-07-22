@@ -27,8 +27,20 @@ type ProcessEntry struct {
 	Record *superdb.Process          // 상태/영속 스냅샷 (folder도 메모리엔 존재)
 	Inter  *execute.AgentInteractive // I/O 라우팅 핸들. folder면 nil
 
+	recordMu sync.Mutex // SetRecord 동시 교체 직렬화(쓰기만 보호 — 읽기는 entry.Record.X 직접 접근 유지)
+
 	subMu       sync.RWMutex
 	subscribers []Subscriber
+}
+
+// SetRecord는 DB round-trip(RETURNING 등)으로 얻은 최신 스냅샷으로 Record를 통째로 교체한다.
+// worker 보고·끊김 합성·재접속 등 여러 경로가 겹쳐 들어와도 교체끼리 순서가 뒤섞이지 않도록
+// 직렬화한다(REF-process-wiring.md "memory record 동기화"). entry.Record 직접 대입은 이 메서드로
+// 통일한다 — 단, 최초 생성 시점(Append 이전, 아직 아무도 못 보는 entry)의 구성은 예외.
+func (e *ProcessEntry) SetRecord(rec *superdb.Process) {
+	e.recordMu.Lock()
+	defer e.recordMu.Unlock()
+	e.Record = rec
 }
 
 // IsSubscribed는 sid가 이 process를 구독 중인지 반환한다.

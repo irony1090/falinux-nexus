@@ -36,6 +36,7 @@ var upgrader = websocket.Upgrader{
 
 type supervisorRouter struct {
 	workers        *manager.KeyValManager[string, *transport.Conn]
+	browsers       *manager.KeyValManager[*transport.Conn, string]
 	readers        *manager.KeyValManager[string, *sendJob]
 	sessions       *session.SessionManager[superdb.User]
 	subscribeHub   *subscribe.Hub[*transport.Conn, protocol.MsgType]
@@ -64,6 +65,7 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 	}
 	router := &supervisorRouter{
 		workers:        manager.NewKeyValManager[string, *transport.Conn](),
+		browsers:       manager.NewKeyValManager[*transport.Conn, string](),
 		readers:        manager.NewKeyValManager[string, *sendJob](),
 		sessions:       session.NewSessionManager("irony", "sid", getSessionKey),
 		subscribeHub:   subscribeHub,
@@ -95,8 +97,11 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 	// worker router
 	e.GET(workerPath, router.handleWorkerWS)
 	e.GET("/subscribe", router.handleSubscribeWS)
+
+	// api
 	router.mountUsers(e)
 	router.mountNodes(e)
+	router.mountProcesses(e)
 
 	return e, router
 }
@@ -139,4 +144,13 @@ func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 	conn.Close(err)
 
 	return nil
+}
+
+func (r *supervisorRouter) browsersForSid(sid string) []*transport.Conn {
+	matches := r.browsers.FindAll(func(_ *transport.Conn, s string) bool { return s == sid })
+	conns := make([]*transport.Conn, 0, len(matches))
+	for _, m := range matches {
+		conns = append(conns, m.Key)
+	}
+	return conns
 }

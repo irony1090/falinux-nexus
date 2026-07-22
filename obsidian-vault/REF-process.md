@@ -1,7 +1,7 @@
 # REF — process 실행 모듈 (execute / pty / agent comm) — 계약·설계 원칙
 
 > worker 프로세스 실행/모니터링/종료(PTY) 설계와 계승 자산. **이 파일 = 상위 계약/원칙(자주 안 바뀜)**.
-> 실제 배선(누가 무엇을 호출)은 `REF-process-wiring.md`, 종료/재접속·세션 복원은 `REF-process-reconnect.md`.
+> 실제 배선(누가 무엇을 호출)은 `REF-process-wiring.md`(+frontend 트리거 `REF-process-trigger.md`), 종료/재접속은 `REF-process-reconnect.md`, 세션→uid 원장·REST 구독은 `REF-process-subscription.md`.
 > 출력 스트리밍 토대는 `REF-infra.md` EVENT 평면. 통신 상세는 `PLAN-agent-comm.md`.
 
 ## Agent↔Server 통신 프로토콜 (계승)
@@ -20,6 +20,7 @@
   - `PushOutput()`/`PushStatus()`/`Done(exitCode)` 외부 주입 메서드
   - `sync.Once`로 `Done()` 중복 호출 방지
   - 생성 시 초기 status push 없음 → RUNNING 수신 시 첫 push
+- **`Status()` 세 번째 반환값의 계약(2026-07-22 명문화)**: 큐 종료 신호(`io.EOF`류)여야 한다 — "프로세스가 어떻게 끝났는지"(OS exit 에러 등)를 여기 얹으면 안 됨. `pumpStatus`류 소비자는 전부 코드베이스 전역에서 "세 번째 반환값 `!= nil` = 더 이상 드레인할 게 없다"로 해석한다(`AgentInteractive.Status()`가 정석 구현). `pty.Interactive.Status()`가 한때 이 계약을 어겨(`cmd.Wait()` 종료 에러를 반환) kill·비정상 종료 시 마지막 상태 이벤트가 유실되는 버그가 있었다 — 수정 상세 → `REF-process-trigger.md` "entry.Record 동기화 + kill 종료 이벤트 유실 버그 수정" 절.
 
 ## Process 실행 흐름 (동기화 패턴)
 ```
@@ -74,4 +75,6 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 
 ## 하위 문서
 - **배선(구현)**: supervisor 아키텍처(manager/entry/bind/router 역할분리) + worker 실행부(procs/exec/pump/teardown) → `REF-process-wiring.md`
-- **재접속·세션 복원**: 종료/재접속 모델, worker 끊김→PENDING→재바인딩, 세션→uid 원장(`process_subscribers`) → `REF-process-reconnect.md`
+- **frontend 트리거·버그수정**: exec/kill REST 배선, entry.Record 동기화, kill 종료 이벤트 유실 버그 → `REF-process-trigger.md`
+- **재접속**: 종료/재접속 모델, worker 끊김→PENDING→재바인딩 → `REF-process-reconnect.md`
+- **세션 복원**: 세션→uid 원장(`process_subscribers`), REST 구독/해지 배선 → `REF-process-subscription.md`

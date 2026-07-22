@@ -2,7 +2,8 @@
 
 > 설계·재사용 지식 → `REF-process-wiring.md` / 계약·원칙 → `REF-process.md` / 현재 진행 → `CURRENT.md`
 > 통신 인프라 → `REF-infra.md` / 카탈로그(노드) → `REF-node-label.md` / 실시간 push → `REF-realtime.md`
-> 재접속/세션 복원 이력은 → `history/process-reconnect.md`
+> 재접속/세션 복원 이력은 → `history/process-reconnect.md` / 세션원장·REST구독 이력은 → `history/process-subscription.md`
+> frontend REST 트리거(exec/kill)·상태동기화 버그수정 이력은 → `history/process-trigger.md`
 
 ## 2026-07-13 — worker 실행부 본체 구현 완료 + Cwd 배선 (build/vet 통과, e2e 스모크 확인)
 
