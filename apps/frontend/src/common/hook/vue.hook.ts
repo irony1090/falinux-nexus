@@ -1,4 +1,4 @@
-import { onUnmounted, readonly, ref, watch, type ComputedRef, type Ref, type WatchSource } from 'vue';
+import { onMounted, onUnmounted, readonly, ref, watch, type ComputedRef, type Ref, type WatchSource } from 'vue';
 import type { Vec2, Vec4 } from '../util/index.type';
 import { removeUnit } from '../util/index.util';
 import { LazyListener, type LazyListenerOption } from '../listener/lazy.listener';
@@ -40,89 +40,48 @@ export const useCommitRefs = <T extends Record<string, CommitItem<any>>>(props: 
     return [ctx, {commit, cleanup}] as const
 }
 
-// type UseStateDelay<T> = Partial<{
-//     duration: number;
-//     delayVal: T
-// }>
-// export const useStateDelay = <S>(state: Ref<S>, { duration = 500, delayVal }: UseStateDelay<S> = { }) => {
-
-//     const delayedState = ref(state.value);
-//     const timeoutId = ref(NaN);
-//     const lastChanged = ref(Date.now());
-//     // console.log('[USE_STATE_DELAY]', DEFAULT_VAL);
-//     const clear = () => {
-//         if (!isNaN(timeoutId.value)) {
-//             clearTimeout(timeoutId.value);
-//             timeoutId.value = NaN;
-//         }
-//     }
-
-//     const setDelayedState = (newState: S) => {
-//         delayedState.value = newState;
-//         lastChanged.value = Date.now();
-//     }
-
-//     watch(state, origin => {
-//         if (delayVal === undefined || delayVal === origin) {
-//             const diff = Date.now() - lastChanged.value;
-//             if (diff >= duration) {
-//                 setDelayedState(origin)
-//                 clear();
-//             } else {
-//                 clear();
-//                 timeoutId.value = setTimeout(() => {
-//                     setDelayedState(origin)
-//                     clear();
-//                 }, duration - diff)
-//             }
-//         } else {
-//             setDelayedState(origin)
-//             clear();
-//         }
-//     })
-
-//     onUnmounted(() => {
-//         clear();
-//     })
-    
-
-//     return {
-//         delayedState: readonly(delayedState)
-//     }
-// }
-
 export type UseResizeSizeValue = {
     outer: Vec2;
     padding: Vec4;
     rect: DOMRect;
 }
 
-export const useResize = (elRef: Ref<HTMLElement | null>) => {
+type UseResizeOptions = {
+    // ResizeObserver/MutationObserver(attributes)는 대상의 "크기"만 감지하고 "위치"(rect) 변화는
+    // 못 잡는다 — 예: max-width에 걸려 폭은 고정된 채 중앙정렬 offset만 바뀌는 경우.
+    // rect(위치)까지 정확해야 하는 호출부에서만 켤 것 (모든 호출부에 기본으로 켜면 리스너 부담이 커짐).
+    watchWindowResize?: boolean;
+}
+
+export const computeResizeSize = (el: HTMLElement|null):UseResizeSizeValue|null => {
+    if (!el) {
+        return null
+    };
+
+    const { 
+        paddingTop, paddingRight, 
+        paddingBottom, paddingLeft, 
+        width, height
+    }  = getComputedStyle(el);
+    
+    const w = removeUnit(width),
+        h = removeUnit(height),
+        pt = removeUnit(paddingTop),
+        pr = removeUnit(paddingRight),
+        pb = removeUnit(paddingBottom),
+        pl = removeUnit(paddingLeft);
+    
+    return {
+        outer: [ w, h, ],
+        padding: [ pt, pr, pb, pl ],
+        rect: el.getBoundingClientRect()
+    }
+}
+
+export const useResize = (elRef: Ref<HTMLElement | null>, { watchWindowResize = false }: UseResizeOptions = {}) => {
     const size = ref<UseResizeSizeValue|null>(null);
     const refresh = () => {
-        if (!elRef.value) {
-            size.value = null;
-            return
-        };
-
-        const { 
-            paddingTop, paddingRight, 
-            paddingBottom, paddingLeft, 
-            width, height
-        }  = getComputedStyle(elRef.value);
-        
-        const w = removeUnit(width),
-            h = removeUnit(height),
-            pt = removeUnit(paddingTop),
-            pr = removeUnit(paddingRight),
-            pb = removeUnit(paddingBottom),
-            pl = removeUnit(paddingLeft);
-        ;
-        size.value =  {
-            outer: [ w, h, ],
-            padding: [ pt, pr, pb, pl ],
-            rect: elRef.value.getBoundingClientRect()
-        }
+        size.value = computeResizeSize(elRef.value)
     }
     const observer = ref(new ResizeObserver(refresh))
     const mutation = ref(new MutationObserver(refresh))
@@ -142,10 +101,52 @@ export const useResize = (elRef: Ref<HTMLElement | null>) => {
         // update();
     })
 
+    if (watchWindowResize) {
+        onMounted(() => window.addEventListener('resize', refresh));
+        onUnmounted(() => window.removeEventListener('resize', refresh));
+    }
+
     onUnmounted(() => {
         observer.value.disconnect();
         size.value = null
     })
 
     return size;
+}
+
+// 여러 엘리먼트의 scroll/resize/속성변화를 한 콜백으로 감지. targets가 바뀌면 필요한 것만 추가/해제.
+export const useElementsChange = (
+    targets: Ref<(HTMLElement | null | undefined)[]> | ComputedRef<(HTMLElement | null | undefined)[]>,
+    onChange: () => void
+) => {
+    const resizeObserver = new ResizeObserver(onChange);
+    const mutationObserver = new MutationObserver(onChange);
+    const attached = new Set<HTMLElement>();
+
+    const sync = () => {
+        const current = new Set(targets.value.filter((el): el is HTMLElement => !!el));
+
+        for (const el of attached) {
+            if (current.has(el)) continue;
+            el.removeEventListener('scroll', onChange);
+            resizeObserver.unobserve(el);
+            attached.delete(el);
+        }
+        for (const el of current) {
+            if (attached.has(el)) continue;
+            el.addEventListener('scroll', onChange, { passive: true });
+            resizeObserver.observe(el);
+            mutationObserver.observe(el, { attributes: true });
+            attached.add(el);
+        }
+    }
+
+    watch(targets, sync, { immediate: true });
+
+    onUnmounted(() => {
+        resizeObserver.disconnect();
+        mutationObserver.disconnect();
+        for (const el of attached) el.removeEventListener('scroll', onChange);
+        attached.clear();
+    })
 }
