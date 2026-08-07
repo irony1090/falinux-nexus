@@ -1,7 +1,7 @@
 # REF: frontend (apps/frontend)
 
-> supervisor용 프론트엔드. 상세 이력 → `history/frontend.md` / 현재 진행 → `CURRENT.md`
-> node 카탈로그 관련 백엔드 설계 → `REF-node-label.md`
+> supervisor용 프론트엔드. 상세 이력 → `history/frontend.md`(+resize/다이얼로그 `history/process-resize.md`) / 현재 진행 → `CURRENT.md`
+> node 카탈로그 관련 백엔드 설계 → `REF-node-label.md`. node 카탈로그 UI 컨셉(배치도/트리/모바일) → `REF-node-ui.md`. process resize 백엔드 배선 → `REF-process-resize.md`.
 
 ## 위치/정체성
 - 경로: `apps/frontend` (package name `frontend-nexus-supervisor`)
@@ -63,12 +63,13 @@
 - `feature/node/api/node.api.ts`: `createNode`/`listChildren`/`getNode`/`patchNode`/`deleteNode` (node.go+nodeDto.go 미러) + vue-query `useListChildren`/`useGetNode`/`useNodeQueryClient`(invalidateAll/-Force). `Q_KEY`는 `LIST(parentId?)`/`DETAIL(id)`.
   - `PatchNodeRequest`는 백엔드 `patch.Field[T]`({valid,value})를 호출부에 노출하지 않는다 — 평범한 `T|null|undefined` 값만 받고 `patchNode()` 내부의 `toPatchField()`가 undefined→`{valid:false}` / null·값→`{valid:true,value}`로 변환(관리 부담 축소가 목적).
   - Response/Dto 패턴은 `user.api.ts`와 동일: camelCase `XResponse`(Date) + `Replace`로 파생한 `XResponseDto`(unix sec) + 변환 함수.
-- `feature/process/api/process.api.ts`: `listSubscriptions`/`subscribeProcess`/`unsubscribeProcess`/`execProcess`/`killProcess` (processApi.go 미러).
+- `feature/process/api/process.api.ts`: `listSubscriptions`/`subscribeProcess`/`unsubscribeProcess`/`execProcess`/`killProcess`/`resizeProcess`(2026-07-22 추가, `POST /processes/resize/:processId`) (processApi.go 미러).
   - **선행 배선**: `listSubscriptions`가 원래 DTO 없이 `superdb.Process`(json 태그 없는 sqlc raw, PascalCase+RFC3339)를 그대로 내려보내던 걸 발견 → **백엔드에 `processDto.go` 신설**(`processResponse`+`newProcessResponse(s)`, nodeDto.go와 대칭)해 camelCase+unix sec로 정정한 뒤에 프론트 타입을 작성함(2026-07-21). 순서: 백엔드 응답 정합 먼저 → 프론트 타입은 그 위에.
-- 둘 다 아직 실제로 호출하는 UI 컴포넌트는 없음(함수만 존재).
+  - `execProcess` 반환 타입은 사용자가 직접 `{uid}`→`ProcessResponse`로 바꿈(백엔드가 `newProcessResponse` 전체를 돌려주도록 바뀐 것과 짝) — 단 `toProcessResponse`(dto→response 날짜 변환) 경유는 아직 안 함, `resizeProcess`는 정상적으로 경유. 후속 정리 여지.
+- node은 아직 UI 미연결. **process는 `ProcessDialog` 하나가 실제로 호출하는 첫 컴포넌트**(exec/kill/resize) — provide/inject 스토어(`processDialog.store.ts`)+xterm 연동 상세는 `REF-process-resize.md` "ProcessDialog" 절(백엔드 resize 배선과 한 문서에 묶임 — 이력도 `history/process-resize.md` 하나).
 
 ## 미착수/다음
 - user/login 마무리: 실서버 인증 왕복·라우터 가드(비로그인 → `/login`)·세션 복원.
-- node 카탈로그 UI = 트리 + 캔버스(% 절대배치). 터미널(xterm.js)은 EXEC/EDIT용 별개.
-- socket 수신 핸들러 실연동: `on('node.created'|'process.output'|…)` → 트리/터미널 갱신 (→ `REF-realtime.md`).
-- 위 REST 클라이언트 함수들을 실제로 호출하는 컴포넌트/페이지(node 카탈로그 UI, process 실행/종료 트리거).
+- node 카탈로그 UI = 트리 + 캔버스(% 절대배치). **컨셉 설계 → `REF-node-ui.md`로 분리**(2026-08-07, 10k자 기준 분할). 구현은 미착수. node CRUD REST 클라이언트는 있으나 아직 호출하는 UI 없음.
+- socket 수신 핸들러 실연동: node `on('NODE:CREATE'|…)` → 트리/캔버스 갱신 (→ `REF-realtime.md`). process는 `ProcessDialog`가 `DATA` 연동 완료, `PROCESS:UPDATE`/`STATUS`는 스텁만.
+- process 입력(키스트로크) 배선 — 고빈도라 REST 부적합, 소켓 메시지 쪽이 유력하나 미정.

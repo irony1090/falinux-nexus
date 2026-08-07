@@ -16,8 +16,8 @@
 - ~~node CRUD 발행처 배선~~ → **완료(2026-07-16)**: `createNode`/`patchNode`/`deleteNode`가 커밋 성공 후에만 `subscribeHub.Publish`하도록 `tx.go`에 범용 `AfterCommit(c, fn)` 훅 신설. 이동(parentId 변경)은 old+new 부모 토픽 양쪽에 `NODE:UPDATE` 발행. → `REF-realtime.md` "supervisor 측 구현" 절 / `REF-supervisor-web.md` "트랜잭션 미들웨어" 절.
 - `NODE:<parentId>` 동적 구독/해지 — **아직 미정**(process는 REST로 확정했지만 NODE도 같은 길로 갈지 별도 결정 필요). 현재도 `subscribe.go`는 `NODE:0` 고정구독뿐 → 발행은 되지만 펼친 다른 폴더는 프론트가 구독할 방법이 아직 없음.
 - 프론트 `on('NODE:CREATE'|…)` 실제 핸들러 → 트리/터미널 갱신. 컴포넌트 밖 반영 필요 시 `reactive` 모듈 패턴(→ `REF-frontend.md`).
-- ~~REST 클라이언트 함수 없음~~ → **node/process 둘 다 완료(2026-07-21)**: `feature/node/api/node.api.ts`(createNode/listChildren/getNode/patchNode/deleteNode + vue-query `useListChildren`/`useGetNode`/`useNodeQueryClient`), `feature/process/api/process.api.ts`(listSubscriptions/subscribeProcess/unsubscribeProcess/execProcess/killProcess). 남은 건 이 함수들을 실제 컴포넌트가 호출하는 것(UI 미착수) + socket `on()` 핸들러 연결.
-- **UI**: node 카탈로그 = 트리 + 캔버스(% 절대배치). 터미널(xterm.js)은 EXEC/EDIT용 별개(미착수).
+- ~~REST 클라이언트 함수 없음~~ → **node/process 둘 다 완료(2026-07-21, process는 2026-07-22 resize 추가)**: `feature/node/api/node.api.ts`(createNode/listChildren/getNode/patchNode/deleteNode + vue-query `useListChildren`/`useGetNode`/`useNodeQueryClient`), `feature/process/api/process.api.ts`(listSubscriptions/subscribeProcess/unsubscribeProcess/execProcess/killProcess/resizeProcess). node는 아직 호출하는 UI 없음. **process는 `ProcessDialog`가 exec/kill/resize를 실제로 호출하는 첫 UI**(→ `REF-process-resize.md` "ProcessDialog" 절).
+- **UI**: node 카탈로그 = 트리 + 캔버스(% 절대배치) — **컨셉 설계 완료**(2026-08-07, 구현은 미착수): 배치도(캔버스)=홈+트리=보조내비(breadcrumb), PC=캔버스+모서리 리스트/트리 오버레이 토글, 모바일=`[지도|리스트]` 세그먼트 토글, 트리 재배치 드래그 지원(device_key 상속변경 확인 UI 필요 + 이동 노드 좌표 NULL 처리) → `REF-node-ui.md`. **미정**: 모바일 트리 화면 형태. 터미널(xterm.js)은 **`ProcessDialog`로 착수**: DATA 출력 연동 완료, 화면복원(스크롤백)·키 입력은 아직.
 
 ---
 
@@ -43,7 +43,8 @@
 **다음 배선 (우선순위)**
 1. ~~PROC 동적 구독~~ → **완료(2026-07-16)**: `GET /processes/subscriptions` + `POST/DELETE /processes/subscribe/:processId`(REST, 소켓 메시지 아님) + `browsers`(conn→sid) registry로 이미 열려있는 소켓도 즉시 라우팅 반영. → `REF-process-subscription.md` "REST 구독/해지 배선" 절.
    ~~frontend 트리거(실행/종료)~~ → **완료(2026-07-16, 2)**: `POST /processes/exec` / `POST /processes/kill/:processId`(REST, 소켓 `Handle` 아님 — 위 구독 결정과 일관). 실행·종료 둘 다 별도 구독 요청 없이 요청 세션이 자동 구독됨(`subscribeSid` 공유 헬퍼 — 수동 구독과 동일 경로). `router.Exec` 시그니처가 `(uid string, error)`로 바뀜. **종료 후 Hub 구독 정리**(`startRelay`/`cleanupProcessTopic`, relay가 마지막 이벤트까지 다 흘려보낸 뒤에만 해제 — race 없음)도 이번에 같이 닫음. → `REF-process-trigger.md` "frontend 트리거(exec/kill)" 절.
-   **남은 건 input/resize뿐**: `input(MsgData)`→`Inter.Write` / `resize(MsgResize)`→`Inter.Layout`(Ctrl+C 등 키입력, 창 크기). 고빈도라 REST 왕복은 부적합 — 소켓 메시지 쪽이 유력하나 미정.
+   ~~resize~~ → **완료(2026-07-22)**: `POST /processes/resize/:processId` — `entry.Inter.Layout`이 worker 응답을 실제로 기다려(`syscall.Errno`→`error` 계약 정정) 성공했을 때만 DB(`UpdateProcessLayout` RETURNING)+memory(`entry.SetRecord`) 동기화 후 `PROCESS:UPDATE`(`MsgProcessUpdate` 신설) 발행. `ProcessDialog`가 xterm `fit()` 결과로 자동 호출. → `REF-process-resize.md`.
+   **남은 건 input뿐**: `input(MsgData)`→`Inter.Write`(Ctrl+C 등 키입력, `MsgData` 역방향). 고빈도라 REST 왕복은 부적합 — 소켓 메시지 쪽이 유력하나 미정.
 2. **화면복원**: bind에 ring buffer(SNAPSHOT) 상시 적재 + 재접속 SNAPSHOT 전송 — **미착수(설계 논의만 완료)**. supervisor-side ring buffer로 방향 확정(스케일·htop 케이스 검토 끝), worker-side 이전 옵션은 snapshot↔live 이음매 race(유실/중복) 미해결로 보류. → `REF-process-snapshot.md`.
    - ~~세션→uid 원장~~ → **구현 완료(2026-07-16)**: 마이그레이션·쿼리·CREATE/DELETE 호출 지점(위 1번) 전부 끝남. 남은 건 ring buffer SNAPSHOT 자체와 **프론트가 이 엔드포인트들을 실제로 부르는 것**(REST 클라이언트 함수·UI 미착수).
 3. EXEC content→실행 세부정책(직접실행 vs `sh -c`).
@@ -57,7 +58,7 @@
 ---
 
 ## 미해결 이슈 (이월)
-- **PROC 토픽 무구독** — **백엔드는 완전히 해소됨(2026-07-16)**: REST 구독 배선 + exec/kill 자동구독(위 "process 도메인 배선" 1번) 덕에 `browsersForSid`로 라우팅이 붙고, exec/kill을 REST로 부르기만 하면 별도 구독 요청 없이도 출력·상태가 흐른다. **REST 클라이언트 함수도 완료(2026-07-21, `process.api.ts`)**. 다만 **실제로 호출하는 UI 컴포넌트가 아직 없어서** 여전히 process 출력이 브라우저에 안 닿음(원인이 "백엔드 무배선"→"프론트 함수 없음"→"UI 미착수"로 계속 이동). → 남은 건 UI 배선뿐.
+- ~~**PROC 토픽 무구독**~~ → **완전히 해소(2026-07-22)**: 백엔드(2026-07-16)·REST 클라이언트(2026-07-21)에 이어 `ProcessDialog`가 exec 성공 시 자동 구독된 process의 `DATA`를 실제로 xterm에 그려 보여준다 — "백엔드 무배선"→"프론트 함수 없음"→"UI 미착수"로 이어지던 원인 이동이 끝남. 남은 건 `PROCESS:UPDATE`/`STATUS` 리스너가 아직 `console.log` 스텁이라는 것뿐(기능적으로는 `patchStatus` 진입점이 이미 있어 연결만 하면 됨).
 - **파일 전송**: 구현 완료 / e2e 미검증. 잔여: e2e 스모크 / abort sentinel (register 임시전송은 주석처리됨)
 - **서브키 충돌/위조**: key↔subkey 결속 검증 미구현(node roster에서 닫을지 보류)
 - **supervisor 영속성**: registry 메모리 → PG 미착수

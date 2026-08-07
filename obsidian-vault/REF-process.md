@@ -1,7 +1,7 @@
 # REF — process 실행 모듈 (execute / pty / agent comm) — 계약·설계 원칙
 
 > worker 프로세스 실행/모니터링/종료(PTY) 설계와 계승 자산. **이 파일 = 상위 계약/원칙(자주 안 바뀜)**.
-> 실제 배선(누가 무엇을 호출)은 `REF-process-wiring.md`(+frontend 트리거 `REF-process-trigger.md`), 종료/재접속은 `REF-process-reconnect.md`, 세션→uid 원장·REST 구독은 `REF-process-subscription.md`.
+> 실제 배선(누가 무엇을 호출)은 `REF-process-wiring.md`(+frontend 트리거 `REF-process-trigger.md`, resize `REF-process-resize.md`), 종료/재접속은 `REF-process-reconnect.md`, 세션→uid 원장·REST 구독은 `REF-process-subscription.md`.
 > 출력 스트리밍 토대는 `REF-infra.md` EVENT 평면. 통신 상세는 `PLAN-agent-comm.md`.
 
 ## Agent↔Server 통신 프로토콜 (계승)
@@ -13,7 +13,7 @@
 - 파일 전송 흐름: `UploadInit → Ready → Chunk → Status → Result`
 
 ## Process 실행 추상화 (worker agent 핵심)
-- **`IInteractive` 인터페이스**: `Output()`, `Write()`, `Status()`, `Kill()`, `Layout() syscall.Errno`, `ExitCode() int`
+- **`IInteractive` 인터페이스**: `Output()`, `Write()`, `Status()`, `Kill()`, `Layout(cols, rows uint16) error`(2026-07-22 `syscall.Errno`→`error` 정정 — "그 자리에서 확인된 진짜 결과" 계약 통일, 상세 → `REF-process-resize.md`), `ExitCode() int`
   - `*Interactive` (로컬 PTY 구체 타입), `*AgentInteractive` (원격 agent 래퍼) 모두 구현
 - **`AgentInteractive`**: agent WebSocket을 통한 원격 process 래퍼
   - `onWrite`/`onLayout`/`onKill` 콜백으로 agent에 명령 전달
@@ -54,27 +54,13 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 - **process 영속성**: worker 휘발(메모리) / supervisor 영속(PG, 재시작 복구)
 - **재연결 reconciliation**: 끊김→`Done(502)` 비관적 정리 / 재연결→worker가 live 스냅샷 보내 재동기화. **2026-07-01 개정, 2026-07-14 구현+e2e 완료**(구 `Done(502)` 폐기 → PENDING 모델) → `REF-process-reconnect.md`
 
-## 실행 타입: EXEC vs EDIT (2026-06-26 확정) — script 편집 = worker PTY vi 왕복
-> node script 편집 = frontend→supervisor→worker로 worker의 실제 `vi`($EDITOR)를 **PTY로 띄워** 편집, 종료 시 내용 회수. **PTY 엔진의 특수 사례** — 새 메커니즘 아님. 카탈로그(`REF-node-label.md`) "무엇"에 "어떻게(편집)"를 먹이는 동작.
-
-- **단일 `MsgExec{ type, spec }` + 단일 결과채널**에 `type` 디스크리미네이터. 제어/스트림(Data·Resize·Kill·Status) 공유라 메시지 안 가르고 type만 추가(separate MsgEditExec보다 깔끔)
-- **두 타입(닫힌 집합)**:
-  | type | 출력 스트림 | DB sink | 산출물 | PTY |
-  |------|------------|---------|--------|-----|
-  | `EXEC` | 라이브 fan-out | **ON**(스크롤백 영속) | 없음(exit code) | O |
-  | `EDIT` | 라이브 fan-out | **OFF**(vi 화면=버림) | **파일 read-back 내용** | O |
-- **공유 엔진 / type 무지**: `IInteractive`/PTY/MsgData·Resize·Status 100% 재사용, 런타임 핸들은 type 모름. type 소비자 = ① **worker bracket 핸들러**(seed 깔까/read-back 할까) ② **supervisor bind 배선**(sink on·off / 결과 라우팅). 엔진은 한 줄도 안 갈라짐
-- **EDIT 흐름**: supervisor가 노드 content + 대상 worker(device_key 상속) 해석 → `MsgExec{EDIT, content 인라인}` → worker가 tmp에 content 기록 → `vi <tmp>` PTY 실행 → 종료(STOPPED) 시 tmp 재읽기 → `MsgEditResult{UID, content}`(인라인 REQ) → tmp 정리 → supervisor `nodes.content` UPDATE
-- **저장판별 = read-back & diff**: vi는 `:wq`·`:q!` 모두 exit 0 → 종료코드로 저장여부 못 가림. **종료 후 tmp 무조건 재읽기→원본과 비교→바뀌면 UPDATE/같으면 no-op**(`:w` 안 했으면 파일 불변→자연히 "저장 안 함"). `:cq`(non-zero)=명시 취소는 선택적
-- **구조체**: base `ProcessSpec`(UID/Cmd/Env/…) 공유 + **type별 addendum**(EDIT만 seedContent/tmp 정책). 3개 평행 구조체 금지(REF L44)
-- **editor 선택 = worker 책임**($EDITOR/OS 기본). 1차 **Linux worker 한정**(Windows PTY=ConPTY 별도 이슈)
-- **이름**: `EXEC`/`EDIT` 둘 다 **동사로 일관**. `EDITOR`(도구명—레이어 샘) 기각, `RETURN`(모호—exit code도 return) 기각. RETURN은 EDIT의 후보명이었을 뿐 동의어
-- **의존성**: process 도메인 배선 선행 필수(현재 Step1만). frontend xterm.js 필요(apps/web 미착수) — e2e는 테스트 클라 conn으로 PTY 왕복 검증 가능
-- **YAGNI**: "인터랙티브 세션이 아티팩트 반환" 거창한 프레임워크 금지. **EDIT 한 동작만**. 비인터랙티브 출력 캡처(CAPTURE류)는 실수요 나올 때 별 type으로
-- **프로토콜 어휘 구현됨(2026-06-26)** `protocol/messages.go`: `ExecType`(EXEC|EDIT) + `ProcessSpec.Type`(빈값=EXEC, `Kind()` 정규화) + `MsgEditResult`(worker→sup REQ) + `EditResult{UID,Content}`. 와이어 = 공통 ProcessSpec + Type 구분. 저장판별=supervisor diff. ※구 `ProcessSpec.Seed []byte`/"인라인 content" 서술 폐기 → `REF-process-wiring.md` "경로 조립" 참조.
+## 실행 타입: EXEC vs EDIT (2026-06-26 확정)
+> script 편집 = worker PTY vi 왕복. 상세 → `REF-process-exec-edit.md`(2026-07-22 분리).
 
 ## 하위 문서
+- **EXEC vs EDIT**: 실행 타입 설계(위 절 참조) → `REF-process-exec-edit.md`
 - **배선(구현)**: supervisor 아키텍처(manager/entry/bind/router 역할분리) + worker 실행부(procs/exec/pump/teardown) → `REF-process-wiring.md`
 - **frontend 트리거·버그수정**: exec/kill REST 배선, entry.Record 동기화, kill 종료 이벤트 유실 버그 → `REF-process-trigger.md`
+- **resize**: `Layout` 에러 계약 정정, resize REST(결과값 기반 DB/memory 동기화), `MsgProcessUpdate` 발행 → `REF-process-resize.md`
 - **재접속**: 종료/재접속 모델, worker 끊김→PENDING→재바인딩 → `REF-process-reconnect.md`
 - **세션 복원**: 세션→uid 원장(`process_subscribers`), REST 구독/해지 배선 → `REF-process-subscription.md`

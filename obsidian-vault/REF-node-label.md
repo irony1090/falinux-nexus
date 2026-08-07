@@ -2,7 +2,7 @@
 
 > frontend에서 worker의 "앱/셸"을 나열·실행하는 **supervisor PG 영속 카탈로그**. process 모듈에 "무엇을 실행할지"를 먹이는 계층(**카탈로그=무엇 / process 모듈=어떻게**).
 > 2026-06-26 설계 확정 / 2026-06-29 정련(device_key=main_key, ord 좌표분리, worker_instances roster) — **구현 착수**. DB+CRUD는 process 모듈과 독립 선행 가능, 실제 "실행"은 MsgExec 배선 필요.
-> 논의 경로는 `history/node-label.md`. 현재 진행은 `CURRENT.md`.
+> 논의 경로는 `history/node-label.md`. 현재 진행은 `CURRENT.md`. **frontend UI 컨셉(배치도/트리/모바일)** → `REF-node-ui.md`.
 > ★용어 합의: 사용자가 "쉘/앱"이라 부른 것의 실체 = **디바이스(worker) 위 트리에 정리된 실행 정의**. 단일 엔티티가 아니라 folder+script 두 종류가 한 트리에 묶임.
 
 ## 통합 노드 트리 (`nodes` 단일 테이블)
@@ -17,7 +17,7 @@
   - **`ord BIGINT` = 그리드/리스트 순서 전용**(1D면 충분 — 행 줄바꿈은 레이아웃 엔진 몫). **정수**(2026-06-29 NUMERIC→BIGINT: pgtype.Numeric 번거로움 제거). **인접 정수 사이 삽입은 재번호**(형제 수 작아 무방, midpoint 포기). 동률은 name/id 타이브레이크
   - 그리드 드래그=`ord`만 / 캔버스 드래그=`x/y`만 → 서로 독립. 조회: 그리드 `ORDER BY ord, name, id`(인덱스 `(parent_id, ord)`) / 캔버스 `WHERE parent_id`(정렬 불필요)
 - **전송=인라인**: 스크립트가 작은 텍스트라 청크 전송 모듈 불필요(실행 메시지에 `content` 실어 보냄). 큰 바이너리 생기면 그때 transfer 모듈 붙임(YAGNI). ※"전송 후 실행"은 실행 동작에 흡수
-- **script 동작 두 가지 = process 모듈 실행 타입**(2026-06-26): **실행=`EXEC`**(content를 스크립트로 PTY 실행) / **편집=`EDIT`**(worker에서 실제 `vi` PTY로 띄워 편집→종료 시 read-back→`nodes.content` UPDATE). 둘 다 같은 PTY 엔진, type만 다름 → 상세 `REF-process.md` "실행 타입 EXEC vs EDIT"
+- **script 동작 두 가지 = process 모듈 실행 타입**(2026-06-26): **실행=`EXEC`**(content를 스크립트로 PTY 실행) / **편집=`EDIT`**(worker에서 실제 `vi` PTY로 띄워 편집→종료 시 read-back→`nodes.content` UPDATE). 둘 다 같은 PTY 엔진, type만 다름 → 상세 `REF-process-exec-edit.md`
 - **CHECK 정합성**: `content`=script 전용(folder면 NULL), `device_key`=folder 전용(script면 NULL), x/y(있으면) 0~100. **ord엔 상한 CHECK 없음**
 
 ```

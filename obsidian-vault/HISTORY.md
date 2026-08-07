@@ -39,6 +39,11 @@
 - 2026-07-21(1) 토픽 접두사 `PROC:`→`PROCESS:` 정정
 - 2026-07-16 frontend 트리거(exec/kill) REST 배선 완료(`router.Exec` 시그니처 변경 + `subscribeSid` 자동구독) + 종료 후 Hub 구독 정리(`startRelay`/`cleanupProcessTopic`) — PROC 토픽 무구독 백엔드 해소
 
+### `history/process-resize.md` — process resize(rows/cols) 배선 + `Layout` 에러 계약 정정 + `ProcessDialog`(xterm)
+- 2026-07-22(4) resize REST 결과값 기반 DB/memory 동기화 + `MsgProcessUpdate` 발행 배선 완료(build/vet 통과)
+- 2026-07-22(3) `POST /processes/resize/:processId` 최초 핸들러(이후 (4)에서 결과값 무시 버그 발견·수정)
+- 2026-07-22 프론트 `ProcessDialog.vue`+`processDialog.store.ts` 신설(xterm+FitAddon), `DATA` 이벤트 연동(uid 필터+base64 디코드), uid 전환 시 화면 리셋, `resizeProcess` 클라이언트 추가, `App.vue` 전역 마운트
+
 ### `history/process-snapshot.md` — 화면복원 스냅샷 (ring buffer)
 - 2026-07-16 ring buffer 설계 논의 착수(코드 없음, 순수 설계): supervisor-side 채택 + 스케일 검토 + worker-side 이전 시 필요한 protocol(RingBuffer/offset/MsgSnapshot) + snapshot↔live 이음매 race 발견(Hub 구조상 conn별 차등 라우팅 불가, `bind.CatchUp` 미완성)
 
@@ -51,6 +56,9 @@
 - 2026-07-16 REST 구독/해지(GET/POST/DELETE /processes/*) + `browsers`(conn→sid) registry 배선 완료 — 세션→uid 원장 마지막 조각
 - 2026-07-14 (3) 세션→uid 원장 설계 착수: sid 추출 배선(코드 완료, NameFunc에 req 추가) + `process_subscribers` 테이블 설계(미구현)
 
+### `history/node-ui.md` — node 카탈로그 UI 컨셉
+- 2026-08-07 컨셉 설계(코드 없음): 배치도(캔버스)=홈+트리=보조내비, PC 오버레이 토글/모바일 세그먼트 토글, 트리 재배치 드래그(device_key 상속변경·좌표NULL 이슈 발견). 모바일 트리 형태만 미정
+
 ### `history/frontend.md` — 프론트엔드 (apps/frontend)
 - 2026-06-30 apps/frontend 초기 스캐폴딩 (Vue3+TS+Vuetify, Router/Pinia X, Noto 폰트, .gitignore, 커밋 e511359)
 - 2026-06-30 폰트 마무리 정리 (Roboto 제거, Noto 기본폰트 적용 확인)
@@ -60,6 +68,12 @@
 - 2026-07-16 (2) node CRUD 발행처 배선 구현 완료(`AfterCommit` 훅 신설 + create/patch/delete 3핸들러 배선, 이동=2토픽)
 - 2026-07-16 (1) node 도메인 Kind 어휘 확정(`NODE:CREATE/UPDATE/DELETE`, `node.change` 단일봉투안 기각) + process 동적구독은 REST로 결론(상세는 process-reconnect.md)
 - 2026-06-30 supervisor↔웹 socket 전송 토대 완성 + 3모드(call/emit/on) e2e 검증 (Hub Kind 추가·subscribe.go 인증교정·프론트 hook 재설계)
+
+### `history/widget.md` — 위젯 컴포넌트 (feature/widget)
+- 2026-08-07 Skeleton/SkeletonGroup shimmer 로딩 위젯 신설(소비처 미배선)
+
+### `history/util.md` — 범용 유틸 (common/util)
+- 2026-08-07 `EventInterface`+`LifecycleRegistry` 신설, `Memoized` 확장(EventInterface 상속+create/remove 이벤트)
 
 ### `history/project.md` — 프로젝트 셋업 / worker 기반
 - 2026-06-17 Nexus 프로젝트 분리 & vault 신규 구성
