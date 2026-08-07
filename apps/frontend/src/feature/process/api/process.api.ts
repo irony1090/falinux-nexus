@@ -74,11 +74,25 @@ export type ExecProcessRequest = {
 export const execProcess = (param: ExecProcessRequest) => BaseAxios.post(
     '/processes/exec',
     param
-).then(throwThen<{ uid: string }>)
+).then(throwThen<ProcessResponse>)
 .catch(throwCatch)
 
 // POST /processes/kill/:processId — 실행 중인 process 종료(요청 세션 자동 구독)
 export const killProcess = (processId: string) => BaseAxios.post(
     `/processes/kill/${processId}`
 ).then(throwThen<Record<string, never>>)
+.catch(throwCatch)
+
+export type ResizeProcessRequest = {
+    rows: number
+    cols: number
+}
+
+// POST /processes/resize/:processId — 실행 중인 process의 PTY 창 크기 변경(worker 응답 확인 후
+// DB/memory 동기화까지 끝난 최신 process 객체를 반환 — 실패 시 DB/memory는 그대로)
+export const resizeProcess = (processId: string, param: ResizeProcessRequest) => BaseAxios.post(
+    `/processes/resize/${processId}`,
+    param
+).then(throwThen<ProcessResponseDto>)
+.then(toProcessResponse)
 .catch(throwCatch)

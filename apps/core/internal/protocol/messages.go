@@ -255,3 +255,13 @@ const (
 	MsgNodeUpdate MsgType = "NODE:UPDATE" // sup→browser EVENT: 전체 node 구조체 (이동/이름변경 포함)
 	MsgNodeDelete MsgType = "NODE:DELETE" // sup→browser EVENT: 전체 node 구조체(삭제 직전 스냅샷)
 )
+
+// ===== process 객체 변경 통지 (supervisor → browser) =====
+//
+// PROCESS:<uid> 토픽 위에서 기존 MsgData(출력 바이트)/MsgStatus(상태전이, worker 원본 그대로
+// 중계)와 별개로 쓰는 채널이다 — "process 레코드 자체가 바뀌었다"를 알릴 땐 이 kind로 전체
+// processResponse DTO를 실어보낸다(node 도메인과 동일 원칙: payload=항상 전체 구조체).
+// 첫 사용처는 resize(rows/cols 변경) — worker 확인 후 DB+memory 동기화가 끝난 시점에만 발행.
+const (
+	MsgProcessUpdate MsgType = "PROCESS:UPDATE" // sup→browser EVENT: 전체 process 구조체
+)

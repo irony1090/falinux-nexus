@@ -18,6 +18,7 @@ func (r *supervisorRouter) mountProcesses(e *echo.Echo) {
 	g.DELETE("/subscribe/:processId", r.unSubscribeProcess)
 	g.POST("/exec", r.execProcess)
 	g.POST("/kill/:processId", r.killProcess)
+	g.POST("/resize/:processId", r.resizeProcess)
 }
 
 func (r *supervisorRouter) listSubscriptions(c echo.Context) error {
@@ -110,7 +111,8 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
-	return c.JSON(200, map[string]any{"uid": uid})
+	entry, _ := r.processManager.Get(uid)
+	return c.JSON(200, newProcessResponse(*entry.Record))
 }
 
 // killProcess는 실행 중인 process를 종료한다(worker에 MsgKill 전달, entry.Inter.Kill()).
@@ -139,4 +141,51 @@ func (r *supervisorRouter) killProcess(c echo.Context) error {
 		log.Printf("[process] kill 시 자동구독 실패 uid=%s: %v", uid, err)
 	}
 	return c.JSON(200, map[string]any{})
+}
+
+// resizeRequest: 터미널 창 크기 변경 요청. (POST /processes/resize/:processId)
+type resizeRequest struct {
+	Rows uint16 `json:"rows" validate:"required"`
+	Cols uint16 `json:"cols" validate:"required"`
+}
+
+// resizeProcess는 실행 중인 process의 PTY 창 크기를 바꾼다. entry.Inter.Layout이 worker에
+// MsgResize(REQ)를 전달하고(process/manager.go newWorkerInteractive의 onLayout) 그 응답을
+// 그대로 기다린다 — folder-open(Inter=nil)이거나 이미 종료된 uid는 404, worker가 거부/끊김이면
+// 500이라 DB/memory엔 손대지 않는다. worker가 실제로 확인해 준 값만 "진짜 결과"로 취급해
+// DB(UpdateProcessLayout)+memory(entry.SetRecord)를 갱신하고, 커밋 성공 후에만
+// PROCESS:<uid> 토픽에 MsgProcessUpdate로 알린다(kill/exec와 달리 뒤이어 오는 STATUS 이벤트가
+// 없어 이 REST 안에서 동기로 확정 짓는다 — REF-process-trigger.md 참조).
+func (r *supervisorRouter) resizeProcess(c echo.Context) error {
+	r.requireSession(c)
+	uid := c.Param("processId")
+
+	var body resizeRequest
+	if err := c.Bind(&body); err != nil {
+		panic(web.Err(400, "%v", err))
+	}
+	if err := c.Validate(&body); err != nil {
+		panic(web.Err(400, "%v", err))
+	}
+
+	entry, ok := r.processManager.Get(uid)
+	if !ok || entry.Inter == nil {
+		panic(web.Err(404, "존재하지 않는 process입니다"))
+	}
+	if err := entry.Inter.Layout(body.Cols, body.Rows); err != nil {
+		panic(web.Err(500, "resize 실패: %v", err))
+	}
+
+	row, err := TxQueries(c).UpdateProcessLayout(c.Request().Context(), superdb.UpdateProcessLayoutParams{
+		Uid:  uid,
+		Rows: int16(body.Rows),
+		Cols: int16(body.Cols),
+	})
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	entry.SetRecord(&row)
+	AfterCommit(c, func() { r.publishProcess(row) })
+
+	return c.JSON(200, newProcessResponse(row))
 }

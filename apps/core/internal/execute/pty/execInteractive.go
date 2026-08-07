@@ -141,7 +141,7 @@ type Winsize struct {
 	Ypixel uint16 // 픽셀 단위 세로 (선택사항, 보통 0)
 }
 
-func (i *Interactive) Layout(cols, rows uint16) syscall.Errno {
+func (i *Interactive) Layout(cols, rows uint16) error {
 	// 터미널 크기 설정
 	_, _, errNo := syscall.Syscall(
 		syscall.SYS_IOCTL,
@@ -152,7 +152,10 @@ func (i *Interactive) Layout(cols, rows uint16) syscall.Errno {
 			Col: cols,
 		})),
 	)
-	return errNo
+	if errNo != 0 {
+		return errNo
+	}
+	return nil
 }
 
 func (i *Interactive) Refresh() error {

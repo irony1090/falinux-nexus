@@ -42,12 +42,13 @@ SET status      = $2,
 WHERE uid = $1
 RETURNING *;
 
--- name: UpdateProcessLayout :exec
+-- name: UpdateProcessLayout :one
 UPDATE processes
 SET rows       = $2,
     cols       = $3,
     updated_at = NOW()
-WHERE uid = $1;
+WHERE uid = $1
+RETURNING *;
 
 -- name: ListProcessesByOwner :many
 SELECT * FROM processes

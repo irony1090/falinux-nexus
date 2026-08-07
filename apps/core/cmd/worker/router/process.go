@@ -182,8 +182,8 @@ func (r *workerRouter) resize(req protocol.Frame) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("존재하지 않는 process: %s", body.UID)
 	}
-	if errno := entry.inter.Layout(body.Cols, body.Rows); errno != 0 {
-		return nil, fmt.Errorf("resize 실패: %v", errno)
+	if err := entry.inter.Layout(body.Cols, body.Rows); err != nil {
+		return nil, fmt.Errorf("resize 실패: %w", err)
 	}
 	return nil, nil
 }

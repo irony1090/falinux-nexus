@@ -100,6 +100,15 @@ func (r *supervisorRouter) Exec(owner superdb.User, authKey string, kind protoco
 // processTopic은 한 process의 fan-out 토픽 키다(구독/발행 단일 출처).
 func processTopic(processId string) string { return "PROCESS:" + processId }
 
+// publishProcess는 PROCESS:<uid> 토픽에 MsgProcessUpdate(전체 process 구조체)를 발행한다.
+// node 도메인의 publishNode와 대칭 — DB/memory 갱신이 모두 끝난 뒤(REST 트랜잭션이면 AfterCommit
+// 안에서만) 호출해야 한다. 첫 사용처는 resizeProcess.
+func (r *supervisorRouter) publishProcess(rec superdb.Process) {
+	if err := r.subscribeHub.Publish(processTopic(rec.Uid), protocol.MsgProcessUpdate, newProcessResponse(rec)); err != nil {
+		log.Printf("[process] Publish 실패 topic=%s: %v", processTopic(rec.Uid), err)
+	}
+}
+
 // startRelay는 bind.Relay를 기동하고, 드레인이 끝나는 즉시(=더 이상 이 토픽에 발행될 일이
 // 없어지는 시점) Hub 구독을 정리하는 감시 고루틴을 함께 붙인다. Exec(최초 실행)과
 // reconcileReconnect(재바인딩) 둘 다 이 지점 하나로 relay를 기동해야 종료 후 정리가 누락되지

@@ -317,12 +317,13 @@ func (q *Queries) MarkProcessRunning(ctx context.Context, arg MarkProcessRunning
 	return i, err
 }
 
-const updateProcessLayout = `-- name: UpdateProcessLayout :exec
+const updateProcessLayout = `-- name: UpdateProcessLayout :one
 UPDATE processes
 SET rows       = $2,
     cols       = $3,
     updated_at = NOW()
 WHERE uid = $1
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at
 `
 
 type UpdateProcessLayoutParams struct {
@@ -331,7 +332,28 @@ type UpdateProcessLayoutParams struct {
 	Cols int16
 }
 
-func (q *Queries) UpdateProcessLayout(ctx context.Context, arg UpdateProcessLayoutParams) error {
-	_, err := q.db.Exec(ctx, updateProcessLayout, arg.Uid, arg.Rows, arg.Cols)
-	return err
+func (q *Queries) UpdateProcessLayout(ctx context.Context, arg UpdateProcessLayoutParams) (Process, error) {
+	row := q.db.QueryRow(ctx, updateProcessLayout, arg.Uid, arg.Rows, arg.Cols)
+	var i Process
+	err := row.Scan(
+		&i.Uid,
+		&i.Type,
+		&i.OwnerUserID,
+		&i.NodeID,
+		&i.DeviceKey,
+		&i.Cmd,
+		&i.Args,
+		&i.Env,
+		&i.Cwd,
+		&i.Rows,
+		&i.Cols,
+		&i.Status,
+		&i.Pid,
+		&i.ExitCode,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

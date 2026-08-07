@@ -209,9 +209,9 @@ func newWorkerInteractive(worker *transport.Conn, uid string) *execute.AgentInte
 			// log.Printf("NEW_INTER ARGS1")
 			return worker.Emit(protocol.MsgData, protocol.DataEvent{UID: uid, Data: data})
 		},
-		func(cols, rows uint16) { // onLayout
-			// log.Printf("NEW_INTER ARGS2")
-			_, _ = worker.Call(context.Background(), protocol.MsgResize, protocol.ResizeRequest{UID: uid, Rows: rows, Cols: cols})
+		func(cols, rows uint16) error { // onLayout
+			_, err := worker.Call(context.Background(), protocol.MsgResize, protocol.ResizeRequest{UID: uid, Rows: rows, Cols: cols})
+			return err
 		},
 		func() error { // onKill
 			// log.Printf("NEW_INTER ARGS3")

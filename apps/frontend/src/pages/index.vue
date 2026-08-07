@@ -1,9 +1,9 @@
 <template>
-    <v-btn @click="onSubmit">TEST</v-btn>
+    <v-btn @click="onExec">EXEC</v-btn>
     <v-btn @click="onView">VIEW</v-btn>
-    <v-btn :disabled="!processId" @click="onUnsubscribe">UNSUB</v-btn>
-    <v-btn :disabled="!processId" @click="onSubscribe">SUB</v-btn>
-    <v-btn :disabled="!processId" @click="onKill">KILL</v-btn>
+    <v-btn :disabled="!process" @click="onUnsubscribe">UNSUB</v-btn>
+    <v-btn :disabled="!process" @click="onSubscribe">SUB</v-btn>
+    <v-btn :disabled="!process" @click="onKill">KILL</v-btn>
     <HelloWorld />
 </template>
 
@@ -15,16 +15,19 @@ import { useGetNode } from '@/feature/node/api/node.api';
 import { useAuthStore } from '@/feature/user/store/auth.store';
 import { ref, watch } from 'vue';
 import { execProcess, killProcess, listSubscriptions, subscribeProcess, unsubscribeProcess } from '@/feature/process/api/process.api';
+import { useProcessDialog } from '@/feature/process/store/processDialog.store';
+
+const { openProcessDialog, process } = useProcessDialog();
 
 const { connect, disconnect, status, on } = useTestSocket();
 const { auth } = useAuthStore();
 const nodeId = ref(3);
-const processId = ref<string>();
+// const processId = ref<string>();
 const { data } = useGetNode(nodeId, )
 
 const onSubscribe = () => {
-    if (!processId.value) return;
-    subscribeProcess(processId.value)
+    if (!process.value) return;
+    subscribeProcess(process.value.uid)
     .then(res => {
         console.log('[SUCCESS]',res);
     }).catch(err => {
@@ -32,8 +35,8 @@ const onSubscribe = () => {
     })
 }
 const onUnsubscribe = () => {
-    if (!processId.value) return;
-    unsubscribeProcess(processId.value)
+    if (!process.value) return;
+    unsubscribeProcess(process.value.uid)
     .then(res => {
         console.log('[SUCCESS]',res);
     }).catch(err => {
@@ -42,8 +45,8 @@ const onUnsubscribe = () => {
 }
 
 const onKill = () => {
-    if (!processId.value) return;
-    killProcess(processId.value)
+    if (!process.value) return;
+    killProcess(process.value.uid)
     .then(res => {
         console.log('[SUCCESS]',res);
     }).catch(err => {
@@ -60,13 +63,12 @@ const onView = () => {
     })
 }
 
-const onSubmit = () => {
+const onExec = () => {
     execProcess({
         authKey: 'irony-MAC-ADDress1#UhQ2l5hG',
         nodeId: nodeId.value,
     }).then(res => {
-        console.log('[SUCCESS]',res);
-        processId.value = res.uid;
+        openProcessDialog(res)
     }).catch(err => {
         console.log('[ERR]', err);
     })

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"nexus/internal/syncProcess"
 	"sync"
-	"syscall"
 )
 
 type AgentInteractive struct {
@@ -13,13 +12,13 @@ type AgentInteractive struct {
 	status    *syncProcess.SyncData[CommandStatus]
 	onWrite   func(data []byte) error
 	onKill    func() error
-	onLayout  func(cols, rows uint16)
+	onLayout  func(cols, rows uint16) error
 	onceClose sync.Once
 }
 
 func NewAgentInteractive(
 	onWrite func(data []byte) error,
-	onLayout func(cols, rows uint16),
+	onLayout func(cols, rows uint16) error,
 	onKill func() error,
 ) *AgentInteractive {
 	ai := &AgentInteractive{
@@ -52,9 +51,8 @@ func (a *AgentInteractive) Status() (CommandStatus, int, error) {
 	return sts, a.exitCode, err
 }
 func (a *AgentInteractive) Kill() error { return a.onKill() }
-func (a *AgentInteractive) Layout(cols, rows uint16) syscall.Errno {
-	a.onLayout(cols, rows)
-	return 0
+func (a *AgentInteractive) Layout(cols, rows uint16) error {
+	return a.onLayout(cols, rows)
 }
 
 func (a *AgentInteractive) PushOutput(data []byte) {
