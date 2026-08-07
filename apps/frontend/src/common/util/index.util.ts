@@ -1,6 +1,7 @@
 import type { Dayjs } from 'dayjs';
 import type { ElementType, Vec2 } from './index.type';
 import dayjs from 'dayjs';
+import { EventInterface } from '@/common/util/lifecycle/event.util';
 
 export const equals = (a:any, b:any): boolean => {
 	if (isNil(a) || isNil(b)){
@@ -160,13 +161,18 @@ export class Stale<K, V> {
 	}
 }
 
-export class Memoized<K, V> {
+type MemoizedEventMap<K, V> = {
+	create: [k: K, v: V]
+	remove: [k: K, v: V]
+}
+export class Memoized<K, V> extends EventInterface<MemoizedEventMap<K, V>> {
 	private cache = new Map<K, V>();
 	private extract: ((input: K) => V|undefined);
 
 	private stale: Stale<K, V> | null = null;
 
 	constructor(extract: (input: K) => V) {
+		super();
 		this.extract = extract;
 	}
 
@@ -178,19 +184,39 @@ export class Memoized<K, V> {
 		return this.stale;
 	}
 
+	has(input: K): boolean {
+		return this.cache.has(input)
+	}
+
 	get(input: K, extractIfNotExist: boolean = true) {
 		if (this.cache.has(input)) {
 			return this.cache.get(input)!;
 		} else {
 			const rst = extractIfNotExist ? this.extract(input) : undefined;
-			if (rst !== undefined) this.cache.set(input, rst);
+			if (rst !== undefined) {
+				this.cache.set(input, rst);
+				this.emit('create', input, rst);
+			}
 			return rst;
 		}
 	}
 
+	keys(): Array<K> {
+		const i = this.cache.keys();
+		const arr: Array<K> = []
+		for (const k of this.cache.keys()) {
+			arr.push(k)
+		}
+
+		return arr;
+	}
+
 	remove(input: K) {
 		const el = this.cache.get(input);
-		if (el) this.cache.delete(input);
+		if (el) {
+			this.cache.delete(input);
+			this.emit('remove', input, el);
+		}
 		return el;
 	}
 
