@@ -23,3 +23,23 @@
 ### 참고
 - 같은 폴더의 `store/stickyBox.store.ts`(기존, provide/inject 기반 sticky 영역 좌표 공유)는 이번 추가와 무관한 별개 위젯.
 - 아직 실제 사용처(어느 페이지/컴포넌트가 이 위젯을 소비하는지) 미배선 — 컴포넌트·스토어만 추가된 상태.
+
+## StickyBox — 중첩 가능한 sticky header/footer 위젯
+> 스토어(`store/stickyBox.store.ts`)는 기존, 이번에 `component/StickyBox.vue`(실제 컴포넌트) 추가 + 스토어 리팩터. 관찰 리소스는 공유 그룹(`REF-util.md` "공유 리사이즈 관측 그룹") 소비.
+
+### 하는 일
+- 슬롯 `header`/`footer`를 `position: fixed`로 화면에 붙이되, **중첩된 StickyBox끼리 서로의 header/footer 높이만큼 밀어내며 쌓임**(예: 바깥 StickyBox의 header 아래에 안쪽 StickyBox의 header가 붙는 식) — 각 레벨이 자기 차지 영역을 부모에게 보고하고, 부모는 그 최댓값을 다음 레벨의 기준으로 물려줌.
+
+### 스토어 리팩터 — `thisClient`(ref 공유) → `reportSelf`(콜백 보고)
+- 기존엔 `provideStickyBox()`가 자기 rect를 담는 `thisClient` ref를 만들고 부모가 그걸 `watch`하는 구조라, "내가 읽는 것"과 "내가 보고하는 것"이 섞여 있었음.
+- 지금은 **자식이 `reportSelf(v: Vec4)`를 호출해서만 부모에게 알림** / 부모는 `rootClient`(자기가 물려받은 기준)·`maxClient`(자식들 보고의 누적 최댓값)만 내려줌 — 역할이 읽기/쓰기로 명확히 분리됨.
+
+### `viewportClient` — CSS containing block 보정 (신규 개념)
+- `position: fixed`는 원래 브라우저 뷰포트 기준이지만, **조상에 `transform`/`contain: layout` 등이 걸리면 그 조상이 새로운 containing block이 되어버려 `fixed` 자식이 뷰포트가 아니라 그 조상 기준으로 붙는다** — 다이얼로그 카드 안에 StickyBox를 쓰는 경우가 대표적.
+- `viewportClient`(rootClient와 동일 규약: `[top,right,bottom,left]` inset, 기본 `null`=진짜 뷰포트 그대로)를 **그 조상 쪽 코드가 직접 갱신**해줘야 함. `rootClient`/`maxClient`(내부에서 자동 누적)와는 역할이 달라 섞어 쓰면 안 됨 — 하나는 "내부에서 자동 계산되는 형제 영역", 하나는 "바깥에서 강제로 알려주는 좌표계 보정".
+
+### `StickyBox.vue` 컴포넌트
+- `relation` prop(단일/배열, `useElementsChange`로 감시) — 이 StickyBox 바깥에서 일어나는, 재계산이 필요한 scroll/resize/속성변화의 원천(다이얼로그 카드, `document.documentElement` 등)을 명시적으로 지정.
+- 자기 자신·head·foot 세 엘리먼트 각각 공유 리사이즈 그룹(`useResizeCallback`)으로 크기 관찰(`REF-util.md`).
+- `refresh()`가 `rootClient`+`viewportClient`+실측 rect로 clamp된 `thisRectClient`(자기 차지 영역)를 계산 → `reportToParent`로 부모에 보고 + head/foot의 `position:fixed` 좌표(`top/right/bottom/left`)로도 사용.
+- 재계산 트리거 총 4가지: 자기 크기 변화(`stickyResize`) / `rootClient`·`viewportClient` 변화 / head·foot 실측 높이 확정 시점(`nextTick`) / `relation` 대상들의 변화(`useElementsChange`) — 그리고 창 자체 리사이즈.

@@ -68,6 +68,10 @@
   - `execProcess` 반환 타입은 사용자가 직접 `{uid}`→`ProcessResponse`로 바꿈(백엔드가 `newProcessResponse` 전체를 돌려주도록 바뀐 것과 짝) — 단 `toProcessResponse`(dto→response 날짜 변환) 경유는 아직 안 함, `resizeProcess`는 정상적으로 경유. 후속 정리 여지.
 - node은 아직 UI 미연결. **process는 `ProcessDialog` 하나가 실제로 호출하는 첫 컴포넌트**(exec/kill/resize) — provide/inject 스토어(`processDialog.store.ts`)+xterm 연동 상세는 `REF-process-resize.md` "ProcessDialog" 절(백엔드 resize 배선과 한 문서에 묶임 — 이력도 `history/process-resize.md` 하나).
 
+## 앱 레이아웃 루트 — `App.vue` → `ProvideAppLayout.vue`
+- `App.vue`의 최상위가 `<v-app>` 직접 사용 → **`<provide-app-layout>`**(`feature/layout/component/provideAppLayout.vue`)로 감싸는 형태로 변경. 이 컴포넌트가 내부에서 `<v-app><slot/></v-app>`을 렌더하면서 동시에 `provideResizeGroupStore()` 호출 + `flag.value = true`로 **앱 전체 공유 리사이즈 관측 그룹을 1회 킥**(→ `REF-util.md` "공유 리사이즈 관측 그룹").
+- `AppHead.vue`/`appHead.store.ts`도 이 공유 그룹으로 이전: 기존 `useResize(elRef)`(자체 옵저버) → `useResizeCallback(elRef, cb)` + `computeResizeSize()`로 `size`를 직접 갱신. `vElRef` 타입도 `any` → `InstanceType<typeof VAppBar>`로 정정.
+
 ## 미착수/다음
 - user/login 마무리: 실서버 인증 왕복·라우터 가드(비로그인 → `/login`)·세션 복원.
 - node 카탈로그 UI = 트리 + 캔버스(% 절대배치). **컨셉 설계 → `REF-node-ui.md`로 분리**(2026-08-07, 10k자 기준 분할). 구현은 미착수. node CRUD REST 클라이언트는 있으나 아직 호출하는 UI 없음.

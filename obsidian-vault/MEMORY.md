@@ -64,10 +64,10 @@ sqlc.yaml  README.md  .gitignore
 | supervisor web (tx·error·user·session) | 구현+e2e 완료 | `REF-supervisor-web.md` |
 | Node 카탈로그 | DB+CRUD+핸들러+PatchNode 커밋(9c9d22e, e2e 미검증), roster/label 남음 | `REF-node-label.md`(+`REF-node-ui.md` UI 컨셉) |
 | 공용 PATCH 래퍼 (`internal/patch`) | `patch.Field[T]` 3-state(`{valid,value}`), worker도 재사용 예정 | `REF-node-label.md` |
-| 프론트엔드 (apps/frontend) | 스캐폴딩(e511359) + socket hook 3모드 e2e(3a8e92e/e28252b) + user·login·전역다이얼로그 WIP + node/process REST 클라이언트(2026-07-21, node는 UI 미연결) + websocket hook provide/inject 전환 + **`ProcessDialog`(xterm) 착수**(2026-07-22, exec/kill/resize+DATA 출력 연동, `PROCESS:UPDATE`/`STATUS`는 스텁). node 카탈로그 UI = 컨셉 설계 완료(2026-08-07, 배치도+트리+모바일 대응), 구현 미착수 | `REF-frontend.md`(+`REF-node-ui.md` UI 컨셉 / `REF-process-resize.md` "ProcessDialog" 절) |
+| 프론트엔드 (apps/frontend) | 스캐폴딩(e511359) + socket hook 3모드 e2e(3a8e92e/e28252b) + user·login·전역다이얼로그 WIP + node/process REST 클라이언트(2026-07-21, node는 UI 미연결) + websocket hook provide/inject 전환 + **`ProcessDialog`(xterm) 착수**(2026-07-22, exec/kill/resize+DATA 출력 연동, `PROCESS:UPDATE`/`STATUS`는 스텁). node 카탈로그 UI = 컨셉 설계 완료(2026-08-07, 배치도+트리+모바일 대응), 구현 미착수 + 앱 레이아웃 루트를 `ProvideAppLayout.vue`로 교체(공유 리사이즈 그룹 킥 겸임, 2026-08-07) | `REF-frontend.md`(+`REF-node-ui.md` UI 컨셉 / `REF-process-resize.md` "ProcessDialog" 절) |
 | 실시간 push (socket) | 전송 토대·3모드 e2e 커밋(3a8e92e). node Kind 어휘 확정 + process 동적구독 REST 완료 + **node CRUD 발행처 배선 완료**(`AfterCommit` 훅, 이동=2토픽, 2026-07-16, 빌드/vet 통과·e2e 미검증). 남은 것=NODE 동적구독 어휘·프론트 수신 | `REF-realtime.md` |
-| 위젯 (Skeleton/SkeletonGroup/StickyBox) | Skeleton/SkeletonGroup shimmer 로딩 위젯 신설(2026-08-07). 소비처 미배선 | `REF-widget.md` |
-| 범용 유틸 (EventInterface/Memoized/LifecycleRegistry) | LifecycleRegistry 신설 + Memoized를 EventInterface 상속으로 확장(2026-08-07). 반복 주제(전역 규칙)라 전용 REF 분리 | `REF-util.md` |
+| 위젯 (Skeleton/SkeletonGroup/StickyBox) | Skeleton/SkeletonGroup shimmer 로딩 위젯 신설 + StickyBox 컴포넌트 구현·스토어 리팩터(reportSelf/viewportClient, 2026-08-07). 둘 다 소비처 미배선 | `REF-widget.md` |
+| 범용 유틸 (EventInterface/Memoized/LifecycleRegistry/GroupedSet) | LifecycleRegistry 신설 + Memoized를 EventInterface 상속으로 확장 + GroupedSet 신설 + 공유 리사이즈 관측 그룹(`feature/common`, LifecycleRegistry 2번째 소비처, AppHead·StickyBox가 씀, 2026-08-07). 반복 주제(전역 규칙)라 전용 REF 분리 | `REF-util.md` |
 
 ## reference 인덱스
 - 설계/재사용 지식: `REF-infra.md` `REF-process.md` `REF-process-exec-edit.md` `REF-process-wiring.md` `REF-process-trigger.md` `REF-process-resize.md` `REF-process-reconnect.md` `REF-process-subscription.md` `REF-process-snapshot.md` `REF-transfer.md` `REF-db.md` `REF-supervisor-web.md` `REF-node-label.md` `REF-node-ui.md` `REF-frontend.md` `REF-realtime.md` `REF-widget.md` `REF-util.md`

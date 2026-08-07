@@ -2,6 +2,11 @@
 
 > 요약·재사용 지식 → `REF-frontend.md` / 현재 진행 → `CURRENT.md`
 
+## 2026-08-07 — 앱 레이아웃 루트를 `ProvideAppLayout.vue`로 교체 + AppHead 공유 리사이즈 그룹 이전
+- `App.vue`: 최상위 `<v-app>` 직접 사용 → `feature/layout/component/provideAppLayout.vue`로 감싸는 구조. 이 컴포넌트가 `<v-app>` 렌더 + 공유 리사이즈 관측 그룹(`feature/common`) 앱 전체 킥(`flag=true`)을 겸함.
+- `AppHead.vue`/`appHead.store.ts`: 자체 `useResize` → 공유 그룹(`useResizeCallback`+`computeResizeSize`)로 이전, `vElRef` 타입을 `any`에서 `InstanceType<typeof VAppBar>`로 정정.
+- 상세는 `REF-frontend.md` "앱 레이아웃 루트" 절 / 공유 그룹 자체는 `REF-util.md`·`history/util.md`.
+
 ## 2026-07-21 — websocket hook provide/inject 전환 + node/process REST 클라이언트
 
 - **`websocket.hook.ts`**: `createWebsocketHook`의 반환을 `useX(): SocketContext` 단일 함수 → `[provideSocket, useSocket]` 튜플로 변경. 팩토리 호출마다 고유한 `Symbol()` 주입 키로 `provide`/`inject`(`appDialog.store.ts`와 동일한 `inject<T>(key)!` + `if(!context) throw` 패턴). 계기: 기존 모듈 스코프 `let ctx` lazy-singleton이 첫 호출 시점에 암묵적으로 초기화돼 생명주기가 불투명했던 점. 여러 소켓 인스턴스를 만들 계획이 확정되어 있어 `appDialog`처럼 고정 문자열 키가 아니라 `Symbol` 채택. `useTestSocket`도 `[provideTestSocket, useTestSocket]`로 갱신.
