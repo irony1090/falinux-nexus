@@ -1,5 +1,5 @@
 <template>
-  <v-app>
+<provide-app-layout>
     <app-head />
     <app-body>
       <router-view />
@@ -7,10 +7,11 @@
 
     <app-dialog />
     <process-dialog />
-  </v-app>
+</provide-app-layout>
 </template>
 
 <script lang="ts" setup>
+import ProvideAppLayout from '@/feature/layout/component/provideAppLayout.vue';
 import AppHead from '@/feature/layout/component/AppHead.vue';
 import AppBody from '@/feature/layout/component/AppBody.vue';
 import AppDialog from '@/feature/layout/component/AppDialog.vue';

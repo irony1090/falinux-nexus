@@ -16,10 +16,18 @@ import { useAppHead } from '../store/appHead.store';
 import { useAppNav } from '../store/appNav.store';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/feature/user/store/auth.store';
+import { computed } from 'vue';
+import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
+import { computeResizeSize } from '@/common/hook/vue.hook';
 
 const router = useRouter();
 // @ts-ignore
-const { vElRef } = useAppHead()
+const { vElRef, size } = useAppHead()
+
+const elRef = computed(() => vElRef.value?.$el as HTMLElement|undefined)
+useResizeCallback(elRef, () => {
+    size.value = computeResizeSize(elRef.value || null)
+})
 const { open } = useAppNav();
 const { auth, logout } = useAuthStore();
 

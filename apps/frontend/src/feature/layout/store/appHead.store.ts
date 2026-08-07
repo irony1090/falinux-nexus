@@ -1,5 +1,6 @@
-import { useResize, type UseResizeSizeValue } from '@/common/hook/vue.hook';
-import { computed, inject, provide, ref, type Ref } from 'vue';
+import { type UseResizeSizeValue } from '@/common/hook/vue.hook';
+import { inject, provide, ref, type Ref } from 'vue';
+import type { VAppBar } from 'vuetify/components';
 
 const APP_HEAD_STORE_KEY = 'AppHeadStore';
 type ContextType = {
@@ -9,16 +10,16 @@ type ContextType = {
 }
 
 export const provideAppHead = () => {
-    const vElRef = ref<any>(null);
-    const elRef = computed<HTMLElement | null>(() => vElRef.value?.$el ?? null);
-    const size = useResize(elRef);
+    const vElRef = ref<InstanceType<typeof VAppBar>>();
+
+    const size = ref<UseResizeSizeValue|null>(null)
+    // const size = useResize(elRef);
     const backUrl = ref<string>();
     const context: ContextType = { size, vElRef, backUrl };
     provide(APP_HEAD_STORE_KEY, context);
     return context;
 }
 
-// type ContextType = ReturnType<typeof provideAppHead>
 
 export const useAppHead = () => {
     const context = inject<ContextType>(APP_HEAD_STORE_KEY)!;
