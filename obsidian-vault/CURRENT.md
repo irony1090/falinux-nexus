@@ -1,23 +1,82 @@
 # CURRENT
 
 ## 현재 날짜
-2026-07-22
+2026-09-29
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
 ---
 
-## 🎯 다음 작업: node 실시간 연동 + 카탈로그 UI
+## 🎯 다음 작업: node 카탈로그 타일 UI — 구현 진행 중 (더미 미리보기 + 칼럼 스냅 동작, 사용자 "매우 맘에 들어" 2026-09-29)
 
-전송 토대·hook·node CRUD는 모두 커밋 완료. process 도메인의 구독 배선도 이번 세션에 끝남(아래). 이제 **node 변경 → supervisor commit 후 socket push → 프론트 트리/캔버스 반영**을 잇고 UI를 올린다.
+2026-08-10 termspace 영감 **2D 타일 그리드**로 전환 → 2026-09-29 아티팩트 시안으로 규칙을 다듬고, 같은 날 **"큰 틀은 잡혔다, 보여준 아티팩트 UI를 토대로 만들 것"**(사용자). **역할 분담(2026-09-29 개정)**: 이 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다(구조 합의 → 코드 순서, 합의 전 코드 착수 금지). 상세 → `REF-node-ui.md`(컨셉) / `REF-node-ui-layout.md`(저장·순서·채우기·오버플로) / `REF-node-ui-projection.md`(화면 크기별 표시) / `REF-node-ui-overview.md`(전체보기·버튼·스크롤바·Grid 탭).
 
-**남은 배선** (설계 → `REF-realtime.md` / node 백엔드 → `REF-node-label.md`)
-- ~~Kind(MsgType) 어휘 확정~~ → **node 도메인은 확정 완료**(2026-07-16): `NODE:CREATE`/`NODE:UPDATE`/`NODE:DELETE` 3종, move/rename은 UPDATE 흡수, payload=항상 전체 구조체. process는 기존 `MsgData`/`MsgStatus` 유지. → `REF-realtime.md` "Kind 어휘" 절.
-- ~~node CRUD 발행처 배선~~ → **완료(2026-07-16)**: `createNode`/`patchNode`/`deleteNode`가 커밋 성공 후에만 `subscribeHub.Publish`하도록 `tx.go`에 범용 `AfterCommit(c, fn)` 훅 신설. 이동(parentId 변경)은 old+new 부모 토픽 양쪽에 `NODE:UPDATE` 발행. → `REF-realtime.md` "supervisor 측 구현" 절 / `REF-supervisor-web.md` "트랜잭션 미들웨어" 절.
-- `NODE:<parentId>` 동적 구독/해지 — **아직 미정**(process는 REST로 확정했지만 NODE도 같은 길로 갈지 별도 결정 필요). 현재도 `subscribe.go`는 `NODE:0` 고정구독뿐 → 발행은 되지만 펼친 다른 폴더는 프론트가 구독할 방법이 아직 없음.
-- 프론트 `on('NODE:CREATE'|…)` 실제 핸들러 → 트리/터미널 갱신. 컴포넌트 밖 반영 필요 시 `reactive` 모듈 패턴(→ `REF-frontend.md`).
-- ~~REST 클라이언트 함수 없음~~ → **node/process 둘 다 완료(2026-07-21, process는 2026-07-22 resize 추가)**: `feature/node/api/node.api.ts`(createNode/listChildren/getNode/patchNode/deleteNode + vue-query `useListChildren`/`useGetNode`/`useNodeQueryClient`), `feature/process/api/process.api.ts`(listSubscriptions/subscribeProcess/unsubscribeProcess/execProcess/killProcess/resizeProcess). node는 아직 호출하는 UI 없음. **process는 `ProcessDialog`가 exec/kill/resize를 실제로 호출하는 첫 UI**(→ `REF-process-resize.md` "ProcessDialog" 절).
-- **UI**: node 카탈로그 = 트리 + 캔버스(% 절대배치) — **컨셉 설계 완료**(2026-08-07, 구현은 미착수): 배치도(캔버스)=홈+트리=보조내비(breadcrumb), PC=캔버스+모서리 리스트/트리 오버레이 토글, 모바일=`[지도|리스트]` 세그먼트 토글, 트리 재배치 드래그 지원(device_key 상속변경 확인 UI 필요 + 이동 노드 좌표 NULL 처리) → `REF-node-ui.md`. **미정**: 모바일 트리 화면 형태. 터미널(xterm.js)은 **`ProcessDialog`로 착수**: DATA 출력 연동 완료, 화면복원(스크롤백)·키 입력은 아직.
+> ⚠️ **다음 세션 시작 시 먼저 물어볼 것**: 열린 질문 ⑧(같은 Grid 앞쪽 빈칸 채우기) — 순서 역전 수정안 채택 여부 + `A | C` / `B` 경우 (아래 열린 질문 8번)
+
+**구현 기준 시안 = "타일링 시안 전체보기" (최신 v10, 가상 키보드 비교 포함)**: https://claude.ai/artifact/WPLqzcUKmTNwJp58Fi3zuM (`user/links.md`). 확정 규칙이 전부 들어 있는 유일한 시안(원본 Tz9D…·비교 시안 2개는 기록용). HTML 원본은 scratchpad에만 있었으므로 **Artifact `read`로 받아야 함** — 포팅 대상 = `TileOrder`/`TileSplit` 블록(탭 손코딩 로직은 제외, VPagination 사용).
+
+**확정 규칙 요약 (2026-09-29)**
+| 항목 | 규칙 |
+|---|---|
+| 저장 | 계정 단위 **여는 관계 트리**(tile: type·node·parent=연 폴더 타일·kids·size). Grid/axis는 저장 안 함 |
+| 순서 | 폴더 → 직접 실행한 프로세스 → 넘겨받은 프로세스(`adopted`, 닫힌 폴더에서) → 연 하위 폴더(재귀) |
+| 닫기 | 폴더 닫기 = 하위 폴더는 그 자리로, 터미널은 `adopted`로 부모 소속. 실행 중 터미널은 닫기 비활성(kill 먼저). 루트 불가 |
+| 크기 | 타일별 가로·세로 0.5/1.0, 헤더 크기 버튼. **새 타일 = 누른 화면의 최소 단위**(PC 0.5×0.5 / 폰 세로 1.0×0.5) |
+| 채우기 | 순서대로 2×2칸, 칼럼 우선(모든 기기). 안 들어가면 다음 Grid(이전 Grid로 안 돌아감). Band 방향 = 가로 1.0 타일 있으면 row, 아니면 column |
+| 화면 크기 | Grid 영역 가로 ≥ 728 / 세로 ≥ 560이면 그 축 2칸. 1칸 축은 저장된 0.5를 1.0으로 보고 다시 채움. 페이지네이션(화면 분할) 없음 |
+| 오버플로 | 옆 Grid 추가 + 가로 스크롤, 칼럼(Grid 가로 절반) 단위 스냅 |
+| 빈 칼럼 | 오른쪽 칼럼이 통째로 빈 Grid는 **위치와 상관없이 1칼럼 폭**(`pack`이 `cols` 반환). 세로 빈칸은 유지 |
+| 전체보기 | 버튼 → 현재 배치 그대로 축소, **긴 축 한 줄 + 짧은 축 가운데**, 자유 스크롤(스냅 끔), 타일 누르면 그 Grid로 이동, Esc = 원위치 |
+| 전체보기 버튼 | 화면 고정, Grid 하단 정보 줄 높이의 작은 강조색 버튼을 그 줄 오른쪽 끝에. 가로 2칸 = 아이콘+글자 / 1칸 = 아이콘만 |
+| 스크롤바 | `overflow: auto` + 버튼이 현재 스크롤바 두께(`--sb-h/-w`)만큼 비킴. `capacity` 판정엔 스크롤바 반영 안 함(진동 방지) |
+| Grid 탭 | Vuetify `VPagination`(폭 자동 맞춤·`…`). 현재 = 가장 많이 보이는 Grid(동점이면 뒤쪽). 칼럼 위치는 범위 표시(`칼럼 6-7/7`) |
+| 폴더 열기 | 이름 클릭 = 타일 안 이동 / "새 타일" 버튼 = 새 폴더 타일 |
+
+**구현 순서 (코드 구조·파일 매핑 → `REF-node-ui-impl.md` 데이터 층 / `REF-node-ui-render.md` 컴포넌트·헤더 내비)** — 층 구조 ①~⑤ 합의(2026-09-29), 첫 범위 = 1~3(타일 내용 더미)
+1. ~~유틸 포팅~~ **완료(2026-09-29)**: `feature/widget/util/{tile.type, tileOrder.util, tileSplit.util}.ts` — `flatten`/`pack`(좌표 출력) + `capacity`/`effectiveSize`/`minSize`/`columnStops`. tsc·시나리오 테스트 통과
+2. ~~③ 트리 상태~~ **완료(2026-09-29)**: `feature/node/store/tileTree.store.ts`(메모리만, 서버 저장 ⑪ 미설계) + `adopted`(넘겨받은 프로세스) 순서
+3. ~~④ + ⑤ 렌더 최소판~~ **완료(2026-09-29, 더미 미리보기 동작 확인)**: `tileGrids.store` + `TileStrip`/`TileFrame`/`FolderTileBody`/`TerminalTileBody` + `TileLayout`/`Tile` 개정 + `tileDummy.ts` + `pages/index.vue` 템플릿 교체. 옛 Phase1 배치 주석 제거됨 + **칼럼 스냅 추가**(`TileLayout` `overlay` 슬롯 앵커)
+4. ~~Grid 크기·칼럼 스냅 + 헤더 내비~~ **완료(2026-09-29)**: `TileWorkspace`가 provide + `TileNav`를 `AppHead`의 `#app-head-nav`로 Teleport(F(헤더 전달 방식)), VPagination Grid 탭 + 화살표 = 칼럼 이동(G(화살표 = 칼럼 이동), ⑬ 해소) + `칼럼 a-b/N`. 헤드리스로 PC·폰 확인 → `REF-node-ui-render.md`
+5. 전체보기 모드 + 고정 버튼(스크롤바 두께 보정) — ⑫·⑭
+5-1. 모바일 가상 키보드 대응: viewport 메타 `interactive-widget=resizes-visual` + 판정은 레이아웃 뷰포트만 + 입력 모드·보조 키 줄(input 배선과 함께) — ⑮
+6. `ProcessDialog` 타일 임베드(다중 인스턴스, ②)
+7. **더미 → 실제 연동**(새로 생긴 할 일): 폴더 타일 내용 = `tileDummy` 대신 node API(`GET /nodes?parentId=`) / 실행 = `execProcess` → `addTerminal`(authKey = 인스턴스 선택 UI 필요, worker_instances roster 미구현) / kill·상태 = process API·소켓 / `seedTileTree` 제거 → 서버 저장본(⑪) 로드
+
+**미리보기 방법**: `apps/frontend`에서 `npm run dev` → `/`. 더미 트리(시안 "순서 예시")가 시드됨, 백엔드·로그인 불필요.
+
+**색 규칙(2026-09-29 확정)**: 데모부터 이후 레이아웃 전부 Vuetify 테마 색 이름 의존, hex 금지 → `REF-frontend.md` "색 규칙". 기존 위반 3곳 정리 완료(터미널 = 커스텀 `terminal` 테마 색).
+
+**기타 유지 사항**: `position_x/y` 사용 중단(2026-08-10, DB 컬럼 유지) / 트리 드래그 시 device_key 재상속 이슈만 유효(→ `REF-node-label.md`) / 외부 레이아웃 라이브러리 안 씀(Vuetify 기본 컴포넌트는 사용).
+
+**열린 질문 (번호 유지)**
+1. 분할 UX — 버튼메뉴 vs 드래그드롭(VSCode류). 시안은 실행/새 타일 버튼
+2. `ProcessDialog` 다중 인스턴스 리팩터 구체 범위
+3. 라우팅 스킴 재검토(옛 `/nodes/:parentId?`가 이 모델에 맞는지)
+4. `NODE:<parentId>` 동적 구독/해지 — process는 REST로 확정했으나 node도 같은 길로 갈지 미정(이월)
+5. **네이밍**: 전체 개념 "그리드" vs "타일링", `Band`(가칭)
+6. ~~Grid 크기 확보 방법~~ → `TileStrip`에 `calc(100dvh - var(--v-layout-top))`(2026-09-29, E). 앱 셸 flex화는 헤더 내비 단계에서 필요하면 재검토
+7. ~~유틸 위치~~ → `feature/widget/util/`로 확정(2026-09-29)
+8. **같은 Grid 안 앞쪽 빈칸 채우기** — ⚠️ **다음 세션에 사용자에게 먼저 물어볼 것**(2026-09-29 사용자 요청). 테스트 중 세로 1.0 변경으로 sup(1)·sup(2) 순서 역전 발견, 사용자 기대 = "순서 무조건 유지, 빈 곳은 빈칸". 물을 것: ① 수정안(커서: 앞 타일 시작 칸 뒤에서만 탐색) 채택 + ⑧ 확정 ② `A | C` / `B`(1×1 → 가로바 → 1×1) 경우도 C를 다음 Grid로 보낼지. 코드(`tileOrder.util.ts` `pack`) 미수정 → `REF-node-ui-layout.md` "같은 Grid 안 순서 역전"
+9. ~~기기 간 기본 크기 차이~~ → "새 타일 = 누른 화면 최소 단위" 유지(2026-09-29)
+10. ~~타일 닫기 규칙~~ → 시안 가정 확정 + 실행 중 터미널은 닫기 비활성(kill 먼저)(2026-09-29)
+11. **타일 트리 서버 저장**: 테이블/API 미설계(계정 단위, node·process uid 참조, 순서 = kids 순서)
+12. **전체보기 세부**: 축소 비율(시안 30%), 프로세스만 거르기 여부
+13. ~~VPagination 화살표 vs 칼럼 이동~~ → 화살표 슬롯 = 칼럼 단위 이동(2026-09-29, G)
+14. **전체보기 버튼 최종 위치**: 현재안(정보 줄 오른쪽 끝)은 사용자가 더 검토하겠다고 함. 폰에서 22px 터치 크기도 함께
+15. **모바일 가상 키보드**: ① 판정은 레이아웃 뷰포트로만 + `interactive-widget=resizes-visual` / ② 입력 모드 채택 여부 / ③ 입력 모드 터미널 크기 유지+스크롤 vs 맞춤(resize) / ④ 보조 키 줄 구성 / ⑤ iOS 문서 스크롤 — `REF-node-ui-overview.md` "모바일 가상 키보드", 시안 v10에서 비교 가능. **주의**: `appWindown.store.ts`의 `size.inner`(visualViewport)에 판정을 연결하면 안 됨
+
+**커밋 (2026-09-29)**: `c32b0f2` feat(widget) 타일 배치 유틸 + Tile/TileLayout / `ddcbde8` feat(node) 타일 UI 더미 미리보기 + 헤더 내비 + 테마 색 규칙 / docs(vault) 기록. 제외(미커밋 유지): `apps/core/cmd/irony/`(사용자 스크래치), `provideAppLayout.vue`(빈 줄 하나).
+
+---
+
+## 🎯 병행 작업: DraggableSession / useDragGhost 리팩터 설계 (구현 미착수)
+
+Node UI Phase 2/3(드래그)에 앞서, 구 test-jig의 드래그 코드(`DraggableListener`+`DraggableLogic`+ghost 손코딩)가 "만든 본인도 재활용 못 할 정도로 복잡"하다는 판단으로 먼저 재설계했다. **설계만 확정, 코드는 다음 세션 작성 예정.** 상세 → `REF-util-drag.md`.
+
+- `DragListener`(순수 포인터 추적)는 유지 / `StartPolicy` 함수 2종(threshold-drag, long-press)이 구 `DraggableLogic` 클래스계층+synthetic event 재발사를 대체 / `DraggableSession`이 `EventInterface` 상속(start/move/end/progress) — 이웃 재정렬 로직은 드롭
+- `useDragGhost` 컴포저블 — Icon/Window에 중복돼있던 ghost 추종 watch 블록 흡수
+- `GhostArea.vue`+`ghost.store.ts` 포팅 확정(test-jig에서 그대로) — `feature/layout`에 `AppDialog`와 동일한 자리, `provideAppLayout.vue`에서 같이 kick 예정
+- 구 `common/listener/draggable.listener.ts`+`draggable/draggableLogic.ts`는 nexus 어디서도 미사용 확인됨 → 교체(삭제 후 신규 작성) 예정
 
 ---
 
@@ -30,24 +89,15 @@
 6. **label 모듈**: `00005_labels.sql`(labels 자기참조 + node_labels M:N) → query → router
 - 핸들러 책임 미적용: parentId owner 일치 검증 / 자기 자손으로 Move 사이클 방지
 
-### process 도메인 배선 (supervisor 측 완료 → worker 실행부·router 제어 남음)
-> 설계·결정 상세 `REF-process-wiring.md` / 이력 `history/process-wiring.md`. frontend 트리거·상태동기화 버그수정은 `REF-process-trigger.md` / `history/process-trigger.md`. 재접속 모델은 `REF-process-reconnect.md` / `history/process-reconnect.md`. 세션→uid 원장·REST 구독 배선은 `REF-process-subscription.md` / `history/process-subscription.md`.
+### process 도메인 배선 — 남은 건 input뿐
+> 설계·이력 → `REF-process-wiring.md`/`-trigger.md`/`-reconnect.md`/`-subscription.md`(history 동일 접두)
 
-**완료 상태**: supervisor 배선(manager/entry/bind/router, 경로 계약 `{WORKER_BASE}/<node.ID>/<proc.Uid>`) + worker 실행부 본체(procs/exec/pump/teardown/input·resize·kill, Cwd 배선) + worker 끊김→PENDING→재접속 재바인딩(`WorkerState`) — 전부 구현·build/vet 통과·e2e 검증 완료(2026-07-01~07-14). 상세 → `history/process-wiring.md`, `history/process-reconnect.md`.
+완료: supervisor+worker 실행부 전체(exec/kill/resize/재접속/구독) 배선·e2e 검증 끝(2026-07-01~07-22, kill 실사용 테스트로 발견한 상태동기화 버그 3건 포함 → `history/process-trigger.md`).
 
-**process 상태 관리 버그 3건 수정 완료(2026-07-22, kill 실사용 테스트로 검증)**: 사용자가 frontend에서 exec→kill을 직접 테스트하며 연쇄로 발견.
-1. 정상 실행 직후 PENDING 오보고로 process가 즉시 삭제되던 버그 — worker가 exec 시작 시 항상 보고하는 정상 PENDING과 끊김 시 supervisor 합성 PENDING이 `applyStatus`의 같은 분기를 타던 것. "현재 상태와 같으면 무시" 가드로 해결(→ `REF-process-reconnect.md` "PENDING 오삭제 버그").
-2. memory `entry.Record`가 생성 시점에 박제(Status/Pid/ExitCode 등 DB 갱신과 안 맞음)돼 있던 문제 — `Mark*` 쿼리의 `RETURNING` row로 통째 교체(`ProcessEntry.SetRecord`)로 해결. 위 가드가 정확히 동작하기 위한 전제조건이기도 했음(→ `REF-process-trigger.md` "entry.Record memory 동기화").
-3. kill/비정상 종료 시 `pty.Interactive.Status()`가 큐-종료 신호 대신 프로세스 종료 에러를 반환해 마지막 상태 이벤트가 supervisor `applyStatus`에 아예 안 가던 근본 버그 — 계약대로 큐 에러를 반환하도록 수정(부수로 kill exit code도 유닉스 관례 128+시그널로 정정). `REF-process.md`에 `Status()` 계약 명문화(→ `REF-process-trigger.md` "kill 종료 이벤트 유실 버그 수정").
-
-**다음 배선 (우선순위)**
-1. ~~PROC 동적 구독~~ → **완료(2026-07-16)**: `GET /processes/subscriptions` + `POST/DELETE /processes/subscribe/:processId`(REST, 소켓 메시지 아님) + `browsers`(conn→sid) registry로 이미 열려있는 소켓도 즉시 라우팅 반영. → `REF-process-subscription.md` "REST 구독/해지 배선" 절.
-   ~~frontend 트리거(실행/종료)~~ → **완료(2026-07-16, 2)**: `POST /processes/exec` / `POST /processes/kill/:processId`(REST, 소켓 `Handle` 아님 — 위 구독 결정과 일관). 실행·종료 둘 다 별도 구독 요청 없이 요청 세션이 자동 구독됨(`subscribeSid` 공유 헬퍼 — 수동 구독과 동일 경로). `router.Exec` 시그니처가 `(uid string, error)`로 바뀜. **종료 후 Hub 구독 정리**(`startRelay`/`cleanupProcessTopic`, relay가 마지막 이벤트까지 다 흘려보낸 뒤에만 해제 — race 없음)도 이번에 같이 닫음. → `REF-process-trigger.md` "frontend 트리거(exec/kill)" 절.
-   ~~resize~~ → **완료(2026-07-22)**: `POST /processes/resize/:processId` — `entry.Inter.Layout`이 worker 응답을 실제로 기다려(`syscall.Errno`→`error` 계약 정정) 성공했을 때만 DB(`UpdateProcessLayout` RETURNING)+memory(`entry.SetRecord`) 동기화 후 `PROCESS:UPDATE`(`MsgProcessUpdate` 신설) 발행. `ProcessDialog`가 xterm `fit()` 결과로 자동 호출. → `REF-process-resize.md`.
-   **남은 건 input뿐**: `input(MsgData)`→`Inter.Write`(Ctrl+C 등 키입력, `MsgData` 역방향). 고빈도라 REST 왕복은 부적합 — 소켓 메시지 쪽이 유력하나 미정.
-2. **화면복원**: bind에 ring buffer(SNAPSHOT) 상시 적재 + 재접속 SNAPSHOT 전송 — **미착수(설계 논의만 완료)**. supervisor-side ring buffer로 방향 확정(스케일·htop 케이스 검토 끝), worker-side 이전 옵션은 snapshot↔live 이음매 race(유실/중복) 미해결로 보류. → `REF-process-snapshot.md`.
-   - ~~세션→uid 원장~~ → **구현 완료(2026-07-16)**: 마이그레이션·쿼리·CREATE/DELETE 호출 지점(위 1번) 전부 끝남. 남은 건 ring buffer SNAPSHOT 자체와 **프론트가 이 엔드포인트들을 실제로 부르는 것**(REST 클라이언트 함수·UI 미착수).
-3. EXEC content→실행 세부정책(직접실행 vs `sh -c`).
+**남은 것**
+1. **input(키입력)**: `MsgData` 역방향, `Inter.Write` 배선. 고빈도라 REST 부적합 — 소켓 메시지 쪽 유력하나 미정.
+2. **화면복원**: supervisor-side ring buffer(SNAPSHOT) — 설계만 확정, 코드 미착수(→ `REF-process-snapshot.md`). 세션→uid 원장은 구현 완료, 프론트가 엔드포인트를 부르는 UI만 없음.
+3. EXEC content→실행 세부정책(직접실행 vs `sh -c`) 미정.
 
 **결정 필요**: 끊긴 창 입력/kill 거절 vs 큐잉 / 공유 kill 인가 / kill 에스컬레이션.
 **정리 잔여(구)**: `register.go` 주석 SendBuffer 테스트. worker `baseDir` 필드·`instanceKey()`가 resolveDest 재설계로 dead code화(정리 여부 판단).
@@ -58,12 +108,11 @@
 ---
 
 ## 미해결 이슈 (이월)
-- ~~**PROC 토픽 무구독**~~ → **완전히 해소(2026-07-22)**: 백엔드(2026-07-16)·REST 클라이언트(2026-07-21)에 이어 `ProcessDialog`가 exec 성공 시 자동 구독된 process의 `DATA`를 실제로 xterm에 그려 보여준다 — "백엔드 무배선"→"프론트 함수 없음"→"UI 미착수"로 이어지던 원인 이동이 끝남. 남은 건 `PROCESS:UPDATE`/`STATUS` 리스너가 아직 `console.log` 스텁이라는 것뿐(기능적으로는 `patchStatus` 진입점이 이미 있어 연결만 하면 됨).
-- **파일 전송**: 구현 완료 / e2e 미검증. 잔여: e2e 스모크 / abort sentinel (register 임시전송은 주석처리됨)
+- **`ProcessDialog` `PROCESS:UPDATE`/`STATUS` 리스너**: 아직 `console.log` 스텁(`patchStatus` 진입점은 이미 있어 연결만 하면 됨).
+- **파일 전송**: 구현 완료 / e2e 미검증. 잔여: e2e 스모크 / abort sentinel
 - **서브키 충돌/위조**: key↔subkey 결속 검증 미구현(node roster에서 닫을지 보류)
 - **supervisor 영속성**: registry 메모리 → PG 미착수
 
 ## 잔여 (틈날 때)
 - `SESSION_KEY` 등 env화(현재 `"irony"` 하드코딩)
 - checkSession createdAt=0(pgtype.Timestamptz gob 미직렬화) → sess.Data.ID로 DB 재조회
-- ~~`getSessionKey` nil pointer panic~~ → 해소 확인(작업트리에 가드 적용돼 있음, `REF-process-subscription.md` "세션→uid 원장" 참조)

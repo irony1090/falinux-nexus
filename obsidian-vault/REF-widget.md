@@ -2,6 +2,15 @@
 
 > 프로젝트 UI 위젯(재사용 가능하지만 프로젝트 로직과는 결합된 컴포넌트) 전용 문서. 이력 → `history/widget.md`. 기반 유틸(`LifecycleRegistry`) → `REF-util.md`. 프론트 전반 구조 → `REF-frontend.md`.
 
+## TileLayout — 범용 CSS grid 타일 위젯 (2026-08-19, node 카탈로그 UI Phase1 첫 코드)
+> node 카탈로그 그리드 UI(`REF-node-ui-layout.md`) 구현의 첫 조각. 아직 axis/Band 데이터모델과는 분리된 순수 CSS grid 래퍼 단계.
+
+- 위치: `feature/widget/component/TileLayout.vue`
+- **2026-09-29 개정(⑤ 렌더 최소판)**: Grid 하나 = `__body`(CSS grid `repeat(--cols, minmax(0,1fr))` × `repeat(--rows, …)`) + `#foot` 슬롯(하단 정보 줄, 높이 `footHeight`). prop = `cols`/`rows`/`gap`/`footHeight`(옛 `column`/`row` 대체). 루트 `position: relative` + **`overlay` 슬롯**(grid 칸을 차지하지 않는 절대배치용 — 스냅 앵커 등). 자체 측정 없음 — 측정은 `TileStrip`에서 1회(→ `REF-node-ui-impl.md`).
+- **`Tile.vue`**(같은 폴더): prop `cell: GridSlot`(`c,r,cw,ch`, 0부터) → `grid-column: c+1 / span cw`, `grid-row` 동일. `empty`면 점선 빈 칸. 옛 `column`/`row` span prop 대체.
+- 둘 다 도메인 모름(범용 위젯). `GridPlan` → 이 둘로의 변환은 `feature/node/component/TileStrip.vue`.
+- (옛 2026-08-19 정적 데모·`console.log` 스텁 리사이즈 콜백은 폐기)
+
 ## Skeleton / SkeletonGroup — shimmer 로딩 위젯 (2026-08-07 추가)
 
 ### 설계 배경 (왜 그룹으로 묶었나)

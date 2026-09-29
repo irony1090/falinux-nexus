@@ -34,6 +34,20 @@
 - `settings.scss`: Vuetify 내부 변수 오버라이드 전용(`configFile`로 연결). 폰트 등은 여기서.
 - 둘 역할 분리 — 혼용 금지.
 
+## 색 규칙 — Vuetify 컬러 네이밍 의존 (2026-09-29 사용자 지시, 불변)
+- **방향(확정)**: node 타일 데모 레이아웃부터 이후 모든 레이아웃은 **Vuetify 테마 색 이름(`primary`/`surface`/`on-surface`/`warning`…)에 최대한 의존**. hex·`rgba(0,0,0,…)` 직접 지정 금지.
+- **쓰는 순서(2026-09-29 확정)**
+  | 순위 | 수단 | 예 |
+  |---|---|---|
+  | 1 | 컴포넌트 `color` prop | `<v-chip color="success" variant="tonal">`, `<v-btn color="primary">` |
+  | 2 | 유틸 클래스 | `text-warning` `bg-surface` `text-medium-emphasis` `border-b` |
+  | 3 | scoped CSS의 테마 변수 | `rgb(var(--v-theme-primary))`, `rgba(var(--v-border-color), var(--v-border-opacity))` — hover 등 1·2로 안 될 때만 |
+  | 4 | 테마에 없는 색 | `plugins/vuetify.ts` 테마에 커스텀 색 등록(light/dark 양쪽) 후 1~3으로 사용 |
+- **등록된 커스텀 색**: `terminal`/`on-terminal`(light·dark 동일한 어두운 배경, `plugins/vuetify.ts`). 등록하면 `bg-terminal`/`text-terminal` 유틸 클래스가 자동 생성됨. xterm 테마도 나중에 이 값을 읽을 후보.
+- **주의**: Vuetify는 `on-*` 색에 `bg-*` 클래스를 만들지 않음(`.on-surface` 글자색 클래스만 있음) → 반전 배지(`TileFrame` `.pos`)는 3순위 CSS 유지. `text-medium-emphasis`는 `on-background` 기준이므로 `bg-terminal` 같은 다른 배경 위에서는 `rgba(var(--v-theme-on-X), var(--v-medium-emphasis-opacity))`로 씀.
+- **타이포 클래스(Vuetify 4)**: `text-caption` 등 MD2 이름 없음 → MD3 이름(`text-body-small` 12px, `text-label-small` 11px …). 없는 클래스는 조용히 무시되니 주의.
+- **2026-09-29 정리 완료(위반 3곳)**: `TerminalTileBody.vue` hex → `bg-terminal` + `on-terminal` 변수 / `settings.scss` `.wk-scollbar` 트랙 → `on-surface` 0.1 / `TileFrame.vue` 상태 배지 → `v-chip color="success" variant="tonal"`, 종류 아이콘 → `v-icon :color`, 여는 폴더 이름·실제 표시 크기 → `text-warning`. vue-tsc·vite build 통과. `FolderTileBody.vue`의 `.folder`/`.script` 등은 3순위(테마 변수)로 남아 있음(규칙 위반 아님).
+
 ## WebSocket hook (socket 전송계층) — `src/common/websocket/websocket.hook.ts`
 > 실시간 push 아키텍처(인가/라우팅·토픽·서버측) → `REF-realtime.md`. 여기는 프론트 hook 자체.
 
@@ -74,6 +88,6 @@
 
 ## 미착수/다음
 - user/login 마무리: 실서버 인증 왕복·라우터 가드(비로그인 → `/login`)·세션 복원.
-- node 카탈로그 UI = 트리 + 캔버스(% 절대배치). **컨셉 설계 → `REF-node-ui.md`로 분리**(2026-08-07, 10k자 기준 분할). 구현은 미착수. node CRUD REST 클라이언트는 있으나 아직 호출하는 UI 없음.
+- node 카탈로그 UI = termspace 영감 2D 타일 그리드(터미널/폴더 타일, 깊이2 고정)로 전면 재설계 중(2026-08-10, 옛 캔버스+트리 컨셉 폐기). **설계 → `REF-node-ui.md`**(열린 질문 다수) / **레이아웃(순서·reflow) → `REF-node-ui-layout.md` / 화면 크기별 표시 → `REF-node-ui-projection.md`**. Phase1 첫 코드(`TileLayout.vue`, → `REF-widget.md`) 착수(2026-08-19)했으나 아직 axis/Band 모델과 미연동. node CRUD REST 클라이언트는 있으나 아직 호출하는 UI 없음.
 - socket 수신 핸들러 실연동: node `on('NODE:CREATE'|…)` → 트리/캔버스 갱신 (→ `REF-realtime.md`). process는 `ProcessDialog`가 `DATA` 연동 완료, `PROCESS:UPDATE`/`STATUS`는 스텁만.
 - process 입력(키스트로크) 배선 — 고빈도라 REST 부적합, 소켓 메시지 쪽이 유력하나 미정.

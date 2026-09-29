@@ -1,6 +1,6 @@
 # HISTORY: 범용 유틸 (apps/frontend/src/common/util)
 
-> 요약/재사용 지식 → `REF-util.md`. 현재 진행 → `CURRENT.md`.
+> 요약/재사용 지식 → `REF-util.md`. 현재 진행 → `CURRENT.md`. 드래그/고스트 이력은 `history/util-drag.md`로 분리(2026-08-07).
 
 ## 2026-08-07(2) — `GroupedSet` 신설 + 공유 리사이즈 관측 그룹(`feature/common`)
 - `common/util/groupedSet.util.ts`: `GroupedSet<K,V>`(`Map<K,Set<V>>` 래퍼) 신설.

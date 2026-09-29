@@ -2,6 +2,10 @@
 
 > 요약/재사용 지식 → `REF-widget.md`. 현재 진행 → `CURRENT.md`.
 
+## 2026-08-19 — TileLayout 위젯 신설 (node 카탈로그 UI Phase1 첫 코드)
+- `component/TileLayout.vue` 추가 — CSS grid 기반 범용 타일 컨테이너(column/row/gap prop, 공유 리사이즈 그룹 `useResizeCallback` 연동). `pages/index.vue`에 정적 데모(4개 slot)로 배선.
+- 아직 `REF-node-ui-layout.md`의 Grid/Band/Tile axis 데이터모델과는 미연동 — 순수 레이아웃 뼈대만 존재. 상세 → `REF-widget.md` "TileLayout".
+
 ## 2026-08-07(2) — StickyBox 컴포넌트 구현 + 스토어 리팩터
 - `component/StickyBox.vue` 신설(스토어는 기존) — 중첩 sticky header/footer가 서로의 차지 영역만큼 밀려 쌓이는 위젯 실체 구현.
 - `store/stickyBox.store.ts` 리팩터: `thisClient`(ref 공유) 방식 → `reportSelf(v)`(콜백 보고) 방식으로 읽기/쓰기 역할 분리. **`viewportClient` 신규**(다이얼로그 등 조상이 CSS containing block을 만들 때 `position:fixed` 기준을 보정하는 값, `rootClient`/`maxClient`와는 역할이 다름).

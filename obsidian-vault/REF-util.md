@@ -1,6 +1,6 @@
 # REF: 범용 유틸 (apps/frontend/src/common/util)
 
-> 프로젝트 로직과 무관한 재사용 가능한 유틸리티 전용 문서(전역 규칙 — 반복 주제는 프로젝트 고유 REF와 분리). 이력 → `history/util.md`. 첫 소비처(위젯) → `REF-widget.md`.
+> 프로젝트 로직과 무관한 재사용 가능한 유틸리티 전용 문서(전역 규칙 — 반복 주제는 프로젝트 고유 REF와 분리). 이력 → `history/util.md`. 첫 소비처(위젯) → `REF-widget.md`. 드래그/고스트 하위주제는 `REF-util-drag.md`로 분리(2026-08-07, 10k자 기준).
 
 ## `event.util.ts` — `EventInterface<EventMap>`
 - 위치: `apps/frontend/src/common/util/lifecycle/event.util.ts`
@@ -42,3 +42,6 @@
   - `computeResizeSize(el)`: 기존 `useResize` 내부 계산 로직을 순수 함수로 추출 — 공유 콜백 안에서 각 컴포넌트가 직접 호출해 자기 `size` state를 갱신.
   - `useResize`에 `watchWindowResize` 옵션 추가(기본 꺼짐) — `ResizeObserver`/`MutationObserver`는 **크기는 그대로인데 위치(rect)만 바뀌는 경우**(예: `max-width`에 걸려 폭 고정, 중앙정렬 offset만 이동)를 못 잡음. rect 정확도가 중요한 호출부만 켜서 `window resize` 리스너를 추가 비용으로 문다.
   - `useElementsChange(targets, onChange)` 신설 — 배열(ref/computed)로 주어진 여러 엘리먼트의 scroll/resize/속성변화를 한 콜백으로 감시, `targets` 변경 시 필요한 것만 attach/detach(diff). `StickyBox`의 `relation` prop(다이얼로그 카드 등 바깥 재계산 트리거)이 이걸 씀.
+
+## 드래그 인프라 (DraggableSession / useDragGhost / GhostArea)
+> **별도 문서로 분리** — `REF-util-drag.md` 참조(2026-08-07, 10k자 기준 분할).

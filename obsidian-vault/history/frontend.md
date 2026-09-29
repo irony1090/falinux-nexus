@@ -2,6 +2,11 @@
 
 > 요약·재사용 지식 → `REF-frontend.md` / 현재 진행 → `CURRENT.md`
 
+## 2026-09-29 — 색 규칙: Vuetify 컬러 네이밍 의존 확정 + 위반 3곳 정리
+- 사용자 지시: "데모 레이아웃부터 앞으로 만들 레이아웃은 vuetify의 컬러네이밍을 최대한 의존". 쓰는 순서(prop → 유틸 클래스 → 테마 변수 → 커스텀 테마 색 등록) 확정.
+- 터미널 색: A안(커스텀 `terminal`/`on-terminal` 등록) 채택, B안(`surface-variant`)은 dark 테마에서 밝은 회색이라 기각.
+- 정리: `plugins/vuetify.ts` 테마 등록 / `TerminalTileBody.vue` / `styles/settings.scss` / `TileFrame.vue`. vue-tsc·vite build 통과, 브라우저 육안 확인은 안 함 → `REF-frontend.md` "색 규칙" 절.
+
 ## 2026-08-07 — 앱 레이아웃 루트를 `ProvideAppLayout.vue`로 교체 + AppHead 공유 리사이즈 그룹 이전
 - `App.vue`: 최상위 `<v-app>` 직접 사용 → `feature/layout/component/provideAppLayout.vue`로 감싸는 구조. 이 컴포넌트가 `<v-app>` 렌더 + 공유 리사이즈 관측 그룹(`feature/common`) 앱 전체 킥(`flag=true`)을 겸함.
 - `AppHead.vue`/`appHead.store.ts`: 자체 `useResize` → 공유 그룹(`useResizeCallback`+`computeResizeSize`)로 이전, `vElRef` 타입을 `any`에서 `InstanceType<typeof VAppBar>`로 정정.
