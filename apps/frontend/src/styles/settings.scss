@@ -12,3 +12,20 @@
 @use 'vuetify/settings' with (
     $body-font-family: ('Noto Sans Korean', sans-serif)
 );
+
+.wk-scollbar {
+    &::-webkit-scrollbar {          // 스크롤바 전체 영역 (두께 지정)
+        width: 6px;
+    }
+    &::-webkit-scrollbar-track {    // 스크롤바가 지나가는 배경 트랙
+        // background: transparent;
+        background-color: rgba(var(--v-theme-on-surface), 0.1);
+    }
+    &::-webkit-scrollbar-thumb {    // 실제로 드래그하는 막대(썸)
+        background: rgb(var(--v-theme-secondary));
+        border-radius: 999px;       // 둥글게
+    }
+    &::-webkit-scrollbar-button {   // 양 끝 화살표 버튼 (보통 display:none 처리)
+        display: none;
+    }
+}

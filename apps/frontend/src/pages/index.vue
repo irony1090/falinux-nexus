@@ -1,23 +1,22 @@
 <template>
-    <v-btn @click="onExec">EXEC</v-btn>
-    <v-btn @click="onView">VIEW</v-btn>
-    <v-btn :disabled="!process" @click="onUnsubscribe">UNSUB</v-btn>
-    <v-btn :disabled="!process" @click="onSubscribe">SUB</v-btn>
-    <v-btn :disabled="!process" @click="onKill">KILL</v-btn>
-    <HelloWorld />
+<tile-workspace />
 </template>
 
 <script lang="ts" setup>
-import { VBtn } from 'vuetify/components'
+import TileWorkspace from '@/feature/node/component/TileWorkspace.vue';
+import { provideTileTree } from '@/feature/node/store/tileTree.store';
+import { seedTileTree } from '@/feature/node/dev/tileDummy';
 import { useTestSocket } from '@/common/websocket/websocket.hook';
-import HelloWorld from '@/components/HelloWorld.vue'
 import { useGetNode } from '@/feature/node/api/node.api';
 import { useAuthStore } from '@/feature/user/store/auth.store';
 import { ref, watch } from 'vue';
 import { execProcess, killProcess, listSubscriptions, subscribeProcess, unsubscribeProcess } from '@/feature/process/api/process.api';
 import { useProcessDialog } from '@/feature/process/store/processDialog.store';
+import { useAppWindow } from '@/feature/layout/store/appWindown.store';
 
 const { openProcessDialog, process } = useProcessDialog();
+
+const { size } = useAppWindow();
 
 const { connect, disconnect, status, on } = useTestSocket();
 const { auth } = useAuthStore();
@@ -73,6 +72,10 @@ const onExec = () => {
         console.log('[ERR]', err);
     })
 }
+
+const tileTree = provideTileTree();
+seedTileTree(tileTree);     // 미리보기용 더미 트리 (실제 저장본 연동 전까지)
+
 
 on('NODE:UPDATE', val => {
     console.log(val);
