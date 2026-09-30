@@ -2,6 +2,11 @@
 
 > `history/node-ui-impl.md`와 짝으로 2026-09-29 분할 — ⑤ 렌더 최소판·칼럼 스냅 이력((14)(15))은 분할 전이라 `history/node-ui-impl.md`에 있음. 요약·재사용 지식 → `REF-node-ui-render.md` / 현재 진행 → `CURRENT.md`
 
+## 2026-09-30 — 타일 위치 따라가기 `reveal` 작성
+- 사용자 요청: "사이즈 조절이 돼서 페이지가 옮겨졌을 경우 해당 위치로 이동되는 로직도 필요". 흐름안 제시 → 질문 3개 모두 추천안 선택: 화면 밖일 때만 이동 / 그 타일의 Grid 시작(`goGrid`) / 새 타일 생성(`onOpen`/`onExec`)에도 적용.
+- **작성**: `tileGrids.store.ts` `reveal(tileId)`(`nextTick` 후 타일 x 구간을 화면과 비교) / `TileFrame.vue` `setSize` 끝에서 호출 / `FolderTileBody.vue` `onOpen`/`onExec`가 새 타일 id로 호출.
+- **검증**: vue-tsc 통과 + 헤드리스 Chromium PC 1440×900 / 폰 390×844 시나리오 전부 기대대로(→ `REF-node-ui-render.md` "타일 위치 따라가기"). 미커밋.
+
 ## 2026-09-29(17) — 헤더 내비 작성 (Grid 탭 · 칼럼 위치 · 칼럼 이동)
 - 구조 제안 → 사용자 승인("둘 다 추천대로"): **F(헤더 전달 방식) = Teleport**(provide를 `App.vue`로 올리지 않음, CURRENT의 "provide를 `AppHead`까지 올림" 계획 대체) / **G(화살표 = 칼럼 이동)** = VPagination `prev`/`next` 슬롯을 칼럼 단위 이동으로(열린 질문 ⑬ 해소).
 - **작성**: `feature/node/component/{TileWorkspace.vue, TileNav.vue}` 신규. **개정**: `tileSplit.util.ts`(`stripGeometry`/`stripView`), `tileGrids.store.ts`(`area` 내부 생성·`TILE_GAP` export·스크롤 상태·`goGrid`/`goColumn`), `TileStrip.vue`(provide 제거, `stripEl`/`scrollX`/`viewW` 기록), `AppHead.vue`(`#app-head-nav` 자리 + 제목 flex), `pages/index.vue`(`<tile-workspace/>`).

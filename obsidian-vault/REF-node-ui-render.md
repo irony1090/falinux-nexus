@@ -39,3 +39,17 @@
 - **Vuetify 4 타이포 클래스**: `text-caption` 없음(MD3 이름으로 바뀜: `text-body-small` 12px / `text-label-small` 11px 등) — 없는 클래스를 쓰면 조용히 무시됨.
 - **확인(2026-09-29, 헤드리스 Chromium 1440×900 / 390×844)**: PC 시드 = Grid 2·칼럼 3, `칼럼 1-2/3` → next → `[2]`·`칼럼 2-3/3`·next 비활성 / 폰 = Grid 3, 칼럼 이동마다 탭 `1→2→3` / 직접 `scrollTo(0)` → 탭 `[1]` 복귀 / 실행 14번 → PC Grid 5 전부 표시, 폰 Grid 10 → `[1] 2 3 … 10`, 마지막 탭 → `1 … 8 9 [10]`·`칼럼 10/10`. 콘솔 에러는 백엔드 미기동 API 실패뿐.
 - 미확인: 실제 기기 터치 스크롤, 헤더 높이 변화 시(`height="auto"`) 레이아웃, 탭 가운데 정렬 유지 여부(VPagination 기본 `justify-content: center`).
+
+## 타일 위치 따라가기 `reveal` (2026-09-30 작성)
+크기 변경이나 새 타일 생성으로 타일이 화면 밖 Grid로 가면 그 Grid로 스크롤한다.
+
+| 항목 | 결정 (사용자 선택) |
+|---|---|
+| 이동 조건 | **화면 밖일 때만**. 타일이 다 보이면 스크롤하지 않음(같은 Grid 안에서 자리만 바뀌면 화면 고정) |
+| 이동 위치 | **그 타일의 Grid 시작** = `goGrid(gi)`. Grid 폭 = 화면 폭이라 타일이 전부 보이고 Grid 탭과 일치 |
+| 적용 범위 | 크기 변경(`TileFrame.setSize`) + 새 타일(`FolderTileBody`의 `onOpen`/`onExec`, `openFolder`/`addTerminal`이 돌려준 id) |
+
+- `tileGrids.store.ts` `reveal(tileId)`: `nextTick` 대기 → `grids`에서 타일의 Grid·칸 찾기 → `geometry.columns`(해당 Grid)로 타일 x 구간 → `stripEl`의 `scrollLeft`/`clientWidth`와 비교(1px 오차 허용) → 밖이면 `goGrid`.
+- **재발 방지 — 순서 의존**: `nextTick` 전에 `scrollTo`를 부르면 늘어난 Grid가 아직 DOM에 없어 옛 스크롤 폭에서 잘림. 스크롤 위치도 `scrollX`(스크롤 이벤트로 늦게 갱신)가 아니라 요소에서 직접 읽음 — 폭이 줄며 잘린 직후일 수 있음.
+- 따라가는 대상 = 조작한 타일 하나. 그 여파로 밀려난 다른 타일(예: sup(2))은 따라가지 않음.
+- **확인(2026-09-30, 헤드리스 Chromium)**: PC 1440×900 — sup(1) 세로 1.0(G1 유지) → 스크롤 0 유지 / 이어서 가로 1.0(G2로) → G2로 이동 / 되돌리면 G1로 복귀 / 실행 3번(G2·G3에 생김) → 매번 새 타일이 보임. 폰 390×844 — sup(1) 세로 1.0(G2로) → 이동, 되돌리면 복귀, 실행 3번 → G4·G5로 이동.

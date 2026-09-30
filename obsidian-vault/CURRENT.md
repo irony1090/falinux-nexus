@@ -1,7 +1,7 @@
 # CURRENT
 
 ## 현재 날짜
-2026-09-29
+2026-09-30
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
@@ -11,7 +11,6 @@
 
 2026-08-10 termspace 영감 **2D 타일 그리드**로 전환 → 2026-09-29 아티팩트 시안으로 규칙을 다듬고, 같은 날 **"큰 틀은 잡혔다, 보여준 아티팩트 UI를 토대로 만들 것"**(사용자). **역할 분담(2026-09-29 개정)**: 이 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다(구조 합의 → 코드 순서, 합의 전 코드 착수 금지). 상세 → `REF-node-ui.md`(컨셉) / `REF-node-ui-layout.md`(저장·순서·채우기·오버플로) / `REF-node-ui-projection.md`(화면 크기별 표시) / `REF-node-ui-overview.md`(전체보기·버튼·스크롤바·Grid 탭).
 
-> ⚠️ **다음 세션 시작 시 먼저 물어볼 것**: 열린 질문 ⑧(같은 Grid 앞쪽 빈칸 채우기) — 순서 역전 수정안 채택 여부 + `A | C` / `B` 경우 (아래 열린 질문 8번)
 
 **구현 기준 시안 = "타일링 시안 전체보기" (최신 v10, 가상 키보드 비교 포함)**: https://claude.ai/artifact/WPLqzcUKmTNwJp58Fi3zuM (`user/links.md`). 확정 규칙이 전부 들어 있는 유일한 시안(원본 Tz9D…·비교 시안 2개는 기록용). HTML 원본은 scratchpad에만 있었으므로 **Artifact `read`로 받아야 함** — 포팅 대상 = `TileOrder`/`TileSplit` 블록(탭 손코딩 로직은 제외, VPagination 사용).
 
@@ -37,6 +36,7 @@
 2. ~~③ 트리 상태~~ **완료(2026-09-29)**: `feature/node/store/tileTree.store.ts`(메모리만, 서버 저장 ⑪ 미설계) + `adopted`(넘겨받은 프로세스) 순서
 3. ~~④ + ⑤ 렌더 최소판~~ **완료(2026-09-29, 더미 미리보기 동작 확인)**: `tileGrids.store` + `TileStrip`/`TileFrame`/`FolderTileBody`/`TerminalTileBody` + `TileLayout`/`Tile` 개정 + `tileDummy.ts` + `pages/index.vue` 템플릿 교체. 옛 Phase1 배치 주석 제거됨 + **칼럼 스냅 추가**(`TileLayout` `overlay` 슬롯 앵커)
 4. ~~Grid 크기·칼럼 스냅 + 헤더 내비~~ **완료(2026-09-29)**: `TileWorkspace`가 provide + `TileNav`를 `AppHead`의 `#app-head-nav`로 Teleport(F(헤더 전달 방식)), VPagination Grid 탭 + 화살표 = 칼럼 이동(G(화살표 = 칼럼 이동), ⑬ 해소) + `칼럼 a-b/N`. 헤드리스로 PC·폰 확인 → `REF-node-ui-render.md`
+4-1. ~~타일 위치 따라가기~~ **완료(2026-09-30, 미커밋)**: `tileGrids.store` `reveal` — 크기 변경·새 타일로 화면 밖 Grid에 가면 그 Grid 시작으로 스크롤. + ⑧(같은 Grid 앞쪽 빈칸 채우기) 커서 방식 `pack` 반영 → `REF-node-ui-render.md` "타일 위치 따라가기"
 5. 전체보기 모드 + 고정 버튼(스크롤바 두께 보정) — ⑫·⑭
 5-1. 모바일 가상 키보드 대응: viewport 메타 `interactive-widget=resizes-visual` + 판정은 레이아웃 뷰포트만 + 입력 모드·보조 키 줄(input 배선과 함께) — ⑮
 6. `ProcessDialog` 타일 임베드(다중 인스턴스, ②)
@@ -56,7 +56,7 @@
 5. **네이밍**: 전체 개념 "그리드" vs "타일링", `Band`(가칭)
 6. ~~Grid 크기 확보 방법~~ → `TileStrip`에 `calc(100dvh - var(--v-layout-top))`(2026-09-29, E). 앱 셸 flex화는 헤더 내비 단계에서 필요하면 재검토
 7. ~~유틸 위치~~ → `feature/widget/util/`로 확정(2026-09-29)
-8. **같은 Grid 안 앞쪽 빈칸 채우기** — ⚠️ **다음 세션에 사용자에게 먼저 물어볼 것**(2026-09-29 사용자 요청). 테스트 중 세로 1.0 변경으로 sup(1)·sup(2) 순서 역전 발견, 사용자 기대 = "순서 무조건 유지, 빈 곳은 빈칸". 물을 것: ① 수정안(커서: 앞 타일 시작 칸 뒤에서만 탐색) 채택 + ⑧ 확정 ② `A | C` / `B`(1×1 → 가로바 → 1×1) 경우도 C를 다음 Grid로 보낼지. 코드(`tileOrder.util.ts` `pack`) 미수정 → `REF-node-ui-layout.md` "같은 Grid 안 순서 역전"
+8. ~~같은 Grid 안 앞쪽 빈칸 채우기~~ → 커서 방식(앞으로만 채움) 확정, `A | C` / `B`는 허용(2026-09-30). `pack` 코드 반영 완료(미커밋) → `REF-node-ui-layout.md` "같은 Grid 안 순서 역전"
 9. ~~기기 간 기본 크기 차이~~ → "새 타일 = 누른 화면 최소 단위" 유지(2026-09-29)
 10. ~~타일 닫기 규칙~~ → 시안 가정 확정 + 실행 중 터미널은 닫기 비활성(kill 먼저)(2026-09-29)
 11. **타일 트리 서버 저장**: 테이블/API 미설계(계정 단위, node·process uid 참조, 순서 = kids 순서)
