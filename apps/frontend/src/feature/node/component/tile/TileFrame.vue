@@ -17,7 +17,7 @@ const props = defineProps({
 })
 
 const { tiles, close, resize } = useTileTree();
-const { cap, posOf, instanceOf, reveal } = useTileGrids();
+const { cap, posOf, instanceOf, reveal, overview } = useTileGrids();
 
 const tile = computed(() => tiles.value[props.tileId]);
 
@@ -57,8 +57,18 @@ const onKill = () => {
 </script>
 
 <template>
-<div v-if="tile" class="TileFrame" :class="`TileFrame--${tile.type}`">
-    <div class="TileFrame__head">
+<div v-if="tile" class="TileFrame" :class="[`TileFrame--${tile.type}`, { 'TileFrame--overview': overview }]">
+    <!-- 전체보기 라벨: 축소 배율을 거꾸로 곱해 읽을 수 있는 크기 유지 -->
+    <div v-if="overview" class="ov-name">
+        <span class="pos">{{ posOf.get(tile.id) }}</span>
+        <v-icon size="14"
+            :icon="tile.type === 'folder' ? 'mdi-folder' : 'mdi-console'"
+            :color="tile.type === 'folder' ? 'warning' : 'primary'"
+        />
+        <span class="name">{{ name }}</span>
+        <v-chip v-if="tile.type === 'terminal'" size="x-small" variant="tonal" class="pill" :color="running ? 'success' : undefined">{{ running ? 'RUN' : 'DONE' }}</v-chip>
+    </div>
+    <div class="TileFrame__head" :inert="overview">
         <span class="pos">{{ posOf.get(tile.id) }}</span>
         <v-icon size="14"
             :icon="tile.type === 'folder' ? 'mdi-folder' : 'mdi-console'"
@@ -101,8 +111,8 @@ const onKill = () => {
         />
     </div>
 
-    <folder-tile-body v-if="tile.type === 'folder'" :tile-id="tile.id" />
-    <terminal-tile-body v-else :tile-id="tile.id" />
+    <folder-tile-body v-if="tile.type === 'folder'" :tile-id="tile.id" :inert="overview" />
+    <terminal-tile-body v-else :tile-id="tile.id" :inert="overview" />
 </div>
 </template>
 
@@ -117,6 +127,31 @@ const onKill = () => {
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     border-radius: 6px;
     background: rgb(var(--v-theme-surface));
+    position: relative;
+}
+// 전체보기: 안쪽 조작 막음(inert + 클릭은 Tile로), 폴더는 흐리게
+.TileFrame--overview {
+    > :not(.ov-name) { pointer-events: none; }
+    &.TileFrame--folder { opacity: 0.72; }
+}
+.ov-name {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 3;
+    width: calc(100% * var(--s));
+    transform: scale(calc(1 / var(--s)));
+    transform-origin: 0 0;
+    display: flex;
+    align-items: center;
+    gap: vars.$spacing-sm;
+    padding: 3px 6px;
+    font-size: 11.5px;
+    background: rgb(var(--v-theme-surface));
+    border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    pointer-events: none;
+    > * { flex: none; }
+    .name { flex: 1; }
 }
 .TileFrame__head {
     flex: 0 0 28px;

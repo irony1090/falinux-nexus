@@ -1,6 +1,7 @@
 import { inject, provide, readonly, ref, watch } from 'vue';
 import { checkSession, signIn, signOut, type UserResponse } from '../api/user.api';
 import { equals } from '@/common/util/index.util';
+import { clearUserPrefs } from '@/common/util/userPrefs.util';
 import { useRoute, useRouter } from 'vue-router';
 
 
@@ -43,6 +44,12 @@ export const provideAuthStore = () => {
         })
     }
 
+
+    // 로그아웃·세션 만료 모두 null로 수렴 — 기기별 사용자 설정 삭제
+    // TODO: 서버 미기동(네트워크 에러)도 null이 되어 지워짐. throwCatch가 상태 코드를 버려서 401과 구분 불가
+    watch(auth, val => {
+        if (val === null) clearUserPrefs()
+    })
 
     watch(auth, val => {
         if (loadding.value || val !== undefined)

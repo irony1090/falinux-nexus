@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { provideTileGrids } from '../store/tileGrids.store';
+import OverviewButton from './OverviewButton.vue';
 import TileNav from './TileNav.vue';
 import TileStrip from './TileStrip.vue';
 
@@ -8,8 +9,18 @@ provideTileGrids();
 </script>
 
 <template>
-<tile-strip />
+<div class="TileWorkspace">
+    <tile-strip />
+    <overview-button />
+</div>
 <teleport defer to="#app-head-nav">
     <tile-nav />
 </teleport>
 </template>
+
+<style scoped lang="scss">
+// 고정 버튼 기준 — strip이 스크롤돼도 제자리
+.TileWorkspace {
+    position: relative;
+}
+</style>
