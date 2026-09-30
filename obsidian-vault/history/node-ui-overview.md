@@ -2,6 +2,9 @@
 
 > `history/node-ui-layout.md`에서 분할(2026-09-29) — 전체보기·버튼·스크롤바·Grid 탭 이력. 요약·재사용 지식 → `REF-node-ui-overview.md` / 배치 규칙 이력 → `history/node-ui-layout.md` / 현재 진행 → `CURRENT.md`
 
+## 2026-09-30 — ⑫(전체보기 세부) 확정
+- 축소 비율 = 사용자 조절(기본 30%, 15~60%, 5% 단위, 헤더 `- n% +`), 프로세스만 거르기 = 안 함(배치 그대로). 구현 이력 → `history/node-ui-render.md` 2026-09-30(2).
+
 ## 2026-09-29(10) — 모바일 가상 키보드 검토 + 시안 키보드 토글 (코드 없음)
 - 사용자 우려: "모바일에서 프로세스 아이템과 인터랙션하면 가상 키보드가 뜰 텐데 레이아웃은 괜찮나" → 위험 5가지 정리(① 기준치 판정 재계산·진동 ② 입력 타일 가려짐 ③ PTY resize 연쇄 ④ 특수키 없음 ⑤ iOS 문서 스크롤). 현재 코드 확인: viewport 메타에 `interactive-widget` 없음, `appWindown.store.ts` `size.inner`가 visualViewport. → `REF-node-ui-overview.md` "모바일 가상 키보드"
 - 시안 v10: 폰 가상 키보드 토글, 판정 기준(레이아웃 뷰포트 / 보이는 영역=문제 재현), 입력 모드 켬/끔, 터미널 크기(유지+스크롤 / 맞춤), 보조 키 줄.

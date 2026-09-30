@@ -7,7 +7,7 @@
 
 ---
 
-## 🎯 다음 작업: node 카탈로그 타일 UI — 구현 진행 중 (더미 미리보기 + 칼럼 스냅 동작, 사용자 "매우 맘에 들어" 2026-09-29)
+## 🎯 다음 작업: node 카탈로그 타일 UI — 구현 진행 중 (1~5단계 완료, 다음 = 6 `ProcessDialog` 타일 임베드)
 
 2026-08-10 termspace 영감 **2D 타일 그리드**로 전환 → 2026-09-29 아티팩트 시안으로 규칙을 다듬고, 같은 날 **"큰 틀은 잡혔다, 보여준 아티팩트 UI를 토대로 만들 것"**(사용자). **역할 분담(2026-09-29 개정)**: 이 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다(구조 합의 → 코드 순서, 합의 전 코드 착수 금지). 상세 → `REF-node-ui.md`(컨셉) / `REF-node-ui-layout.md`(저장·순서·채우기·오버플로) / `REF-node-ui-projection.md`(화면 크기별 표시) / `REF-node-ui-overview.md`(전체보기·버튼·스크롤바·Grid 탭).
 
@@ -25,7 +25,7 @@
 | 화면 크기 | Grid 영역 가로 ≥ 728 / 세로 ≥ 560이면 그 축 2칸. 1칸 축은 저장된 0.5를 1.0으로 보고 다시 채움. 페이지네이션(화면 분할) 없음 |
 | 오버플로 | 옆 Grid 추가 + 가로 스크롤, 칼럼(Grid 가로 절반) 단위 스냅 |
 | 빈 칼럼 | 오른쪽 칼럼이 통째로 빈 Grid는 **위치와 상관없이 1칼럼 폭**(`pack`이 `cols` 반환). 세로 빈칸은 유지 |
-| 전체보기 | 버튼 → 현재 배치 그대로 축소, **긴 축 한 줄 + 짧은 축 가운데**, 자유 스크롤(스냅 끔), 타일 누르면 그 Grid로 이동, Esc = 원위치 |
+| 전체보기 | 버튼 → 현재 배치 그대로 축소, **긴 축 한 줄 + 짧은 축 가운데**, 자유 스크롤(스냅 끔), 타일 누르면 그 Grid로 이동, Esc = 원위치. 축소 비율 = 사용자 조절(15~60%, 기기별 localStorage, 로그인 풀리면 삭제), 거르지 않음 |
 | 전체보기 버튼 | 화면 고정, Grid 하단 정보 줄 높이의 작은 강조색 버튼을 그 줄 오른쪽 끝에. 가로 2칸 = 아이콘+글자 / 1칸 = 아이콘만 |
 | 스크롤바 | `overflow: auto` + 버튼이 현재 스크롤바 두께(`--sb-h/-w`)만큼 비킴. `capacity` 판정엔 스크롤바 반영 안 함(진동 방지) |
 | Grid 탭 | Vuetify `VPagination`(폭 자동 맞춤·`…`). 현재 = 가장 많이 보이는 Grid(동점이면 뒤쪽). 칼럼 위치는 범위 표시(`칼럼 6-7/7`) |
@@ -36,10 +36,11 @@
 2. ~~③ 트리 상태~~ **완료(2026-09-29)**: `feature/node/store/tileTree.store.ts`(메모리만, 서버 저장 ⑪ 미설계) + `adopted`(넘겨받은 프로세스) 순서
 3. ~~④ + ⑤ 렌더 최소판~~ **완료(2026-09-29, 더미 미리보기 동작 확인)**: `tileGrids.store` + `TileStrip`/`TileFrame`/`FolderTileBody`/`TerminalTileBody` + `TileLayout`/`Tile` 개정 + `tileDummy.ts` + `pages/index.vue` 템플릿 교체. 옛 Phase1 배치 주석 제거됨 + **칼럼 스냅 추가**(`TileLayout` `overlay` 슬롯 앵커)
 4. ~~Grid 크기·칼럼 스냅 + 헤더 내비~~ **완료(2026-09-29)**: `TileWorkspace`가 provide + `TileNav`를 `AppHead`의 `#app-head-nav`로 Teleport(F(헤더 전달 방식)), VPagination Grid 탭 + 화살표 = 칼럼 이동(G(화살표 = 칼럼 이동), ⑬ 해소) + `칼럼 a-b/N`. 헤드리스로 PC·폰 확인 → `REF-node-ui-render.md`
-4-1. ~~타일 위치 따라가기~~ **완료(2026-09-30, 미커밋)**: `tileGrids.store` `reveal` — 크기 변경·새 타일로 화면 밖 Grid에 가면 그 Grid 시작으로 스크롤. + ⑧(같은 Grid 앞쪽 빈칸 채우기) 커서 방식 `pack` 반영 → `REF-node-ui-render.md` "타일 위치 따라가기"
-5. 전체보기 모드 + 고정 버튼(스크롤바 두께 보정) — ⑫·⑭
-5-1. 모바일 가상 키보드 대응: viewport 메타 `interactive-widget=resizes-visual` + 판정은 레이아웃 뷰포트만 + 입력 모드·보조 키 줄(input 배선과 함께) — ⑮
-6. `ProcessDialog` 타일 임베드(다중 인스턴스, ②)
+4-1. ~~타일 위치 따라가기~~ **완료(2026-09-30, `5b87578`)**: `tileGrids.store` `reveal` — 크기 변경·새 타일로 화면 밖 Grid에 가면 그 Grid 시작으로 스크롤. + ⑧(같은 Grid 앞쪽 빈칸 채우기) 커서 방식 `pack` 반영 → `REF-node-ui-render.md` "타일 위치 따라가기"
+5. ~~전체보기 모드 + 고정 버튼~~ **완료(2026-09-30, `0855041`)**: `OverviewButton` 신규 + store·`TileStrip`·`TileFrame`·`TileNav` 개정, 전환 시 타일 재마운트 없음, 축소 비율 헤더 `- n% +`. 헤드리스 PC·폰 확인 → `REF-node-ui-render.md` "전체보기 모드". 축소 비율 localStorage 저장(로그인 풀리면 삭제, `common/util/userPrefs.util.ts`). 스크롤바 두께 보정 사용자 실기 확인. 남은 것 = ⑭ 버튼 위치 사용자 검토
+5-1. 모바일 가상 키보드 대응: viewport 메타 `interactive-widget=resizes-visual` + 판정은 레이아웃 뷰포트만 + 입력 모드·보조 키 줄(input 배선과 함께) — ⑮. **순서상 7 뒤로**(process input 배선이 선행, 2026-09-30 계획)
+6. **(다음)** `ProcessDialog` 타일 임베드(다중 인스턴스, ②) — 착수 시 ② 범위부터 구조 합의. 전체보기 전환은 타일을 재마운트하지 않으므로 xterm을 그대로 얹을 수 있음
+6-1. ⑪(타일 트리 서버 저장) 테이블/API 설계 — 7 전에 해두면 막히지 않음
 7. **더미 → 실제 연동**(새로 생긴 할 일): 폴더 타일 내용 = `tileDummy` 대신 node API(`GET /nodes?parentId=`) / 실행 = `execProcess` → `addTerminal`(authKey = 인스턴스 선택 UI 필요, worker_instances roster 미구현) / kill·상태 = process API·소켓 / `seedTileTree` 제거 → 서버 저장본(⑪) 로드
 
 **미리보기 방법**: `apps/frontend`에서 `npm run dev` → `/`. 더미 트리(시안 "순서 예시")가 시드됨, 백엔드·로그인 불필요.
@@ -56,16 +57,16 @@
 5. **네이밍**: 전체 개념 "그리드" vs "타일링", `Band`(가칭)
 6. ~~Grid 크기 확보 방법~~ → `TileStrip`에 `calc(100dvh - var(--v-layout-top))`(2026-09-29, E). 앱 셸 flex화는 헤더 내비 단계에서 필요하면 재검토
 7. ~~유틸 위치~~ → `feature/widget/util/`로 확정(2026-09-29)
-8. ~~같은 Grid 안 앞쪽 빈칸 채우기~~ → 커서 방식(앞으로만 채움) 확정, `A | C` / `B`는 허용(2026-09-30). `pack` 코드 반영 완료(미커밋) → `REF-node-ui-layout.md` "같은 Grid 안 순서 역전"
+8. ~~같은 Grid 안 앞쪽 빈칸 채우기~~ → 커서 방식(앞으로만 채움) 확정, `A | C` / `B`는 허용(2026-09-30). `pack` 코드 반영 완료(`5b87578`) → `REF-node-ui-layout.md` "같은 Grid 안 순서 역전"
 9. ~~기기 간 기본 크기 차이~~ → "새 타일 = 누른 화면 최소 단위" 유지(2026-09-29)
 10. ~~타일 닫기 규칙~~ → 시안 가정 확정 + 실행 중 터미널은 닫기 비활성(kill 먼저)(2026-09-29)
 11. **타일 트리 서버 저장**: 테이블/API 미설계(계정 단위, node·process uid 참조, 순서 = kids 순서)
-12. **전체보기 세부**: 축소 비율(시안 30%), 프로세스만 거르기 여부
+12. ~~전체보기 세부~~ → 축소 비율 사용자 조절(기본 30%, 15~60%) + 거르지 않음(2026-09-30)
 13. ~~VPagination 화살표 vs 칼럼 이동~~ → 화살표 슬롯 = 칼럼 단위 이동(2026-09-29, G)
 14. **전체보기 버튼 최종 위치**: 현재안(정보 줄 오른쪽 끝)은 사용자가 더 검토하겠다고 함. 폰에서 22px 터치 크기도 함께
 15. **모바일 가상 키보드**: ① 판정은 레이아웃 뷰포트로만 + `interactive-widget=resizes-visual` / ② 입력 모드 채택 여부 / ③ 입력 모드 터미널 크기 유지+스크롤 vs 맞춤(resize) / ④ 보조 키 줄 구성 / ⑤ iOS 문서 스크롤 — `REF-node-ui-overview.md` "모바일 가상 키보드", 시안 v10에서 비교 가능. **주의**: `appWindown.store.ts`의 `size.inner`(visualViewport)에 판정을 연결하면 안 됨
 
-**커밋 (2026-09-29)**: `c32b0f2` feat(widget) 타일 배치 유틸 + Tile/TileLayout / `ddcbde8` feat(node) 타일 UI 더미 미리보기 + 헤더 내비 + 테마 색 규칙 / docs(vault) 기록. 제외(미커밋 유지): `apps/core/cmd/irony/`(사용자 스크래치), `provideAppLayout.vue`(빈 줄 하나).
+**커밋 (2026-09-30)**: `5b87578` feat(node) ⑧ 커서 + reveal / `e55fb98` docs(vault) / `0855041` feat(node) 전체보기 + 고정 버튼 + 축소 비율 저장 / docs(vault) 정리. 제외(미커밋 유지): `apps/core/cmd/irony/`(사용자 스크래치), `provideAppLayout.vue`(빈 줄 하나).
 
 ---
 
@@ -114,5 +115,6 @@ Node UI Phase 2/3(드래그)에 앞서, 구 test-jig의 드래그 코드(`Dragga
 - **supervisor 영속성**: registry 메모리 → PG 미착수
 
 ## 잔여 (틈날 때)
+- `api.util.ts` `throwCatch`가 HTTP 상태 코드를 버림 → 서버 미기동도 세션 만료처럼 `auth` null → 사용자 설정(`userPrefs`) 삭제. 공용 에러 처리 손볼 때 401만 삭제하도록(`auth.store.ts` TODO)
 - `SESSION_KEY` 등 env화(현재 `"irony"` 하드코딩)
 - checkSession createdAt=0(pgtype.Timestamptz gob 미직렬화) → sess.Data.ID로 DB 재조회

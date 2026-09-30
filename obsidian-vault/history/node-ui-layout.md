@@ -5,7 +5,7 @@
 ## 2026-09-30 — ⑧(같은 Grid 앞쪽 빈칸 채우기) 확정: 커서 방식 + `pack` 반영
 - 세션 시작 시 이월 질문으로 물음 → 사용자 선택: **수정안(커서) 채택** — 각 타일은 앞 타일의 시작 칸보다 뒤(칼럼 우선 읽기 순서)에서만 자리를 찾고, 없으면 다음 Grid. 건너뛴 칸은 빈칸.
 - 하위 질문 `A | C` / `B`(1×1 → 가로 1.0 바 → 1×1): **허용** — 칼럼 우선 기준으로 순서가 지켜지므로 C는 A 옆 윗칸에 둔다(줄 단위 엄격 규칙 추가 안 함).
-- 코드: `tileOrder.util.ts` `pack`에 `Packing.cursor` 추가, `READ.findIndex(i > cursor && fits)`로 교체. 시나리오 5개 확인(`sup(1)` 세로 1.0 → sup(2)·Rack A가 G2 / 가로바 A → htop | 2F 불변 / `A | C` / `B` / 0.5 여섯 개 / REF 예시 불변) + vue-tsc 통과. 미커밋.
+- 코드: `tileOrder.util.ts` `pack`에 `Packing.cursor` 추가, `READ.findIndex(i > cursor && fits)`로 교체. 시나리오 5개 확인(`sup(1)` 세로 1.0 → sup(2)·Rack A가 G2 / 가로바 A → htop | 2F 불변 / `A | C` / `B` / 0.5 여섯 개 / REF 예시 불변) + vue-tsc 통과. 커밋됨.
 - 상세 → `REF-node-ui-layout.md` "같은 Grid 안 순서 역전".
 
 ## 2026-09-29(18) — 같은 Grid 안 순서 역전 발견 (코드 없음, 결정 대기)

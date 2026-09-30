@@ -53,3 +53,23 @@
 - **재발 방지 — 순서 의존**: `nextTick` 전에 `scrollTo`를 부르면 늘어난 Grid가 아직 DOM에 없어 옛 스크롤 폭에서 잘림. 스크롤 위치도 `scrollX`(스크롤 이벤트로 늦게 갱신)가 아니라 요소에서 직접 읽음 — 폭이 줄며 잘린 직후일 수 있음.
 - 따라가는 대상 = 조작한 타일 하나. 그 여파로 밀려난 다른 타일(예: sup(2))은 따라가지 않음.
 - **확인(2026-09-30, 헤드리스 Chromium)**: PC 1440×900 — sup(1) 세로 1.0(G1 유지) → 스크롤 0 유지 / 이어서 가로 1.0(G2로) → G2로 이동 / 되돌리면 G1로 복귀 / 실행 3번(G2·G3에 생김) → 매번 새 타일이 보임. 폰 390×844 — sup(1) 세로 1.0(G2로) → 이동, 되돌리면 복귀, 실행 3번 → G4·G5로 이동.
+
+## 전체보기 모드 + 고정 버튼 (2026-09-30 작성) — 구현 순서 5
+규칙은 `REF-node-ui-overview.md` "전체보기 모드", 여기는 코드 구조.
+
+| 파일 | 책임 |
+|---|---|
+| `tileGrids.store.ts` | `overview` / `ovPercent`(`OV_PERCENT` 15~60, 5 단위, 기본 30) / `ovScale` / `ovDir`(`area` 가로 ≥ 세로면 `row`) / `scrollbar`(두께) / `enterOverview`(스크롤 기억 + 보던 Grid 칸으로) / `leaveOverview(gi?)`(없음 = 원위치, 있음 = `goGrid`) / `zoomOverview(±1)`. 전체보기 중 `reveal`은 무시. `TILE_FOOT` export |
+| `TileStrip.vue` | `.cell > (.cap v-if) + .box > TileLayout` 구조. 전체보기면 `.box`가 축소 크기, `TileLayout`은 실제 px(`area.w`(1칼럼이면 `(w-gap)/2`) × `area.h`) + `scale(s)`. 스냅 앵커·정보 줄 안 그림, `row`면 세로 휠 → 가로, 창 `keydown` Esc, 타일 클릭/Enter/Space → `leaveOverview(gi)`. `scrollbar` 기록(리사이즈 + `watch([grids, overview, ovScale], post)`) |
+| `TileFrame.vue` | 전체보기면 `ov-name` 라벨(역배율 `--s`) + 머리·본문 `inert` + `pointer-events: none`(클릭은 부모 `Tile`로) + 폴더 `opacity .72` |
+| `OverviewButton.vue`(신규) | `TileWorkspace`(`position: relative`)에 절대배치, `right = gap + sb.w`, `bottom = gap + (FOOT-22)/2 + sb.h`. `cap.x === 1`이면 아이콘만. 색 = `primary` / 전체보기 중 `surface-variant`(`on-surface`는 배경색으로 안 먹음) |
+| `TileNav.vue` | 전체보기 중엔 `프로세스 n · Grid m · 타일을 누르면 이동` + `- n% +` |
+
+- **재발 방지 — 전환 시 재마운트 금지**: 캡션은 `v-if`(자리 표시 주석이 남아 형제 위치 불변), `.box`·`TileLayout`은 두 모드 공통, 스타일만 교체. 감싸는 요소를 모드별로 바꾸면 전환마다 타일이 새로 생성 → 6단계에서 임베드할 xterm 화면이 사라짐(화면복원 미구현). 헤드리스로 DOM 표식 유지 확인(6/6).
+- **strip 크기·padding은 전체보기에서도 그대로** — `area` 측정이 바뀌면 "현재 배치 그대로"가 깨짐. 전체보기 간격은 `gap`(14px)만 바꿈.
+- `leaveOverview`는 스크롤 복원 뒤 `scrollX`를 직접 갱신 — 위치가 같으면 scroll 이벤트가 안 와서 전체보기 중 값이 남음.
+- 축소 비율 조절 UI = 헤더 `- n% +`(폰 헤더가 좁아 슬라이더 대신).
+- **축소 비율 저장(2026-09-30)**: 기기마다 알맞은 값이 달라 서버(⑪ 타일 트리)가 아니라 localStorage. `common/util/userPrefs.util.ts`(`nexus.user.` 접두사 `readUserPref`/`writeUserPref`/`clearUserPrefs`, 전부 try/catch) + 키 `tile.overviewPercent`, 읽을 때 범위·단위 벗어나면 30. **`auth.store`의 `watch(auth)`가 null이면 전부 삭제** = 로그아웃·세션 만료 모두(계정 전환도 null을 거침). 더미 미리보기(백엔드 없음)는 null이라 새로고침마다 30 — 실 환경엔 없는 경우라 수용(사용자). 한계: 서버 미기동(네트워크 에러)도 null → 삭제(`throwCatch`가 상태 코드를 버려 401과 구분 불가, TODO 주석).
+- **확인(2026-09-30, 헤드리스 Chromium)**: PC 1440×900 — 버튼 중심 = 정보 줄 중심(882), 전체보기 가로 한 줄·세로 가운데, 상자 427×242(= 1424×808 × 0.3), + 두 번 → 40%, 마지막 Grid에서 Esc → 716 복원, 타일 클릭 → G1, 마지막 타일 Enter → G2, 크기 버튼 위 클릭은 메뉴 안 열고 이동, 실행 8번 후 세로 휠 300 → 가로 스크롤. 폰 390×844 — 세로 한 줄·가로 가운데, 버튼 아이콘만, 같은 복귀 동작. 콘솔 에러 = 백엔드 미기동 API 실패뿐.
+- 저장 확인(헤드리스, 세션 응답 모킹): 로그인 상태 +1 → 저장 35 → 새로고침 후 35 표시 / 401 → 삭제 / 백엔드 없음 → 삭제, 접두사 없는 키는 유지 / 저장값 37(단위 밖) → 30.
+- 스크롤바 두께 보정은 사용자가 실제 데스크톱에서 확인(2026-09-30). 미확인: 실기기 터치.
