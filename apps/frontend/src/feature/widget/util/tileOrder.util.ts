@@ -22,7 +22,8 @@ export function flatten<T extends TileNode>(tiles: Record<string, T>, rootId: st
 // 칸 찾는 순서 [c, r] = 위->아래, 다음 칼럼 (모든 기기 공통)
 const READ: ReadonlyArray<[Cell, Cell]> = [[0, 0], [0, 1], [1, 0], [1, 1]];
 
-type Packing<T> = { occ: Array<boolean>; items: Array<GridItem<T>> };
+// cursor = 직전 타일이 시작한 칸의 READ 인덱스
+type Packing<T> = { occ: Array<boolean>; items: Array<GridItem<T>>; cursor: number };
 
 const at = (c: number, r: number) => c * 2 + r;
 const span = (v: number): CellSpan => v === 1 ? 2 : 1;
@@ -42,10 +43,11 @@ export function pack<T>(list: Array<T>, sizeOf: (tile: T) => TileSize): Array<Gr
 		const size = sizeOf(tile);
 		const cw = span(size.w), ch = span(size.h);
 		const last = grids[grids.length - 1];
-		// 같은 Grid 안에선 앞쪽 빈칸도 채움 — 열린 질문 ⑧(앞쪽 빈칸 채우기)의 시안 가정
-		const spot = last && READ.find(([c, r]) => fits(last.occ, c, r, cw, ch));
-		const g = last && spot ? last : newPacking(grids);
-		const [c, r] = spot ?? [0, 0];
+		// 같은 Grid 안에서도 앞으로만 채움(건너뛴 칸은 빈칸) — ⑧(같은 Grid 앞쪽 빈칸 채우기) 확정
+		const idx = last ? READ.findIndex(([c, r], i) => i > last.cursor && fits(last.occ, c, r, cw, ch)) : -1;
+		const g = last && idx >= 0 ? last : newPacking(grids);
+		g.cursor = Math.max(idx, 0);
+		const [c, r] = READ[g.cursor];
 		for (let i = 0; i < cw; i++)
 			for (let j = 0; j < ch; j++)
 				g.occ[at(c + i, r + j)] = true;
@@ -55,7 +57,7 @@ export function pack<T>(list: Array<T>, sizeOf: (tile: T) => TileSize): Array<Gr
 }
 
 function newPacking<T>(grids: Array<Packing<T>>): Packing<T> {
-	const g: Packing<T> = { occ: [false, false, false, false], items: [] };
+	const g: Packing<T> = { occ: [false, false, false, false], items: [], cursor: -1 };
 	grids.push(g);
 	return g;
 }

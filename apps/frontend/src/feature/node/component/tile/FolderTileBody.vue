@@ -13,7 +13,7 @@ const props = defineProps({
 })
 
 const { tiles, navigate, openFolder, addTerminal } = useTileTree();
-const { newSize } = useTileGrids();
+const { newSize, reveal } = useTileGrids();
 
 const nodeId = computed(() => {
     const t = tiles.value[props.tileId];
@@ -23,8 +23,8 @@ const path = computed(() => dummyPath(nodeId.value));
 const children = computed(() => dummyChildren(nodeId.value));
 
 // 새 타일 크기 = 누른 화면의 최소 단위
-const onOpen = (id: number) => openFolder(props.tileId, id, newSize.value);
-const onExec = (id: number) => addTerminal(props.tileId, id, dummyExec(), newSize.value);
+const onOpen = (id: number) => reveal(openFolder(props.tileId, id, newSize.value));
+const onExec = (id: number) => reveal(addTerminal(props.tileId, id, dummyExec(), newSize.value));
 </script>
 
 <template>

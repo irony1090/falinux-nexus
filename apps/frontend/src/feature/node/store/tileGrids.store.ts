@@ -1,7 +1,7 @@
 import type { Area } from '@/feature/widget/util/tile.type'
 import { flatten, pack } from '@/feature/widget/util/tileOrder.util'
 import { capacity, effectiveSize, minSize, stripGeometry, stripView } from '@/feature/widget/util/tileSplit.util'
-import { computed, inject, provide, ref, shallowRef } from 'vue'
+import { computed, inject, nextTick, provide, ref, shallowRef } from 'vue'
 import { useTileTree } from './tileTree.store'
 
 const TILE_GRIDS_STORE_KEY = Symbol('TileGridsStore')
@@ -61,6 +61,23 @@ export const provideTileGrids = () => {
         if (c) scrollTo(c.x)
     }
 
+    // 크기 변경·새 타일로 타일이 화면 밖 Grid로 가면 그 Grid 시작으로 이동, 보이면 그대로.
+    // nextTick 필수: 트리 변경 직후엔 늘어난 Grid가 아직 DOM에 없어 scrollTo가 옛 스크롤 폭에서 잘린다.
+    // 스크롤 위치도 scrollX(스크롤 이벤트로 늦게 갱신)가 아니라 요소에서 직접 읽는다 — 폭이 줄며 잘린 직후일 수 있음
+    const reveal = async (tileId: string) => {
+        await nextTick()
+        const el = stripEl.value
+        const gi = grids.value.findIndex(g => g.items.some(it => it.tile.id === tileId))
+        const it = grids.value[gi]?.items.find(it => it.tile.id === tileId)
+        if (!el || !it) return
+        const cols = geometry.value.columns.filter(c => c.grid === gi)
+        const first = cols[Math.min(it.c, cols.length - 1)]!
+        const last = cols[Math.min(it.c + it.cw - 1, cols.length - 1)]!
+        // 1px = 소수 폭 오차 허용
+        const shown = first.x >= el.scrollLeft - 1 && last.x + last.w <= el.scrollLeft + el.clientWidth + 1
+        if (!shown) goGrid(gi)
+    }
+
     const ctx = {
         area,
         cap,
@@ -76,6 +93,7 @@ export const provideTileGrids = () => {
         view,
         goGrid,
         goColumn,
+        reveal,
     }
 
     provide(TILE_GRIDS_STORE_KEY, ctx)

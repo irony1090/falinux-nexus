@@ -17,7 +17,7 @@ const props = defineProps({
 })
 
 const { tiles, close, resize } = useTileTree();
-const { cap, posOf, instanceOf } = useTileGrids();
+const { cap, posOf, instanceOf, reveal } = useTileGrids();
 
 const tile = computed(() => tiles.value[props.tileId]);
 
@@ -49,6 +49,7 @@ const shownText = computed(() => {
 const setSize = (axis: 'w' | 'h', v: TileSpan) => {
     if (!tile.value) return;
     resize(tile.value.id, { ...tile.value.size, [axis]: v });
+    reveal(tile.value.id);
 }
 const onKill = () => {
     if (tile.value?.type === 'terminal') dummyKill(tile.value.uid);
