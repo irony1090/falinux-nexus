@@ -79,8 +79,7 @@ func (r *supervisorRouter) unSubscribeProcess(c echo.Context) error {
 // execRequest: 노드 실행 요청. (POST /processes/exec)
 type execRequest struct {
 	NodeID  int64  `json:"nodeId" validate:"required"`
-	AuthKey string `json:"authKey" validate:"required"` // worker 인스턴스 키(main#sub). 인스턴스
-	// 선택 UI는 별도 미착수(REF-node-label.md "Exec 인스턴스 선택") — 지금은 프론트가 직접 지정한다.
+	AuthKey string `json:"authKey" validate:"required"` // worker 인스턴스 키(main#sub). 후보 = GET /workers?nodeId=
 	Type string `json:"type" validate:"omitempty,oneof=EXEC EDIT"` // 비우면 EXEC
 }
 
@@ -104,6 +103,10 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 	})
 	if err != nil {
 		panic(web.Err(404, "노드를 찾을 수 없습니다"))
+	}
+	// 다른 장비로 잘못 실행되는 것 방지: authKey의 main_key = 스크립트의 상속 device_key (서브키 위조 검증은 별도)
+	if main, _ := splitInstanceKey(body.AuthKey); main != resolveMainKey(c.Request().Context(), TxQueries(c), body.NodeID, sess.Data.ID) {
+		panic(web.Err(400, "이 스크립트의 실행 대상 장비가 아닙니다"))
 	}
 
 	sub := process.Subscriber{Sid: sess.Name(), OwnerUserID: sess.Data.ID}

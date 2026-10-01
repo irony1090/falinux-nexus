@@ -2,7 +2,7 @@ import { BaseAxios, throwCatch, throwThen } from '@/common/api/api.util'
 import type { QueryOptions } from '@/common/api/query.util'
 import type { Replace } from '@/common/util/index.type'
 import type { QueryClient } from '@tanstack/query-core'
-import { useQuery } from '@tanstack/vue-query'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, type Ref } from 'vue'
 
 // 백엔드: apps/core/cmd/supervisor/router/node.go (group "/nodes") + nodeDto.go
@@ -119,6 +119,28 @@ const Q_KEY = {
         ? ['NODE', 'LIST', parentId]
         : ['NODE', 'LIST'],
     DETAIL: (id: Ref<number> | number) => ['NODE', 'DETAIL', id],
+    PATH: (id?: Ref<number | null> | number) =>
+        id !== undefined
+        ? ['NODE', 'PATH', id]
+        : ['NODE', 'PATH'],
+}
+
+const PATH_DEPTH_MAX = 64   // parentId 사이클 방어
+
+// 루트부터 id까지 경로. 경로 API가 없어 getNode를 parentId 따라 반복 호출한다(조상은 DETAIL 캐시 공유)
+const fetchNodePath = async (queryClient: QueryClient, id: number) => {
+    const path: Array<NodeResponse> = []
+    let cur: number | null = id
+    while (cur !== null && path.length < PATH_DEPTH_MAX) {
+        const nodeId: number = cur
+        const node: NodeResponse = await queryClient.fetchQuery({
+            queryKey: Q_KEY.DETAIL(nodeId),
+            queryFn: () => getNode(nodeId),
+        })
+        path.unshift(node)
+        cur = node.parentId
+    }
+    return path
 }
 
 export const useNodeQueryClient = (queryClient: QueryClient) => {
@@ -141,11 +163,33 @@ export const useNodeQueryClient = (queryClient: QueryClient) => {
             queryKey: Q_KEY.DETAIL(id),
             exact: true,
         })
+
+        // 조상의 이름·위치가 바뀌면 자손 경로도 달라지므로 경로는 전부 무효화
+        queryClient.invalidateQueries({
+            queryKey: Q_KEY.PATH(),
+            exact: false,
+        })
     }
 
     return {
         invalidateAllForce,
-        invalidateAll
+        invalidateAll,
+        fetchPath: (id: number) => fetchNodePath(queryClient, id),
+    }
+}
+
+// 생성·수정 뒤 관련 조회(목록·상세·경로)를 무효화한다. 삭제는 타일 정리가 끼어서 nodeRemove.hook.ts
+export const useNodeActions = () => {
+    const { invalidateAll } = useNodeQueryClient(useQueryClient())
+
+    const done = (node: NodeResponse) => {
+        invalidateAll(node.id, node.parentId ?? undefined)
+        return node
+    }
+
+    return {
+        create: (param: CreateNodeRequest) => createNode(param).then(done),
+        patch: (id: number, param: PatchNodeRequest) => patchNode(id, param).then(done),
     }
 }
 
@@ -164,5 +208,16 @@ export const useGetNode = (id: Ref<number>, { enabled }: QueryOptions = {}) => {
         enabled: isReady,
         queryKey: Q_KEY.DETAIL(id),
         queryFn: () => getNode(id.value)
+    })
+}
+
+// 브레드크럼용 경로(루트 -> id). id가 null(루트 목록)이면 조회하지 않는다
+export const useNodePath = (id: Ref<number | null>) => {
+    const queryClient = useQueryClient()
+
+    return useQuery({
+        enabled: computed(() => id.value !== null),
+        queryKey: Q_KEY.PATH(id),
+        queryFn: () => id.value === null ? [] : fetchNodePath(queryClient, id.value)
     })
 }

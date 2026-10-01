@@ -3,7 +3,8 @@ import type { TileSpan } from '@/feature/widget/util/tile.type';
 import { effectiveSize } from '@/feature/widget/util/tileSplit.util';
 import { computed } from 'vue';
 import { VBtn, VCard, VChip, VIcon, VMenu } from 'vuetify/components';
-import { dummyKill, dummyNode, dummyStatus } from '../../dev/tileDummy';
+import { useGetNode } from '../../api/node.api';
+import { dummyKill, dummyStatus } from '../../dev/tileDummy';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
 import FolderTileBody from './FolderTileBody.vue';
@@ -21,16 +22,24 @@ const { cap, posOf, instanceOf, reveal, overview } = useTileGrids();
 
 const tile = computed(() => tiles.value[props.tileId]);
 
+const openerTile = computed(() => tile.value?.parent ? tiles.value[tile.value.parent] : undefined);
+
+// useGetNode는 id가 NaN이면 조회하지 않는다 (nodeId null = 루트 목록)
+const { data: node } = useGetNode(computed(() => tile.value?.nodeId ?? NaN));
+const { data: openerNode } = useGetNode(computed(() => openerTile.value?.nodeId ?? NaN));
+
+// 이름을 받기 전에는 node id로 표시
+const label = (nodeId: number | null, loaded?: string) => nodeId === null ? '기본' : loaded ?? `node ${nodeId}`;
+
 const name = computed(() => {
     const t = tile.value;
     if (!t) return '';
-    if (t.type === 'folder') return dummyNode(t.nodeId)?.name ?? '기본';
-    const no = instanceOf.value.get(t.id);
-    return (dummyNode(t.nodeId)?.name ?? `node ${t.nodeId}`) + (no ? ` (${no})` : '');
+    const no = t.type === 'terminal' ? instanceOf.value.get(t.id) : undefined;
+    return label(t.nodeId, node.value?.name) + (no ? ` (${no})` : '');
 })
 const opener = computed(() => {
-    const parent = tile.value?.parent ? tiles.value[tile.value.parent] : undefined;
-    return parent?.type === 'folder' ? dummyNode(parent.nodeId)?.name ?? '기본' : undefined;
+    const parent = openerTile.value;
+    return parent?.type === 'folder' ? label(parent.nodeId, openerNode.value?.name) : undefined;
 })
 
 const running = computed(() => tile.value?.type === 'terminal' && dummyStatus(tile.value.uid) === 'RUNNING');

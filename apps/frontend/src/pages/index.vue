@@ -5,7 +5,6 @@
 <script lang="ts" setup>
 import TileWorkspace from '@/feature/node/component/TileWorkspace.vue';
 import { provideTileTree } from '@/feature/node/store/tileTree.store';
-import { seedTileTree } from '@/feature/node/dev/tileDummy';
 import { useTestSocket } from '@/common/websocket/websocket.hook';
 import { useGetNode } from '@/feature/node/api/node.api';
 import { useAuthStore } from '@/feature/user/store/auth.store';
@@ -73,8 +72,7 @@ const onExec = () => {
     })
 }
 
-const tileTree = provideTileTree();
-seedTileTree(tileTree);     // 미리보기용 더미 트리 (실제 저장본 연동 전까지)
+provideTileTree();  // 루트 폴더 타일 1개로 시작 (서버 저장본 ⑪ 연동 전까지)
 
 
 on('NODE:UPDATE', val => {

@@ -102,6 +102,7 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 	router.mountUsers(e)
 	router.mountNodes(e)
 	router.mountProcesses(e)
+	router.mountWorkers(e)
 
 	return e, router
 }
