@@ -79,6 +79,7 @@
 - 2026-08-12 레이아웃 데이터 모델 axis 일반화(코드 없음) — 루트 칼럼우선 고정으로는 마스터-스택형(가로바+아래2분할) 표현 불가 발견 → `Grid.axis:'row'|'column'` 도입 + `Column`→`Band` 개명, 화면 크기별 투영도 primary/secondary 구조축 기준으로 재정리
 
 ### `history/node-ui-overview.md` — node 카탈로그 전체보기 · 화면 내비게이션 (node-ui-layout에서 2026-09-29 분할)
+- 2026-10-01 ⑭(전체보기 버튼 최종 위치) 확정 = 현재안 그대로
 - 2026-09-30 ⑫(전체보기 세부) 확정 = 축소 비율 사용자 조절 + 거르지 않음
 - 2026-09-29(10) 모바일 가상 키보드 위험 5가지 정리 + 시안 키보드 토글(v10)
 - 2026-09-29(9) 구현 기준 시안 확정("타일링 시안 전체보기" v9) + Grid 탭은 Vuetify VPagination + vault 분할 정리
@@ -98,7 +99,27 @@
 - 2026-09-30 타일 위치 따라가기 `reveal` — 크기 변경·새 타일로 화면 밖 Grid에 가면 그 Grid로 스크롤 (PC·폰 헤드리스 확인)
 - 2026-09-29(17) 헤더 내비 작성 — Teleport로 AppHead에 VPagination Grid 탭 + 칼럼 이동 화살표 + `칼럼 a-b/N`, 현재 Grid 판정 버그(gap 섞임) 수정
 
+### `history/process-sync.md` — process 동기화 범위 · 탭 id · 공유 (2026-10-01 신설, node-ui-terminal에서 분리)
+- 2026-10-01(4)(5) 1단계 코드·실행 확인 → `history/process-sync-impl.md`
+- 2026-10-01(3) 1단계 작업 단위 1-a~1-g 제시(착수 승인 대기), 코드 없음
+- 2026-10-01(2) Rebind 뒤 출력 끊김 실행 확인(socat 프록시로 worker 연결만 끊기) + 끊김 때 FAILED 502 발행 발견, 코드 수정 없음
+- 2026-10-01 설계 개정 논의: O(계정 동기화)~V(탭 id 전달) 결정 + 진행 순서 1~5 + 1단계(탭 id + 구독 역할 분리) 구조 합의, 코드 없음
+
+### `history/node-ui-save.md` — node 타일 트리 서버 저장 ⑪ (2026-10-01 신설)
+- 2026-10-01 구조안 제시 + 결정 ⑪-1~⑪-4 확정(서버가 exec 때 터미널 타일 같이 넣기), 코드 없음
+
+### `history/process-sync-impl.md` — process 동기화 1단계 구현 · 실행 확인 (2026-10-01, process-sync에서 분할)
+- 2026-10-01(6) sid 충돌 수정(`signIn` nonce) + 커밋 전 사용자 검토로
+- 2026-10-01(5) 2단계 실행 확인: 탭 id·계정 구독·크기 우선권·kill·X·W·Y·프론트(헤드리스) 전부 통과 + sid = 쿠키 원본값 충돌 발견(미해결)
+- 2026-10-01(4) 1단계 코드 작성(1-a~1-g), build/vet/type-check 통과
+
+### `history/node-ui-terminal.md` — node 타일 터미널 임베드 + 크기 우선권 (2026-10-01 신설)
+- 2026-10-01(3) 설계 개정 논의 → `history/process-sync.md`
+- 2026-10-01(2) 구현: 크기 우선권 백엔드(`sizeOwner.go`, signOut 확장) + `processTerm.store`·`ProcessTerminal`·`WorkerPickDialog` + 타일 연결 + `ProcessDialog` 삭제 (미커밋, 실행 확인 전)
+- 2026-10-01 구조 합의 J~N(xterm 스토어 소유·상태 단일 구독·실행 흐름·크기 우선권 = 실행한 세션·`ProcessDialog` 삭제), 코드 없음
+
 ### `history/node-ui-link.md` — node 카탈로그 타일 UI 실제 연동 (더미 → node/process API, 2026-09-30 신설)
+- 2026-10-01 스크립트 편집 창 저장 동작 통일 결정(저장 버튼도 저장하고 계속 편집, 코드 미반영)
 - 2026-09-30(4) 연동 1차 4(스크립트 편집): `ScriptEditDialog`(브라우저 편집 → `PATCH content`, 새 스크립트 직후 자동 열기), 창 높이는 `VDialog` `height`로
 - 2026-09-30(3) 폴더 안(브레드크럼 줄)에서 장비 지정·접속 상태 표시(상속 포함) + 헤드리스 시나리오 확인, 테스트 로그인은 `Login.vue` 기본값 사용 허용
 - 2026-09-30(2) 연동 1차 3(node 관리 UI): 생성·이름 변경·장비 지정(직접 입력 + 접속 상태)·삭제(하위를 보던 타일 닫기), `hook/nodeRemove.hook.ts` 신규
@@ -117,6 +138,7 @@
 - 2026-06-30 user/login + 공용 API + 전역 다이얼로그 WIP (커밋 3a8e92e 동반)
 
 ### `history/realtime.md` — 실시간 push (socket)
+- 2026-10-01 Hub 막힘 발견(동기 순차 Publish + write deadline 없음 + 출력 큐 상한 없음) + 사용자 실행 확인 + ping/pong(`KeepAlive`) 해결·확인(`e395433`)
 - 2026-07-16 (2) node CRUD 발행처 배선 구현 완료(`AfterCommit` 훅 신설 + create/patch/delete 3핸들러 배선, 이동=2토픽)
 - 2026-07-16 (1) node 도메인 Kind 어휘 확정(`NODE:CREATE/UPDATE/DELETE`, `node.change` 단일봉투안 기각) + process 동적구독은 REST로 결론(상세는 process-reconnect.md)
 - 2026-06-30 supervisor↔웹 socket 전송 토대 완성 + 3모드(call/emit/on) e2e 검증 (Hub Kind 추가·subscribe.go 인증교정·프론트 hook 재설계)

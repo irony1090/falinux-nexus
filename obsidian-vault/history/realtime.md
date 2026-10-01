@@ -3,6 +3,12 @@
 > 요약·재사용 지식 → `REF-realtime.md` / 현재 진행 → `CURRENT.md`
 > 전송 인프라 → `REF-infra.md` / 프론트 hook → `REF-frontend.md`
 
+## 2026-10-01 — Hub 막힘 발견 + 사용자 실행 확인 + ping/pong 해결
+- 사용자 질문(기기 전원 차단 시 P는?) → transport에 ping/deadline 없음 확인 → 사용자 "Hub 구현 확인해봐" → 동기 순차 Publish + deadline 없는 write로 응답 없는 소켓 하나가 같은 토픽·같은 소켓 쓰기를 막음, 출력 큐는 상한 없음. → `REF-realtime.md` "발견".
+- 사용자 "내가 확인할 수 있어?" → `SIGSTOP` 클라이언트 제공 → 사용자가 직접 재현: 웹 터미널 멈춤 + 노드 생성 막힘 확인. 중간에 사용자 탭에서 출력이 한동안 안 보였다가 뜬 일 있음(서버는 계속 송신 중이었고 헤드리스로는 정상 — 원인 미상).
+- 고칠 방향: 사용자 "ping/pong" 선택 → `KeepAlive` helper 구조·값(10초/25초)·순서(1단계 전) 제안, 코드 미착수.
+- 사용자 "ping/pong 구조로 버그가 해결된다면 진행해줘" → `KeepAlive` 구현(10초/25초) + 별도 supervisor(5052)·별도 이름 worker로 재현 테스트: F 멈춘 뒤 약 20초에 정상 구독자 출력·노드 생성 응답 재개 확인. 커밋 `e395433`(임시 index로 이 변경만 담음 — 같은 파일의 1단계 전 미커밋 변경은 제외).
+
 ## 2026-07-16 (2) — node CRUD 발행처 배선 구현 완료
 
 - 대상: `createNode`/`patchNode`/`deleteNode`(`cmd/supervisor/router/node.go`).

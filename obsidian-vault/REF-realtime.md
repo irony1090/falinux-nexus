@@ -75,3 +75,31 @@
 - ⬜ **프론트 수신**: `on('NODE:CREATE'|'NODE:UPDATE'|'NODE:DELETE'|'process.output'|…)` 실제 핸들러 → 트리/캔버스 갱신. REST 클라이언트 함수(`GET/POST/DELETE /processes/subscribe*`)도 프론트에 아직 없음.
 - ⬜ device presence kind 결정(`DEVICE:ONLINE`/`OFFLINE` 후보, 미확정).
 - ✅ **process 도메인에도 CRUD류 kind 합류**(2026-07-22): 기존 `MsgData`/`MsgStatus`(저수준 스트림)에 더해 `MsgProcessUpdate`("PROCESS:UPDATE", 전체 process 구조체 payload — node의 CRUD kind와 동일 원칙)를 `PROCESS:<uid>` 토픽 위에 추가. 첫 사용처는 resize. → `REF-process-resize.md`.
+
+## 발견: 응답 없는 소켓 하나가 같은 토픽 전송을 막음 (2026-10-01, 사용자 직접 실행 확인)
+계기: "기기 전원이 갑자기 꺼지면?"(브라우저가 소켓을 못 닫음).
+
+| 층 | 코드 | 결과 |
+|---|---|---|
+| Hub `Publish` | 구독자 목록을 **순서대로 동기** `send` | 앞쪽 소켓의 쓰기가 멈추면 뒤 구독자도 대기 |
+| `send` = `Conn.Emit` → `write` | `wmu` 잠금 + gorilla `WriteMessage`, **write deadline 없음** | 커널 송신 버퍼가 차면 무기한 대기. 같은 소켓에 쓰려는 다른 호출(`NODE:*` 발행, 크기 우선권 알림)도 `wmu`에서 대기 → 그 발행을 부른 REST 요청이 응답 못 함(다른 사용자 요청 포함) |
+| 끊김 감지 | `transport`에 ping/pong·read deadline 없음 | 출력이 흐르는 중이면 TCP 재전송 포기(리눅스 기본 약 15분)까지, 조용하면 Go 기본 keepalive로 약 2.5분 |
+| relay | `pumpOutput`/`pumpStatus`가 `Publish`에서 멈춤 | 그 process의 출력·상태가 모든 구독자에게 멈춤 |
+| `AgentInteractive` 출력 큐 | `SyncData.Push` = 상한 없는 slice append | worker 수신 루프는 안 막힘(다른 process 영향 없음). 대신 멈춘 동안 출력이 메모리에 무한히 쌓임 |
+
+**결정(2026-10-01, 사용자): ping/pong** → **구현·확인·커밋 완료(2026-10-01, `e395433`)**: `internal/transport/keepalive.go`(`KeepAlive`, `PingPeriod` 10초 / `PongWait` 25초) + 3곳 호출.
+- 확인(별도 supervisor 5052 + 별도 이름 worker, 사용자 서버 무접촉): 출력 루프 실행 → 구독자 F `SIGSTOP` → 3초 뒤 정상 구독자 O 수신 0 → **F 멈춘 뒤 약 20초에 F 소켓이 끊기며 O 출력 재개**(밀린 약 24MB 한 번에 수신) + 멈춘 동안 보낸 노드 생성 요청도 그 시점에 응답. 수정 전은 사용자 테스트에서 `kill -CONT` 전까지 계속 막힘.
+- 재확인 방법: 같은 이름 worker를 두 supervisor에 붙이면 안 됨 — 재접속 대조(`reconcileReconnect`)가 상대 supervisor의 process를 FAILED로 닫을 수 있음. 테스트 worker는 `NAME`을 따로 주고 폴더 `device_key`도 그 이름으로.
+
+| 항목 | 내용 |
+|---|---|
+| 위치 | `transport`에 `KeepAlive(ws, ...)` helper. `transport.New` 직전 3곳: `subscribe.go`(브라우저) / `supervisorRouter.go`(worker 접속) / `workerRouter.go`(worker dial) |
+| 동작 | `SetReadDeadline(now+pongWait)` + pong마다 연장 + 고루틴이 `pingPeriod`마다 `WriteControl(Ping, deadline)`, 실패하면 고루틴 종료 |
+| 막힘이 풀리는 경로 | 쓰기 막힘 → gorilla 쓰기 잠금 때문에 ping도 못 나감 → pong 없음 → read deadline → `Serve` 반환 → `conn.Close`가 net.Conn 닫음 → 막힌 `WriteMessage` 에러로 반환 → `Publish` 진행 |
+| 프론트 | 수정 없음(브라우저가 pong 자동 응답) |
+| 값 | `PingPeriod` 10초 / `PongWait` 25초(확정) |
+| 한계 | 그 25초 동안은 다른 구독자도 대기. 더 줄이려면 나중에 write deadline / 소켓별 송신 큐 |
+| 부수 효과 | worker 연결에도 적용 → worker 급사 시 PENDING 전이가 25초 안으로(W·X 시점 앞당김) |
+| 순서 | 1단계보다 먼저, 별도 커밋 |
+
+기각 후보(이번엔 안 함): write deadline 단독 / 소켓별 송신 큐. **실행 확인(2026-10-01, 사용자)**: 웹에서 출력 루프(`yes 0123456789 | head -c 200000` 반복) 실행 → 로컬에서 같은 process를 구독한 Node 소켓 클라이언트를 `kill -STOP` → 웹 터미널 출력 멈춤 + 웹에서 노드 생성 요청이 응답 없음 둘 다 확인. 클라이언트 원본은 세션 scratchpad에만 있었음(`frozen-client.mjs`: 로그인 → `/subscribe` 연결 → `POST /processes/subscribe/:uid` → 자기 pid 출력).

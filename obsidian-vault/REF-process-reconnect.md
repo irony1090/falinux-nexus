@@ -69,3 +69,16 @@ REF 설계는 "재접속 시 worker가 자기 procs 스냅샷을 보고한다"�
 - **끊김 케이스가 안 깨지는 이유**: 이 가드가 정확히 동작하려면 memory `entry.Record.Status`가 실시간이어야 한다(`REF-process-trigger.md` "entry.Record memory 동기화" 참조 — `SetRecord`로 해결). 실행 중이던 process는 이미 `Record.Status="PROCESS"`로 갱신돼 있어, 끊김 시 합성 PENDING 호출이 들어오면 `"PROCESS"≠"PENDING"`이라 가드를 통과해 원래대로 `Remove`된다. `Rebind` 시 새 entry는 DB에서 다시 읽어오므로(`GetProcess`) 항상 최신 status로 시작 — 재접속 흐름과 충돌 없음.
 - **검증**: 정상 exec 후 process가 안 죽는 것 확인 + kill 테스트로 재검증 완료.
 
+
+## 재현 방법 — worker 연결만 끊기 (2026-10-01, 코드 수정 없이)
+worker 프로세스를 죽이면 PTY 자식도 죽으므로 "연결만 끊긴" 상황이 안 된다. worker와 supervisor 사이에 `socat` 프록시를 두고 프록시만 종료한다.
+
+| 단계 | 방법 |
+|---|---|
+| worker 접속 주소 바꾸기 | env가 embed + `godotenv.Overload`라 환경변수로 못 덮음 → `go build`한 바이너리 옆에 `env` 파일(`WS_HOST="localhost:5151"`, `SQLITE`=원래 db 절대경로)을 두고 **`TMPDIR=/var/tmp`로 실행**(`IsDev()`가 실행 파일 경로에 `os.TempDir()`가 들어 있으면 dev로 보고 옆 env를 안 읽음 — scratchpad가 `/tmp` 아래라서) |
+| 프록시 | `socat TCP-LISTEN:5151,reuseaddr,fork TCP:localhost:5050` |
+| 끊기/재접속 | `pkill -f 'TCP-LISTEN:515[1]'`(패턴에 `[1]` — 자기 셸 매치 방지) → 몇 초 뒤 socat 재기동 → worker backoff로 재접속 → `SYNC` → `Rebind` |
+| 브라우저 대역 | Node 22 내장 `WebSocket`(`{headers:{Cookie}}` 지원, `binaryType='arraybuffer'` — 프레임이 바이너리로 옴) |
+| 스크립트 | 직접 실행이라 `#!/bin/sh` 필요(없으면 `exec format error`) |
+
+결과·발견 → `REF-process-sync-impl.md` "발견". 프록시 경유 테스트 worker는 별도 SQLite + `pkill -f '^\./worker$'`로 종료(→ `REF-process-sync-impl.md` "2단계 실행 확인" 함정). 테스트 클라이언트 원본은 세션 scratchpad에만 있었음(`rebind-test.mjs`).

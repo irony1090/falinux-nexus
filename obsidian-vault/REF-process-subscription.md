@@ -1,6 +1,7 @@
 # REF — process 세션→uid 원장 + REST 구독/해지 배선
 
 > 재접속 모델은 `REF-process-reconnect.md`. 배선 아키텍처는 `REF-process-wiring.md` / frontend 트리거는 `REF-process-trigger.md`. 계약/설계 원칙은 `REF-process.md`. 작업 이력은 `history/process-subscription.md`.
+> **2026-10-01 제거됨(1단계 코드, 미커밋)**: `process_subscribers`(sid 원장)는 S(구독 역할 분리)로 제거(`00005` DROP) — 인가는 계정, 라우팅은 탭 소켓. 아래는 이력용. → `REF-process-sync.md` / 구현 → `REF-process-sync-impl.md`
 
 ## 세션 → uid 원장 구체화: process_subscribers 테이블 + sid 추출 (2026-07-14, 설계 진행 중 — 미구현)
 > `REF-process-reconnect.md` "종료/재접속 모델"의 "세션→보던 uid 원장" 항목의 구체 설계. **아직 마이그레이션/쿼리 파일 미생성** — 스키마·쿼리·트리거 시점은 합의됐고, CREATE/DELETE 실제 호출 지점 배선만 남음.
