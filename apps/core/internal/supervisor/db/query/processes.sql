@@ -59,3 +59,9 @@ ORDER BY created_at DESC;
 SELECT * FROM processes
 WHERE device_key = $1
   AND status IN ('PENDING','PROCESS');
+
+-- name: ListLiveProcessesByOwner :many
+SELECT * FROM processes
+WHERE owner_user_id = $1
+  AND status IN ('PENDING','PROCESS')
+ORDER BY created_at ASC;

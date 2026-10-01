@@ -4,9 +4,7 @@ import (
 	superdb "nexus/internal/supervisor/db/gen"
 )
 
-// process 응답 DTO + DTO↔pgtype 변환. 핸들러는 processApi.go. nodeDto.go와 대칭 —
-// listSubscriptions만 이 변환을 거치지 않고 superdb.Process를 그대로 내보내던 걸 정정한다
-// (json 태그 없는 sqlc raw 구조체라 PascalCase+RFC3339로 나가던 문제).
+// process 응답 DTO + DTO↔pgtype 변환. 핸들러는 processApi.go. nodeDto.go와 대칭.
 
 type processResponse struct {
 	Uid        string   `json:"uid"`
@@ -26,6 +24,7 @@ type processResponse struct {
 	StartedAt  *int64   `json:"startedAt"`
 	FinishedAt *int64   `json:"finishedAt"`
 	UpdatedAt  *int64   `json:"updatedAt"`
+	SizeOwner  *bool    `json:"sizeOwner,omitempty"` // 요청 탭 기준이라 REST 응답에만 싣는다(토픽 발행 땐 nil)
 }
 
 func newProcessResponse(p superdb.Process) processResponse {
@@ -61,6 +60,11 @@ func newProcessResponse(p superdb.Process) processResponse {
 		v := p.UpdatedAt.Time.Unix()
 		r.UpdatedAt = &v
 	}
+	return r
+}
+
+func withSizeOwner(r processResponse, owner bool) processResponse {
+	r.SizeOwner = &owner
 	return r
 }
 

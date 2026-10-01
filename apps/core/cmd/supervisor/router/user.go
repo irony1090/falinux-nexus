@@ -6,10 +6,13 @@ import (
 
 	"nexus/internal/manager/session"
 	superdb "nexus/internal/supervisor/db/gen"
+	"nexus/internal/util"
 	"nexus/internal/web"
 
 	"github.com/labstack/echo/v4"
 )
+
+const sessionNonceKey = "_nonce" // 로그인마다 새 값 → sid(쿠키 원본값)가 로그인마다 달라짐
 
 // 구 PortBridge cmd/agent_v2 user 핸들러를 이식. echo 기본 핸들러(func(c) error)를 따르되
 // 에러는 panic(web.Err(...))로 던져 PanicMiddleware가 JSON으로 응답하고,
@@ -121,8 +124,14 @@ func (router *supervisorRouter) signIn(c echo.Context) error {
 		panic(web.Err(400, "존재하지 않는 계정입니다"))
 	}
 
+	nonce, err := util.RandomKey(16, "", "")
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
 	sess := router.sessions.GetSession(c.Request(), c.Response())
 	sess.Data = &user
+	// 재발 방지: 쿠키 = date(초)|세션 값|mac 이라 같은 계정이 같은 초에 로그인하면 sid가 같아짐 — REF-process-sync-impl.md "발견"
+	sess.Session.Values[sessionNonceKey] = nonce
 	if err := sess.Save(); err != nil {
 		panic(web.Err(500, "%v", err))
 	}
@@ -136,9 +145,12 @@ func (router *supervisorRouter) checkSession(c echo.Context) error {
 	return c.JSON(200, newUserResponse(*sess.Data))
 }
 
-// signOut은 세션 쿠키를 만료시킨다.
+// signOut은 세션 쿠키를 만료시킨다. 로그인 상태였으면 그 세션 탭들의 크기 소유권을 먼저 넘긴다.
 func (router *supervisorRouter) signOut(c echo.Context) error {
 	sess := router.sessions.GetSession(c.Request(), c.Response())
+	if sess.Data != nil && sess.Data.ID != 0 && !sess.Session.IsNew {
+		router.sizeOwnerOnSignOut(sess.Name())
+	}
 	sess.Session.Options.MaxAge = -1
 	if err := sess.Save(); err != nil {
 		panic(web.Err(500, "%v", err))

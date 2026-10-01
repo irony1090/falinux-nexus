@@ -1,5 +1,6 @@
 import type { AxiosError, AxiosResponse } from 'axios';
 import axios from 'axios';
+import { readTabId, TAB_ID_HEADER } from '../util/tabId.util';
 
 // type ResultStatus = 'success' | 'fail';
 export type CommonResponse<T = {}> = {
@@ -62,4 +63,11 @@ export const BaseAxios = axios.create({
     headers: {
         'Content-Type': 'application/json',
     }
+});
+
+// 요청 탭 식별(크기 우선권 등) — 서버가 요청 세션의 탭인지 확인한다
+BaseAxios.interceptors.request.use(config => {
+    const tabId = readTabId();
+    if (tabId) config.headers.set(TAB_ID_HEADER, tabId);
+    return config;
 });

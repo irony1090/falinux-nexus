@@ -36,11 +36,12 @@ var upgrader = websocket.Upgrader{
 
 type supervisorRouter struct {
 	workers        *manager.KeyValManager[string, *transport.Conn]
-	browsers       *manager.KeyValManager[*transport.Conn, string]
+	tabs           *tabRegistry // 브라우저 소켓 = 탭(tabs.go)
 	readers        *manager.KeyValManager[string, *sendJob]
 	sessions       *session.SessionManager[superdb.User]
 	subscribeHub   *subscribe.Hub[*transport.Conn, protocol.MsgType]
 	processManager *process.ProcessManager // 실행 상태 레지스트리(UID→entry). 라우팅은 여기 router가.
+	sizeOwners     *sizeOwners             // uid -> PTY 크기 소유 탭(sizeOwner.go)
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -65,11 +66,12 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 	}
 	router := &supervisorRouter{
 		workers:        manager.NewKeyValManager[string, *transport.Conn](),
-		browsers:       manager.NewKeyValManager[*transport.Conn, string](),
+		tabs:           newTabRegistry(),
 		readers:        manager.NewKeyValManager[string, *sendJob](),
 		sessions:       session.NewSessionManager("irony", "sid", getSessionKey),
 		subscribeHub:   subscribeHub,
 		processManager: process.NewProcessManager(),
+		sizeOwners:     newSizeOwners(),
 	}
 
 	e := echo.New()
@@ -82,7 +84,7 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 		AllowOrigins:     []string{"http*://*", "ws*://*"},
 		AllowCredentials: true,
 		AllowMethods:     []string{"GET", "POST", "PATCH", "DELETE", "PUT", "OPTIONS"},
-		AllowHeaders:     []string{"Content-Type", "Authorization", "MAC"},
+		AllowHeaders:     []string{"Content-Type", "Authorization", "MAC", tabIDHeader},
 	}))
 
 	e.GET("/test", func(c echo.Context) error {
@@ -146,13 +148,4 @@ func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 	conn.Close(err)
 
 	return nil
-}
-
-func (r *supervisorRouter) browsersForSid(sid string) []*transport.Conn {
-	matches := r.browsers.FindAll(func(_ *transport.Conn, s string) bool { return s == sid })
-	conns := make([]*transport.Conn, 0, len(matches))
-	for _, m := range matches {
-		conns = append(conns, m.Key)
-	}
-	return conns
 }

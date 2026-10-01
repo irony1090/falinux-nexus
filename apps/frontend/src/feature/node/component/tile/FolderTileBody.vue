@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { tabReady } from '@/common/util/tabId.util';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
-import { useOnlineWorkers } from '@/feature/worker/api/worker.api';
+import { useProcessTerm } from '@/feature/process/store/processTerm.store';
+import { listWorkers, useOnlineWorkers, type WorkerResponse } from '@/feature/worker/api/worker.api';
+import WorkerPickDialog from '@/feature/worker/component/WorkerPickDialog.vue';
 import { computed, ref } from 'vue';
 import { VBtn, VIcon, VList, VListItem, VMenu, VProgressLinear } from 'vuetify/components';
 import { useListChildren, useNodeActions, useNodePath, type NodeKind, type NodeResponse } from '../../api/node.api';
-import { dummyExec } from '../../dev/tileDummy';
 import { useNodeRemove } from '../../hook/nodeRemove.hook';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
@@ -57,11 +59,6 @@ const onRefresh = () => {
 
 // 새 타일 크기 = 누른 화면의 최소 단위
 const onOpen = (id: number) => reveal(openFolder(props.tileId, id, newSize.value));
-const onExec = (id: number) => reveal(addTerminal(props.tileId, id, dummyExec(), newSize.value));
-
-// ---- 노드 관리 (생성 / 이름 변경 / 장비 지정 / 삭제) ----
-const { create, patch } = useNodeActions();
-const { removeNode } = useNodeRemove();
 
 const saving = ref(false);
 const run = <T>(job: Promise<T>, done?: (res: T) => void) => {
@@ -70,6 +67,36 @@ const run = <T>(job: Promise<T>, done?: (res: T) => void) => {
     .catch(err => openDialog({ type: 'error', content: err?.message || '요청에 실패했습니다' }))
     .finally(() => saving.value = false);
 }
+
+// ---- 실행: 접속 인스턴스 0개 = 안내 / 1개 = 바로 / 여러 개 = 고르기 (REF-node-ui-terminal.md L) ----
+const { exec } = useProcessTerm();
+
+const pickOpen = ref(false);
+const pickNode = ref<NodeResponse>();
+const pickWorkers = ref<WorkerResponse[]>([]);
+
+const start = (node: NodeResponse, instanceKey: string) => run(exec(node.id, instanceKey), uid => {
+    pickOpen.value = false;
+    reveal(addTerminal(props.tileId, node.id, uid, newSize.value));
+});
+
+const onExec = (node: NodeResponse) => run(listWorkers(node.id), workers => {
+    if (!workers.length) {
+        openDialog({ type: 'warning', title: `'${node.name}' 실행`, content: '이 스크립트를 실행할 장비가 접속해 있지 않습니다.' });
+        return;
+    }
+    if (workers.length === 1) {
+        start(node, workers[0]!.instanceKey);
+        return;
+    }
+    pickNode.value = node;
+    pickWorkers.value = workers;
+    pickOpen.value = true;
+});
+
+// ---- 노드 관리 (생성 / 이름 변경 / 장비 지정 / 삭제) ----
+const { create, patch } = useNodeActions();
+const { removeNode } = useNodeRemove();
 
 // 닫히는 동안 제목이 비지 않도록 열림 여부와 대상을 따로 둔다
 type NameTarget = { kind: NodeKind } | { node: NodeResponse };
@@ -196,7 +223,7 @@ const onRemove = (node: NodeResponse) => {
                     <i /><span class="key">{{ n.deviceKey }}</span>
                 </span>
                 <v-btn v-if="n.kind === 'FOLDER'" size="x-small" variant="tonal" color="warning" @click="onOpen(n.id)">새 타일</v-btn>
-                <v-btn v-else size="x-small" variant="tonal" color="primary" @click="onExec(n.id)">실행</v-btn>
+                <v-btn v-else size="x-small" variant="tonal" color="primary" :disabled="saving || !tabReady" @click="onExec(n)">실행</v-btn>
                 <node-row-menu :kind="n.kind" @edit="onEdit(n)" @rename="onName({ node: n })" @device="onDevice(n)" @remove="onRemove(n)" />
             </span>
         </div>
@@ -205,6 +232,12 @@ const onRemove = (node: NodeResponse) => {
 
     <node-name-dialog v-model="nameOpen" :title="nameTitle" :initial="nameInitial" :loading="saving" @submit="onSubmitName" />
     <script-edit-dialog v-model="editOpen" :node="editTarget" />
+    <worker-pick-dialog v-model="pickOpen"
+        :title="`실행할 장비: ${pickNode?.name ?? ''}`"
+        :workers="pickWorkers"
+        :loading="saving"
+        @submit="key => pickNode && start(pickNode, key)"
+    />
     <node-device-dialog v-model="deviceOpen"
         :title="`장비 지정: ${deviceTarget?.name ?? ''}`"
         :initial="deviceTarget?.deviceKey ?? ''"

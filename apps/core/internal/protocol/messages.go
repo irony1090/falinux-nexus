@@ -264,4 +264,19 @@ const (
 // 첫 사용처는 resize(rows/cols 변경) — worker 확인 후 DB+memory 동기화가 끝난 시점에만 발행.
 const (
 	MsgProcessUpdate MsgType = "PROCESS:UPDATE" // sup→browser EVENT: 전체 process 구조체
+
+	// 토픽 발행 아님 — 새 크기 소유자 탭의 소켓에만 직접 Emit
+	MsgProcessSizeOwner MsgType = "PROCESS:SIZE_OWNER" // sup→browser EVENT: SizeOwnerEvent
 )
+
+// SizeOwnerEvent: 받는 탭이 uid의 PTY 크기 소유자가 됐다는 통지.
+type SizeOwnerEvent struct {
+	UID string `json:"uid"`
+}
+
+// 소켓 연결 직후 서버가 그 소켓에 가장 먼저 보내는 탭 id (REF-process-sync.md V(탭 id 전달))
+const MsgTabID MsgType = "TAB:ID" // sup→browser EVENT: TabIDEvent
+
+type TabIDEvent struct {
+	TabID string `json:"tabId"`
+}

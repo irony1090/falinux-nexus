@@ -6,7 +6,6 @@
     </app-body>
 
     <app-dialog />
-    <process-dialog />
 </provide-app-layout>
 </template>
 
@@ -21,8 +20,7 @@ import { provideAppWindow } from '@/feature/layout/store/appWindown.store';
 import { provideAppDialog } from '@/feature/layout/store/appDialog.store';
 import { provideAuthStore } from '@/feature/user/store/auth.store';
 import { provideTestSocket } from '@/common/websocket/websocket.hook';
-import { provideProcessDialog } from '@/feature/process/store/processDialog.store';
-import ProcessDialog from '@/feature/process/component/ProcessDialog.vue';
+import { bindTabId } from '@/common/util/tabId.util';
 
 provideAppWindow()
 provideAppHead()
@@ -32,7 +30,6 @@ provideAuthStore();
 
 provideAppDialog();
 
-provideTestSocket();
-provideProcessDialog();
+bindTabId(provideTestSocket());
 
 </script>

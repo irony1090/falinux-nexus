@@ -14,6 +14,7 @@ type AgentInteractive struct {
 	onKill    func() error
 	onLayout  func(cols, rows uint16) error
 	onceClose sync.Once
+	detached  bool // Done 대신 Detach로 닫힘(종료 아님)
 }
 
 func NewAgentInteractive(
@@ -77,6 +78,21 @@ func (a *AgentInteractive) Done(exitCode int) {
 		a.status.Close()
 		a.output.Close()
 	})
+}
+
+// Detach는 종료 STATUS 없이 채널만 닫는다(worker 끊김 = 종료 아님). Done과 onceClose를 공유해 둘 중 먼저 온 것만 적용된다.
+// 이미 Push된 출력·상태는 relay가 마저 드레인한다.
+func (a *AgentInteractive) Detach() {
+	a.onceClose.Do(func() {
+		a.detached = true
+		a.status.Close()
+		a.output.Close()
+	})
+}
+
+// Detached는 Detach로 닫혔는지 반환한다(relay 드레인 이후에 읽을 것).
+func (a *AgentInteractive) Detached() bool {
+	return a.detached
 }
 
 func (a *AgentInteractive) ExitCode() int {

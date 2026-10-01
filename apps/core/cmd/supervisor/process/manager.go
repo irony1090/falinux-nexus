@@ -182,7 +182,7 @@ func (p *ProcessManager) execScript(
 // Rebind는 재접속한 worker 위에 uid의 process를 재바인딩한다("폐기 후 재생성" —
 // REF-process 2026-07-14). DB Record는 그대로 두고(진실의 출처), 죽은 conn을 캡처했던 옛
 // AgentInteractive 대신 새 conn 위에 새 AgentInteractive를 만들어 memory에 재등록한다.
-// 끊김 처리(applyStatus의 CommandPending 분기)가 이미 memory에서 Remove했으므로 충돌 없이
+// 끊김 처리(applyStatus의 CommandPending 분기)가 이미 memory에서 Detach했으므로 충돌 없이
 // Append된다.
 func (p *ProcessManager) Rebind(uid string, worker *transport.Conn) (*ProcessEntry, error) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -221,52 +221,20 @@ func newWorkerInteractive(worker *transport.Conn, uid string) *execute.AgentInte
 	)
 }
 
-// SubscribeProcess는 sid를 uid의 구독자로 등록한다. entry.AddSubscriber(memory, 저렴·되돌리기
-// 쉬움)를 먼저 반영하고 나서 pool에 write-through한다(execScript와 동일 순서) — DB insert가
-// 실패하면 memory를 롤백해 두 저장소가 어긋나지 않게 한다.
-func (p *ProcessManager) SubscribeProcess(uid string, sub Subscriber) error {
-	entry, ok := p.memory.Get(uid)
-	if !ok {
-		return fmt.Errorf("존재하지 않는 process입니다: %s", uid)
-	}
-	entry.AddSubscriber(sub)
-
+// ListLive는 계정의 살아 있는(PENDING/PROCESS) process를 실행 순서대로 반환한다(DB — PENDING은 memory에 없어서).
+func (p *ProcessManager) ListLive(userID int64) ([]superdb.Process, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	if err := p.pool.Queries().CreateProcessSubscriber(ctx, superdb.CreateProcessSubscriberParams{
-		ProcessUid:  uid,
-		OwnerUserID: sub.OwnerUserID,
-		Sid:         sub.Sid,
-	}); err != nil {
-		entry.RemoveSubscriber(sub.Sid) // 롤백
-		return err
-	}
-	return nil
+	return p.pool.Queries().ListLiveProcessesByOwner(ctx, userID)
 }
 
-// UnsubscribeProcess는 sid를 uid의 구독자에서 뺀다. entry가 이미 memory에서 정리된 뒤(process
-// 완료 등)라도 DB 원장은 남아있을 수 있어 entry 유무와 무관하게 DB delete는 항상 시도한다.
-func (p *ProcessManager) UnsubscribeProcess(uid string, sid string) error {
-	if entry, ok := p.memory.Get(uid); ok {
-		entry.RemoveSubscriber(sid)
+// Detach는 worker 끊김(PENDING) 전용 정리다: 종료 STATUS 없이 relay만 끝내고 memory에서 뺀다.
+// Remove를 쓰면 Done(502) 안전망이 FAILED를 발행해 브라우저가 종료로 본다 — REF-process-sync.md X(끊김 표시)
+func (p *ProcessManager) Detach(uid string) {
+	if entry, ok := p.memory.Get(uid); ok && entry.Inter != nil {
+		entry.Inter.Detach()
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	return p.pool.Queries().DeleteProcessSubscriber(ctx, superdb.DeleteProcessSubscriberParams{
-		ProcessUid: uid,
-		Sid:        sid,
-	})
-}
-
-// ListSubscriptions는 sid가 구독 중인 process 목록을 반환한다. memory가 아니라 DB에서 직접
-// 조회한다 — memory엔 sid→uid 역인덱스가 없고(전체 entry 스캔 필요), 이 조회는 재접속/화면복원
-// 시 1회성이라 그 인프라를 둘 실익이 없음. memory는 휘발성(재시작 시 소실)이라 재시작 직후
-// 복원 목적과도 맞지 않음 — status 컬럼도 write-through로 최신화되어 DB 단독으로 충분하다.
-func (p *ProcessManager) ListSubscriptions(sid string) ([]superdb.Process, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	return p.pool.Queries().ListProcessesBySid(ctx, sid)
+	p.memory.Remove(uid)
 }
 
 // Remove는 실행 엔트리를 정리한다. Inter가 있으면 Done(502)로 안전망을 건다(이미 Done이면

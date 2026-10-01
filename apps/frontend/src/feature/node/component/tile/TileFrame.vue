@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { TileSpan } from '@/feature/widget/util/tile.type';
 import { effectiveSize } from '@/feature/widget/util/tileSplit.util';
-import { computed } from 'vue';
+import { useAppDialog } from '@/feature/layout/store/appDialog.store';
+import type { ProcessStatus } from '@/feature/process/api/process.api';
+import { isRunning, useProcessTerm } from '@/feature/process/store/processTerm.store';
+import { computed, ref } from 'vue';
 import { VBtn, VCard, VChip, VIcon, VMenu } from 'vuetify/components';
 import { useGetNode } from '../../api/node.api';
-import { dummyKill, dummyStatus } from '../../dev/tileDummy';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
 import FolderTileBody from './FolderTileBody.vue';
@@ -19,6 +21,8 @@ const props = defineProps({
 
 const { tiles, close, resize } = useTileTree();
 const { cap, posOf, instanceOf, reveal, overview } = useTileGrids();
+const { procs, kill, dispose } = useProcessTerm();
+const { openDialog } = useAppDialog();
 
 const tile = computed(() => tiles.value[props.tileId]);
 
@@ -42,7 +46,17 @@ const opener = computed(() => {
     return parent?.type === 'folder' ? label(parent.nodeId, openerNode.value?.name) : undefined;
 })
 
-const running = computed(() => tile.value?.type === 'terminal' && dummyStatus(tile.value.uid) === 'RUNNING');
+const proc = computed(() => tile.value?.type === 'terminal' ? procs.value[tile.value.uid] : undefined);
+const running = computed(() => isRunning(proc.value?.status));
+
+// PENDING = worker 연결이 끊겨 기다리는 중(프로세스는 살아 있음)
+const PILL: Record<ProcessStatus, { text: string; color?: string }> = {
+    PENDING: { text: 'WAIT', color: 'warning' },
+    PROCESS: { text: 'RUN', color: 'success' },
+    COMPLETED: { text: 'DONE' },
+    FAILED: { text: 'FAIL', color: 'error' },
+};
+const pill = computed(() => proc.value ? PILL[proc.value.status] : { text: '-' });
 // 실행 중 터미널은 닫기 비활성(kill 먼저) — 결정 A(닫기와 kill)
 const closable = computed(() => !!tile.value?.parent && !running.value);
 
@@ -60,8 +74,19 @@ const setSize = (axis: 'w' | 'h', v: TileSpan) => {
     resize(tile.value.id, { ...tile.value.size, [axis]: v });
     reveal(tile.value.id);
 }
+const killing = ref(false);
 const onKill = () => {
-    if (tile.value?.type === 'terminal') dummyKill(tile.value.uid);
+    if (tile.value?.type !== 'terminal') return;
+    killing.value = true;
+    kill(tile.value.uid)
+    .catch(err => openDialog({ type: 'error', content: err?.message || '종료하지 못했습니다' }))
+    .finally(() => killing.value = false);
+}
+const onClose = () => {
+    const t = tile.value;
+    if (!t) return;
+    close(t.id);
+    if (t.type === 'terminal') dispose(t.uid);
 }
 </script>
 
@@ -75,7 +100,7 @@ const onKill = () => {
             :color="tile.type === 'folder' ? 'warning' : 'primary'"
         />
         <span class="name">{{ name }}</span>
-        <v-chip v-if="tile.type === 'terminal'" size="x-small" variant="tonal" class="pill" :color="running ? 'success' : undefined">{{ running ? 'RUN' : 'DONE' }}</v-chip>
+        <v-chip v-if="tile.type === 'terminal'" size="x-small" variant="tonal" class="pill" :color="pill.color">{{ pill.text }}</v-chip>
     </div>
     <div class="TileFrame__head" :inert="overview">
         <span class="pos">{{ posOf.get(tile.id) }}</span>
@@ -88,8 +113,8 @@ const onKill = () => {
         <span class="spacer" />
 
         <template v-if="tile.type === 'terminal'">
-            <v-chip size="x-small" variant="tonal" class="pill" :color="running ? 'success' : undefined">{{ running ? 'RUN' : 'DONE' }}</v-chip>
-            <v-btn v-if="running" size="x-small" variant="text" icon="mdi-stop" title="kill" @click="onKill" />
+            <v-chip size="x-small" variant="tonal" class="pill" :color="pill.color" :title="proc?.exitCode != null ? `exit ${proc.exitCode}` : undefined">{{ pill.text }}</v-chip>
+            <v-btn v-if="running" size="x-small" variant="text" icon="mdi-stop" title="kill" :loading="killing" @click="onKill" />
         </template>
 
         <v-menu location="bottom end" :close-on-content-click="false">
@@ -116,7 +141,7 @@ const onKill = () => {
         <v-btn size="x-small" variant="text" icon="mdi-close"
             :disabled="!closable"
             :title="running ? '실행 중에는 닫을 수 없음 (kill 먼저)' : '닫기'"
-            @click="close(tile.id)"
+            @click="onClose"
         />
     </div>
 

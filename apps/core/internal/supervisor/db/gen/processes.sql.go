@@ -155,6 +155,52 @@ func (q *Queries) ListActiveByDevice(ctx context.Context, deviceKey string) ([]P
 	return items, nil
 }
 
+const listLiveProcessesByOwner = `-- name: ListLiveProcessesByOwner :many
+SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at FROM processes
+WHERE owner_user_id = $1
+  AND status IN ('PENDING','PROCESS')
+ORDER BY created_at ASC
+`
+
+func (q *Queries) ListLiveProcessesByOwner(ctx context.Context, ownerUserID int64) ([]Process, error) {
+	rows, err := q.db.Query(ctx, listLiveProcessesByOwner, ownerUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Process
+	for rows.Next() {
+		var i Process
+		if err := rows.Scan(
+			&i.Uid,
+			&i.Type,
+			&i.OwnerUserID,
+			&i.NodeID,
+			&i.DeviceKey,
+			&i.Cmd,
+			&i.Args,
+			&i.Env,
+			&i.Cwd,
+			&i.Rows,
+			&i.Cols,
+			&i.Status,
+			&i.Pid,
+			&i.ExitCode,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProcessesByOwner = `-- name: ListProcessesByOwner :many
 SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at FROM processes
 WHERE owner_user_id = $1

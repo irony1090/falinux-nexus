@@ -1,5 +1,6 @@
 import { inject, onUnmounted, provide, ref, watch, type Ref } from 'vue';
 import type { Connect } from '../util/index.type';
+import { readTabId } from '../util/tabId.util';
 
 /* ────────────────────────────────────────────────────────────────────────
  * Protocol 계층 (frame 형태 가변)
@@ -97,7 +98,8 @@ export type SocketContext = {
 
 const isConnected = (s: Connect['Status']) => s === 'CONNECTED';
 
-export const createWebsocketHook = (url: string, option: WebsocketOption = {}) => {
+// url이 함수면 연결(재연결 포함)할 때마다 다시 만든다 — 쿼리에 그때의 값(탭 id 등)을 싣기 위해
+export const createWebsocketHook = (url: string | (() => string), option: WebsocketOption = {}) => {
     const {
         maxRetries,
         retryInterval = 2000,
@@ -107,8 +109,10 @@ export const createWebsocketHook = (url: string, option: WebsocketOption = {}) =
 
     // url 당 단일 컨텍스트(소켓·correlator·핸들러)를 모든 호출부가 공유.
     let ctx: SocketContext | null = null;
+    const resolveUrl = () => typeof url === 'function' ? url() : url;
+    const label = typeof url === 'function' ? resolveUrl().split('?')[0] : url;
     // 인스턴스별 고유 주입 키(여러 url로 여러 번 호출될 수 있어 문자열 키 충돌을 피함).
-    const key = Symbol(`WebsocketContext:${url}`);
+    const key = Symbol(`WebsocketContext:${label}`);
 
     const build = (): SocketContext => {
         const retry = ref(0);
@@ -139,7 +143,7 @@ export const createWebsocketHook = (url: string, option: WebsocketOption = {}) =
             }
             manualDisconnect = false;
             retry.value += 1;
-            const sock = new WebSocket(url);
+            const sock = new WebSocket(resolveUrl());
             sock.binaryType = 'arraybuffer'; // Go BinaryMessage 수신용
             ws.value = sock;
             status.value = 'CONNECTING';
@@ -294,7 +298,7 @@ export const createWebsocketHook = (url: string, option: WebsocketOption = {}) =
     // 하위 트리 어디서나 호출 — provideSocket()이 상위에서 안 불렸으면 즉시 throw.
     const useSocket = (): SocketContext => {
         const shared = inject<SocketContext>(key)!;
-        if (!shared) throw new Error(`websocket: provideSocket()이 상위에서 호출되지 않았습니다 (url=${url})`);
+        if (!shared) throw new Error(`websocket: provideSocket()이 상위에서 호출되지 않았습니다 (url=${label})`);
 
         // 이 호출부(컴포넌트)에서 등록한 on 구독은 unmount 시 자동 해제.
         const localUnsubs: Array<() => void> = [];
@@ -322,4 +326,7 @@ export const createWebsocketHook = (url: string, option: WebsocketOption = {}) =
 //   provideTestSocket();
 //   const s = useTestSocket(); s.connect();
 //   s.call('TEST', 'hello').then(console.log) // → 'RES'
-export const [provideTestSocket, useTestSocket] = createWebsocketHook('ws://localhost:5050/subscribe', { maxRetries: 2 });
+export const [provideTestSocket, useTestSocket] = createWebsocketHook(
+    () => `ws://localhost:5050/subscribe?tabId=${encodeURIComponent(readTabId())}`,
+    { maxRetries: 2 },
+);
