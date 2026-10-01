@@ -64,6 +64,7 @@ func NewWorkerRouter(supervisor url.URL, uniqueKey, baseDir string, store *store
 	if err != nil {
 		return nil, err
 	}
+	transport.KeepAlive(ws)
 	conn := transport.New(ws)
 	state.conn.Store(conn) // pump/teardown이 곧바로 이 conn을 참조하도록 먼저 교체
 

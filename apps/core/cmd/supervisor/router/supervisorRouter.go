@@ -118,6 +118,7 @@ func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 		return nil
 	}
 
+	transport.KeepAlive(ws)
 	conn := transport.New(ws)
 
 	var auth protocol.RegisterRequest

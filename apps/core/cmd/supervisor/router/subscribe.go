@@ -23,6 +23,7 @@ func (r *supervisorRouter) handleSubscribeWS(c echo.Context) error {
 		return nil
 	}
 
+	transport.KeepAlive(ws)
 	conn := transport.New(ws)
 	r.browsers.Append(conn, sid)
 
