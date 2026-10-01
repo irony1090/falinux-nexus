@@ -5,6 +5,13 @@
 
 ---
 
+### 2026-09-30 - `GET /workers` + exec 대상 장비 검증 (연동 1차 1번)
+- 사용자가 supervisor·worker를 켜 두고 연동 착수. 구조안(`GET /workers` 전체 / `?nodeId=` 상속 해석) + 두 가지 추천(인스턴스 1개면 바로 실행, `execProcess`에서 main_key 검증) → 사용자 "둘 다 추천대로".
+- **작성**: `workerApi.go` 신규(`mountWorkers`, `splitInstanceKey`, `resolveMainKey`) + `processApi.go` 검증 + `supervisorRouter.go` 마운트 / 프론트 `worker.api.ts`. 기존 설계(2026-06-29 "Exec 인스턴스 선택")를 그대로 구현.
+- **검증**: `go build`·`go vet`·vue-tsc 통과 + HTTP e2e(사용자 계정, 임시 폴더→하위 폴더→스크립트 만들어 확인 후 삭제): `GET /workers` 1개 / 세션 없음 401 / 루트 스크립트 `?nodeId=` 404 / 하위 폴더 거쳐 상속 → 인스턴스 1개 / 다른 main_key로 exec 400 / 루트 스크립트 exec 404.
+- **동작 변화 주의**: 기존 테스트 스크립트(id 2~4)는 루트에 있어 이제 exec 불가(404) — 전에는 `authKey`만 주면 실행됐음. `device_key` 폴더 안으로 옮겨야 함(node 관리 UI 또는 PATCH).
+- **후속(같은 날, 사용자 요청)**: 폴더 id 1에 `device_key=irony-MAC-ADDress1` 지정 + 스크립트 2~4를 `parent_id=1`로 이동. 세션(비밀번호)이 없어 DB 직접 UPDATE로 적용(`updated_at` 갱신, `ord` 2~4 유지, NODE 발행 없음). main_key는 `processes.device_key` 기록으로 확인. 상속 해석은 재귀 CTE로 확인, `execProcess` HTTP 실행은 미확인.
+
 ### 2026-06-29 - Node 모듈 구현 (스키마·쿼리·핸들러, build/vet 통과 / HTTP e2e 미검증)
 
 > 설계 정련 후 nodes 카탈로그를 DB→쿼리→REST 핸들러까지 구현. 설계 확정은 `REF-node-label.md`.

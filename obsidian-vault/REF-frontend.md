@@ -72,6 +72,7 @@
 - **인증**: `feature/user/store/auth.store.ts`(auth 상태) + `feature/user/api/user.api.ts`. `pages/Login.vue` + 라우트 `/login`(router/index.ts, 수동 정의).
 - **공용 API 계층**: `common/api/api.util.ts`(fetch 래퍼) + `query.util.ts`. socket hook과 별개의 REST 호출 통로.
 - **전역 다이얼로그**: `feature/layout/component/AppDialog.vue` + `store/appDialog.store.ts`(reactive 모듈 패턴 — 컴포넌트 밖에서 다이얼로그 open). layout store 계열: `appHead`/`appNav`/`appWindown`/`appDialog`.
+- **`AppDialog` 주의(2026-09-30)**: `content`는 `v-html`로 그려진다 → 사용자 입력(노드 이름 등)은 `content`가 아니라 `title`(텍스트 보간)로 넘긴다. 버튼에 `bindButton`을 묶지 않은 Enter·Space·Esc는 창 닫기로 처리되므로, 삭제 같은 되돌릴 수 없는 버튼에는 Enter를 묶지 않는다(사용 예: `FolderTileBody.vue` 삭제 확인, `ScriptEditDialog.vue` 닫기 확인).
 
 ## REST API 클라이언트 (`feature/{node,process}/api`, 2026-07-21)
 - `feature/node/api/node.api.ts`: `createNode`/`listChildren`/`getNode`/`patchNode`/`deleteNode` (node.go+nodeDto.go 미러) + vue-query `useListChildren`/`useGetNode`/`useNodeQueryClient`(invalidateAll/-Force). `Q_KEY`는 `LIST(parentId?)`/`DETAIL(id)`.

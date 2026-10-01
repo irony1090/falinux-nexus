@@ -32,6 +32,7 @@
 ### 참고
 - 같은 폴더의 `store/stickyBox.store.ts`(기존, provide/inject 기반 sticky 영역 좌표 공유)는 이번 추가와 무관한 별개 위젯.
 - 아직 실제 사용처(어느 페이지/컴포넌트가 이 위젯을 소비하는지) 미배선 — 컴포넌트·스토어만 추가된 상태.
+- **알려진 제약(2026-09-30 발견)**: `SkeletonGroup`의 `<clipPath id="CLIP_PATH">`가 고정 id라 한 화면에 그룹이 둘 이상 동시에 로딩하면 id가 겹친다(첫 번째 clipPath만 적용). 폴더 타일 목록 로딩에 쓰려다 이 때문에 `VProgressLinear`로 대체(→ `REF-node-ui-link.md`). 다중 사용 전에 그룹별 고유 id로 고쳐야 함.
 
 ## StickyBox — 중첩 가능한 sticky header/footer 위젯
 > 스토어(`store/stickyBox.store.ts`)는 기존, 이번에 `component/StickyBox.vue`(실제 컴포넌트) 추가 + 스토어 리팩터. 관찰 리소스는 공유 그룹(`REF-util.md` "공유 리사이즈 관측 그룹") 소비.

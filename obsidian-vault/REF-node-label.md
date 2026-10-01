@@ -38,10 +38,13 @@ nodes( id, owner_user_id→users, parent_id→nodes NULL,
 - `users`=구현 완료(2026-06-26, 구 PortBridge 이식) / worker 라우팅=메모리 레지스트리(관측용 roster는 아래 worker_instances)
 
 ## Exec 인스턴스 선택 + worker_instances roster (2026-06-29)
+> 프론트 UI(2026-09-30): 폴더 `device_key` 지정(직접 입력 + 접속 중 목록)·접속 상태 표시는 구현됨 → `REF-node-ui-link.md` "3(node 관리 UI)". 실행 시 인스턴스 선택 UI는 5(실행)에서.
 - **device_key=main_key라 실행 대상 인스턴스(subkey)를 Exec 시점에 선택.** 흐름:
   1. 스크립트의 device_key(main_key) 상속 해석(재귀 CTE)
   2. `ListInstances(main_key)` — 레지스트리 `r.workers.FindAll(키의 main 파트 == main_key)`로 활성 인스턴스(subkey) 목록 산출
   3. 사용자가 subkey 선택(1개뿐이면 기본) → `authKey = main#sub` → `Exec(authKey, spec)` / `SendBuffer(authKey, …)`
+  - **구현(2026-09-30)**: `cmd/supervisor/router/workerApi.go` — `GET /workers`(전체, 폴더 `device_key` 후보) / `GET /workers?nodeId=`(1+2를 서버에서: `ResolveDeviceKey` 재귀 CTE → 그 main_key 인스턴스만, 귀속 폴더 없으면 404). 응답 `[{mainKey, subKey, instanceKey}]` 정렬, 키 분리 = 마지막 `#`. 프론트 `feature/worker/api/worker.api.ts` `listWorkers(nodeId?)`. **1개면 선택 없이 바로 실행**(사용자 확정, UI는 연동 1차 5번에서)
+  - **`execProcess` 검증 추가(2026-09-30)**: `authKey`의 main_key ≠ 스크립트 상속 `device_key` → 400(다른 장비로 잘못 실행 방지). 서브키 위조 검증은 여전히 별도 이슈
 - **활성/비활성 표시 = roster ∩/− 레지스트리.** 레지스트리는 살아있는 연결만 들고 있어 "비활성"(끊긴 subkey)을 보이려면 명부 필요 → DB roster:
   - `worker_instances(main_key, sub_key, first_seen, last_seen, PK(main_key, sub_key))`. register 시 **upsert**(`last_seen=now()`)
   - **online은 저장 안 하고 레지스트리로 파생**(크래시 stale 방지): `active = roster ∩ registry` / `inactive = roster − registry`

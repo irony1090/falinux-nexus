@@ -5,13 +5,13 @@
 ## ⑤ 렌더 최소판 (2026-09-29 작성, 더미 미리보기)
 | 컴포넌트 | 위치 | 책임 |
 |---|---|---|
-| `pages/index.vue` | - | `provideTileTree()` + `seedTileTree`(더미) + `<tile-workspace/>`. **D(index.vue 처리)**: 스크립트(소켓·테스트 함수)는 그대로, 템플릿만 교체 |
+| `pages/index.vue` | - | `provideTileTree()` + `<tile-workspace/>`(더미 시드 `seedTileTree`는 2026-09-30 제거 → `REF-node-ui-link.md`). **D(index.vue 처리)**: 스크립트(소켓·테스트 함수)는 그대로, 템플릿만 교체 |
 | `TileWorkspace` | `feature/node/component/` | `provideTileGrids()` + `<tile-strip/>` + `TileNav`를 헤더로 Teleport (헤더 내비 단계에서 신설) |
 | `TileStrip` | `feature/node/component/` | 측정(border-box - padding - 정보 줄 20 - 간격 8, 스크롤바 안 뺌) → 스토어 `area`에 기록 + `viewW`/`scrollX` 기록 → Grid 나열·가로 스크롤. `cols=1`이면 `.narrow`(`(100% - gap)/2`). **E(⑥ 높이)** = `calc(100dvh - var(--v-layout-top))` |
 | `TileLayout` / `Tile` | `feature/widget/component/` | 범용 위젯(→ `REF-widget.md`) |
 | `TileFrame` | `feature/node/component/tile/` | 헤더: 순번·아이콘·이름(+`(n)`)·`← 연 폴더`·RUN/DONE+kill·크기 `VMenu`(1칸 축 0.5 비활성, `=1×.5` 표시)·닫기(루트/실행 중 비활성) |
 | `FolderTileBody` / `TerminalTileBody` | 같은 곳 | 브레드크럼·노드 목록(이름 = `navigate`, 새 타일 = `openFolder`, 실행 = `addTerminal`) / 더미 출력 |
-| `tileDummy.ts` | `feature/node/dev/` | 가짜 노드 9개(시안 NODES), 더미 status(reactive Map, `dummyExec`/`dummyKill`), `seedTileTree`(시안 "순서 예시") |
+| `tileDummy.ts` | `feature/node/dev/` | 더미 status(reactive Map, `dummyExec`/`dummyKill`/`dummyStatus`)만 남음. 가짜 노드 9개·시드는 2026-09-30 node API 연동으로 삭제(→ `REF-node-ui-link.md`) |
 
 - **칼럼 스냅(2026-09-29 추가)**: strip `scroll-snap-type: x mandatory` + `scroll-padding: var(--gap)`. 앵커 = `TileLayout`의 `overlay` 슬롯에 `columnStops(area.w, cap, GAP, g.cols)` 위치마다 1px 절대배치 `.snap`(`scroll-snap-align: start`). 전체 폭 Grid 폭 = 측정한 `area.w`라 추가 측정 없음. 확인: 앵커 `0, 923 | 1845, 2768 | 3690(1칼럼 Grid)`, 923 = G1 오른쪽 칼럼 + G2 왼쪽 칼럼으로 경계 걸침 스냅 동작, 스크롤 끝은 max로 멈춤.
 - **GAP 하나로 통일**: strip padding = Grid 간격 = 타일 간격(8px) = `TILE_GAP`(`tileGrids.store.ts` export, 헤더 내비 단계에서 `TileStrip` 지역 상수에서 옮김). 1칼럼 Grid 폭 `(100% - gap)/2`와 `stripGeometry`가 이 가정에 의존.

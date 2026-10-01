@@ -24,6 +24,8 @@
 - 2026-06-26 supervisor PG 스토어 이식 + DB 배선/마이그레이션 자동적용
 
 ### `history/node-label.md` — Node/Label 모듈
+- 2026-09-30 (후속) 테스트 스크립트 id 2~4를 폴더 id 1로 이동 + `device_key` 지정(DB 직접 UPDATE)
+- 2026-09-30 `GET /workers`(접속 인스턴스, `?nodeId=` 상속 해석) + `execProcess` 대상 장비 검증 — 연동 1차 1번
 - 2026-06-29 Node 모듈 구현 (스키마·쿼리·핸들러·PatchNode·internal/patch, build/vet 통과)
 - 2026-06-26 Node/Label 모듈 설계 (frontend 카탈로그)
 
@@ -95,6 +97,12 @@
 - 2026-09-30(2) 전체보기 모드 + 고정 버튼 작성(`OverviewButton` 신규, 재마운트 금지 구조, 축소 비율 사용자 조절) — 헤드리스 PC·폰 확인
 - 2026-09-30 타일 위치 따라가기 `reveal` — 크기 변경·새 타일로 화면 밖 Grid에 가면 그 Grid로 스크롤 (PC·폰 헤드리스 확인)
 - 2026-09-29(17) 헤더 내비 작성 — Teleport로 AppHead에 VPagination Grid 탭 + 칼럼 이동 화살표 + `칼럼 a-b/N`, 현재 Grid 판정 버그(gap 섞임) 수정
+
+### `history/node-ui-link.md` — node 카탈로그 타일 UI 실제 연동 (더미 → node/process API, 2026-09-30 신설)
+- 2026-09-30(4) 연동 1차 4(스크립트 편집): `ScriptEditDialog`(브라우저 편집 → `PATCH content`, 새 스크립트 직후 자동 열기), 창 높이는 `VDialog` `height`로
+- 2026-09-30(3) 폴더 안(브레드크럼 줄)에서 장비 지정·접속 상태 표시(상속 포함) + 헤드리스 시나리오 확인, 테스트 로그인은 `Login.vue` 기본값 사용 허용
+- 2026-09-30(2) 연동 1차 3(node 관리 UI): 생성·이름 변경·장비 지정(직접 입력 + 접속 상태)·삭제(하위를 보던 타일 닫기), `hook/nodeRemove.hook.ts` 신규
+- 2026-09-30 연동 1차 2(폴더 타일 목록): 더미 목록·경로·이름을 node API로(`useListChildren`/`useNodePath`/`useGetNode`), 경로 = `getNode` 반복 호출, 실행은 더미 유지
 
 ### `history/node-ui-projection.md` — node 카탈로그 화면 크기별 표시 (node-ui-layout에서 2026-09-29 분할)
 - 2026-09-29(5) 페이지네이션 폐기(사용자 "원한 게 아님") → 좁은 축은 저장된 0.5를 1.0으로 보고 다시 채움, 채우기 방향 모든 기기 칼럼 우선으로 통일(코드 없음, 시안만)
