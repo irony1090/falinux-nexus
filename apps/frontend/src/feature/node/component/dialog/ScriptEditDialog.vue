@@ -41,18 +41,14 @@ watch(open, val => {
     }).finally(() => loading.value = false);
 })
 
-const save = (close: boolean) => {
+// 저장 버튼·Ctrl+S 모두 저장하고 계속 편집(닫기는 닫기 경로로만)
+const save = () => {
     const id = props.node?.id;
-    if (id === undefined || loading.value || saving.value) return;
-    if (!dirty.value) {
-        if (close) open.value = false;
-        return;
-    }
+    if (id === undefined || loading.value || saving.value || !dirty.value) return;
     const content = text.value;
     saving.value = true;
     patch(id, { content: content === '' ? null : content }).then(() => {
         original.value = content;
-        if (close) open.value = false;
     }).catch(err => fail(err, '저장하지 못했습니다'))
     .finally(() => saving.value = false);
 }
@@ -94,8 +90,8 @@ const onTab = (e: KeyboardEvent) => {
 <v-dialog :model-value="open" max-width="760" :height="xs ? undefined : 640" :fullscreen="xs" @update:model-value="onClose">
     <v-card class="ScriptEditDialog"
         :loading="loading || saving"
-        @keydown.ctrl.s.prevent="save(false)"
-        @keydown.meta.s.prevent="save(false)"
+        @keydown.ctrl.s.prevent="save"
+        @keydown.meta.s.prevent="save"
     >
         <v-card-title class="title">
             <span class="name">{{ node?.name }}</span>
@@ -116,7 +112,7 @@ const onTab = (e: KeyboardEvent) => {
         <v-card-actions>
             <span class="hint">Ctrl+S 저장</span>
             <v-btn variant="text" :disabled="saving" @click="onClose">닫기</v-btn>
-            <v-btn variant="flat" color="primary" :disabled="loading || saving || !dirty" @click="save(true)">저장</v-btn>
+            <v-btn variant="flat" color="primary" :disabled="loading || saving || !dirty" @click="save">저장</v-btn>
         </v-card-actions>
     </v-card>
 </v-dialog>
