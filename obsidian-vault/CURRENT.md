@@ -8,10 +8,11 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시 (2026-10-02 세션 종료 정리 — 사용자 재부팅)
-- 전체 순서: 1 탭 id + S(구독 역할 분리)(완료) → 2 재기동·확인·커밋(완료) → 2.5 터미널 입력(완료 `2db8998`) → 3 ⑪(타일 트리 서버 저장)(**완료** `2aa0920`·`2f0170f`) → 4 O(계정 동기화) 화면(**완료** `4b6bbcd`) → **4.5 SNAPSHOT(화면복원 ring buffer)(다음)** → 5 공유(P·R·T)
+- 전체 순서: 1 탭 id + S(구독 역할 분리)(완료) → 2 재기동·확인·커밋(완료) → 2.5 터미널 입력(완료 `2db8998`) → 3 ⑪(타일 트리 서버 저장)(**완료** `2aa0920`·`2f0170f`) → 4 O(계정 동기화) 화면(**완료** `4b6bbcd`) → **4.5 SNAPSHOT(화면복원 ring buffer)(다음)** → 4.6 EDIT(worker `vi` 편집) 프론트 연결 → 5 공유(P·R·T)
 - **바로 다음 = 4.5 SNAPSHOT 구조안**: 설계 → `REF-process-snapshot.md`(supervisor-side 채택, snapshot↔live 이음매 경합·`bind.CatchUp` 미완성 미해결). 프론트 끼울 자리 = `processTerm.restore` 한 곳(새로고침·다른 탭 push·409 재적용 전부 이 길) → `REF-node-ui-sync.md` "4-c". 구조 합의 전 코드 착수 금지
 - 3 ⑪ 완료: 3-a(DB)·3-b(API)·3-b'(exec 연동) `2aa0920` / 3-c(스토어)·3-d(터미널 복원) `2f0170f` / 3-e(확인) 마감 → `REF-node-ui-save.md`(설계)·`REF-node-ui-save-impl.md`(구현·확인)
 - 4 완료: 4-a(서버 발행)·4-b(트리 수신)·4-c(터미널 등록 일원화) + 사용자 PC 확인(2026-10-02) → `REF-node-ui-sync.md`. 범위 밖으로 남긴 것 = 4⑤(폴더 목록 동기화, 열린 질문 4 `NODE:` 동적 구독)
+- **4.6 EDIT(worker `vi` 편집) 순서 확정(2026-10-02 사용자: SNAPSHOT 뒤 — 새로고침해도 vi 화면이 복원되게)**: 선행(6 타일 임베드 + 입력) 충족. 서버·API는 이미 있음(`ExecTypeEdit`, `MsgEditResult`→`editResult` content diff 갱신, `{WORKER_EDITOR}`, REST `type: EDIT`, 프론트 `ProcessType`). 남은 것 = 스크립트 행 메뉴 "vi로 편집" + 끝나면 노드 캐시 갱신 + `:wq`·`:q!`·`:cq` 확인 → `REF-process-exec-edit.md`
 - 확인 중 사용자 질문(정상 동작): 좁은 탭에서 `.5×.5=1×.5` = 저장값 그대로 동기화, 그 화면이 가로 1칸이라 1.0으로 보여 줌(화면 크기 규칙)
 - 2.5 터미널 입력 완료: 입력-a(서버)·입력-b(프론트) + I5(Ctrl+V 붙여넣기)=붙여넣기, 서버 4·브라우저 7항목 통과, 사용자 PC 확인 이상 없음 → `REF-process-input.md`. 남은 확인 = PENDING 중 입력 버림(socat), 한글(IME) 입력 별도 확인 언급 없음
 - 커밋 상태(2026-10-02, push 안 함): `2db8998` feat 입력 / `7488b2c` docs / `2aa0920` feat 타일 트리 서버 저장 / `2f0170f` feat 3-c·3-d 프론트 / `4b6bbcd` feat 4 계정 동기화 화면 / docs(vault) 커밋들. 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치)

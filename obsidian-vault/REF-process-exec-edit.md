@@ -3,6 +3,7 @@
 > 계약/설계 원칙 본체는 `REF-process.md`(여기는 그 하위 절이 커져서 분리됨, 2026-07-22). script 편집 = worker PTY vi 왕복.
 > node script 편집 = frontend→supervisor→worker로 worker의 실제 `vi`($EDITOR)를 **PTY로 띄워** 편집, 종료 시 내용 회수. **PTY 엔진의 특수 사례** — 새 메커니즘 아님. 카탈로그(`REF-node-label.md`) "무엇"에 "어떻게(편집)"를 먹이는 동작.
 
+- **진행 위치(2026-10-02 사용자 결정)**: 4.5 SNAPSHOT(화면복원 ring buffer) **뒤** 4.6으로. 선행 조건(6 타일 임베드 + 터미널 입력)은 충족. 서버·REST(`type: EDIT`)·프론트 타입은 있음 — 남은 것 = 스크립트 행 메뉴 "vi로 편집", 종료 후 노드 내용 캐시 갱신, `:wq`·`:q!`·`:cq` 처음부터 끝까지 확인(아직 한 번도 안 함)
 - **UI 순서(2026-09-30 사용자 결정)**: 스크립트 내용 편집은 **브라우저 편집기(`PATCH /nodes/:id` content)를 먼저** 넣고, EDIT(worker `vi` PTY)는 타일 xterm 임베드(구현 순서 6) 뒤에 붙인다 — 연동 테스트용 스크립트를 worker 없이 바로 만들기 위해. → `CURRENT.md` 7-0
 
 - **단일 `MsgExec{ type, spec }` + 단일 결과채널**에 `type` 디스크리미네이터. 제어/스트림(Data·Resize·Kill·Status) 공유라 메시지 안 가르고 type만 추가(separate MsgEditExec보다 깔끔)
