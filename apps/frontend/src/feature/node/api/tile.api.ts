@@ -1,4 +1,5 @@
 import { BaseAxios, throwCatch, throwThen } from '@/common/api/api.util'
+import { readTabId, TAB_ID_HEADER } from '@/common/util/tabId.util'
 import type { Tile } from '../store/tileTree.store'
 
 // 백엔드: apps/core/cmd/supervisor/router/tile.go (group "/tiles") — ⑪(타일 트리 서버 저장), REF-node-ui-save.md
@@ -34,7 +35,7 @@ const putTilesKeepalive = (body: string): Promise<PutTilesResult> => fetch(
         method: 'PUT',
         keepalive: true,
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', [TAB_ID_HEADER]: readTabId() },   // push에 실려 돌아올 때 이 탭이 자기 것으로 거르게(4②)
         body,
     }
 ).then(async res => {

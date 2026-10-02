@@ -41,6 +41,7 @@ func (r *supervisorRouter) handleSubscribeWS(c echo.Context) error {
 	r.sizeOwnerOnConnect(tab.tabID, live)
 	//node:{parentId} - 0이면 nil인 node들을 구독한다
 	r.subscribeHub.Subscribe(nodeSubscribeTopic(0), conn)
+	r.subscribeHub.Subscribe(tilesTopic(userID), conn)
 	r.onProcessInput(conn, userID)
 
 	err = conn.Serve()

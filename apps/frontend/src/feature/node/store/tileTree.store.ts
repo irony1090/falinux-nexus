@@ -1,6 +1,8 @@
 import type { TileNode, TileSize } from '@/feature/widget/util/tile.type'
 import { useAppDialog } from '@/feature/layout/store/appDialog.store'
-import { inject, onBeforeUnmount, provide, readonly, ref } from 'vue'
+import { useTestSocket } from '@/common/websocket/websocket.hook'
+import { readTabId } from '@/common/util/tabId.util'
+import { inject, onBeforeUnmount, provide, readonly, ref, watch } from 'vue'
 import { getTiles, putTiles, type TileTree, type TileTreeResponse } from '../api/tile.api'
 
 const TILE_TREE_STORE_KEY = Symbol('TileTreeStore')
@@ -10,8 +12,9 @@ export type FolderTile = TileBase & { type: 'folder'; nodeId: number | null }  /
 export type TerminalTile = TileBase & { type: 'terminal'; nodeId: number; uid: string }
 export type Tile = FolderTile | TerminalTile
 
-// 트리를 바꾸는 동작. 409 때 서버 트리 위에 다시 실행되므로 검사(throw)를 전부 먼저 하고 변경은 뒤에 한다 —
-// 변경 도중 throw하면 반쯤 바뀐 트리가 남는다. 대상 타일이 없으면 throw = 그 동작은 버림
+// 트리를 바꾸는 동작. 409·다른 탭 push 때 서버 트리 위에 다시 실행되므로 검사(throw)를 전부 먼저 하고 변경은 뒤에 한다 —
+// 변경 도중 throw하면 반쯤 바뀐 트리가 남는다. 대상 타일이 없으면 throw = 그 동작은 버림.
+// 멱등이어야 한다: 저장 중 push가 오면 이미 서버에 반영된 동작이 다시 적용된다(REF-node-ui-sync.md "세부 규칙")
 type Op = (tree: TileTree) => void
 
 const SAVE_DELAY = 300      // 연속 변경을 묶는 간격
@@ -36,6 +39,7 @@ const tileIn = (tiles: Record<string, Tile>, id: string) => {
 
 // 부모 kids 끝에 붙인다 (= 타일 순서 규칙의 "연 순서"). 재적용마다 새 객체 — 반응형 트리에 넣은 객체가 이후 변경돼도 동작은 그대로
 const attachOp = (parentId: string, tile: Tile): Op => ({ tiles }) => {
+    if (tiles[tile.id]) throw new Error(`[TILE_TREE] already attached: ${tile.id}`)
     const parent = folderIn(tiles, parentId)
     tiles[tile.id] = clone(tile)
     parent.kids = [...parent.kids, tile.id]
@@ -100,6 +104,7 @@ const adoptOp = (orphans: Array<Orphan>): Op => ({ rootId, tiles }) => {
 // 화면 = 서버가 확정한 트리 + 아직 확정 안 된 내 동작(pending) — REF-node-ui-save.md "3-c(스토어) 구조안"
 export const provideTileTree = () => {
     const { openDialog } = useAppDialog()
+    const { on, status: socketStatus } = useTestSocket()
 
     const tiles_ = ref<Record<string, Tile>>({})
     const rootId_ = ref('')
@@ -113,6 +118,7 @@ export const provideTileTree = () => {
     let conflicts = 0
     let timer: ReturnType<typeof setTimeout> | undefined
     let gen = 0                             // load/reset마다 증가 — 그 전에 보낸 요청의 응답은 버린다
+    let early: TileTreeResponse | null = null    // 불러오는 중 온 push — 받은 트리보다 새것이면 덮어씀
 
     const tree = (): TileTree => ({ rootId: rootId_.value, tiles: tiles_.value })
 
@@ -126,7 +132,7 @@ export const provideTileTree = () => {
         timer = setTimeout(() => void save(), delay)
     }
 
-    // 409: 서버 트리 위에 내 동작을 순서대로 다시 적용 — ⑪-2(충돌 처리)
+    // 409·다른 탭 push: 서버 트리 위에 내 동작을 순서대로 다시 적용 — ⑪-2(충돌 처리)
     const rebase = (server: TileTreeResponse) => {
         version = server.version
         let draft = server.tree
@@ -143,13 +149,13 @@ export const provideTileTree = () => {
         setTree(draft)
     }
 
-    // 보낸 시점의 트리와 동작 개수를 기억했다가, 200이면 그만큼만 확정한다(요청 중 생긴 동작은 다음 PUT)
+    // 보낸 동작을 객체로 기억했다가 200이면 그것만 확정한다 — 개수로 지우면 요청 중 push 재적용에서 동작이 빠졌을 때 어긋남
     const save = async (keepalive = false) => {
         clearTimeout(timer)
         if (inFlight || !pending.length || !ready_.value) return
         inFlight = true
         const my = gen
-        const sent = pending.length
+        const sent = new Set(pending)
         const res = await putTiles(clone(tree()), version, keepalive).catch(err => {
             console.log('[TILE_TREE] save', err)
             return null
@@ -163,8 +169,8 @@ export const provideTileTree = () => {
         }
         failures = 0
         if (res.ok) {
-            version = res.version
-            pending.splice(0, sent)
+            version = Math.max(version, res.version)    // 요청 중 더 새 push를 이미 받았으면 되돌리지 않음
+            pending = pending.filter(op => !sent.has(op))
             conflicts = 0
         } else if (++conflicts > CONFLICT_MAX) {
             pending = []
@@ -172,7 +178,7 @@ export const provideTileTree = () => {
             version = res.version
             setTree(res.tree)
             openDialog({ type: 'warning', content: '다른 탭의 변경과 계속 겹쳐 타일 배치를 서버 저장본으로 다시 불러왔습니다.' })
-        } else {
+        } else if (res.version > version) {
             rebase(res)
         }
         if (!pending.length) return
@@ -211,18 +217,41 @@ export const provideTileTree = () => {
 
     const load = async () => {
         reset()
+        early = null
         const my = gen
         try {
             const res = await getTiles()
             if (my !== gen) return
-            version = res.version
-            setTree(res.tree)
+            const stashed = early as TileTreeResponse | null    // await 사이 push 핸들러가 채움(TS는 위의 null 대입만 봄)
+            const latest = stashed && stashed.version > res.version ? stashed : res
+            early = null
+            version = latest.version
+            setTree(latest.tree)
             ready_.value = true
         } catch (err) {
             if (my !== gen) return
             loadError_.value = (err as { message?: string })?.message || '타일 배치를 불러오지 못했습니다'
         }
     }
+
+    // 다른 탭의 저장 — 4 O(계정 동기화) 화면. 내 탭 것은 내 응답이 처리하므로 거르고(4②), 옛 version도 거른다
+    const offs = [on<TileTreeResponse & { tabId: string }>('TILES:UPDATE', ev => {
+        if (ev.tabId && ev.tabId === readTabId()) return
+        if (!ready_.value) {
+            if (!early || ev.version > early.version) early = { tree: ev.tree, version: ev.version }
+            return
+        }
+        if (ev.version > version) rebase(ev)
+    })]
+
+    // 끊긴 동안 놓친 push는 다시 받아서 맞춘다
+    watch(socketStatus, s => {
+        if (s !== 'CONNECTED' || !ready_.value) return
+        const my = gen
+        getTiles()
+            .then(res => { if (my === gen && res.version > version) rebase(res) })
+            .catch(err => console.log('[TILE_TREE] resync', err))
+    })
 
     // 닫기 직전 저장: 숨겨지는 순간 묶음을 기다리지 않고 keepalive로 보낸다. pagehide는 모바일에서 OS가 탭을 죽이면 오지 않는다
     const onVisibility = () => {
@@ -231,6 +260,7 @@ export const provideTileTree = () => {
     document.addEventListener('visibilitychange', onVisibility)
     onBeforeUnmount(() => {
         document.removeEventListener('visibilitychange', onVisibility)
+        offs.forEach(off => off())
         clearTimeout(timer)
     })
 

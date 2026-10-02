@@ -159,14 +159,15 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 	// 요청 컨텍스트를 쓰면 브라우저가 응답 전에 끊을 때 저장이 취소돼 멀쩡한 process가 kill된다
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	tile, version, err := appendTerminalTile(ctx, sess.Data.ID, body.ParentTileID, size, node.ID, uid)
+	tile, tree, err := appendTerminalTile(ctx, sess.Data.ID, body.ParentTileID, size, node.ID, uid)
 	if err != nil {
 		if kErr := entry.Inter.Kill(); kErr != nil {
 			log.Printf("[process] 타일 저장 실패 후 kill 실패 uid=%s: %v", uid, kErr)
 		}
 		panic(web.Err(500, "터미널 타일 저장에 실패해 실행을 중단했습니다: %v", err))
 	}
-	res.Tile, res.TileVersion = &tile, version
+	r.publishTiles(sess.Data.ID, tree.Tree, tree.Version, tabID) // 별도 트랜잭션이 이미 커밋됨
+	res.Tile, res.TileVersion = &tile, tree.Version
 	return c.JSON(200, res)
 }
 

@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"nexus/internal/execute"
@@ -282,4 +283,14 @@ const MsgTabID MsgType = "TAB:ID" // sup→browser EVENT: TabIDEvent
 
 type TabIDEvent struct {
 	TabID string `json:"tabId"`
+}
+
+// 계정의 타일 트리 저장 통지 — TILES:<userId> 토픽, 4 O(계정 동기화) 화면 (REF-node-ui-sync.md)
+const MsgTilesUpdate MsgType = "TILES:UPDATE" // sup→browser EVENT: TilesUpdateEvent
+
+// TilesUpdateEvent: 저장된 트리 전체 + version(4①(push 내용)). TabID = 저장한 탭, 받는 쪽이 자기 것을 거른다(4②(내 변경 되받기)) — 모르면 ""
+type TilesUpdateEvent struct {
+	Tree    json.RawMessage `json:"tree"`
+	Version int64           `json:"version"`
+	TabID   string          `json:"tabId"`
 }

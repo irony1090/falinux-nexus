@@ -53,10 +53,32 @@ export const provideProcessTerm = () => {
 
     const offs: (() => void)[] = []     // 소켓은 App 수명이라 페이지가 내려갈 때 핸들러를 뗀다
 
-    // exec·복원 응답보다 출력·상태가 먼저 올 수 있어(계정 소켓은 relay 기동 전에 구독됨) 요청 중에만 모르는 uid 것을 모아 둔다
-    let fetchInFlight = 0
-    const early = new Map<string, Uint8Array[]>()
-    const earlyStatus = new Map<string, StatusEvent>()
+    // 모르는 uid의 출력·상태를 잠깐 보관했다가 등록할 때 쓴다 — 4③(다른 탭 실행 터미널 출력).
+    // 계정 소켓은 exec 때 relay 기동 전에 구독되므로 다른 탭이 실행한 터미널 출력도 처음부터 오지만, 타일 push로 uid를 알기 전엔
+    // 등록돼 있지 않다. exec·복원 응답보다 먼저 온 출력도 같은 길. 넘치면 오래된 것부터 버리고 overflow 표시(안내 줄)
+    const HOLD_BYTES = 64 * 1024
+    const HOLD_MS = 10_000
+    type Held = { chunks: Uint8Array[]; size: number; overflow: boolean; at: number; status?: StatusEvent }
+    const held = new Map<string, Held>()
+    const expired = new Set<string>()      // 보관 시간이 지나 버린 uid — 다시 보관해도 처음부터가 아님
+
+    const holdOf = (uid: string) => {
+        let h = held.get(uid)
+        if (!h) {
+            h = { chunks: [], size: 0, overflow: expired.has(uid), at: Date.now() }
+            held.set(uid, h)
+        }
+        return h
+    }
+
+    const purge = setInterval(() => {
+        const now = Date.now()
+        held.forEach((h, uid) => {
+            if (now - h.at <= HOLD_MS) return
+            held.delete(uid)
+            expired.add(uid)
+        })
+    }, HOLD_MS / 2)
 
     // PROCESS일 때만 보낸다(서버도 버리지만 불필요한 전송 방지) — REF-process-input.md I3(PENDING 중 입력)
     const sendInput = (uid: string, bytes: Uint8Array) => {
@@ -97,27 +119,19 @@ export const provideProcessTerm = () => {
         return { term, fit }
     }
 
-    const endFetch = () => {
-        if (--fetchInFlight === 0) {
-            early.clear()
-            earlyStatus.clear()
-        }
-    }
-
-    // 소유권 이벤트(PROCESS:SIZE_OWNER)가 응답보다 먼저 왔으면 응답의 false로 덮지 않는다
     const writeNotice = (uid: string, text: string) =>
         handles.get(uid)?.term.write(`\r\n\x1b[2m[${text}]\x1b[0m\r\n`)
 
+    // 소유권 이벤트(PROCESS:SIZE_OWNER)가 응답보다 먼저 왔으면 응답의 false로 덮지 않는다
     const register = (proc: ProcessResponse) => {
         procs_.value[proc.uid] = proc
         owners_.value[proc.uid] = !!proc.sizeOwner || !!owners_.value[proc.uid]
         if (!handles.has(proc.uid)) handles.set(proc.uid, createHandle(proc.uid))
         const h = handles.get(proc.uid)!
-        early.get(proc.uid)?.forEach(chunk => h.term.write(chunk))
-        early.delete(proc.uid)
-        const st = earlyStatus.get(proc.uid)
-        if (st) applyStatus(st)
-        earlyStatus.delete(proc.uid)
+        const kept = held.get(proc.uid)
+        held.delete(proc.uid)
+        kept?.chunks.forEach(chunk => h.term.write(chunk))
+        if (kept?.status) applyStatus(kept.status)
     }
 
     offs.push(on<DataEvent>('DATA', ev => {
@@ -125,8 +139,14 @@ export const provideProcessTerm = () => {
         const h = handles.get(ev.uid)
         if (h) {
             h.term.write(bytes)
-        } else if (fetchInFlight > 0) {
-            early.set(ev.uid, [...(early.get(ev.uid) ?? []), bytes])
+            return
+        }
+        const k = holdOf(ev.uid)
+        k.chunks.push(bytes)
+        k.size += bytes.length
+        while (k.size > HOLD_BYTES && k.chunks.length > 1) {
+            k.size -= k.chunks.shift()!.length
+            k.overflow = true
         }
     }))
 
@@ -147,7 +167,7 @@ export const provideProcessTerm = () => {
 
     offs.push(on<StatusEvent>('STATUS', ev => {
         if (procs_.value[ev.uid]) applyStatus(ev)
-        else if (fetchInFlight > 0) earlyStatus.set(ev.uid, ev)     // 최신 것 하나면 충분
+        else holdOf(ev.uid).status = ev     // 최신 것 하나면 충분
     }))
 
     offs.push(on<ProcessResponseDto>('PROCESS:UPDATE', dto => {
@@ -172,38 +192,36 @@ export const provideProcessTerm = () => {
     })
 
     // place = 서버가 터미널 타일을 넣을 자리. 응답의 tile·tileVersion은 호출부가 타일 트리에 반영
-    const exec = (nodeId: number, authKey: string, place: ExecPlace) => {
-        fetchInFlight++
-        return execProcess({ nodeId, authKey, ...place })
-            .then(res => {
-                register(res.proc)
-                return res
-            })
-            .finally(endFetch)
-    }
+    const exec = (nodeId: number, authKey: string, place: ExecPlace) => execProcess({ nodeId, authKey, ...place })
+        .then(res => {
+            register(res.proc)
+            return res
+        })
 
-    // 새로고침 뒤 터미널 타일의 process를 다시 등록한다(⑪ 3-d(터미널 복원)). 이전 출력은 없다 — SNAPSHOT 전까지 ⑪-3 감수.
-    // 이미 등록된 uid(복원 중 이 탭에서 exec)는 건드리지 않는다
-    const restore = (fetch: () => Promise<ProcessResponse[]>) => {
-        fetchInFlight++
-        return fetch()
-            .then(list => {
-                list.filter(p => !handles.has(p.uid)).forEach(p => {
-                    handles.set(p.uid, createHandle(p.uid))
-                    // 3-d③(복원 안내 줄): 빈 화면이 고장처럼 보이지 않게. 모아 둔 출력보다 먼저 쓴다
-                    writeNotice(p.uid, isRunning(p.status) ? 'reconnected — earlier output not shown' : `process exited: ${p.exitCode ?? '?'}`)
-                    register(p)
-                })
-                restored_.value = true
-                return list
+    // 내가 실행하지 않은 터미널을 등록하는 유일한 길(새로고침 복원·다른 탭 push·409 재적용) — 4-c. SNAPSHOT은 여기에 끼운다.
+    // reload = 새로고침 복원: 이전 출력이 없으므로 3-d③(복원 안내 줄). push로 처음 보는 터미널은 보관한 출력이 처음부터라
+    // 넘쳤을 때만 안내. 이미 등록된 uid(이 탭에서 exec)는 건드리지 않는다
+    const restore = (fetch: () => Promise<ProcessResponse[]>, { reload }: { reload: boolean }) => fetch()
+        .then(list => {
+            list.filter(p => !handles.has(p.uid)).forEach(p => {
+                handles.set(p.uid, createHandle(p.uid))
+                if (isRunning(p.status) && (reload || held.get(p.uid)?.overflow)) {
+                    writeNotice(p.uid, reload ? 'reconnected — earlier output not shown' : 'earlier output not shown')
+                }
+                register(p)
+                // 보관한 출력 뒤에 — 상태 이벤트는 실행 중 -> 끝남 전이 때만 종료 줄을 쓰므로 이미 끝난 건 여기서
+                if (!isRunning(p.status)) writeNotice(p.uid, `process exited: ${p.exitCode ?? '?'}`)
             })
-            .finally(endFetch)
-    }
+            restored_.value = true
+            return list
+        })
 
     // 3-d④(계정 바뀜): 이전 계정의 xterm·상태를 비운다
     const reset = () => {
         handles.forEach(h => h.term.dispose())
         handles.clear()
+        held.clear()
+        expired.clear()
         procs_.value = {}
         owners_.value = {}
         restored_.value = false
@@ -247,7 +265,15 @@ export const provideProcessTerm = () => {
         delete owners_.value[uid]
     }
 
+    // 트리에서 빠진 끝난 터미널의 xterm 정리 — 4④(다른 탭이 닫은 터미널). 실행 중은 남김(이 탭 exec 직후 타일 반영 전일 수 있음)
+    const prune = (keep: ReadonlySet<string>) => {
+        Object.values(procs_.value).forEach(p => {
+            if (!keep.has(p.uid) && !isRunning(p.status)) dispose(p.uid)
+        })
+    }
+
     onBeforeUnmount(() => {
+        clearInterval(purge)
         offs.forEach(off => off())
         handles.forEach(h => h.term.dispose())
         handles.clear()
@@ -260,6 +286,7 @@ export const provideProcessTerm = () => {
         exec,
         restore,
         reset,
+        prune,
         kill,
         syncSize,
         handleOf,

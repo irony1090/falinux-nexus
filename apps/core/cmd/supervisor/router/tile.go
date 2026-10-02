@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
+	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/supervisor/store"
 	"nexus/internal/web"
@@ -58,6 +60,16 @@ type tilePutRequest struct {
 
 type tilePutResponse struct {
 	Version int64 `json:"version"`
+}
+
+func tilesTopic(userID int64) string { return fmt.Sprintf("TILES:%d", userID) }
+
+// publishTiles는 계정의 모든 탭에 저장된 트리 전체를 보낸다 — 4①(push 내용). 커밋 뒤에만 부를 것
+func (r *supervisorRouter) publishTiles(userID int64, tree []byte, version int64, tabID string) {
+	ev := protocol.TilesUpdateEvent{Tree: tree, Version: version, TabID: tabID}
+	if err := r.subscribeHub.Publish(tilesTopic(userID), protocol.MsgTilesUpdate, ev); err != nil {
+		log.Printf("[tiles] 발행 실패 user=%d: %v", userID, err)
+	}
 }
 
 func newRootDoc() tileDoc {
@@ -183,26 +195,26 @@ func ensureTileTree(c echo.Context, userID int64) superdb.TileTree {
 // appendTerminalTile: exec 성공 직후 터미널 타일을 서버 트리에 넣는다 — ⑪-4(타일 없는 실행 중 process).
 // 요청 트랜잭션이 아니라 별도 트랜잭션으로 핸들러 안에서 커밋까지 끝낸다: 요청 트랜잭션은 응답을 보낸 뒤
 // 커밋되므로 그 실패를 핸들러가 알 수 없고, 그러면 실패 시 process kill(보상)을 할 수 없다 (REF-node-ui-save-impl.md "3-b'(exec 연동) 구현")
-func appendTerminalTile(ctx context.Context, userID int64, parentTileID string, size tileSize, nodeID int64, uid string) (tileItem, int64, error) {
+func appendTerminalTile(ctx context.Context, userID int64, parentTileID string, size tileSize, nodeID int64, uid string) (tileItem, superdb.TileTree, error) {
 	tx := store.GetStorePool().Transaction()
 	if err := tx.Begin(ctx); err != nil {
-		return tileItem{}, 0, err
+		return tileItem{}, superdb.TileTree{}, err
 	}
-	tile, version, err := func() (tileItem, int64, error) {
+	tile, upd, err := func() (tileItem, superdb.TileTree, error) {
 		q, err := tx.Queries()
 		if err != nil {
-			return tileItem{}, 0, err
+			return tileItem{}, superdb.TileTree{}, err
 		}
 		if _, err := loadOrCreateTileTree(ctx, q, userID); err != nil {
-			return tileItem{}, 0, err
+			return tileItem{}, superdb.TileTree{}, err
 		}
 		rec, err := q.GetTileTreeForUpdate(ctx, userID)
 		if err != nil {
-			return tileItem{}, 0, err
+			return tileItem{}, superdb.TileTree{}, err
 		}
 		var doc tileDoc
 		if err := json.Unmarshal(rec.Tree, &doc); err != nil {
-			return tileItem{}, 0, err
+			return tileItem{}, superdb.TileTree{}, err
 		}
 		// 부모 타일을 그 사이 다른 탭이 닫았으면 루트에 붙인다
 		parent, ok := doc.Tiles[parentTileID]
@@ -215,22 +227,22 @@ func appendTerminalTile(ctx context.Context, userID int64, parentTileID string, 
 		doc.Tiles[tile.ID] = tile
 		tree, err := doc.marshal()
 		if err != nil {
-			return tileItem{}, 0, err
+			return tileItem{}, superdb.TileTree{}, err
 		}
 		upd, err := q.UpdateTileTree(ctx, superdb.UpdateTileTreeParams{UserID: userID, Version: rec.Version, Tree: tree})
 		if err != nil {
-			return tileItem{}, 0, err
+			return tileItem{}, superdb.TileTree{}, err
 		}
-		return tile, upd.Version, nil
+		return tile, upd, nil
 	}()
 	if err != nil {
 		_ = tx.Rollback(ctx, err)
-		return tileItem{}, 0, err
+		return tileItem{}, superdb.TileTree{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return tileItem{}, 0, err
+		return tileItem{}, superdb.TileTree{}, err
 	}
-	return tile, version, nil
+	return tile, upd, nil
 }
 
 func (r *supervisorRouter) getTiles(c echo.Context) error {
@@ -258,8 +270,9 @@ func (r *supervisorRouter) putTiles(c echo.Context) error {
 	}
 
 	userID := sess.Data.ID
+	tree := doc.mustMarshal()
 	rec, err := TxQueries(c).UpdateTileTree(c.Request().Context(), superdb.UpdateTileTreeParams{
-		UserID: userID, Version: body.Version, Tree: doc.mustMarshal(),
+		UserID: userID, Version: body.Version, Tree: tree,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		cur := ensureTileTree(c, userID)
@@ -268,5 +281,7 @@ func (r *supervisorRouter) putTiles(c echo.Context) error {
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
+	tabID := r.requestTab(c, sess.Name())
+	AfterCommit(c, func() { r.publishTiles(userID, tree, rec.Version, tabID) })
 	return c.JSON(http.StatusOK, tilePutResponse{Version: rec.Version})
 }
