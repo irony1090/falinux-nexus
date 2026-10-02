@@ -267,6 +267,9 @@ const (
 
 	// 토픽 발행 아님 — 새 크기 소유자 탭의 소켓에만 직접 Emit
 	MsgProcessSizeOwner MsgType = "PROCESS:SIZE_OWNER" // sup→browser EVENT: SizeOwnerEvent
+
+	// browser→sup EVENT: DataEvent(키 입력 바이트), 응답 없음 — REF-process-input.md I1(전달 경로)
+	MsgProcessInput MsgType = "PROCESS:INPUT"
 )
 
 // SizeOwnerEvent: 받는 탭이 uid의 PTY 크기 소유자가 됐다는 통지.

@@ -139,11 +139,7 @@ func (r *supervisorRouter) cleanupProcessTopic(uid string) {
 	}
 }
 
-// TODO(frontend → supervisor 제어): 실행 중 process에 대한 입력/리사이즈 핸들러(종료는
-// processApi.go killProcess로 구현 완료).
-//   input(MsgData)  → r.process.Get(uid).Inter.Write(data)
-//   resize(MsgResize) → .Inter.Layout(cols, rows)
-// frontend 평면 어휘 확정 후 추가(worker용 MsgExec와 별개 타입일 수 있음).
+// frontend → supervisor 제어: 입력 = 소켓 PROCESS:INPUT(input.go) / 리사이즈·종료 = REST(processApi.go)
 
 // ===== worker → supervisor: process 이벤트 수신 =====
 

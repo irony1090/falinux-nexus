@@ -26,13 +26,21 @@ const base64ToBytes = (b64: string) => {
     return bytes
 }
 
+const bytesToBase64 = (bytes: Uint8Array) => {
+    let binary = ''
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!)
+    return btoa(binary)
+}
+
+const utf8 = new TextEncoder()
+
 export const isRunning = (status?: ProcessStatus) => status === 'PROCESS' || status === 'PENDING'
 
 // 타일 화면의 process: uid -> 상태·크기 소유 여부·xterm. 타일 트리와 수명이 같다(pages/index.vue에서 provide).
 // 재발 방지: xterm은 컴포넌트가 아니라 여기서 가진다 — 타일이 다른 Grid로 가면 재마운트되므로
 // 컴포넌트가 가지면 화면이 사라진다. 타일은 attach/detach로 DOM만 붙였다 뗀다 (REF-node-ui-terminal.md J)
 export const provideProcessTerm = () => {
-    const { on, status: socketStatus } = useTestSocket()
+    const { on, emit, status: socketStatus } = useTestSocket()
     const theme = useTheme()
 
     const procs_ = ref<Record<string, ProcessResponse>>({})
@@ -46,26 +54,49 @@ export const provideProcessTerm = () => {
     const early = new Map<string, Uint8Array[]>()
     const earlyStatus = new Map<string, StatusEvent>()
 
-    const createHandle = () => {
+    // PROCESS일 때만 보낸다(서버도 버리지만 불필요한 전송 방지) — REF-process-input.md I3(PENDING 중 입력)
+    const sendInput = (uid: string, bytes: Uint8Array) => {
+        if (procs_.value[uid]?.status !== 'PROCESS') return
+        emit('PROCESS:INPUT', { uid, data: bytesToBase64(bytes) })
+    }
+
+    // I4(Ctrl+C 복사): 선택 영역이 있으면 복사하고 0x03을 보내지 않는다. 클립보드를 못 쓰는 환경(비보안 http)에서도
+    // 막는다 — 복사하려던 Ctrl+C가 프로세스를 중단시키면 안 되므로
+    // I5(Ctrl+V 붙여넣기): xterm이 ^V(0x16)로 바꾸며 기본 동작을 막으므로 넘겨서 브라우저 paste -> xterm onData로 가게 한다
+    const clipboardKeys = (term: Terminal) => (ev: KeyboardEvent) => {
+        const ctrlOnly = ev.ctrlKey && !ev.shiftKey && !ev.altKey && !ev.metaKey
+        if (ctrlOnly && ev.code === 'KeyV') return false
+        if (!ctrlOnly || ev.code !== 'KeyC' || !term.hasSelection()) return true
+        if (ev.type === 'keydown') {
+            navigator.clipboard?.writeText(term.getSelection()).catch(err => console.log('[PROCESS_TERM] copy', err))
+            term.clearSelection()
+        }
+        return false
+    }
+
+    const createHandle = (uid: string) => {
         const color = (name: string) => {
             const v = theme.current.value.colors[name]
             return typeof v === 'string' ? v : undefined
         }
         const term = new Terminal({
             convertEol: true,
-            disableStdin: true,     // 입력 배선 전
             fontSize: 12,
             theme: { background: color('terminal'), foreground: color('on-terminal') },
         })
         const fit = new FitAddon()
         term.loadAddon(fit)
+        term.attachCustomKeyEventHandler(clipboardKeys(term))
+        term.onData(data => sendInput(uid, utf8.encode(data)))
+        // onBinary = 문자 하나가 바이트 하나(마우스 보고 등) — UTF-8로 다시 인코딩하면 안 됨
+        term.onBinary(data => sendInput(uid, Uint8Array.from(data, ch => ch.charCodeAt(0) & 0xff)))
         return { term, fit }
     }
 
     const register = (proc: ProcessResponse) => {
         procs_.value[proc.uid] = proc
         owners_.value[proc.uid] = !!proc.sizeOwner
-        if (!handles.has(proc.uid)) handles.set(proc.uid, createHandle())
+        if (!handles.has(proc.uid)) handles.set(proc.uid, createHandle(proc.uid))
         const h = handles.get(proc.uid)!
         early.get(proc.uid)?.forEach(chunk => h.term.write(chunk))
         early.delete(proc.uid)
