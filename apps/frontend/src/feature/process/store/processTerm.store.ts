@@ -1,7 +1,7 @@
 import { useTestSocket } from '@/common/websocket/websocket.hook'
 import {
-    execProcess, killProcess, listProcesses, resizeProcess, toProcessResponse,
-    type ProcessResponse, type ProcessResponseDto, type ProcessStatus,
+    execProcess, getProcessSnapshot, killProcess, listProcesses, resizeProcess, toProcessResponse,
+    type ProcessResponse, type ProcessResponseDto, type ProcessSnapshot, type ProcessStatus,
 } from '@/feature/process/api/process.api'
 import type { TileSize } from '@/feature/widget/util/tile.type'
 import { FitAddon } from '@xterm/addon-fit'
@@ -11,10 +11,12 @@ import { useTheme } from 'vuetify'
 
 const PROCESS_TERM_STORE_KEY = Symbol('ProcessTermStore')
 
-// 백엔드 미러: protocol.DataEvent(data = base64) / protocol.StatusEvent(status = execute.CommandStatus 숫자) / protocol.SizeOwnerEvent
-type DataEvent = { uid: string; data: string }
+// 백엔드 미러: protocol.DataEvent(data = base64, off = 이 묶음까지의 누적 바이트) / protocol.StatusEvent(status = execute.CommandStatus 숫자) / protocol.SizeOwnerEvent
+type DataEvent = { uid: string; data: string; off?: number }
 type StatusEvent = { uid: string; status: number; pid?: number; exitCode: number }
 type SizeOwnerEvent = { uid: string }
+
+const ALT_SCREEN_ENTER = '\x1b[?1049h'
 
 const STATUS_BY_CODE: ProcessStatus[] = ['PENDING', 'PROCESS', 'COMPLETED', 'FAILED']
 
@@ -58,7 +60,8 @@ export const provideProcessTerm = () => {
     // 등록돼 있지 않다. exec·복원 응답보다 먼저 온 출력도 같은 길. 넘치면 오래된 것부터 버리고 overflow 표시(안내 줄)
     const HOLD_BYTES = 64 * 1024
     const HOLD_MS = 10_000
-    type Held = { chunks: Uint8Array[]; size: number; overflow: boolean; at: number; status?: StatusEvent }
+    type Chunk = { bytes: Uint8Array; off?: number }
+    type Held = { chunks: Chunk[]; size: number; overflow: boolean; at: number; status?: StatusEvent }
     const held = new Map<string, Held>()
     const expired = new Set<string>()      // 보관 시간이 지나 버린 uid — 다시 보관해도 처음부터가 아님
 
@@ -80,9 +83,12 @@ export const provideProcessTerm = () => {
         })
     }, HOLD_MS / 2)
 
+    // 복원 출력을 쓰는 중인 uid — 스냅샷 속 옛 질의(ESC[6n 등)에 xterm이 답한 응답이 실행 중인 process에 입력으로 가지 않게
+    const replaying = new Set<string>()
+
     // PROCESS일 때만 보낸다(서버도 버리지만 불필요한 전송 방지) — REF-process-input.md I3(PENDING 중 입력)
     const sendInput = (uid: string, bytes: Uint8Array) => {
-        if (procs_.value[uid]?.status !== 'PROCESS') return
+        if (procs_.value[uid]?.status !== 'PROCESS' || replaying.has(uid)) return
         emit('PROCESS:INPUT', { uid, data: bytesToBase64(bytes) })
     }
 
@@ -122,15 +128,30 @@ export const provideProcessTerm = () => {
     const writeNotice = (uid: string, text: string) =>
         handles.get(uid)?.term.write(`\r\n\x1b[2m[${text}]\x1b[0m\r\n`)
 
-    // 소유권 이벤트(PROCESS:SIZE_OWNER)가 응답보다 먼저 왔으면 응답의 false로 덮지 않는다
-    const register = (proc: ProcessResponse) => {
+    // 보관분 중 from(스냅샷 off) 뒤만 — S1(이음매 처리). 스냅샷에 이미 든 묶음은 버리고 걸친 묶음은 뒷부분만.
+    // from 뒤 첫 묶음이 from보다 뒤에서 시작하면(보관함이 넘쳐 버림) 그 자리에 안내 줄
+    const writeHeld = (uid: string, term: Terminal, chunks: Chunk[], from?: number) => {
+        let first = true
+        chunks.forEach(({ bytes, off }) => {
+            if (from === undefined || off === undefined) return term.write(bytes)
+            if (off <= from) return
+            const start = off - bytes.length
+            if (first && start > from) writeNotice(uid, 'earlier output not shown')
+            first = false
+            term.write(start < from ? bytes.subarray(from - start) : bytes)
+        })
+    }
+
+    // 소유권 이벤트(PROCESS:SIZE_OWNER)가 응답보다 먼저 왔으면 응답의 false로 덮지 않는다.
+    // from = 스냅샷 off(복원) — 없으면(exec·스냅샷 실패) 보관분 전부
+    const register = (proc: ProcessResponse, from?: number) => {
         procs_.value[proc.uid] = proc
         owners_.value[proc.uid] = !!proc.sizeOwner || !!owners_.value[proc.uid]
         if (!handles.has(proc.uid)) handles.set(proc.uid, createHandle(proc.uid))
         const h = handles.get(proc.uid)!
         const kept = held.get(proc.uid)
         held.delete(proc.uid)
-        kept?.chunks.forEach(chunk => h.term.write(chunk))
+        writeHeld(proc.uid, h.term, kept?.chunks ?? [], from)
         if (kept?.status) applyStatus(kept.status)
     }
 
@@ -142,10 +163,10 @@ export const provideProcessTerm = () => {
             return
         }
         const k = holdOf(ev.uid)
-        k.chunks.push(bytes)
+        k.chunks.push({ bytes, off: ev.off })
         k.size += bytes.length
         while (k.size > HOLD_BYTES && k.chunks.length > 1) {
-            k.size -= k.chunks.shift()!.length
+            k.size -= k.chunks.shift()!.bytes.length
             k.overflow = true
         }
     }))
@@ -198,19 +219,45 @@ export const provideProcessTerm = () => {
             return res
         })
 
-    // 내가 실행하지 않은 터미널을 등록하는 유일한 길(새로고침 복원·다른 탭 push·409 재적용) — 4-c. SNAPSHOT은 여기에 끼운다.
-    // reload = 새로고침 복원: 이전 출력이 없으므로 3-d③(복원 안내 줄). push로 처음 보는 터미널은 보관한 출력이 처음부터라
-    // 넘쳤을 때만 안내. 이미 등록된 uid(이 탭에서 exec)는 건드리지 않는다
+    // 스냅샷을 xterm에 쓴다 — PTY 크기로 맞춘 뒤에(커서 위치 지정 출력이 어긋나지 않게). C(ring + alt screen만 다시 그리기):
+    // 안 잘렸으면(off = data 길이) 처음부터라 그대로 — alt screen 이전 일반 화면도 남는다.
+    // 잘렸고 alt면 진입만(다시 그리기 출력이 off 뒤 DATA로 옴), 다시 그리기 못 함(worker 끊김)이면 data라도
+    const writeSnapshot = (term: Terminal, uid: string, snap: ProcessSnapshot) => {
+        if (snap.cols > 0 && snap.rows > 0) term.resize(snap.cols, snap.rows)
+        const data = base64ToBytes(snap.data)
+        if (snap.off === data.length) return term.write(data)
+        if (!snap.alt) writeNotice(uid, 'earlier output truncated')
+        else term.write(ALT_SCREEN_ENTER)
+        if (!(snap.alt && snap.redraw)) term.write(data)
+    }
+
+    // 내가 실행하지 않은 터미널을 등록하는 유일한 길(새로고침 복원·다른 탭 push·409 재적용) — 4-c.
+    // 실행 중이면 스냅샷 + 그 off 뒤 보관분(S1(이음매 처리)). 스냅샷을 받은 뒤에 handle을 만든다 — 그 사이 출력이 xterm이 아니라
+    // 보관함으로 가야 off로 거를 수 있다. 스냅샷 실패(끝남·supervisor 재시작)면 예전 동작: reload = 3-d③(복원 안내 줄),
+    // push는 보관한 출력이 처음부터라 넘쳤을 때만 안내. 이미 등록된 uid(이 탭에서 exec)는 건드리지 않는다
     const restore = (fetch: () => Promise<ProcessResponse[]>, { reload }: { reload: boolean }) => fetch()
-        .then(list => {
-            list.filter(p => !handles.has(p.uid)).forEach(p => {
-                handles.set(p.uid, createHandle(p.uid))
-                if (isRunning(p.status) && (reload || held.get(p.uid)?.overflow)) {
+        .then(async list => {
+            const targets = list.filter(p => !handles.has(p.uid))
+            const snaps = await Promise.all(targets.map(p => isRunning(p.status)
+                ? getProcessSnapshot(p.uid).catch(err => {
+                    console.log('[PROCESS_TERM] snapshot', p.uid, err)
+                    return null
+                })
+                : null))
+            targets.forEach((p, i) => {
+                if (handles.has(p.uid)) return      // 스냅샷을 받는 사이 이 탭에서 등록됨
+                const h = createHandle(p.uid)
+                handles.set(p.uid, h)
+                const snap = snaps[i]
+                replaying.add(p.uid)
+                if (snap) writeSnapshot(h.term, p.uid, snap)
+                else if (isRunning(p.status) && (reload || held.get(p.uid)?.overflow)) {
                     writeNotice(p.uid, reload ? 'reconnected — earlier output not shown' : 'earlier output not shown')
                 }
-                register(p)
+                register(p, snap?.off)
                 // 보관한 출력 뒤에 — 상태 이벤트는 실행 중 -> 끝남 전이 때만 종료 줄을 쓰므로 이미 끝난 건 여기서
                 if (!isRunning(p.status)) writeNotice(p.uid, `process exited: ${p.exitCode ?? '?'}`)
+                h.term.write('', () => replaying.delete(p.uid))     // 앞서 넣은 쓰기가 모두 해석된 뒤에 불림
             })
             restored_.value = true
             return list
@@ -218,6 +265,7 @@ export const provideProcessTerm = () => {
 
     // 3-d④(계정 바뀜): 이전 계정의 xterm·상태를 비운다
     const reset = () => {
+        replaying.clear()
         handles.forEach(h => h.term.dispose())
         handles.clear()
         held.clear()

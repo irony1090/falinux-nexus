@@ -117,3 +117,20 @@ export const resizeProcess = (processId: string, param: ResizeProcessRequest) =>
 ).then(throwThen<ProcessResponseDto>)
 .then(toProcessResponse)
 .catch(throwCatch)
+
+// 화면 복원 스냅샷 — data = base64(최근 출력, 최대 256KB), off = data 끝의 누적 바이트(off > data 길이면 앞이 밀려남).
+// redraw = 서버가 alt screen 다시 그리기를 시킴(그 출력은 off 뒤 DATA로 옴). cols·rows = 0이면 아직 resize 전
+export type ProcessSnapshot = {
+    data: string
+    off: number
+    alt: boolean
+    redraw: boolean
+    cols: number
+    rows: number
+}
+
+// GET /processes/snapshot/:processId — 실행 중(PENDING 포함)만. 끝났거나 supervisor 재시작으로 버퍼가 없으면 404
+export const getProcessSnapshot = (processId: string) => BaseAxios.get(
+    `/processes/snapshot/${processId}`
+).then(throwThen<ProcessSnapshot>)
+.catch(throwCatch)
