@@ -22,7 +22,7 @@ const props = defineProps({
     },
 })
 
-const { tiles, navigate, openFolder, addTerminal } = useTileTree();
+const { tiles, navigate, openFolder, applyServerTile } = useTileTree();
 const { newSize, reveal } = useTileGrids();
 const { open: appDialogOpen, openDialog } = useAppDialog();
 
@@ -75,9 +75,10 @@ const pickOpen = ref(false);
 const pickNode = ref<NodeResponse>();
 const pickWorkers = ref<WorkerResponse[]>([]);
 
-const start = (node: NodeResponse, instanceKey: string) => run(exec(node.id, instanceKey), uid => {
+// 터미널 타일은 서버가 exec 때 트리에 넣는다 — ⑪-4(타일 없는 실행 중 process)
+const start = (node: NodeResponse, instanceKey: string) => run(exec(node.id, instanceKey, { parentTileId: props.tileId, size: newSize.value }), res => {
     pickOpen.value = false;
-    reveal(addTerminal(props.tileId, node.id, uid, newSize.value));
+    if (res.tile && res.tileVersion) reveal(applyServerTile(res.tile, res.tileVersion));
 });
 
 const onExec = (node: NodeResponse) => run(listWorkers(node.id), workers => {

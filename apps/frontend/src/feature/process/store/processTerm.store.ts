@@ -3,6 +3,7 @@ import {
     execProcess, killProcess, listProcesses, resizeProcess, toProcessResponse,
     type ProcessResponse, type ProcessResponseDto, type ProcessStatus,
 } from '@/feature/process/api/process.api'
+import type { TileSize } from '@/feature/widget/util/tile.type'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
 import { inject, onBeforeUnmount, provide, readonly, ref, watch } from 'vue'
@@ -18,6 +19,8 @@ type SizeOwnerEvent = { uid: string }
 const STATUS_BY_CODE: ProcessStatus[] = ['PENDING', 'PROCESS', 'COMPLETED', 'FAILED']
 
 export type TermHandle = { term: Terminal; fit: FitAddon }
+
+export type ExecPlace = { parentTileId: string; size: TileSize }
 
 const base64ToBytes = (b64: string) => {
     const binary = atob(b64)
@@ -45,12 +48,13 @@ export const provideProcessTerm = () => {
 
     const procs_ = ref<Record<string, ProcessResponse>>({})
     const owners_ = ref<Record<string, boolean>>({})
+    const restored_ = ref(false)        // 복원 전엔 모르는 uid의 터미널 타일을 닫지 못하게 — 3-d②(복원 전 닫기)
     const handles = new Map<string, TermHandle>()   // 반응형에 넣지 않는다(xterm 객체를 proxy로 감싸면 안 됨)
 
     const offs: (() => void)[] = []     // 소켓은 App 수명이라 페이지가 내려갈 때 핸들러를 뗀다
 
-    // exec 응답보다 출력·상태가 먼저 올 수 있어(계정 소켓은 relay 기동 전에 구독됨) 요청 중에만 모르는 uid 것을 모아 둔다
-    let execInFlight = 0
+    // exec·복원 응답보다 출력·상태가 먼저 올 수 있어(계정 소켓은 relay 기동 전에 구독됨) 요청 중에만 모르는 uid 것을 모아 둔다
+    let fetchInFlight = 0
     const early = new Map<string, Uint8Array[]>()
     const earlyStatus = new Map<string, StatusEvent>()
 
@@ -93,9 +97,20 @@ export const provideProcessTerm = () => {
         return { term, fit }
     }
 
+    const endFetch = () => {
+        if (--fetchInFlight === 0) {
+            early.clear()
+            earlyStatus.clear()
+        }
+    }
+
+    // 소유권 이벤트(PROCESS:SIZE_OWNER)가 응답보다 먼저 왔으면 응답의 false로 덮지 않는다
+    const writeNotice = (uid: string, text: string) =>
+        handles.get(uid)?.term.write(`\r\n\x1b[2m[${text}]\x1b[0m\r\n`)
+
     const register = (proc: ProcessResponse) => {
         procs_.value[proc.uid] = proc
-        owners_.value[proc.uid] = !!proc.sizeOwner
+        owners_.value[proc.uid] = !!proc.sizeOwner || !!owners_.value[proc.uid]
         if (!handles.has(proc.uid)) handles.set(proc.uid, createHandle(proc.uid))
         const h = handles.get(proc.uid)!
         early.get(proc.uid)?.forEach(chunk => h.term.write(chunk))
@@ -110,7 +125,7 @@ export const provideProcessTerm = () => {
         const h = handles.get(ev.uid)
         if (h) {
             h.term.write(bytes)
-        } else if (execInFlight > 0) {
+        } else if (fetchInFlight > 0) {
             early.set(ev.uid, [...(early.get(ev.uid) ?? []), bytes])
         }
     }))
@@ -126,12 +141,13 @@ export const provideProcessTerm = () => {
             pid: ev.pid ? ev.pid : proc.pid,
             exitCode: done ? ev.exitCode : proc.exitCode,
         }
-        if (done) handles.get(ev.uid)?.term.write(`\r\n\x1b[2m[process exited: ${ev.exitCode}]\x1b[0m\r\n`)
+        // 실행 중 -> 끝남일 때만 — 복원 때 이미 쓴 종료 줄을 같은 상태 이벤트로 또 쓰지 않게
+        if (done && isRunning(proc.status)) writeNotice(ev.uid, `process exited: ${ev.exitCode}`)
     }
 
     offs.push(on<StatusEvent>('STATUS', ev => {
         if (procs_.value[ev.uid]) applyStatus(ev)
-        else if (execInFlight > 0) earlyStatus.set(ev.uid, ev)     // 최신 것 하나면 충분
+        else if (fetchInFlight > 0) earlyStatus.set(ev.uid, ev)     // 최신 것 하나면 충분
     }))
 
     offs.push(on<ProcessResponseDto>('PROCESS:UPDATE', dto => {
@@ -139,8 +155,9 @@ export const provideProcessTerm = () => {
         procs_.value[dto.uid] = toProcessResponse(dto)
     }))
 
+    // 등록 전(복원 중)에 와도 기록한다 — register가 이 값을 유지
     offs.push(on<SizeOwnerEvent>('PROCESS:SIZE_OWNER', ev => {
-        if (procs_.value[ev.uid]) owners_.value[ev.uid] = true
+        owners_.value[ev.uid] = true
     }))
 
     // 연결이 끊긴 사이 소유권이 넘어갔을 수 있다(원래 소유자는 되찾지 않음) — 다시 붙으면 서버 기준으로 맞춘다
@@ -154,19 +171,42 @@ export const provideProcessTerm = () => {
         if (s === 'CONNECTED' && Object.keys(procs_.value).length) syncOwners()
     })
 
-    const exec = (nodeId: number, authKey: string) => {
-        execInFlight++
-        return execProcess({ nodeId, authKey })
-            .then(proc => {
-                register(proc)
-                return proc.uid
+    // place = 서버가 터미널 타일을 넣을 자리. 응답의 tile·tileVersion은 호출부가 타일 트리에 반영
+    const exec = (nodeId: number, authKey: string, place: ExecPlace) => {
+        fetchInFlight++
+        return execProcess({ nodeId, authKey, ...place })
+            .then(res => {
+                register(res.proc)
+                return res
             })
-            .finally(() => {
-                if (--execInFlight === 0) {
-                    early.clear()
-                    earlyStatus.clear()
-                }
+            .finally(endFetch)
+    }
+
+    // 새로고침 뒤 터미널 타일의 process를 다시 등록한다(⑪ 3-d(터미널 복원)). 이전 출력은 없다 — SNAPSHOT 전까지 ⑪-3 감수.
+    // 이미 등록된 uid(복원 중 이 탭에서 exec)는 건드리지 않는다
+    const restore = (fetch: () => Promise<ProcessResponse[]>) => {
+        fetchInFlight++
+        return fetch()
+            .then(list => {
+                list.filter(p => !handles.has(p.uid)).forEach(p => {
+                    handles.set(p.uid, createHandle(p.uid))
+                    // 3-d③(복원 안내 줄): 빈 화면이 고장처럼 보이지 않게. 모아 둔 출력보다 먼저 쓴다
+                    writeNotice(p.uid, isRunning(p.status) ? 'reconnected — earlier output not shown' : `process exited: ${p.exitCode ?? '?'}`)
+                    register(p)
+                })
+                restored_.value = true
+                return list
             })
+            .finally(endFetch)
+    }
+
+    // 3-d④(계정 바뀜): 이전 계정의 xterm·상태를 비운다
+    const reset = () => {
+        handles.forEach(h => h.term.dispose())
+        handles.clear()
+        procs_.value = {}
+        owners_.value = {}
+        restored_.value = false
     }
 
     const kill = (uid: string) => killProcess(uid)
@@ -216,7 +256,10 @@ export const provideProcessTerm = () => {
     const ctx = {
         procs: readonly(procs_),
         owners: readonly(owners_),
+        restored: readonly(restored_),
         exec,
+        restore,
+        reset,
         kill,
         syncSize,
         handleOf,

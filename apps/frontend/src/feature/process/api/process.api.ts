@@ -1,5 +1,6 @@
 import { BaseAxios, throwCatch, throwThen } from '@/common/api/api.util'
 import type { Replace } from '@/common/util/index.type'
+import type { TileSize } from '@/feature/widget/util/tile.type'
 
 // 백엔드: apps/core/cmd/supervisor/router/processApi.go (group "/processes") + processDto.go
 // processResponse{uid, type, nodeId, deviceKey, cmd, args, env, cwd, rows, cols, status, pid,
@@ -53,18 +54,48 @@ export const listProcesses = () => BaseAxios.get(
 .then(res => res.map(toProcessResponse))
 .catch(throwCatch)
 
+// GET /processes/lookup?uids=a&uids=b — 요청한 uid만, 상태 무관(끝난 것 포함). 남의 것·없는 uid는 빠짐
+// axios 기본 배열 직렬화는 uids[]=a라서 반복 형식(indexes: null)으로 보낸다
+export const lookupProcesses = (uids: string[]) => BaseAxios.get(
+    '/processes/lookup',
+    { params: { uids }, paramsSerializer: { indexes: null } }
+).then(throwThen<ProcessResponseDto[]>)
+.then(res => res.map(toProcessResponse))
+.catch(throwCatch)
+
 export type ExecProcessRequest = {
     nodeId: number
     authKey: string     // worker 인스턴스 키(main#sub). 후보 = listWorkers(nodeId)
     type?: ProcessType   // 비우면 EXEC
+    parentTileId?: string   // 터미널 타일을 붙일 폴더 타일. 없거나 닫혔으면 서버가 루트에 붙임
+    size?: TileSize         // 없으면 0.5×0.5
 }
+
+// 서버가 타일 트리에 넣은 터미널 타일 (tileTree.store TerminalTile과 같은 모양) — ⑪-4(타일 없는 실행 중 process)
+export type ExecTile = {
+    id: string
+    type: 'terminal'
+    parent: string
+    kids: string[]
+    size: TileSize
+    nodeId: number
+    uid: string
+}
+
+// process가 없는 실행(폴더)이면 tile·tileVersion 없음
+export type ExecProcessResponse = {
+    proc: ProcessResponse
+    tile?: ExecTile
+    tileVersion?: number
+}
+type ExecProcessResponseDto = ProcessResponseDto & Omit<ExecProcessResponse, 'proc'>
 
 // POST /processes/exec — 노드 실행(계정의 모든 탭 소켓이 구독됨, 요청 탭 = 크기 소유자). X-Tab-Id 필수
 export const execProcess = (param: ExecProcessRequest) => BaseAxios.post(
     '/processes/exec',
     param
-).then(throwThen<ProcessResponseDto>)
-.then(toProcessResponse)
+).then(throwThen<ExecProcessResponseDto>)
+.then(({ tile, tileVersion, ...proc }): ExecProcessResponse => ({ proc: toProcessResponse(proc), tile, tileVersion }))
 .catch(throwCatch)
 
 // POST /processes/kill/:processId — 실행 중인 process 종료

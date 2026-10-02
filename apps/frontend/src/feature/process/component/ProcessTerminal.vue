@@ -52,6 +52,12 @@ onBeforeUnmount(() => {
     if (el.value) detach(props.uid, el.value);
 })
 
+// 복원된 터미널 타일은 xterm 등록(processTerm.restore)보다 먼저 마운트된다 — 등록되면 그때 붙인다
+watch(() => !!proc.value, has => {
+    if (!has || !el.value) return;
+    attach(props.uid, el.value);
+    schedule();
+})
 watch(owner, schedule);
 watch(() => [proc.value?.cols, proc.value?.rows], schedule);
 </script>

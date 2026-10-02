@@ -30,7 +30,7 @@ export const provideTileGrids = () => {
     const area = ref<Area | null>(null)
 
     const cap = computed(() => capacity(area.value ?? { w: 0, h: 0 }))
-    const order = computed(() => flatten(tiles.value, rootId))
+    const order = computed(() => flatten(tiles.value, rootId.value))
     // 측정 전엔 그리지 않는다 — 기본 cap을 가정해 그리면 측정 직후 배치가 튄다
     const grids = computed(() => area.value
         ? pack(order.value.map(o => o.tile), t => effectiveSize(t.size, cap.value))

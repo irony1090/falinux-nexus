@@ -246,6 +246,58 @@ func (q *Queries) ListProcessesByOwner(ctx context.Context, ownerUserID int64) (
 	return items, nil
 }
 
+const listProcessesByUids = `-- name: ListProcessesByUids :many
+SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at FROM processes
+WHERE owner_user_id = $1
+  AND uid = ANY($2::text[])
+ORDER BY created_at ASC
+`
+
+type ListProcessesByUidsParams struct {
+	OwnerUserID int64
+	Uids        []string
+}
+
+// 요청한 uid만, 상태 무관(끝난 것 포함) — 3-d①(끝난 process 조회). 남의 것·없는 uid는 빠짐
+func (q *Queries) ListProcessesByUids(ctx context.Context, arg ListProcessesByUidsParams) ([]Process, error) {
+	rows, err := q.db.Query(ctx, listProcessesByUids, arg.OwnerUserID, arg.Uids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Process
+	for rows.Next() {
+		var i Process
+		if err := rows.Scan(
+			&i.Uid,
+			&i.Type,
+			&i.OwnerUserID,
+			&i.NodeID,
+			&i.DeviceKey,
+			&i.Cmd,
+			&i.Args,
+			&i.Env,
+			&i.Cwd,
+			&i.Rows,
+			&i.Cols,
+			&i.Status,
+			&i.Pid,
+			&i.ExitCode,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markProcessDone = `-- name: MarkProcessDone :one
 UPDATE processes
 SET status      = $2,

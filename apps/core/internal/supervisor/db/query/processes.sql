@@ -65,3 +65,10 @@ SELECT * FROM processes
 WHERE owner_user_id = $1
   AND status IN ('PENDING','PROCESS')
 ORDER BY created_at ASC;
+
+-- 요청한 uid만, 상태 무관(끝난 것 포함) — 3-d①(끝난 process 조회). 남의 것·없는 uid는 빠짐
+-- name: ListProcessesByUids :many
+SELECT * FROM processes
+WHERE owner_user_id = sqlc.arg(owner_user_id)
+  AND uid = ANY(sqlc.arg(uids)::text[])
+ORDER BY created_at ASC;

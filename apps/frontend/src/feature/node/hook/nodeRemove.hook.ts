@@ -24,7 +24,7 @@ export const useNodeRemove = () => {
         const targets = node.kind === 'FOLDER' ? await tilesUnder(node.id) : []
         await deleteNode(node.id)
         // 루트 타일은 닫을 수 없어 기본 목록으로 돌린다
-        targets.forEach(id => id === rootId ? navigate(id, null) : close(id))
+        targets.forEach(id => id === rootId.value ? navigate(id, null) : close(id))
         await nextTick()
         invalidateAll(node.id, node.parentId ?? undefined)
     }

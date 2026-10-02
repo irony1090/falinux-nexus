@@ -18,6 +18,7 @@ const tabIDHeader = "X-Tab-Id" // REST 요청이 어느 탭에서 왔는지(TAB:
 func (r *supervisorRouter) mountProcesses(e *echo.Echo) {
 	g := e.Group("/processes")
 	g.GET("", r.listProcesses)
+	g.GET("/lookup", r.lookupProcesses)
 	g.POST("/exec", r.execProcess)
 	g.POST("/kill/:processId", r.killProcess)
 	g.POST("/resize/:processId", r.resizeProcess)
@@ -55,6 +56,36 @@ func (r *supervisorRouter) listProcesses(c echo.Context) error {
 	tabID := r.requestTab(c, sess.Name())
 
 	processes, err := r.processManager.ListLive(sess.Data.ID)
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+
+	out := newProcessResponses(processes)
+	for i := range out {
+		out[i] = withSizeOwner(out[i], tabID != "" && r.sizeOwnerOf(out[i].Uid) == tabID)
+	}
+	return c.JSON(200, out)
+}
+
+const lookupMax = 256 // 한 번에 조회할 uid 개수 상한(타일 수보다 넉넉히)
+
+// lookupProcesses는 요청한 uid(?uids=a&uids=b)의 process를 상태와 무관하게 반환한다. 남의 것·없는 uid는 빠짐
+// — 3-d①(끝난 process 조회): 새로고침 뒤 터미널 타일 복원용, 살아 있는 것 전체는 listProcesses
+func (r *supervisorRouter) lookupProcesses(c echo.Context) error {
+	sess := r.requireSession(c)
+	tabID := r.requestTab(c, sess.Name())
+
+	uids := c.QueryParams()["uids"]
+	if len(uids) > lookupMax {
+		panic(web.Err(400, "uid는 한 번에 %d개까지 조회할 수 있습니다", lookupMax))
+	}
+	if len(uids) == 0 {
+		return c.JSON(200, []processResponse{})
+	}
+	processes, err := TxQueries(c).ListProcessesByUids(c.Request().Context(), superdb.ListProcessesByUidsParams{
+		OwnerUserID: sess.Data.ID,
+		Uids:        uids,
+	})
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}

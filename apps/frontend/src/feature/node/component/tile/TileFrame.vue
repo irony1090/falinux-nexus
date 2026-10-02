@@ -21,7 +21,7 @@ const props = defineProps({
 
 const { tiles, close, resize } = useTileTree();
 const { cap, posOf, instanceOf, reveal, overview } = useTileGrids();
-const { procs, kill, dispose } = useProcessTerm();
+const { procs, restored, kill, dispose } = useProcessTerm();
 const { openDialog } = useAppDialog();
 
 const tile = computed(() => tiles.value[props.tileId]);
@@ -57,8 +57,9 @@ const PILL: Record<ProcessStatus, { text: string; color?: string }> = {
     FAILED: { text: 'FAIL', color: 'error' },
 };
 const pill = computed(() => proc.value ? PILL[proc.value.status] : { text: '-' });
-// 실행 중 터미널은 닫기 비활성(kill 먼저) — 결정 A(닫기와 kill)
-const closable = computed(() => !!tile.value?.parent && !running.value);
+// 실행 중 터미널은 닫기 비활성(kill 먼저) — 결정 A(닫기와 kill). 복원 전엔 상태를 몰라 막는다 — 3-d②(복원 전 닫기)
+const unknown = computed(() => tile.value?.type === 'terminal' && !proc.value && !restored.value);
+const closable = computed(() => !!tile.value?.parent && !running.value && !unknown.value);
 
 const fmt = (v: TileSpan) => v === 1 ? '1' : '.5';
 const sizeText = computed(() => tile.value ? `${fmt(tile.value.size.w)}×${fmt(tile.value.size.h)}` : '');
