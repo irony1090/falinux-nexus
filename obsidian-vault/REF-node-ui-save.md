@@ -2,7 +2,7 @@
 
 > 2026-10-01 신설. 진행 순서 3단계(`REF-process-sync.md` "진행 순서"). 서버 구현·확인(3-a(DB)·3-b(API)·3-b'(exec 연동)) → `REF-node-ui-save-impl.md`. 저장 대상 모델(여는 관계 트리)·순서·닫기 규칙 → `REF-node-ui-layout.md` / 프론트 스토어 → `REF-node-ui-impl.md` / 이력 → `history/node-ui-save.md` / 현재 진행 → `CURRENT.md`.
 
-**상태: 서버 쪽 3-a(DB)·3-b(API)·3-b'(exec 연동) 완료·커밋 `2aa0920`(2026-10-02) → `REF-node-ui-save-impl.md`. 3-c(스토어) 구조안 제시(아래, 사용자 확인 전 — 코드 착수 금지).** 작업 단위마다 착수 승인 받고 진행.
+**상태: 서버 쪽 3-a(DB)·3-b(API)·3-b'(exec 연동) 완료·커밋 `2aa0920`(2026-10-02) → `REF-node-ui-save-impl.md`. 3-c(스토어) 작성·확인 통과(2026-10-02, 커밋 `2f0170f` — 구조안과 달라진 점은 `REF-node-ui-save-impl.md` "3-c(스토어) 구현"). 3-d(터미널 복원)도 작성·확인 통과(같은 커밋). 다음 = 3-e(확인) — 대부분 3-c·3-d 확인에서 이미 봄.** 작업 단위마다 착수 승인 받고 진행.
 
 ## 목표와 범위
 | 이 단계(3) | 다음 단계(4 O(계정 동기화) 화면) |
@@ -56,7 +56,7 @@ exec : POST /processes/exec {nodeId, authKey, parentTileId, size}
 - 다른 탭 실시간 반영(4단계) · SNAPSHOT(추후 필수) · 공유 트리(5단계).
 - 끝난 터미널 타일 자동 정리(사용자가 닫음 — 기존 규칙 유지).
 
-## 3-c(스토어) 구조안 (2026-10-02 제시, 사용자 확인 전)
+## 3-c(스토어) 구조안 (2026-10-02 확정·구현 — `base`는 구현에서 뺌)
 ### 지금 스토어와 바뀌는 점
 | 지금 | 3-c 뒤 |
 |---|---|
@@ -86,7 +86,7 @@ exec  : res.tileVersion == version + 1 and nothing pending/in flight
 |---|---|
 | op 안의 id | 새 타일 id(`crypto.randomUUID`)는 **op를 만들 때** 정한다(적용할 때 X) — 재적용해도 같은 id라 화면·`reveal`이 안 흔들림 |
 | 재적용 실패 | 대상 타일이 서버 트리에 없으면(다른 탭이 닫음) 그 op만 버림 |
-| 닫기 직전 저장 | 탭을 닫을 때 남은 저장은 `pagehide`에서 `fetch(..., {keepalive: true})`로 한 번 보냄(본문 64KB 이하일 때만) — **사용자 확인 필요** |
+| 닫기 직전 저장 (2026-10-02 확정) | `visibilitychange`로 `hidden`이 되면 300ms 묶음을 기다리지 않고 **바로 저장**, 이때만 `fetch(..., {keepalive: true})` 직접 사용(axios 미지원, 본문 64KB 이하일 때만). 응답 처리(200/409)는 평소 경로 그대로 — 페이지가 살아 돌아오면 정상 처리, 사라졌으면 409분은 유실 감수. `pagehide`는 모바일에서 OS가 탭을 죽이면 안 오므로 기각 |
 | 로그아웃 | `auth` null -> `ready=false`, base·pending 비움 |
 | 터미널 타일 | 불러온 터미널 타일의 xterm 등록은 3-d(터미널 복원) 몫. 3-c에선 등록 안 된 uid 타일이 빈 화면이어도 깨지지 않게만 |
 
@@ -99,3 +99,41 @@ exec  : res.tileVersion == version + 1 and nothing pending/in flight
 | `feature/node/store/tileGrids.store.ts`, `hook/nodeRemove.hook.ts` | `rootId` 반응형 대응 |
 | `feature/process/api/process.api.ts`, `store/processTerm.store.ts` | exec 요청에 `parentTileId`·`size`, 응답 타입에 `tile`·`tileVersion`, `exec`가 이것도 반환 |
 | `feature/node/component/tile/FolderTileBody.vue` | `start`: `addTerminal` 대신 `applyServerTile` 후 `reveal(tile.id)` |
+
+## 3-d(터미널 복원) 구조안 (2026-10-02 확정·구현 — 3-d①~④ 전부, 구현 기록 `REF-node-ui-save-impl.md`)
+### 흐름
+```
+trigger : tileTree.ready && tabReady  (tab id first -> sizeOwner correct; reload within 60s keeps same tab id)
+order   : tree loaded FIRST, then processes  (exec in another tab in between -> orphan op -> 409 -> replay skips by uid)
+fetch   : GET /processes (live, as is) + GET /processes/lookup?uids=a&uids=b (listed only, any status, owner checked)
+apply   : processTerm.restore(list)  -> register xterm; ended -> write "[process exited: N]" line
+orphan  : live but no tile with that uid -> tileTree.adoptOrphans -> root kids end, adopted, 0.5x0.5 (PUT)
+```
+
+### 결정 후보
+| 결정 | 제안 | 대안 |
+|---|---|---|
+| 3-d①(끝난 process 조회) **확정 2026-10-02** | **나누기**: 살아 있는 것 = `GET /processes` 그대로 / 타일 uid = 새 `GET /processes/lookup?uids=a&uids=b`(요청한 uid만, 상태 무관, 소유 검사). 쿼리 파라미터 반복 형식(쉼표 구분 X) — Echo `QueryParams()["uids"]`, axios는 `paramsSerializer: { indexes: null }`(기본은 `uids[]=`) | 기각: `GET /processes?uids=`로 묶기(파라미터가 결과를 넓히는 "더하기"라 의미 혼동, 요청 사이 변화는 상태 이벤트·uid 검사로 이미 흡수) / 끝난 건 조회 안 함 |
+| 3-d②(복원 전 닫기) **확정** | 복원이 끝나기 전엔 터미널 타일 닫기 비활성 — 지금은 상태를 모르면 "실행 중 아님"으로 보여 실행 중 타일이 닫힘 | 막지 않음 |
+| 3-d③(복원 안내 줄) **확정** | 살아 있는 터미널에 흐린 한 줄 `[reconnected — earlier output not shown]` — 빈 화면이 고장처럼 보이지 않게(⑪-3) | 안내 없음 |
+| 3-d④(계정 바뀜) **확정** | 로그아웃·계정 전환 때 `processTerm`도 비움(xterm dispose) — 지금은 이전 계정 xterm이 메모리에 남음 | 이번 범위 밖 |
+
+### 세부 규칙
+| 항목 | 규칙 |
+|---|---|
+| 안전망 op | `adoptOrphans`는 **uid로** 있는지 검사(타일 id 아님) — 재적용 때 다른 탭이 넣은 같은 uid 타일이 있으면 건너뜀. nodeId 없는 process는 건너뜀(터미널 타일은 nodeId 필수) |
+| 크기 | 안전망 타일 = 0.5×0.5 (어느 화면에서든 최소 단위, 서버 exec 기본값과 같음). `newSize`는 TileWorkspace 안에서만 있어 못 씀 |
+| 크기 우선권 이벤트 | `PROCESS:SIZE_OWNER`가 등록 전에 오면 지금은 버림 -> 모르는 uid도 `owners_`에 기록 |
+| 다시 복원 | 같은 페이지에서 소켓 재연결은 기존 `syncOwners`로 충분, 복원은 트리 load마다 1번 |
+| 위치 | 조율은 새 `feature/node/hook/terminalRestore.hook.ts`(index.vue에서 호출) — process 스토어가 node 스토어를 모르게 유지 |
+
+### 파일 매핑
+| 파일 | 변경 |
+|---|---|
+| `query/processes.sql` + sqlc | `ListProcessesByUids` (`owner_user_id=$1 AND uid = ANY($2::text[])`) |
+| `processApi.go` | 새 `lookupProcesses`(`GET /processes/lookup`, uids 반복 파라미터, 개수 상한) — `listProcesses`는 그대로 |
+| `process.api.ts` | `lookupProcesses(uids)` |
+| `processTerm.store.ts` | `restore(list)` + `reset()` + SIZE_OWNER 미등록 uid 기록 |
+| `tileTree.store.ts` | `adoptOrphans(procs)` op |
+| `terminalRestore.hook.ts`(신규) · `pages/index.vue` | 트리거·순서·`restoring` 상태 |
+| `TileFrame.vue` | `restoring` 중 터미널 닫기 비활성 |

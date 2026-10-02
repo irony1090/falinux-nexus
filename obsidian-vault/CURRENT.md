@@ -9,11 +9,11 @@
 
 ## ⚠️ 다음 세션 시작 시 (2026-10-02 세션 종료 정리 — 사용자 재부팅)
 - 전체 순서: 1 탭 id + S(구독 역할 분리)(완료) → 2 재기동·확인·커밋(완료) → 2.5 터미널 입력(**완료** `2db8998`) → **3 ⑪(타일 트리 서버 저장)(진행 중)** → 4 O(계정 동기화) 화면 → 4.5 SNAPSHOT(화면복원 ring buffer) → 5 공유(P·R·T)
-- **바로 다음 = 3-c(스토어) 구조안 사용자 확인** → `REF-node-ui-save.md` "3-c(스토어) 구조안"(base·pending op 큐·409 재적용·exec 빠른 경로·파일 매핑). **확인 받기 전 코드 착수 금지.** 열린 확인 항목: 탭 닫을 때 `pagehide` + `keepalive`로 남은 저장 보내기 여부
-- ⑪ 진행: 3-a(DB)·3-b(API)·3-b'(exec 연동) 완료·확인·커밋 `2aa0920` → `REF-node-ui-save-impl.md`. 남은 것 = 3-c(스토어) → 3-d(터미널 복원, **안전망: 타일 없는 live process -> 루트 adopted 포함**) → 3-e(확인)
+- **3-c(스토어)·3-d(터미널 복원) 작성·확인 통과, 커밋 `2f0170f`(2026-10-02, push 안 함)** → `REF-node-ui-save-impl.md` 각 "구현" 절. **사용자 PC 확인 완료(2026-10-02)**. 다음 = 3-e(확인) 정리 후 4 O(계정 동기화) 화면
+- ⑪ 진행: 3-a(DB)·3-b(API)·3-b'(exec 연동) 완료·확인·커밋 `2aa0920` → `REF-node-ui-save-impl.md`. 3-c(스토어)·3-d(터미널 복원, 안전망 포함) 완료(`2f0170f`). 남은 것 = 3-e(확인)
 - 2.5 터미널 입력 완료: 입력-a(서버)·입력-b(프론트) + I5(Ctrl+V 붙여넣기)=붙여넣기, 서버 4·브라우저 7항목 통과, 사용자 PC 확인 이상 없음 → `REF-process-input.md`. 남은 확인 = PENDING 중 입력 버림(socat), 한글(IME) 입력 별도 확인 언급 없음
-- 커밋 상태(2026-10-02, push 안 함): `2db8998` feat 입력 / `7488b2c` docs / `2aa0920` feat 타일 트리 서버 저장 / 세션 끝 docs(vault) 커밋. 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치)
-- DB에 남은 테스트 데이터: 계정 `input-test-b`(타일 트리 행 있음, 루트만) · `tile-race-<시각>` 1개. irony 타일 트리 = 루트만(version 12)
+- 커밋 상태(2026-10-02, push 안 함): `2db8998` feat 입력 / `7488b2c` docs / `2aa0920` feat 타일 트리 서버 저장 / `2f0170f` feat 3-c·3-d 프론트 / docs(vault) 커밋들. 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치)
+- DB에 남은 테스트 데이터: 계정 `input-test-b`(타일 트리 행 있음, 루트만) · `tile-race-<시각>` 1개 · `tile-store-`/`tile-exec-`/`tile-restore-`/`tile-other-`/`dbg-<시각>` 여러 개(3-c·3-d 확인용). irony 타일 트리 = 루트만(version 12)
 - 재부팅으로 사라지는 것: 세션 scratchpad의 playwright-core + 테스트 스크립트 `input/test.mjs`(입력 서버)·`input/ui.mjs`(입력 브라우저)·`input/tiles.mjs`·`input/tiles-race.mjs`·`input/exec-tile.mjs`. 다시 쓸 땐 `REF-process-input.md` "입력-a 서버 단독 확인"·"입력-c 브라우저 확인", `REF-node-ui-save-impl.md` 각 확인 절의 항목·함정 보고 재작성
 - 테스트 클라이언트 함정 모음: 소켓 프레임 binary / exec는 `X-Tab-Id` 필수 / STATUS `status` 숫자 / 브라우저 쿠키 도메인 `localhost` / `users.identification`은 해시 저장
 - 환경: supervisor·worker는 사용자가 띄움(`docker start postgres15` → supervisor → worker, dev 서버 3000). 테스트 로그인 = `pages/Login.vue` 기본값 계정. 헤드리스 = `~/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome` + `playwright-core`(scratchpad에 `npm i`). worker 연결만 끊는 재현 = `REF-process-reconnect.md` "재현 방법"
@@ -23,7 +23,7 @@
 - `history/transfer.md`가 11.5k자로 분할 기준 초과(손대지 않아 그대로) — 다음에 그 파일을 고칠 때 분할
 - **색인 2단화 완료(2026-10-02)**: 마감 파트 3개를 `INDEX-infra.md`(통신 인프라)·`INDEX-process-wiring.md`(process 배선)·`INDEX-node-ui-layout.md`(node UI 레이아웃 설계)로 접음 → MEMORY 7.6k·HISTORY 6.7k자. `REF-node-ui-overview.md`는 ⑮(모바일 가상 키보드) 진행 중이라 접지 않음
 
-## 🎯 다음 작업: node 카탈로그 타일 UI — 구현 진행 중 (1~5단계 + 연동 1차(7-0) 1~5 + 6 타일 임베드 + 동기화 1단계 + 터미널 입력 완료 → 진행 = ⑪(타일 트리 서버 저장) 3-c(스토어))
+## 🎯 다음 작업: node 카탈로그 타일 UI — 구현 진행 중 (1~5단계 + 연동 1차(7-0) 1~5 + 6 타일 임베드 + 동기화 1단계 + 터미널 입력 완료 → 진행 = ⑪(타일 트리 서버 저장) 3-e(확인))
 
 2026-08-10 termspace 영감 **2D 타일 그리드**로 전환 → 2026-09-29 아티팩트 시안으로 규칙을 다듬고, 같은 날 **"큰 틀은 잡혔다, 보여준 아티팩트 UI를 토대로 만들 것"**(사용자). **역할 분담(2026-09-29 개정)**: 이 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다(구조 합의 → 코드 순서, 합의 전 코드 착수 금지). 상세 → `REF-node-ui.md`(컨셉) / `REF-node-ui-layout.md`(저장·순서·채우기·오버플로) / `REF-node-ui-projection.md`(화면 크기별 표시) / `REF-node-ui-overview.md`(전체보기·버튼·스크롤바·Grid 탭).
 
@@ -51,7 +51,7 @@
 1~5. **완료(2026-09-29~30)**: 유틸 포팅 / 트리 상태 / 렌더 최소판 + 칼럼 스냅 / 헤더 내비 / 4-1 타일 따라가기(`reveal`) + ⑧ 커서 채우기(`5b87578`) / 5 전체보기 + 고정 버튼 + 축소 비율 저장(`0855041`). 상세 → `REF-node-ui-impl.md`·`REF-node-ui-render.md`, 이력 → `history/node-ui-impl.md`·`history/node-ui-render.md`. ⑭(전체보기 버튼 최종 위치)는 현재안으로 확정(2026-10-01)
 5-1. ⑮(모바일 가상 키보드) — **방향 확정 A+B(2026-10-01)**: A(타일 UI 유지, 가려지면 타일 영역 이동) + B(키보드 위 특수 키 줄). iOS 실기기 확인은 나중(iPhone 없음). 순서 = 2.5 터미널 입력 뒤 → `REF-node-ui-overview.md` "모바일 가상 키보드"
 6. **(완료·커밋 `78bb8b2`)** `ProcessDialog` 타일 임베드 → `REF-node-ui-terminal.md`. 전체보기 전환은 타일을 재마운트하지 않으므로 xterm을 그대로 얹을 수 있음
-6-1. ⑪(타일 트리 서버 저장) — 서버 쪽 3-a·3-b·3-b' 완료(`2aa0920`), 3-c(스토어) 구조안 확인 대기 → `REF-node-ui-save.md`
+6-1. ⑪(타일 트리 서버 저장) — 서버 쪽 3-a·3-b·3-b' 완료(`2aa0920`), 3-c(스토어)·3-d(터미널 복원) 완료(`2f0170f`), 다음 3-e(확인) → `REF-node-ui-save.md`
 7-0. **연동 1차 (2026-09-30)** — 항목·구조·결정 → `REF-node-ui-link.md`, 이력 → `history/node-ui-link.md`
    - **완료(커밋 `ba5b857`)**: 1(`GET /workers` + exec 대상 장비 검증) / 2(폴더 타일 목록·경로·이름) / 3(node 관리 UI: 생성·이름 변경·장비 지정·접속 상태·삭제) / 4(스크립트 편집 창)
    - 5(실행)도 6과 함께 구현·커밋(`78bb8b2`) — `tileDummy.ts` 삭제, 실행·kill·상태 = 실제 API·소켓 (→ `REF-node-ui-terminal.md` L)
