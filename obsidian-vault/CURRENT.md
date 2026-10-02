@@ -1,7 +1,7 @@
 # CURRENT
 
 ## 현재 날짜
-2026-10-01
+2026-10-02
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
@@ -11,11 +11,12 @@
 - **1단계(탭 id + S(구독 역할 분리) + W·X·Y) 코드 + 2단계 실행 확인 완료(2026-10-01)** — 전 항목 통과, 커밋 `78bb8b2`. 결과 → `REF-process-sync-impl.md` "2단계 실행 확인", 이력 → `history/process-sync-impl.md`
 - **sid 충돌 수정·확인함**(`signIn`에 `_nonce`, `78bb8b2`에 포함) — 재기동 후 연속 로그인 20쌍 쿠키 동일 0 → `REF-process-sync-impl.md` "발견"
 - 전체 순서: 1 탭 id + S(구독 역할 분리)(완료) → 2 재기동·확인·커밋(완료: `78bb8b2`·`e5200ce`·`78ee99c`, push 안 함) → **2.5 터미널 입력(다음)** → 3 ⑪(타일 트리 서버 저장) → 4 O(계정 동기화) 화면 → **4.5 SNAPSHOT(화면복원 ring buffer)** → 5 공유(P·R·T)
-- **바로 다음 = 2.5 터미널 입력**: 결정 I1(전달 경로)=소켓 / I2(입력 권한)=같은 계정 누구나 / I3(PENDING 중 입력)=버림 / I4(Ctrl+C 복사)=선택 있으면 복사·없으면 `0x03` 확정, 작업 단위 입력-a(서버)·입력-b(프론트)·입력-c(확인) → `REF-process-input.md`. **"입력-a(서버)부터 작성해도 될까요?" 답 대기 — 답 받기 전 코드 착수 금지**
+- **2026-10-02 진행: 입력-a(서버) 코드 작성 완료**(`router/input.go`·`PROCESS:INPUT`, 서버 단독 확인 4항목 통과, 미커밋 → `REF-process-input.md` "입력-a 서버 단독 확인"). **입력-b(프론트) 코드 작성**(`processTerm.store.ts`) + I5(Ctrl+V 붙여넣기) = 붙여넣기 확정 + **입력-c 브라우저 7항목 통과**(미커밋). 남은 확인 = PENDING 중 입력 버림(socat). **다음 = 커밋 여부 확인 → 3 ⑪(타일 트리 서버 저장) 또는 5-1 ⑮(모바일 가상 키보드)**
+- **2.5 터미널 입력**: 결정 I1(전달 경로)=소켓 / I2(입력 권한)=같은 계정 누구나 / I3(PENDING 중 입력)=버림 / I4(Ctrl+C 복사)=선택 있으면 복사·없으면 `0x03` / I5(Ctrl+V 붙여넣기)=붙여넣기 확정, 작업 단위 입력-a(서버)·입력-b(프론트)·입력-c(확인) → `REF-process-input.md`. (입력-a 착수 승인 받음, 2026-10-02)
 - **3단계 ⑪(타일 트리 서버 저장) 구조·결정 확정(2026-10-01, 코드 미착수 — 사용자 "vault부터 정리, 코드 수정은 아직")**: ⑪-1(저장 형태)=계정당 JSON 문서 / ⑪-2(충돌 처리)=version 비교 + 재적용 / ⑪-3(새로고침 뒤 터미널 화면)=빈 화면 감수(SNAPSHOT 추후 필수) / ⑪-4(타일 없는 실행 중 process)=서버가 exec 때 터미널 타일 같이 넣기. 작업 단위 3-a(DB)·3-b(API)·3-b'(exec 연동)·3-c(스토어)·3-d(터미널 복원)·3-e(확인) → `REF-node-ui-save.md`. **착수 승인 대기**
 - 커밋 제외 유지(미커밋): `apps/core/cmd/irony/`(사용자 스크래치), `provideAppLayout.vue`(빈 줄 하나)
 - 재부팅으로 사라지는 것: 세션 scratchpad의 playwright-core·테스트 스크립트(`lib.mjs`·`part1*.mjs`·`part2.mjs`·`part3.mjs`·`ui.mjs`)·테스트 worker(`w2/`). 다시 필요하면 `REF-process-sync-impl.md` "2단계 실행 확인"·`REF-process-reconnect.md` "재현 방법" 보고 재작성
-- 커밋 상태: 코드·vault 모두 커밋됨(2026-10-01 세션 끝 docs(vault) 커밋까지, push 안 함)
+- 커밋 상태: 터미널 입력(입력-a·입력-b) + vault 커밋(2026-10-02, push 안 함)
 - 타일 터미널(6) 실제 실행은 이번 세션에 동작 확인됨(사용자 탭 + 헤드리스 `tick` 출력). 사용자 탭에서 처음 한동안 출력이 안 보이다 뜬 일 1회 — 원인 미상, 재발 시 탭 콘솔 확인
 - 연동 1차 1~4는 커밋됨(`ba5b857` feat / `8223f36` docs, push 안 함)
 - 결정 위치: 6(타일 임베드) J~N → `REF-node-ui-terminal.md` / 동기화·탭 id·공유 O~V → `REF-process-sync.md` / 1단계 구조·W·X·Y·확인 → `REF-process-sync-impl.md` / ping/pong → `REF-realtime.md` "발견"
@@ -51,7 +52,7 @@
 
 **구현 순서 (코드 구조·파일 매핑 → `REF-node-ui-impl.md` 데이터 층 / `REF-node-ui-render.md` 컴포넌트·헤더 내비)** — 층 구조 ①~⑤ 합의(2026-09-29), 첫 범위 = 1~3(타일 내용 더미)
 1~5. **완료(2026-09-29~30)**: 유틸 포팅 / 트리 상태 / 렌더 최소판 + 칼럼 스냅 / 헤더 내비 / 4-1 타일 따라가기(`reveal`) + ⑧ 커서 채우기(`5b87578`) / 5 전체보기 + 고정 버튼 + 축소 비율 저장(`0855041`). 상세 → `REF-node-ui-impl.md`·`REF-node-ui-render.md`, 이력 → `history/node-ui-impl.md`·`history/node-ui-render.md`. ⑭(전체보기 버튼 최종 위치)는 현재안으로 확정(2026-10-01)
-5-1. 모바일 가상 키보드 대응: viewport 메타 `interactive-widget=resizes-visual` + 판정은 레이아웃 뷰포트만 + 입력 모드·보조 키 줄(input 배선과 함께) — ⑮. **순서상 7 뒤로**(process input 배선이 선행, 2026-09-30 계획)
+5-1. ⑮(모바일 가상 키보드) — **방향 확정 A+B(2026-10-01)**: A(타일 UI 유지, 가려지면 타일 영역 이동) + B(키보드 위 특수 키 줄). iOS 실기기 확인은 나중(iPhone 없음). 순서 = 2.5 터미널 입력 뒤 → `REF-node-ui-overview.md` "모바일 가상 키보드"
 6. **(완료·커밋 `78bb8b2`)** `ProcessDialog` 타일 임베드 → `REF-node-ui-terminal.md`. 전체보기 전환은 타일을 재마운트하지 않으므로 xterm을 그대로 얹을 수 있음
 6-1. ⑪(타일 트리 서버 저장) — **구조·결정 확정(2026-10-01), 코드 미착수** → `REF-node-ui-save.md`
 7-0. **연동 1차 (2026-09-30)** — 항목·구조·결정 → `REF-node-ui-link.md`, 이력 → `history/node-ui-link.md`
@@ -71,7 +72,7 @@
 3. 라우팅 스킴 재검토(옛 `/nodes/:parentId?`가 이 모델에 맞는지)
 4. `NODE:<parentId>` 동적 구독/해지 — process는 REST로 확정했으나 node도 같은 길로 갈지 미정(이월)
 5. **네이밍**: 전체 개념 "그리드" vs "타일링", `Band`(가칭)
-15. **모바일 가상 키보드**: ① 판정은 레이아웃 뷰포트로만 + `interactive-widget=resizes-visual` / ② 입력 모드 채택 여부 / ③ 입력 모드 터미널 크기 유지+스크롤 vs 맞춤(resize) / ④ 보조 키 줄 구성 / ⑤ iOS 문서 스크롤 — `REF-node-ui-overview.md` "모바일 가상 키보드", 시안 v10에서 비교 가능. **주의**: `appWindown.store.ts`의 `size.inner`(visualViewport)에 판정을 연결하면 안 됨
+15. **모바일 가상 키보드**: 방향 확정 A+B(2026-10-01) — ①(판정) 레이아웃 뷰포트 / ②(입력 모드) 기각 / ③(입력 중 터미널 크기) 유지 / ④(보조 키 줄) Esc·Tab·Ctrl·Alt·방향키 등 / ⑤(iOS 문서 스크롤) 대응은 반영, **iPhone 실기기 확인만 남음** → `REF-node-ui-overview.md` "모바일 가상 키보드". **주의**: `appWindown.store.ts`의 `size.inner`(visualViewport)에 판정을 연결하면 안 됨
 
 **커밋 (2026-09-30)**: `5b87578` feat(node) ⑧ 커서 + reveal / `e55fb98` docs(vault) / `0855041` feat(node) 전체보기 + 고정 버튼 + 축소 비율 저장 / docs(vault) 정리. 제외(미커밋 유지): `apps/core/cmd/irony/`(사용자 스크래치), `provideAppLayout.vue`(빈 줄 하나).
 
@@ -103,7 +104,7 @@ Node UI Phase 2/3(드래그)에 앞서, 구 test-jig의 드래그 코드(`Dragga
 완료: supervisor+worker 실행부 전체(exec/kill/resize/재접속/구독) 배선·e2e 검증 끝(2026-07-01~07-22, kill 실사용 테스트로 발견한 상태동기화 버그 3건 포함 → `history/process-trigger.md`).
 
 **남은 것**
-1. **input(키입력)**: 결정 확정(소켓 / 같은 계정 누구나 / PENDING 중 버림), 코드 미착수 → `REF-process-input.md`
+1. **input(키입력)**: 입력-a(서버)·입력-b(프론트) 작성 + 입력-c 확인 통과(2026-10-02, 미커밋). PENDING 중 입력 버림 확인만 남음 → `REF-process-input.md`
 2. **화면복원**: supervisor-side ring buffer(SNAPSHOT) — 설계만 확정, 코드 미착수(→ `REF-process-snapshot.md`). **추후 반드시 구현(사용자 2026-10-01)** — 새로고침·다른 탭 터미널 빈 화면의 유일한 해결책. ⑪(타일 트리 서버 저장)에선 빼고 감수(⑪-3).
 3. EXEC content→실행 세부정책(직접실행 vs `sh -c`) 미정.
 
