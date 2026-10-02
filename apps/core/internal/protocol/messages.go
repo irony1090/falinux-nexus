@@ -193,6 +193,7 @@ type ExecResponse struct {
 type DataEvent struct {
 	UID  string `json:"uid"`
 	Data []byte `json:"data"`
+	Off  int64  `json:"off,omitempty"` // sup→browser 출력만: 이 묶음까지의 누적 바이트(화면 복원 이음매용)
 }
 
 // ResizeRequest: 터미널 창 크기 변경. (MsgResize REQ) → Interactive.Layout 매핑.

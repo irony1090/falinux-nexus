@@ -22,6 +22,7 @@ func (r *supervisorRouter) mountProcesses(e *echo.Echo) {
 	g.POST("/exec", r.execProcess)
 	g.POST("/kill/:processId", r.killProcess)
 	g.POST("/resize/:processId", r.resizeProcess)
+	g.GET("/snapshot/:processId", r.snapshotProcess)
 }
 
 // requestTab은 요청 헤더의 탭 id를 반환한다. 없거나 요청 세션의 탭이 아니면 "".

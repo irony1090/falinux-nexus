@@ -11,7 +11,7 @@ import (
 // Publish는 한 토픽으로 이벤트를 내보내는 전략이다. Relay가 subscribe.Hub의 제네릭
 // 타입(Conn/MsgType)에 직접 묶이지 않도록, 호출자가 토픽 키를 클로저로 감싸 주입한다.
 //
-//	예) bind.NewRelay(uid, inter, func(k protocol.MsgType, p any) error {
+//	예) bind.NewRelay(uid, inter, screen, func(k protocol.MsgType, p any) error {
 //	        return hub.Publish("PROCESS:"+uid, k, p)
 //	    })
 type Publish func(kind protocol.MsgType, payload any) error
@@ -25,17 +25,18 @@ type Publish func(kind protocol.MsgType, payload any) error
 type Relay struct {
 	uid     string
 	inter   execute.IInteractive
+	screen  *Screen // 화면 복원 버퍼. nil이면 쌓지 않음(off = 0)
 	publish Publish
 
-	// TODO(후순위): ring buffer(SNAPSHOT용) / DB sink(EXEC만 on) 훅 배선 지점.
+	// TODO(후순위): DB sink(EXEC만 on) 훅 배선 지점.
 
 	wg   sync.WaitGroup
 	once sync.Once
 }
 
 // NewRelay는 릴레이를 만든다(아직 goroutine 미기동 — Start에서 기동).
-func NewRelay(uid string, inter execute.IInteractive, publish Publish) *Relay {
-	return &Relay{uid: uid, inter: inter, publish: publish}
+func NewRelay(uid string, inter execute.IInteractive, screen *Screen, publish Publish) *Relay {
+	return &Relay{uid: uid, inter: inter, screen: screen, publish: publish}
 }
 
 // Start는 출력/상태 pump goroutine을 각각 기동한다. 중복 호출은 무시된다.
@@ -59,8 +60,13 @@ func (r *Relay) pumpOutput() {
 		if err != nil {
 			return // Done() 시 output 채널 close → 정상 종료
 		}
-		// TODO: ring buffer append / DB sink(EXEC만) 배선 지점.
-		if err := r.publish(protocol.MsgData, protocol.DataEvent{UID: r.uid, Data: data}); err != nil {
+		// TODO: DB sink(EXEC만) 배선 지점.
+		// 쓰기 -> 발행 순서 고정: 스냅샷이 그 사이에 떠도 이 이벤트의 off <= 스냅샷 off라 프론트가 버린다(S1(이음매 처리))
+		var off int64
+		if r.screen != nil {
+			off = r.screen.Write(data)
+		}
+		if err := r.publish(protocol.MsgData, protocol.DataEvent{UID: r.uid, Data: data, Off: off}); err != nil {
 			log.Printf("[bind] publish data uid=%s: %v", r.uid, err)
 		}
 	}

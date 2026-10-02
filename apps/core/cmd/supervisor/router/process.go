@@ -115,7 +115,7 @@ func (r *supervisorRouter) publishProcess(rec superdb.Process) {
 // 정리하면 재접속 Rebind 뒤 새 relay의 발행을 받을 소켓이 없어진다(2026-10-01 실행 확인한 "Rebind 뒤
 // 출력 끊김"). 재접속이 빨라 새 구독(subscribeUser)이 먼저 걸려도 이 정리가 늦게 돌아 지우는 경합도 같이 막는다.
 func (r *supervisorRouter) startRelay(uid string, inter *execute.AgentInteractive) {
-	relay := bind.NewRelay(uid, inter, func(k protocol.MsgType, p any) error {
+	relay := bind.NewRelay(uid, inter, r.screens.open(uid), func(k protocol.MsgType, p any) error {
 		return r.subscribeHub.Publish(processTopic(uid), k, p)
 	})
 	relay.Start()
@@ -133,6 +133,7 @@ func (r *supervisorRouter) startRelay(uid string, inter *execute.AgentInteractiv
 // killProcess 안에서 바로 구독해지하면 마지막 상태 이벤트를 놓칠 race가 생긴다 — 그래서 정리는
 // 여기, "더 이상 아무것도 발행되지 않는다"가 보장된 시점에서만 한다.
 func (r *supervisorRouter) cleanupProcessTopic(uid string) {
+	r.screens.drop(uid) // S4(끝난 process): 끝나면 버림
 	topic := processTopic(uid)
 	for _, conn := range r.subscribeHub.Subscribers(topic) {
 		r.subscribeHub.Unsubscribe(topic, conn)

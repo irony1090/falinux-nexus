@@ -42,6 +42,7 @@ type supervisorRouter struct {
 	subscribeHub   *subscribe.Hub[*transport.Conn, protocol.MsgType]
 	processManager *process.ProcessManager // 실행 상태 레지스트리(UID→entry). 라우팅은 여기 router가.
 	sizeOwners     *sizeOwners             // uid -> PTY 크기 소유 탭(sizeOwner.go)
+	screens        *screens                // uid -> 화면 복원 버퍼(screen.go)
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -72,6 +73,7 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 		subscribeHub:   subscribeHub,
 		processManager: process.NewProcessManager(),
 		sizeOwners:     newSizeOwners(),
+		screens:        newScreens(),
 	}
 
 	e := echo.New()
