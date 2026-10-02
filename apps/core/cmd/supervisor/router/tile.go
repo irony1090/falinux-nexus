@@ -182,7 +182,7 @@ func ensureTileTree(c echo.Context, userID int64) superdb.TileTree {
 
 // appendTerminalTile: exec 성공 직후 터미널 타일을 서버 트리에 넣는다 — ⑪-4(타일 없는 실행 중 process).
 // 요청 트랜잭션이 아니라 별도 트랜잭션으로 핸들러 안에서 커밋까지 끝낸다: 요청 트랜잭션은 응답을 보낸 뒤
-// 커밋되므로 그 실패를 핸들러가 알 수 없고, 그러면 실패 시 process kill(보상)을 할 수 없다 (REF-node-ui-save.md "3-b'")
+// 커밋되므로 그 실패를 핸들러가 알 수 없고, 그러면 실패 시 process kill(보상)을 할 수 없다 (REF-node-ui-save-impl.md "3-b'(exec 연동) 구현")
 func appendTerminalTile(ctx context.Context, userID int64, parentTileID string, size tileSize, nodeID int64, uid string) (tileItem, int64, error) {
 	tx := store.GetStorePool().Transaction()
 	if err := tx.Begin(ctx); err != nil {

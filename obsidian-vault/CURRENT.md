@@ -7,26 +7,23 @@
 
 ---
 
-## ⚠️ 다음 세션 시작 시 (2026-10-01 세 번째 세션 종료 정리 — 사용자 재부팅)
-- **1단계(탭 id + S(구독 역할 분리) + W·X·Y) 코드 + 2단계 실행 확인 완료(2026-10-01)** — 전 항목 통과, 커밋 `78bb8b2`. 결과 → `REF-process-sync-impl.md` "2단계 실행 확인", 이력 → `history/process-sync-impl.md`
-- **sid 충돌 수정·확인함**(`signIn`에 `_nonce`, `78bb8b2`에 포함) — 재기동 후 연속 로그인 20쌍 쿠키 동일 0 → `REF-process-sync-impl.md` "발견"
-- 전체 순서: 1 탭 id + S(구독 역할 분리)(완료) → 2 재기동·확인·커밋(완료: `78bb8b2`·`e5200ce`·`78ee99c`, push 안 함) → **2.5 터미널 입력(다음)** → 3 ⑪(타일 트리 서버 저장) → 4 O(계정 동기화) 화면 → **4.5 SNAPSHOT(화면복원 ring buffer)** → 5 공유(P·R·T)
-- **2026-10-02 진행: 입력-a(서버) 코드 작성 완료**(`router/input.go`·`PROCESS:INPUT`, 서버 단독 확인 4항목 통과, 미커밋 → `REF-process-input.md` "입력-a 서버 단독 확인"). **입력-b(프론트) 코드 작성**(`processTerm.store.ts`) + I5(Ctrl+V 붙여넣기) = 붙여넣기 확정 + **입력-c 브라우저 7항목 통과**(미커밋). 남은 확인 = PENDING 중 입력 버림(socat). **다음 = 커밋 여부 확인 → 3 ⑪(타일 트리 서버 저장) 또는 5-1 ⑮(모바일 가상 키보드)**
-- **2.5 터미널 입력**: 결정 I1(전달 경로)=소켓 / I2(입력 권한)=같은 계정 누구나 / I3(PENDING 중 입력)=버림 / I4(Ctrl+C 복사)=선택 있으면 복사·없으면 `0x03` / I5(Ctrl+V 붙여넣기)=붙여넣기 확정, 작업 단위 입력-a(서버)·입력-b(프론트)·입력-c(확인) → `REF-process-input.md`. (입력-a 착수 승인 받음, 2026-10-02)
-- **3단계 ⑪(타일 트리 서버 저장) 구조·결정 확정(2026-10-01, 코드 미착수 — 사용자 "vault부터 정리, 코드 수정은 아직")**: ⑪-1(저장 형태)=계정당 JSON 문서 / ⑪-2(충돌 처리)=version 비교 + 재적용 / ⑪-3(새로고침 뒤 터미널 화면)=빈 화면 감수(SNAPSHOT 추후 필수) / ⑪-4(타일 없는 실행 중 process)=서버가 exec 때 터미널 타일 같이 넣기. 작업 단위 3-a(DB)·3-b(API)·3-b'(exec 연동)·3-c(스토어)·3-d(터미널 복원)·3-e(확인) → `REF-node-ui-save.md`. **착수 승인 대기**
-- 커밋 제외 유지(미커밋): `apps/core/cmd/irony/`(사용자 스크래치), `provideAppLayout.vue`(빈 줄 하나)
-- 재부팅으로 사라지는 것: 세션 scratchpad의 playwright-core·테스트 스크립트(`lib.mjs`·`part1*.mjs`·`part2.mjs`·`part3.mjs`·`ui.mjs`)·테스트 worker(`w2/`). 다시 필요하면 `REF-process-sync-impl.md` "2단계 실행 확인"·`REF-process-reconnect.md` "재현 방법" 보고 재작성
-- 커밋 상태: 터미널 입력(입력-a·입력-b) + vault 커밋(2026-10-02, push 안 함)
-- 타일 터미널(6) 실제 실행은 이번 세션에 동작 확인됨(사용자 탭 + 헤드리스 `tick` 출력). 사용자 탭에서 처음 한동안 출력이 안 보이다 뜬 일 1회 — 원인 미상, 재발 시 탭 콘솔 확인
-- 연동 1차 1~4는 커밋됨(`ba5b857` feat / `8223f36` docs, push 안 함)
-- 결정 위치: 6(타일 임베드) J~N → `REF-node-ui-terminal.md` / 동기화·탭 id·공유 O~V → `REF-process-sync.md` / 1단계 구조·W·X·Y·확인 → `REF-process-sync-impl.md` / ping/pong → `REF-realtime.md` "발견"
-- 4(스크립트 편집) 저장 버튼 = 저장하고 계속 편집 — 코드 반영·커밋 `e5200ce`(2026-10-01) (→ `REF-node-ui-link.md` "4(스크립트 편집) 구조")
-- 환경: supervisor·worker는 사용자가 띄움(`docker start postgres15` → supervisor → worker, dev 서버 3000). 테스트 로그인 = `pages/Login.vue` 기본값 계정. 헤드리스 = `~/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome` + `playwright-core`(세션 scratchpad에 `npm i` — 재부팅하면 사라짐). worker 연결만 끊는 재현 = `REF-process-reconnect.md` "재현 방법", 멈춘 구독자 재현 = `REF-realtime.md` "발견"(테스트 스크립트들은 scratchpad에만 있어 재부팅 후 사라짐)
+## ⚠️ 다음 세션 시작 시 (2026-10-02 세션 종료 정리 — 사용자 재부팅)
+- 전체 순서: 1 탭 id + S(구독 역할 분리)(완료) → 2 재기동·확인·커밋(완료) → 2.5 터미널 입력(**완료** `2db8998`) → **3 ⑪(타일 트리 서버 저장)(진행 중)** → 4 O(계정 동기화) 화면 → 4.5 SNAPSHOT(화면복원 ring buffer) → 5 공유(P·R·T)
+- **바로 다음 = 3-c(스토어) 구조안 사용자 확인** → `REF-node-ui-save.md` "3-c(스토어) 구조안"(base·pending op 큐·409 재적용·exec 빠른 경로·파일 매핑). **확인 받기 전 코드 착수 금지.** 열린 확인 항목: 탭 닫을 때 `pagehide` + `keepalive`로 남은 저장 보내기 여부
+- ⑪ 진행: 3-a(DB)·3-b(API)·3-b'(exec 연동) 완료·확인·커밋 `2aa0920` → `REF-node-ui-save-impl.md`. 남은 것 = 3-c(스토어) → 3-d(터미널 복원, **안전망: 타일 없는 live process -> 루트 adopted 포함**) → 3-e(확인)
+- 2.5 터미널 입력 완료: 입력-a(서버)·입력-b(프론트) + I5(Ctrl+V 붙여넣기)=붙여넣기, 서버 4·브라우저 7항목 통과, 사용자 PC 확인 이상 없음 → `REF-process-input.md`. 남은 확인 = PENDING 중 입력 버림(socat), 한글(IME) 입력 별도 확인 언급 없음
+- 커밋 상태(2026-10-02, push 안 함): `2db8998` feat 입력 / `7488b2c` docs / `2aa0920` feat 타일 트리 서버 저장 / 세션 끝 docs(vault) 커밋. 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치)
+- DB에 남은 테스트 데이터: 계정 `input-test-b`(타일 트리 행 있음, 루트만) · `tile-race-<시각>` 1개. irony 타일 트리 = 루트만(version 12)
+- 재부팅으로 사라지는 것: 세션 scratchpad의 playwright-core + 테스트 스크립트 `input/test.mjs`(입력 서버)·`input/ui.mjs`(입력 브라우저)·`input/tiles.mjs`·`input/tiles-race.mjs`·`input/exec-tile.mjs`. 다시 쓸 땐 `REF-process-input.md` "입력-a 서버 단독 확인"·"입력-c 브라우저 확인", `REF-node-ui-save-impl.md` 각 확인 절의 항목·함정 보고 재작성
+- 테스트 클라이언트 함정 모음: 소켓 프레임 binary / exec는 `X-Tab-Id` 필수 / STATUS `status` 숫자 / 브라우저 쿠키 도메인 `localhost` / `users.identification`은 해시 저장
+- 환경: supervisor·worker는 사용자가 띄움(`docker start postgres15` → supervisor → worker, dev 서버 3000). 테스트 로그인 = `pages/Login.vue` 기본값 계정. 헤드리스 = `~/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome` + `playwright-core`(scratchpad에 `npm i`). worker 연결만 끊는 재현 = `REF-process-reconnect.md` "재현 방법"
 - 스크립트는 직접 실행이라 `#!/bin/sh` 등 shebang 필수(없으면 `exec format error`)
-- DB 노드 현황: 폴더 id 1(`HTOP_TEST_SH_MODI`, `device_key=irony-MAC-ADDress1`) 안에 스크립트 2~4 / 폴더 `test`(14) > `ttt1`(15) > 스크립트 23(사용자 테스트용). 스크립트 2~4 `execProcess` 실제 실행 미확인
+- DB 노드 현황: 폴더 id 1(`HTOP_TEST_SH_MODI`, `device_key=irony-MAC-ADDress1`) 안에 스크립트 2~4 / 폴더 `test`(14) > `ttt1`(15) > 스크립트 23(사용자 테스트용)
+- 결정 위치: 6(타일 임베드) J~N → `REF-node-ui-terminal.md` / 동기화·탭 id·공유 O~V → `REF-process-sync.md` / ping/pong → `REF-realtime.md` "발견"
 - `history/transfer.md`가 11.5k자로 분할 기준 초과(손대지 않아 그대로) — 다음에 그 파일을 고칠 때 분할
+- **색인 2단화 대기**(전역 규칙 신설): HISTORY 12.1k·MEMORY 10.2k자로 ~10k 도달 → 마감 파트를 `INDEX-{파트}.md`로 접어야 함. **파트 구분은 사용자 확인 필요** — 2026-10-02 세션 끝에 후보 제시함(답 대기)
 
-## 🎯 다음 작업: node 카탈로그 타일 UI — 구현 진행 중 (1~5단계 + 연동 1차(7-0) 1~5 + 6 타일 임베드 + 동기화 1단계 완료·커밋 `78bb8b2` → 다음 = 터미널 입력, 그 뒤 ⑪(타일 트리 서버 저장))
+## 🎯 다음 작업: node 카탈로그 타일 UI — 구현 진행 중 (1~5단계 + 연동 1차(7-0) 1~5 + 6 타일 임베드 + 동기화 1단계 + 터미널 입력 완료 → 진행 = ⑪(타일 트리 서버 저장) 3-c(스토어))
 
 2026-08-10 termspace 영감 **2D 타일 그리드**로 전환 → 2026-09-29 아티팩트 시안으로 규칙을 다듬고, 같은 날 **"큰 틀은 잡혔다, 보여준 아티팩트 UI를 토대로 만들 것"**(사용자). **역할 분담(2026-09-29 개정)**: 이 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다(구조 합의 → 코드 순서, 합의 전 코드 착수 금지). 상세 → `REF-node-ui.md`(컨셉) / `REF-node-ui-layout.md`(저장·순서·채우기·오버플로) / `REF-node-ui-projection.md`(화면 크기별 표시) / `REF-node-ui-overview.md`(전체보기·버튼·스크롤바·Grid 탭).
 
@@ -54,7 +51,7 @@
 1~5. **완료(2026-09-29~30)**: 유틸 포팅 / 트리 상태 / 렌더 최소판 + 칼럼 스냅 / 헤더 내비 / 4-1 타일 따라가기(`reveal`) + ⑧ 커서 채우기(`5b87578`) / 5 전체보기 + 고정 버튼 + 축소 비율 저장(`0855041`). 상세 → `REF-node-ui-impl.md`·`REF-node-ui-render.md`, 이력 → `history/node-ui-impl.md`·`history/node-ui-render.md`. ⑭(전체보기 버튼 최종 위치)는 현재안으로 확정(2026-10-01)
 5-1. ⑮(모바일 가상 키보드) — **방향 확정 A+B(2026-10-01)**: A(타일 UI 유지, 가려지면 타일 영역 이동) + B(키보드 위 특수 키 줄). iOS 실기기 확인은 나중(iPhone 없음). 순서 = 2.5 터미널 입력 뒤 → `REF-node-ui-overview.md` "모바일 가상 키보드"
 6. **(완료·커밋 `78bb8b2`)** `ProcessDialog` 타일 임베드 → `REF-node-ui-terminal.md`. 전체보기 전환은 타일을 재마운트하지 않으므로 xterm을 그대로 얹을 수 있음
-6-1. ⑪(타일 트리 서버 저장) — **구조·결정 확정(2026-10-01), 코드 미착수** → `REF-node-ui-save.md`
+6-1. ⑪(타일 트리 서버 저장) — 서버 쪽 3-a·3-b·3-b' 완료(`2aa0920`), 3-c(스토어) 구조안 확인 대기 → `REF-node-ui-save.md`
 7-0. **연동 1차 (2026-09-30)** — 항목·구조·결정 → `REF-node-ui-link.md`, 이력 → `history/node-ui-link.md`
    - **완료(커밋 `ba5b857`)**: 1(`GET /workers` + exec 대상 장비 검증) / 2(폴더 타일 목록·경로·이름) / 3(node 관리 UI: 생성·이름 변경·장비 지정·접속 상태·삭제) / 4(스크립트 편집 창)
    - 5(실행)도 6과 함께 구현·커밋(`78bb8b2`) — `tileDummy.ts` 삭제, 실행·kill·상태 = 실제 API·소켓 (→ `REF-node-ui-terminal.md` L)
@@ -104,7 +101,7 @@ Node UI Phase 2/3(드래그)에 앞서, 구 test-jig의 드래그 코드(`Dragga
 완료: supervisor+worker 실행부 전체(exec/kill/resize/재접속/구독) 배선·e2e 검증 끝(2026-07-01~07-22, kill 실사용 테스트로 발견한 상태동기화 버그 3건 포함 → `history/process-trigger.md`).
 
 **남은 것**
-1. **input(키입력)**: 입력-a(서버)·입력-b(프론트) 작성 + 입력-c 확인 통과(2026-10-02, 미커밋). PENDING 중 입력 버림 확인만 남음 → `REF-process-input.md`
+1. **input(키입력)**: 입력-a(서버)·입력-b(프론트) 작성 + 입력-c 확인 통과(2026-10-02, 커밋 `2db8998`). PENDING 중 입력 버림 확인만 남음 → `REF-process-input.md`
 2. **화면복원**: supervisor-side ring buffer(SNAPSHOT) — 설계만 확정, 코드 미착수(→ `REF-process-snapshot.md`). **추후 반드시 구현(사용자 2026-10-01)** — 새로고침·다른 탭 터미널 빈 화면의 유일한 해결책. ⑪(타일 트리 서버 저장)에선 빼고 감수(⑪-3).
 3. EXEC content→실행 세부정책(직접실행 vs `sh -c`) 미정.
 

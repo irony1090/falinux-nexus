@@ -1,8 +1,12 @@
 # HISTORY — node 타일 트리 서버 저장 (⑪)
 
-> 설계·결정 → `REF-node-ui-save.md` / 진행 순서 → `REF-process-sync.md` / 현재 진행 → `CURRENT.md`.
+> 설계·결정·3-c 구조안 → `REF-node-ui-save.md` / 서버 구현 이력(3-a(DB)·3-b(API)·3-b'(exec 연동)) → `history/node-ui-save-impl.md` / 진행 순서 → `REF-process-sync.md` / 현재 진행 → `CURRENT.md`.
 
 ---
+
+## 2026-10-02(4) — 서버 쪽 커밋 + 3-c(스토어) 구조안 제시 (코드 없음)
+- 사용자 "커밋하고 3-c 구조안 잡고 vault 정리하고 재부팅 준비" → 3-a·3-b·3-b' 코드 커밋 `2aa0920`.
+- 3-c 구조안(base·pending op 큐·409 재적용·exec 빠른 경로·파일 매핑)을 `REF-node-ui-save.md` "3-c(스토어) 구조안"에 작성 — 사용자 확인 전. REF/history를 서버 구현(`-impl`)과 분할.
 
 ## 2026-10-01 — ⑪ 구조안 제시 + 결정 ⑪-1~⑪-4 확정 (코드 없음)
 - 1단계 확인 뒤 사용자 "다른 탭에선 반응이 없다" → 서버만 계정 동기화, 화면 표시는 3·4단계 몫이라고 설명.

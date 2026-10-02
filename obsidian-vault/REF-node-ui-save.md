@@ -1,8 +1,8 @@
 # REF — node 타일 트리 서버 저장 (⑪)
 
-> 2026-10-01 신설. 진행 순서 3단계(`REF-process-sync.md` "진행 순서"). 저장 대상 모델(여는 관계 트리)·순서·닫기 규칙 → `REF-node-ui-layout.md` / 프론트 스토어 → `REF-node-ui-impl.md` / 이력 → `history/node-ui-save.md` / 현재 진행 → `CURRENT.md`.
+> 2026-10-01 신설. 진행 순서 3단계(`REF-process-sync.md` "진행 순서"). 서버 구현·확인(3-a(DB)·3-b(API)·3-b'(exec 연동)) → `REF-node-ui-save-impl.md`. 저장 대상 모델(여는 관계 트리)·순서·닫기 규칙 → `REF-node-ui-layout.md` / 프론트 스토어 → `REF-node-ui-impl.md` / 이력 → `history/node-ui-save.md` / 현재 진행 → `CURRENT.md`.
 
-**상태: 구조·결정 확정(2026-10-01), 코드 미착수.** 사용자 지시 "vault부터 정리, 코드 수정은 아직" — 착수 승인 전 코드 금지.
+**상태: 서버 쪽 3-a(DB)·3-b(API)·3-b'(exec 연동) 완료·커밋 `2aa0920`(2026-10-02) → `REF-node-ui-save-impl.md`. 3-c(스토어) 구조안 제시(아래, 사용자 확인 전 — 코드 착수 금지).** 작업 단위마다 착수 승인 받고 진행.
 
 ## 목표와 범위
 | 이 단계(3) | 다음 단계(4 O(계정 동기화) 화면) |
@@ -29,7 +29,7 @@ edit : open/navigate/close/resize -> local apply -> PUT /tiles {tree, version} (
          409 {tree, version} -> take server tree -> replay pending ops -> PUT again
 exec : POST /processes/exec {nodeId, authKey, parentTileId, size}
          -> worker exec ok -> server appends terminal tile (tx, version+1)
-         -> response {process, tile, version} -> store applies same tile
+         -> response {...process fields, tile, tileVersion} -> store applies same tile
 ```
 
 ## 작업 단위 3-a~3-e
@@ -39,7 +39,7 @@ exec : POST /processes/exec {nodeId, authKey, parentTileId, size}
 | 3-b(API) | `GET /tiles`(없으면 루트만 있는 트리 생성 후 반환) / `PUT /tiles {tree, version}` → 200 `{version}` / 409 `{tree, version}`. 트리 검사 | 새 `router/tile.go`(+DTO) |
 | 3-b'(exec 연동, ⑪-4) | exec 요청에 `parentTileId`·`size` 추가 → 실행 성공 후 트리 행 잠금(`SELECT ... FOR UPDATE`) → 터미널 타일 추가(id = 서버 발급 UUID) → version+1. 응답에 `tile`·`version` | `processApi.go`, `router/tile.go` |
 | 3-c(스토어) | 로그인 시 불러오기(불러오기 전 타일 UI는 로딩) · 변경마다 저장(짧은 간격 묶음) · 409 재적용 · exec는 PUT 없이 응답의 타일 반영 | `tileTree.store.ts`, 새 `node/api/tile.api.ts`, `FolderTileBody.vue`(exec 인자) |
-| 3-d(터미널 복원) | 불러온 터미널 타일 uid를 `processTerm`에 등록(xterm 생성): 살아 있는 것 = `GET /processes`(sizeOwner 포함) / 끝난 것 = uid 목록 조회(소유 검사, 신규) | `processApi.go`, `process.api.ts`, `processTerm.store.ts` |
+| 3-d(터미널 복원) | 불러온 터미널 타일 uid를 `processTerm`에 등록(xterm 생성): 살아 있는 것 = `GET /processes`(sizeOwner 포함) / 끝난 것 = uid 목록 조회(소유 검사, 신규) + **안전망: 살아 있는데 트리에 타일이 없는 process는 루트에 `adopted` 터미널로 붙이고 저장**(3-b' 결정 ③) | `processApi.go`, `process.api.ts`, `processTerm.store.ts` |
 | 3-e(확인) | 새로고침 후 타일 유지 · 탭 2개 동시 변경 409 재적용 · exec 타일이 서버 트리에 있음 · 부모 타일이 닫힌 뒤 exec | 헤드리스 + Node 클라이언트 |
 
 ## 세부 규칙 (구조 단계에서 정한 것)
@@ -55,3 +55,47 @@ exec : POST /processes/exec {nodeId, authKey, parentTileId, size}
 ## 이 단계에서 안 하는 것
 - 다른 탭 실시간 반영(4단계) · SNAPSHOT(추후 필수) · 공유 트리(5단계).
 - 끝난 터미널 타일 자동 정리(사용자가 닫음 — 기존 규칙 유지).
+
+## 3-c(스토어) 구조안 (2026-10-02 제시, 사용자 확인 전)
+### 지금 스토어와 바뀌는 점
+| 지금 | 3-c 뒤 |
+|---|---|
+| `provideTileTree()`가 루트를 직접 만들고 `rootId`는 상수 | 로그인 뒤 `GET /tiles`로 받음. 받기 전엔 `ready=false`(타일 UI 대신 로딩). `rootId`는 반응형으로 바뀜 -> 소비처 `tileGrids.store`·`nodeRemove.hook` 수정 |
+| 동작(`openFolder`·`navigate`·`close`·`resize`)이 `tiles_`를 바로 바꿈 | 동작을 **트리를 바꾸는 함수(op)** 로 만들어 `tiles_`에 적용하고 `pending`에 쌓음 -> 저장 예약 |
+| exec 성공 -> `addTerminal`(프론트가 타일 생성) | exec 요청에 `parentTileId`·`size`를 싣고, 응답의 `tile`·`tileVersion`을 반영(`addTerminal` 대신 `applyServerTile`) |
+
+### 상태와 저장 흐름
+```
+state : base (last tree the server confirmed) + version
+        pending: Op[]   (my ops not yet confirmed)
+        tiles_ = base + pending applied   (what the screen shows)
+
+op    : apply to tiles_ -> push to pending -> schedule save (300ms, one PUT in flight)
+save  : PUT {tree: tiles_, version}; remember sent = pending.length
+        200 -> base = sent tree, version = res.version, pending.splice(0, sent)
+        409 -> base = server tree, version = server version
+               tiles_ = clone(base), replay pending (op throws on missing tile -> drop it)
+               retry PUT (max 3, then reload server tree + notice)
+        other error -> keep pending, retry later (3s)
+exec  : res.tileVersion == version + 1 and nothing pending/in flight
+          -> fast path: add tile to base and tiles_, version = tileVersion (no PUT)
+        else -> push idempotent op "upsert this tile" -> next PUT gets 409 -> replay skips it (already in server tree)
+```
+
+| 항목 | 규칙 |
+|---|---|
+| op 안의 id | 새 타일 id(`crypto.randomUUID`)는 **op를 만들 때** 정한다(적용할 때 X) — 재적용해도 같은 id라 화면·`reveal`이 안 흔들림 |
+| 재적용 실패 | 대상 타일이 서버 트리에 없으면(다른 탭이 닫음) 그 op만 버림 |
+| 닫기 직전 저장 | 탭을 닫을 때 남은 저장은 `pagehide`에서 `fetch(..., {keepalive: true})`로 한 번 보냄(본문 64KB 이하일 때만) — **사용자 확인 필요** |
+| 로그아웃 | `auth` null -> `ready=false`, base·pending 비움 |
+| 터미널 타일 | 불러온 터미널 타일의 xterm 등록은 3-d(터미널 복원) 몫. 3-c에선 등록 안 된 uid 타일이 빈 화면이어도 깨지지 않게만 |
+
+### 파일 매핑
+| 파일 | 변경 |
+|---|---|
+| `feature/node/api/tile.api.ts`(신규) | `getTiles()` / `putTiles(tree, version)`(409를 에러가 아닌 결과로 구분해 돌려줌 — `api.util`의 `throwCatch`가 상태 코드를 버리므로 직접 처리) |
+| `feature/node/store/tileTree.store.ts` | base·version·pending·ready + op 큐 + 저장 묶음 + 409 재적용 + `applyServerTile` + `load`/`reset` |
+| `pages/index.vue` | `auth` 감시로 `load`/`reset`, `ready` 전엔 로딩 표시 |
+| `feature/node/store/tileGrids.store.ts`, `hook/nodeRemove.hook.ts` | `rootId` 반응형 대응 |
+| `feature/process/api/process.api.ts`, `store/processTerm.store.ts` | exec 요청에 `parentTileId`·`size`, 응답 타입에 `tile`·`tileVersion`, `exec`가 이것도 반환 |
+| `feature/node/component/tile/FolderTileBody.vue` | `start`: `addTerminal` 대신 `applyServerTile` 후 `reveal(tile.id)` |
