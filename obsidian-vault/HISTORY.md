@@ -21,12 +21,15 @@
 - 구현 이력(2026-10-02(2)~) → `history/process-snapshot-impl.md`
 
 ### `history/process-snapshot-impl.md` — 화면복원 스냅샷 구현 스냅샷-a~d (2026-10-02, process-snapshot에서 분할)
-- 2026-10-02(6) 사용자 PC 확인(htop·다른 탭 약간 반짝·끝난 process) + 커밋
+- 2026-10-02(6) 사용자 PC 확인(htop·다른 탭 약간 반짝·끝난 process) + 커밋 `3de3064`(서버)·`997d6cf`(프론트)·`9a17dbb`(vault)
 - 2026-10-02(5) 스냅샷-c(프론트) 작성 + 헤드리스 10/10 — 복원 중 질의 응답 입력 막기 추가
 - 2026-10-02(2) 스냅샷-a(서버 ring) 작성 — `internal/ring` + `bind.Screen`(alt 판정) + relay·`DataEvent.Off`·uid 맵, go test 통과, 미커밋
 - 2026-10-02(3) 스냅샷-b(서버 API) 작성 — `GET /processes/snapshot/:processId` + `redraw`, 소유자 확인 = DB(PENDING 대응), 미커밋
 - 2026-10-02(4) 스냅샷-b 서버 단독 확인 13/13(2회) — 0x0 크기 다시 그리기·두 `Layout` 사이 경합 버그 2개 수정
 - 2026-07-16 ring buffer 설계 논의 착수(코드 없음, 순수 설계): supervisor-side 채택 + 스케일 검토 + worker-side 이전 시 필요한 protocol(RingBuffer/offset/MsgSnapshot) + snapshot↔live 이음매 race 발견(Hub 구조상 conn별 차등 라우팅 불가, `bind.CatchUp` 미완성)
+
+### `history/process-exec-edit.md` — 실행 타입 EXEC vs EDIT (worker vi 편집, 2026-10-02 신설)
+- 2026-10-02 4.6 EDIT 프론트 연결 구조안 제시(E1~E4 + 편집-a·b), 노드 캐시 갱신 불필요로 정정, 코드 없음 — 사용자 확인 대기
 
 ### `history/node-ui.md` — node 카탈로그 UI 컨셉
 - 2026-08-10(4) 그리드 UI 구현 방식: 직접 제작 확정(조사+설계) — Splitpanes/Golden Layout/Dockview 조사 후 기각, 리사이즈만 DraggableSession 재사용 (2026-08-12 재확인, 결론 불변)

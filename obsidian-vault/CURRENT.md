@@ -7,18 +7,19 @@
 
 ---
 
-## ⚠️ 다음 세션 시작 시 (2026-10-02 세션 종료 정리 — 사용자 재부팅)
+## ⚠️ 다음 세션 시작 시 (2026-10-02 세션 종료 정리 — 4.5 SNAPSHOT 마감 후)
 - 전체 순서: 1 탭 id + S(구독 역할 분리)(완료) → 2 재기동·확인·커밋(완료) → 2.5 터미널 입력(완료 `2db8998`) → 3 ⑪(타일 트리 서버 저장)(**완료** `2aa0920`·`2f0170f`) → 4 O(계정 동기화) 화면(**완료** `4b6bbcd`) → 4.5 SNAPSHOT(화면복원 ring buffer)(**완료**) → **4.6 EDIT(worker `vi` 편집) 프론트 연결(다음)** → 5 공유(P·R·T)
-- **4.5 SNAPSHOT(화면복원) 완료(2026-10-02)**: 스냅샷-a(서버 ring)·b(서버 API)·c(프론트)·d(확인) — 서버 13/13·헤드리스 10/10·사용자 PC 확인(다른 탭 약간 반짝 = 감수), 커밋. 설계 `REF-process-snapshot.md` / 구현 `REF-process-snapshot-impl.md`. **바로 다음 = 4.6 EDIT(worker `vi` 편집) 프론트 연결**(아래 항목)
+- **바로 다음 = 4.6 EDIT(worker `vi` 편집) 프론트 연결 — 구조안 사용자 답부터**: E1(진입 위치)~E4(동시 편집) 제안 + 작업 단위 편집-a(프론트 진입)·편집-b(확인) 제시, **E2(끝난 뒤 타일) = 남김 / E3(저장 결과 표시) = 첫 범위는 안 함 을 제안대로 갈지 답 받기 전 세션 종료** → `REF-process-exec-edit.md` "4.6 구조안". 구조 합의 전 코드 착수 금지
+- **4.5 SNAPSHOT(화면복원) 완료(2026-10-02)**: 스냅샷-a(서버 ring)·b(서버 API)·c(프론트)·d(확인) — 서버 13/13·헤드리스 10/10·사용자 PC 확인(다른 탭 약간 반짝 = 감수), 커밋 `3de3064`·`997d6cf`·`9a17dbb`. 설계 `REF-process-snapshot.md` / 구현 `REF-process-snapshot-impl.md`
 - 3 ⑪ 완료: 3-a(DB)·3-b(API)·3-b'(exec 연동) `2aa0920` / 3-c(스토어)·3-d(터미널 복원) `2f0170f` / 3-e(확인) 마감 → `REF-node-ui-save.md`(설계)·`REF-node-ui-save-impl.md`(구현·확인)
 - 4 완료: 4-a(서버 발행)·4-b(트리 수신)·4-c(터미널 등록 일원화) + 사용자 PC 확인(2026-10-02) → `REF-node-ui-sync.md`. 범위 밖으로 남긴 것 = 4⑤(폴더 목록 동기화, 열린 질문 4 `NODE:` 동적 구독)
-- **4.6 EDIT(worker `vi` 편집) 순서 확정(2026-10-02 사용자: SNAPSHOT 뒤 — 새로고침해도 vi 화면이 복원되게)**: 선행(6 타일 임베드 + 입력) 충족. 서버·API는 이미 있음(`ExecTypeEdit`, `MsgEditResult`→`editResult` content diff 갱신, `{WORKER_EDITOR}`, REST `type: EDIT`, 프론트 `ProcessType`). 남은 것 = 스크립트 행 메뉴 "vi로 편집" + 끝나면 노드 캐시 갱신 + `:wq`·`:q!`·`:cq` 확인 → `REF-process-exec-edit.md`
+- **4.6 EDIT(worker `vi` 편집) 순서 확정(2026-10-02 사용자: SNAPSHOT 뒤 — 새로고침해도 vi 화면이 복원되게)**: 선행(6 타일 임베드 + 입력) 충족. 서버·API는 이미 있음(`ExecTypeEdit`, `MsgEditResult`→`editResult` content diff 갱신, `{WORKER_EDITOR}`, REST `type: EDIT`, 프론트 `ProcessType`). 남은 것 = 스크립트 행 메뉴 "vi로 편집" + `:wq`·`:q!`·`:cq` 확인(노드 캐시 갱신은 불필요로 정정 — 편집 창이 열 때마다 `getNode`) → `REF-process-exec-edit.md`
 - 확인 중 사용자 질문(정상 동작): 좁은 탭에서 `.5×.5=1×.5` = 저장값 그대로 동기화, 그 화면이 가로 1칸이라 1.0으로 보여 줌(화면 크기 규칙)
 - 2.5 터미널 입력 완료: 입력-a(서버)·입력-b(프론트) + I5(Ctrl+V 붙여넣기)=붙여넣기, 서버 4·브라우저 7항목 통과, 사용자 PC 확인 이상 없음 → `REF-process-input.md`. 남은 확인 = PENDING 중 입력 버림(socat), 한글(IME) 입력 별도 확인 언급 없음
-- 커밋 상태(2026-10-02, push 안 함): `2db8998` feat 입력 / `7488b2c` docs / `2aa0920` feat 타일 트리 서버 저장 / `2f0170f` feat 3-c·3-d 프론트 / `4b6bbcd` feat 4 계정 동기화 화면 / docs(vault) 커밋들. 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치)
-- DB에 남은 테스트 데이터: 계정 `input-test-b`(타일 트리 행 있음, 루트만) · `tile-race-<시각>` 1개 · `tile-store-`/`tile-exec-`/`tile-restore-`/`tile-other-`/`dbg-`/`push-`/`push-other-`/`sync-`/`sync2-<시각>` 여러 개(3-c·3-d·4 확인용). irony 타일 트리 = 루트만(version 12)
-- 재부팅으로 사라지는 것: 세션 scratchpad의 playwright-core + 테스트 스크립트(이번 세션 `tiles/store`·`exec`·`restore`·`push`·`sync`·`sync2.mjs`, 이전 `input/*.mjs`). 다시 쓸 땐 `REF-node-ui-save-impl.md`·`REF-node-ui-sync.md` 각 확인 절(항목·함정), `REF-process-input.md` "입력-a/입력-c" 보고 재작성
-- 테스트 클라이언트 함정 모음: 소켓 프레임 binary / exec는 `X-Tab-Id` 필수 / STATUS `status` 숫자 / 브라우저 쿠키 도메인 `localhost` / `users.identification`은 해시 저장 / 화면 밖 Grid xterm은 `innerText`에 안 잡힘(`.xterm-rows` `textContent`) / API로 만든 노드는 열린 목록에 안 뜸(`[title="새로고침"]`) / Vite가 heredoc으로 막 만든 파일을 빈 내용으로 캐시할 수 있음(`touch`)
+- 커밋 상태(2026-10-02, push 안 함): `2db8998` feat 입력 / `7488b2c` docs / `2aa0920` feat 타일 트리 서버 저장 / `2f0170f` feat 3-c·3-d 프론트 / `4b6bbcd` feat 4 계정 동기화 화면 / `3de3064`·`997d6cf` feat 4.5 SNAPSHOT 서버·프론트 / docs(vault) 커밋들. 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치)
+- DB에 남은 테스트 데이터: 계정 `input-test-b`(타일 트리 행 있음, 루트만) · `tile-race-<시각>` 1개 · `tile-store-`/`tile-exec-`/`tile-restore-`/`tile-other-`/`dbg-`/`push-`/`push-other-`/`sync-`/`sync2-<시각>` 여러 개(3-c·3-d·4 확인용) + `snap-`/`snap-other-`/`snap-probe-`/`snapb-<이름>-<시각>`(4.5 확인용, 노드는 삭제). irony 타일 트리 = 루트만(version 12)
+- 재부팅으로 사라지는 것: 세션 scratchpad의 playwright-core + 테스트 스크립트(4.5 `snap/server.mjs`·`browser.mjs`·`probe.mjs`, 이전 `tiles/*.mjs`·`input/*.mjs`). 다시 쓸 땐 `REF-process-snapshot-impl.md` "스냅샷-b/-d"·`REF-node-ui-save-impl.md`·`REF-node-ui-sync.md` 각 확인 절(항목·함정), `REF-process-input.md` "입력-a/입력-c" 보고 재작성. 테스트는 계정을 새로 만들고 폴더 `deviceKey=irony-MAC-ADDress1`로 하면 irony 타일 트리를 안 건드림
+- 테스트 클라이언트 함정 모음: 소켓 프레임 binary / exec는 `X-Tab-Id` 필수 / STATUS `status` 숫자 / 브라우저 쿠키 도메인 `localhost` / `users.identification`은 해시 저장 / 화면 밖 Grid xterm은 `innerText`에 안 잡힘(`.xterm-rows` `textContent`) / API로 만든 노드는 열린 목록에 안 뜸(`[title="새로고침"]`) / Vite가 heredoc으로 막 만든 파일을 빈 내용으로 캐시할 수 있음(`touch`) / 세션 쿠키 값에 `=` 있을 수 있음(첫 `=`에서 자를 것) / exec 직후 크기 0x0이라 resize 먼저(소유 탭) / vim 테스트는 파일 이름을 매번 다르게(swap 파일)
 - 환경: supervisor·worker는 사용자가 띄움(`docker start postgres15` → supervisor → worker, dev 서버 3000). 테스트 로그인 = `pages/Login.vue` 기본값 계정. 헤드리스 = `~/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome` + `playwright-core`(scratchpad에 `npm i`). worker 연결만 끊는 재현 = `REF-process-reconnect.md` "재현 방법"
 - 스크립트는 직접 실행이라 `#!/bin/sh` 등 shebang 필수(없으면 `exec format error`)
 - DB 노드 현황: 폴더 id 1(`HTOP_TEST_SH_MODI`, `device_key=irony-MAC-ADDress1`) 안에 스크립트 2~4 / 폴더 `test`(14) > `ttt1`(15) > 스크립트 23(사용자 테스트용)

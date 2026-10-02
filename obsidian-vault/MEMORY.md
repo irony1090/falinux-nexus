@@ -70,7 +70,7 @@ sqlc.yaml  README.md  .gitignore
 
 ## reference 인덱스
 - 설계/재사용 지식: `REF-process.md` `REF-process-exec-edit.md` `REF-process-snapshot.md` `REF-process-snapshot-impl.md` `REF-db.md` `REF-node-label.md` `REF-node-ui.md` `REF-node-ui-overview.md` `REF-node-ui-link.md` `REF-node-ui-terminal.md` `REF-process-sync.md` `REF-process-sync-impl.md` `REF-node-ui-save.md` `REF-node-ui-save-impl.md` `REF-process-input.md` `REF-frontend.md` `REF-realtime.md` `REF-widget.md` `REF-util.md` `REF-util-drag.md`
-- 작업 이력(주제별): `history/node-label.md` `history/node-ui.md` `history/node-ui-overview.md` `history/node-ui-link.md` `history/node-ui-terminal.md` `history/process-sync.md` `history/process-sync-impl.md` `history/node-ui-save.md` `history/node-ui-save-impl.md` `history/process-input.md` `history/process-snapshot.md` `history/process-snapshot-impl.md` `history/frontend.md` `history/realtime.md` `history/widget.md` `history/util.md` `history/util-drag.md`
+- 작업 이력(주제별): `history/node-label.md` `history/node-ui.md` `history/node-ui-overview.md` `history/node-ui-link.md` `history/node-ui-terminal.md` `history/process-sync.md` `history/process-sync-impl.md` `history/node-ui-save.md` `history/node-ui-save-impl.md` `history/process-input.md` `history/process-snapshot.md` `history/process-snapshot-impl.md` `history/process-exec-edit.md` `history/frontend.md` `history/realtime.md` `history/widget.md` `history/util.md` `history/util-drag.md`
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 통신 인프라(마감) → `INDEX-infra.md` / process 배선(마감) → `INDEX-process-wiring.md` / node UI 레이아웃 설계(마감) → `INDEX-node-ui-layout.md`
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md`

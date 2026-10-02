@@ -2,7 +2,7 @@
 
 > `REF-process-reconnect.md` "같은 세션 재접속=화면 그대로 복원" 항목의 구체화. 작업 이력 → `history/process-snapshot.md` / 현재 진행 → `CURRENT.md`
 > 프론트 끼울 자리 = `processTerm.store.ts` `restore` 한 곳(새로고침·다른 탭 push·409 재적용 전부) → `REF-node-ui-sync.md` "4-c"
-> **상태(2026-10-02): 결정 S1~S6 + C(ring + alt screen만 다시 그리기) 확정. 스냅샷-a~d 완료(서버 13/13·브라우저 10/10·사용자 PC 확인), 커밋** → 구현·확인 `REF-process-snapshot-impl.md` / 이력 `history/process-snapshot.md`(설계)·`history/process-snapshot-impl.md`(구현)
+> **상태(2026-10-02): 결정 S1~S6 + C(ring + alt screen만 다시 그리기) 확정. 스냅샷-a~d 완료(서버 13/13·브라우저 10/10·사용자 PC 확인), 커밋 `3de3064`(서버)·`997d6cf`(프론트)** → 구현·확인 `REF-process-snapshot-impl.md` / 이력 `history/process-snapshot.md`(설계)·`history/process-snapshot-impl.md`(구현)
 > **반드시 구현할 것(사용자 2026-10-01) — 순서 = 4 O(계정 동기화) 화면 바로 다음(4.5)**: 새로고침·다른 탭에서 터미널 화면이 비는 문제는 이것으로만 해결된다.
 
 ## 문제
