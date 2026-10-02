@@ -8,8 +8,8 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시 (2026-10-02 세션 종료 정리 — 사용자 재부팅)
-- 전체 순서: 1 탭 id + S(구독 역할 분리)(완료) → 2 재기동·확인·커밋(완료) → 2.5 터미널 입력(완료 `2db8998`) → 3 ⑪(타일 트리 서버 저장)(**완료** `2aa0920`·`2f0170f`) → 4 O(계정 동기화) 화면(**완료** `4b6bbcd`) → **4.5 SNAPSHOT(화면복원 ring buffer)(다음)** → 4.6 EDIT(worker `vi` 편집) 프론트 연결 → 5 공유(P·R·T)
-- **바로 다음 = 4.5 SNAPSHOT 구조안**: 설계 → `REF-process-snapshot.md`(supervisor-side 채택, snapshot↔live 이음매 경합·`bind.CatchUp` 미완성 미해결). 프론트 끼울 자리 = `processTerm.restore` 한 곳(새로고침·다른 탭 push·409 재적용 전부 이 길) → `REF-node-ui-sync.md` "4-c". 구조 합의 전 코드 착수 금지
+- 전체 순서: 1 탭 id + S(구독 역할 분리)(완료) → 2 재기동·확인·커밋(완료) → 2.5 터미널 입력(완료 `2db8998`) → 3 ⑪(타일 트리 서버 저장)(**완료** `2aa0920`·`2f0170f`) → 4 O(계정 동기화) 화면(**완료** `4b6bbcd`) → 4.5 SNAPSHOT(화면복원 ring buffer)(**완료**) → **4.6 EDIT(worker `vi` 편집) 프론트 연결(다음)** → 5 공유(P·R·T)
+- **4.5 SNAPSHOT(화면복원) 완료(2026-10-02)**: 스냅샷-a(서버 ring)·b(서버 API)·c(프론트)·d(확인) — 서버 13/13·헤드리스 10/10·사용자 PC 확인(다른 탭 약간 반짝 = 감수), 커밋. 설계 `REF-process-snapshot.md` / 구현 `REF-process-snapshot-impl.md`. **바로 다음 = 4.6 EDIT(worker `vi` 편집) 프론트 연결**(아래 항목)
 - 3 ⑪ 완료: 3-a(DB)·3-b(API)·3-b'(exec 연동) `2aa0920` / 3-c(스토어)·3-d(터미널 복원) `2f0170f` / 3-e(확인) 마감 → `REF-node-ui-save.md`(설계)·`REF-node-ui-save-impl.md`(구현·확인)
 - 4 완료: 4-a(서버 발행)·4-b(트리 수신)·4-c(터미널 등록 일원화) + 사용자 PC 확인(2026-10-02) → `REF-node-ui-sync.md`. 범위 밖으로 남긴 것 = 4⑤(폴더 목록 동기화, 열린 질문 4 `NODE:` 동적 구독)
 - **4.6 EDIT(worker `vi` 편집) 순서 확정(2026-10-02 사용자: SNAPSHOT 뒤 — 새로고침해도 vi 화면이 복원되게)**: 선행(6 타일 임베드 + 입력) 충족. 서버·API는 이미 있음(`ExecTypeEdit`, `MsgEditResult`→`editResult` content diff 갱신, `{WORKER_EDITOR}`, REST `type: EDIT`, 프론트 `ProcessType`). 남은 것 = 스크립트 행 메뉴 "vi로 편집" + 끝나면 노드 캐시 갱신 + `:wq`·`:q!`·`:cq` 확인 → `REF-process-exec-edit.md`
@@ -26,7 +26,7 @@
 - `history/transfer.md`가 11.5k자로 분할 기준 초과(손대지 않아 그대로) — 다음에 그 파일을 고칠 때 분할
 - **색인 2단화 완료(2026-10-02)**: 마감 파트 3개를 `INDEX-infra.md`(통신 인프라)·`INDEX-process-wiring.md`(process 배선)·`INDEX-node-ui-layout.md`(node UI 레이아웃 설계)로 접음 → MEMORY 7.6k·HISTORY 6.7k자. `REF-node-ui-overview.md`는 ⑮(모바일 가상 키보드) 진행 중이라 접지 않음
 
-## 🎯 다음 작업: node 카탈로그 타일 UI — 구현 진행 중 (1~5단계 + 연동 1차(7-0) 1~5 + 6 타일 임베드 + 동기화 1단계 + 터미널 입력 + ⑪(타일 트리 서버 저장) + 4 O(계정 동기화) 화면 완료 → 다음 = 4.5 SNAPSHOT)
+## 🎯 다음 작업: node 카탈로그 타일 UI — 구현 진행 중 (1~5단계 + 연동 1차(7-0) 1~5 + 6 타일 임베드 + 동기화 1단계 + 터미널 입력 + ⑪(타일 트리 서버 저장) + 4 O(계정 동기화) 화면 + 4.5 SNAPSHOT(화면복원) 완료 → 다음 = 4.6 EDIT(worker `vi` 편집) 프론트 연결)
 
 2026-08-10 termspace 영감 **2D 타일 그리드**로 전환 → 2026-09-29 아티팩트 시안으로 규칙을 다듬고, 같은 날 **"큰 틀은 잡혔다, 보여준 아티팩트 UI를 토대로 만들 것"**(사용자). **역할 분담(2026-09-29 개정)**: 이 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다(구조 합의 → 코드 순서, 합의 전 코드 착수 금지). 상세 → `REF-node-ui.md`(컨셉) / `REF-node-ui-layout.md`(저장·순서·채우기·오버플로) / `REF-node-ui-projection.md`(화면 크기별 표시) / `REF-node-ui-overview.md`(전체보기·버튼·스크롤바·Grid 탭).
 
@@ -105,7 +105,7 @@ Node UI Phase 2/3(드래그)에 앞서, 구 test-jig의 드래그 코드(`Dragga
 
 **남은 것**
 1. **input(키입력)**: 입력-a(서버)·입력-b(프론트) 작성 + 입력-c 확인 통과(2026-10-02, 커밋 `2db8998`). PENDING 중 입력 버림 확인만 남음 → `REF-process-input.md`
-2. **화면복원**: supervisor-side ring buffer(SNAPSHOT) — 설계만 확정, 코드 미착수(→ `REF-process-snapshot.md`). **추후 반드시 구현(사용자 2026-10-01)** — 새로고침·다른 탭 터미널 빈 화면의 유일한 해결책. ⑪(타일 트리 서버 저장)에선 빼고 감수(⑪-3).
+2. **화면복원**: supervisor-side ring buffer(SNAPSHOT) — **완료(2026-10-02)** → `REF-process-snapshot-impl.md`
 3. EXEC content→실행 세부정책(직접실행 vs `sh -c`) 미정.
 
 **결정 필요**: 끊긴 창 kill 거절 vs 큐잉(입력은 I3(PENDING 중 입력)=버림으로 확정) / 공유 kill 인가 / kill 에스컬레이션.
@@ -117,6 +117,7 @@ Node UI Phase 2/3(드래그)에 앞서, 구 test-jig의 드래그 코드(`Dragga
 ---
 
 ## 미해결 이슈 (이월)
+- **같은 터미널을 연 탭이 여러 개면 질의 시퀀스(`ESC[6n` 등)에 탭마다 xterm이 응답** → process가 응답을 탭 수만큼 받음(SNAPSHOT 확인 중 발견, 기존 문제). 방안 후보: 크기 소유 탭만 응답 전달 → `REF-process-snapshot-impl.md` "스냅샷-d"
 - **Hub 막힘** → ping/pong으로 **해결·확인·커밋 `e395433`**(2026-10-01, push 안 함: `internal/transport/keepalive.go` 신규 + `subscribe.go`·`supervisorRouter.go`·`workerRouter.go` 한 줄씩). 남은 한계 = 막힘이 최대 약 25초. 사용자 supervisor·worker는 옛 빌드라 재기동해야 반영 → `REF-realtime.md` "발견"
 - **`ProcessDialog` `PROCESS:UPDATE`/`STATUS` 리스너**: 아직 `console.log` 스텁(`patchStatus` 진입점은 이미 있어 연결만 하면 됨).
 - **파일 전송**: 구현 완료 / e2e 미검증. 잔여: e2e 스모크 / abort sentinel
