@@ -44,6 +44,13 @@ type Process struct {
 	UpdatedAt   pgtype.Timestamptz
 }
 
+type TileTree struct {
+	UserID    int64
+	Tree      []byte
+	Version   int64
+	UpdatedAt pgtype.Timestamptz
+}
+
 type User struct {
 	ID             int64
 	Identification string

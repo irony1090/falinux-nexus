@@ -1,6 +1,10 @@
 package router
 
 import (
+	"context"
+	"log"
+	"time"
+
 	"nexus/cmd/supervisor/process"
 	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
@@ -67,6 +71,16 @@ type execRequest struct {
 	NodeID  int64  `json:"nodeId" validate:"required"`
 	AuthKey string `json:"authKey" validate:"required"`               // worker 인스턴스 키(main#sub). 후보 = GET /workers?nodeId=
 	Type    string `json:"type" validate:"omitempty,oneof=EXEC EDIT"` // 비우면 EXEC
+
+	ParentTileID string    `json:"parentTileId"` // 터미널 타일을 붙일 폴더 타일. 없거나 닫혔으면 루트
+	Size         *tileSize `json:"size"`         // 없으면 0.5×0.5
+}
+
+// execResponse: process 응답 필드 그대로 + 서버 트리에 넣은 터미널 타일(process 없는 실행이면 생략)
+type execResponse struct {
+	processResponse
+	Tile        *tileItem `json:"tile,omitempty"`
+	TileVersion int64     `json:"tileVersion,omitempty"`
 }
 
 // execProcess는 frontend의 "이 노드 실행" 요청을 받아 worker에 명령한다(router.Exec 위임).
@@ -80,6 +94,13 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 	}
 	if err := c.Validate(&body); err != nil {
 		panic(web.Err(400, "%v", err))
+	}
+	size := tileSize{W: 0.5, H: 0.5}
+	if body.Size != nil {
+		size = *body.Size
+	}
+	if !validSpan(size.W) || !validSpan(size.H) {
+		panic(web.Err(400, "타일 크기가 올바르지 않습니다"))
 	}
 
 	node, err := TxQueries(c).GetNode(c.Request().Context(), superdb.GetNodeParams{
@@ -99,7 +120,23 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 		panic(web.Err(500, "%v", err))
 	}
 	entry, _ := r.processManager.Get(uid)
-	return c.JSON(200, withSizeOwner(newProcessResponse(*entry.Record), r.sizeOwnerOf(uid) == tabID))
+	res := execResponse{processResponse: withSizeOwner(newProcessResponse(*entry.Record), r.sizeOwnerOf(uid) == tabID)}
+	if !entry.HasProcess() {
+		return c.JSON(200, res)
+	}
+	// 타일을 못 넣으면 실행을 되돌린다 — 보이지도 kill되지도 않는 process를 남기지 않기 위해. kill도 실패하면 3-d 안전망이 받음
+	// 요청 컨텍스트를 쓰면 브라우저가 응답 전에 끊을 때 저장이 취소돼 멀쩡한 process가 kill된다
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	tile, version, err := appendTerminalTile(ctx, sess.Data.ID, body.ParentTileID, size, node.ID, uid)
+	if err != nil {
+		if kErr := entry.Inter.Kill(); kErr != nil {
+			log.Printf("[process] 타일 저장 실패 후 kill 실패 uid=%s: %v", uid, kErr)
+		}
+		panic(web.Err(500, "터미널 타일 저장에 실패해 실행을 중단했습니다: %v", err))
+	}
+	res.Tile, res.TileVersion = &tile, version
+	return c.JSON(200, res)
 }
 
 // killProcess는 실행 중인 process를 종료한다(worker에 MsgKill 전달, entry.Inter.Kill()).
