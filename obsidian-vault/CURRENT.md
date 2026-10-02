@@ -21,7 +21,7 @@
 - DB 노드 현황: 폴더 id 1(`HTOP_TEST_SH_MODI`, `device_key=irony-MAC-ADDress1`) 안에 스크립트 2~4 / 폴더 `test`(14) > `ttt1`(15) > 스크립트 23(사용자 테스트용)
 - 결정 위치: 6(타일 임베드) J~N → `REF-node-ui-terminal.md` / 동기화·탭 id·공유 O~V → `REF-process-sync.md` / ping/pong → `REF-realtime.md` "발견"
 - `history/transfer.md`가 11.5k자로 분할 기준 초과(손대지 않아 그대로) — 다음에 그 파일을 고칠 때 분할
-- **색인 2단화 대기**(전역 규칙 신설): HISTORY 12.1k·MEMORY 10.2k자로 ~10k 도달 → 마감 파트를 `INDEX-{파트}.md`로 접어야 함. **파트 구분은 사용자 확인 필요** — 2026-10-02 세션 끝에 후보 제시함(답 대기)
+- **색인 2단화 완료(2026-10-02)**: 마감 파트 3개를 `INDEX-infra.md`(통신 인프라)·`INDEX-process-wiring.md`(process 배선)·`INDEX-node-ui-layout.md`(node UI 레이아웃 설계)로 접음 → MEMORY 7.6k·HISTORY 6.7k자. `REF-node-ui-overview.md`는 ⑮(모바일 가상 키보드) 진행 중이라 접지 않음
 
 ## 🎯 다음 작업: node 카탈로그 타일 UI — 구현 진행 중 (1~5단계 + 연동 1차(7-0) 1~5 + 6 타일 임베드 + 동기화 1단계 + 터미널 입력 완료 → 진행 = ⑪(타일 트리 서버 저장) 3-c(스토어))
 
