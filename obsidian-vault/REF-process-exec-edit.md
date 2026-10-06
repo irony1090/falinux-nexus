@@ -4,7 +4,7 @@
 > node script 편집 = frontend→supervisor→worker로 worker의 실제 `vi`($EDITOR)를 **PTY로 띄워** 편집, 종료 시 내용 회수. **PTY 엔진의 특수 사례** — 새 메커니즘 아님. 카탈로그(`REF-node-label.md`) "무엇"에 "어떻게(편집)"를 먹이는 동작.
 
 - **진행 위치(2026-10-02 사용자 결정)**: 4.5 SNAPSHOT(화면복원 ring buffer) **뒤** 4.6으로. 선행 조건(6 타일 임베드 + 터미널 입력 + SNAPSHOT)은 충족. 서버·REST(`type: EDIT`)·프론트 타입은 있음 → 아래 "4.6 구조안"
-- **UI 순서(2026-09-30 사용자 결정)**: 스크립트 내용 편집은 **브라우저 편집기(`PATCH /nodes/:id` content)를 먼저** 넣고, EDIT(worker `vi` PTY)는 타일 xterm 임베드(구현 순서 6) 뒤에 붙인다 — 연동 테스트용 스크립트를 worker 없이 바로 만들기 위해. → `CURRENT.md` 7-0
+- **UI 순서(2026-09-30 사용자 결정)**: 스크립트 내용 편집은 **브라우저 편집기(`PATCH /nodes/:id` content)를 먼저** 넣고, EDIT(worker `vi` PTY)는 타일 xterm 임베드(구현 순서 6) 뒤에 붙인다 — 연동 테스트용 스크립트를 worker 없이 바로 만들기 위해. → `INDEX-node-ui-layout.md` "확정 규칙 요약" 7-0
 
 - **단일 `MsgExec{ type, spec }` + 단일 결과채널**에 `type` 디스크리미네이터. 제어/스트림(Data·Resize·Kill·Status) 공유라 메시지 안 가르고 type만 추가(separate MsgEditExec보다 깔끔)
 - **두 타입(닫힌 집합)**:
@@ -22,7 +22,7 @@
 - **YAGNI**: "인터랙티브 세션이 아티팩트 반환" 거창한 프레임워크 금지. **EDIT 한 동작만**. 비인터랙티브 출력 캡처(CAPTURE류)는 실수요 나올 때 별 type으로
 - **프로토콜 어휘 구현됨(2026-06-26)** `protocol/messages.go`: `ExecType`(EXEC|EDIT) + `ProcessSpec.Type`(빈값=EXEC, `Kind()` 정규화) + `MsgEditResult`(worker→sup REQ) + `EditResult{UID,Content}`. 와이어 = 공통 ProcessSpec + Type 구분. 저장판별=supervisor diff. ※구 `ProcessSpec.Seed []byte`/"인라인 content" 서술 폐기 → `REF-process-wiring.md` "경로 조립" 참조.
 
-## 4.6 구조안 — 프론트 연결 (2026-10-02 제시, 사용자 확인 대기)
+## 4.6 구조안 — 프론트 연결 (2026-10-02 제시, 2026-10-06 E1(진입 위치)~E4(동시 편집) 제안대로 확정 + 편집-a(프론트 진입) 작성 + 편집-b(확인) 사용자 PC 통과, 커밋 `97fb5c4` — 4.6 완료)
 
 **계획 정정**: "종료 후 노드 내용 캐시 갱신"은 **불필요** — 브라우저 편집 창(`ScriptEditDialog`)은 열 때마다 `getNode`로 새로 받고, 폴더 목록엔 내용이 표시되지 않음.
 

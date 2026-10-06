@@ -4,6 +4,12 @@
 
 ---
 
+## 2026-10-06 — presence(접속 상태) 조회 시점 논의 (코드 없음)
+- 사용자 질문: process별(폴더 포함?)로 보는 계정·세션의 접속 상태를 볼 수 있나, 공유에 필요할 텐데 언제 할지
+- 코드 확인: `tabRegistry`(탭 id·sid·계정·연결 시각)·`released`·`sizeOwners`는 메모리에 있으나 조회 API 없음, User-Agent 없음, process별 보는 탭은 S(구독 역할 분리)로 계정 탭 전부
+- 합의: 5 공유(P·R·T) 구조 합의 때 함께, 5의 첫 작업 단위로 → `REF-process-sync.md` "presence"
+- 같이 답한 것: A 브라우저 종료 → 60초(`tabGrace`) 뒤 B로 크기 소유권 넘김 → B가 `watch(owner)`로 fit·resize. 비정상 끊김은 ping/pong 감지까지 최대 약 25초 추가
+
 ## 2026-10-01(3) — 1단계 작업 단위 제시 (코드 없음)
 - 사이에 Hub 막힘 → ping/pong 해결·커밋 `e395433`(→ `history/realtime.md`). 브라우저 끊김(기기 종료) 시 P는 계속 실행·출력은 구독자 없으면 버려짐·타일은 ⑪ 전까지 안 보임 설명.
 - 사용자 "다음 순서 플랜 보여줘" → 1-a(DB 정리)~1-g(프론트) 작업 단위 제시(`REF-process-sync-impl.md` "1단계 작업 단위"), 착수 승인 대기 중 재부팅.

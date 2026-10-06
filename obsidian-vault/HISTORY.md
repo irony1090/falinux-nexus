@@ -7,6 +7,8 @@
 - 통신 인프라(마감) → `INDEX-infra.md` (transport·transfer·supervisor-web·project)
 - process 배선(마감) → `INDEX-process-wiring.md` (process-wiring·trigger·resize·reconnect·subscription)
 - node UI 레이아웃 설계(마감) → `INDEX-node-ui-layout.md` (node-ui-layout·projection·impl·render)
+- node UI 연동(마감) → `INDEX-node-ui-link.md` (node-ui-link·terminal·save·save-impl·sync)
+- process 터미널 기능(마감) → `INDEX-process-terminal.md` (process-input·snapshot·snapshot-impl·exec-edit)
 
 ## history/ 파일 색인 (진행 중 파트)
 
@@ -15,21 +17,6 @@
 - 2026-09-30 `GET /workers`(접속 인스턴스, `?nodeId=` 상속 해석) + `execProcess` 대상 장비 검증 — 연동 1차 1번
 - 2026-06-29 Node 모듈 구현 (스키마·쿼리·핸들러·PatchNode·internal/patch, build/vet 통과)
 - 2026-06-26 Node/Label 모듈 설계 (frontend 카탈로그)
-
-### `history/process-snapshot.md` — 화면복원 스냅샷 (ring buffer)
-- 2026-10-02 구조안 S1~S6 제시 + htop 부분 갱신 문제로 7월 기록 정정 + C(ring + alt screen만 다시 그리기)·S1~S6 전부 확정 + 작업 단위 스냅샷-a~d 제시
-- 구현 이력(2026-10-02(2)~) → `history/process-snapshot-impl.md`
-
-### `history/process-snapshot-impl.md` — 화면복원 스냅샷 구현 스냅샷-a~d (2026-10-02, process-snapshot에서 분할)
-- 2026-10-02(6) 사용자 PC 확인(htop·다른 탭 약간 반짝·끝난 process) + 커밋 `3de3064`(서버)·`997d6cf`(프론트)·`9a17dbb`(vault)
-- 2026-10-02(5) 스냅샷-c(프론트) 작성 + 헤드리스 10/10 — 복원 중 질의 응답 입력 막기 추가
-- 2026-10-02(2) 스냅샷-a(서버 ring) 작성 — `internal/ring` + `bind.Screen`(alt 판정) + relay·`DataEvent.Off`·uid 맵, go test 통과, 미커밋
-- 2026-10-02(3) 스냅샷-b(서버 API) 작성 — `GET /processes/snapshot/:processId` + `redraw`, 소유자 확인 = DB(PENDING 대응), 미커밋
-- 2026-10-02(4) 스냅샷-b 서버 단독 확인 13/13(2회) — 0x0 크기 다시 그리기·두 `Layout` 사이 경합 버그 2개 수정
-- 2026-07-16 ring buffer 설계 논의 착수(코드 없음, 순수 설계): supervisor-side 채택 + 스케일 검토 + worker-side 이전 시 필요한 protocol(RingBuffer/offset/MsgSnapshot) + snapshot↔live 이음매 race 발견(Hub 구조상 conn별 차등 라우팅 불가, `bind.CatchUp` 미완성)
-
-### `history/process-exec-edit.md` — 실행 타입 EXEC vs EDIT (worker vi 편집, 2026-10-02 신설)
-- 2026-10-02 4.6 EDIT 프론트 연결 구조안 제시(E1~E4 + 편집-a·b), 노드 캐시 갱신 불필요로 정정, 코드 없음 — 사용자 확인 대기
 
 ### `history/node-ui.md` — node 카탈로그 UI 컨셉
 - 2026-08-10(4) 그리드 UI 구현 방식: 직접 제작 확정(조사+설계) — Splitpanes/Golden Layout/Dockview 조사 후 기각, 리사이즈만 DraggableSession 재사용 (2026-08-12 재확인, 결론 불변)
@@ -47,52 +34,16 @@
 - 2026-09-29(8) 전체보기(Alt+Tab형) 모드 시안 — 긴 축 한 줄·짧은 축 가운데, 고정 버튼(정보 줄 높이), 스크롤바 auto + 두께 보정, Grid 탭 줄임·끝 페이지 잘림 버그 수정(v1~v9)
 
 ### `history/process-sync.md` — process 동기화 범위 · 탭 id · 공유 (2026-10-01 신설, node-ui-terminal에서 분리)
+- 2026-10-06 presence(접속 상태) 조회 시점 = 5 공유(P·R·T) 구조 합의 때 함께로 합의, 코드 없음
 - 2026-10-01(4)(5) 1단계 코드·실행 확인 → `history/process-sync-impl.md`
 - 2026-10-01(3) 1단계 작업 단위 1-a~1-g 제시(착수 승인 대기), 코드 없음
 - 2026-10-01(2) Rebind 뒤 출력 끊김 실행 확인(socat 프록시로 worker 연결만 끊기) + 끊김 때 FAILED 502 발행 발견, 코드 수정 없음
 - 2026-10-01 설계 개정 논의: O(계정 동기화)~V(탭 id 전달) 결정 + 진행 순서 1~5 + 1단계(탭 id + 구독 역할 분리) 구조 합의, 코드 없음
 
-### `history/process-input.md` — process 터미널 입력 (2026-10-01 신설)
-- 2026-10-02(3) I5(Ctrl+V 붙여넣기) = 붙여넣기 확정·반영 + 입력-c 브라우저 확인 7항목 통과
-- 2026-10-02(2) 입력-b(프론트) 코드 작성(`processTerm.store.ts`, I4(Ctrl+C 복사) 포함), type-check 통과·브라우저 확인 전 + I5(Ctrl+V 붙여넣기) 발견
-- 2026-10-02 입력-a(서버) 코드 작성(`router/input.go`, `PROCESS:INPUT`) + 서버 단독 확인 4항목 통과
-- 2026-10-01 결정 I1~I4 확정(소켓 / 같은 계정 누구나 / PENDING 중 버림 / Ctrl+C = 선택 있으면 복사) + 순서를 ⑪(타일 트리 서버 저장) 앞으로, 코드 없음
-
-### `history/node-ui-save.md` — node 타일 트리 서버 저장 ⑪ 설계·3-c 구조안 (2026-10-01 신설)
-- 2026-10-02(6) 3-d 구조안 + 3-d①(끝난 process 조회 = 나누기, 반복 파라미터)·②~④ 확정
-- 2026-10-02(5) 3-c 열린 항목(닫기 직전 저장) 확정 = `visibilitychange` hidden 즉시 keepalive 저장
-- 2026-10-02(4) 서버 쪽 커밋(`2aa0920`) + 3-c(스토어) 구조안 제시(사용자 확인 전) + REF/history `-impl` 분할
-- 2026-10-01 구조안 제시 + 결정 ⑪-1(저장 형태)·⑪-2(충돌 처리)·⑪-3(새로고침 뒤 터미널 화면)·⑪-4(타일 없는 실행 중 process) 확정, 코드 없음
-
-### `history/node-ui-sync.md` — 4 O(계정 동기화) 화면: 타일 트리·터미널 실시간 반영 (2026-10-02 신설)
-- 2026-10-02(5) 사용자 PC 확인 + 커밋 `4b6bbcd`, 세션 종료 정리
-- 2026-10-02(4) 4-c(터미널 등록 일원화) 작성(보관함·restore 일원화·prune) + 탭 2개 확인 통과
-- 2026-10-02(3) 4-b(트리 수신) 작성(push 반영·op 멱등·재연결 재동기화) + 탭 2개 확인 통과
-- 2026-10-02(2) 4-a(서버 발행) 작성 + 소켓 확인 7항목 통과
-- 2026-10-02 구조안 제시 + 4①~4⑤ 제안대로 확정(작업 단위 4-a~4-d), SNAPSHOT과 따로 진행 합의, 코드 없음
-
-### `history/node-ui-save-impl.md` — node 타일 트리 서버 저장 구현 3-a~3-d (2026-10-02, node-ui-save에서 분할)
-- 2026-10-02(5) 3-d(터미널 복원) 작성(lookup API·restore·안전망) + 함정 2개(provide 자신 inject 불가·복원 타일 attach 누락) 수정, 확인 통과, 커밋 `2f0170f`
-- 2026-10-02(4) 3-c(스토어) 작성(op 큐·409 재적용·keepalive·exec 빠른 경로) + 헤드리스 8항목 통과(커밋 `2f0170f`)
-- 2026-10-02(3) 3-b'(exec 연동) 실패 대처 결정(별도 트랜잭션·kill 보상·3-d 안전망) + 작성 + HTTP 6항목 통과
-- 2026-10-02(2) 3-b(API) 작성(`router/tile.go` GET/PUT + 트리 검사) + HTTP 확인·첫 GET 경합 통과
-- 2026-10-02 3-a(DB) 작성(`tile_trees` + 쿼리 4개), PG 롤백 실행 확인
 ### `history/process-sync-impl.md` — process 동기화 1단계 구현 · 실행 확인 (2026-10-01, process-sync에서 분할)
 - 2026-10-01(6) sid 충돌 수정(`signIn` nonce) + 커밋 전 사용자 검토로
 - 2026-10-01(5) 2단계 실행 확인: 탭 id·계정 구독·크기 우선권·kill·X·W·Y·프론트(헤드리스) 전부 통과 + sid = 쿠키 원본값 충돌 발견(미해결)
 - 2026-10-01(4) 1단계 코드 작성(1-a~1-g), build/vet/type-check 통과
-
-### `history/node-ui-terminal.md` — node 타일 터미널 임베드 + 크기 우선권 (2026-10-01 신설)
-- 2026-10-01(3) 설계 개정 논의 → `history/process-sync.md`
-- 2026-10-01(2) 구현: 크기 우선권 백엔드(`sizeOwner.go`, signOut 확장) + `processTerm.store`·`ProcessTerminal`·`WorkerPickDialog` + 타일 연결 + `ProcessDialog` 삭제 (미커밋, 실행 확인 전)
-- 2026-10-01 구조 합의 J~N(xterm 스토어 소유·상태 단일 구독·실행 흐름·크기 우선권 = 실행한 세션·`ProcessDialog` 삭제), 코드 없음
-
-### `history/node-ui-link.md` — node 카탈로그 타일 UI 실제 연동 (더미 → node/process API, 2026-09-30 신설)
-- 2026-10-01 스크립트 편집 창 저장 동작 통일 결정(저장 버튼도 저장하고 계속 편집, 코드 미반영)
-- 2026-09-30(4) 연동 1차 4(스크립트 편집): `ScriptEditDialog`(브라우저 편집 → `PATCH content`, 새 스크립트 직후 자동 열기), 창 높이는 `VDialog` `height`로
-- 2026-09-30(3) 폴더 안(브레드크럼 줄)에서 장비 지정·접속 상태 표시(상속 포함) + 헤드리스 시나리오 확인, 테스트 로그인은 `Login.vue` 기본값 사용 허용
-- 2026-09-30(2) 연동 1차 3(node 관리 UI): 생성·이름 변경·장비 지정(직접 입력 + 접속 상태)·삭제(하위를 보던 타일 닫기), `hook/nodeRemove.hook.ts` 신규
-- 2026-09-30 연동 1차 2(폴더 타일 목록): 더미 목록·경로·이름을 node API로(`useListChildren`/`useNodePath`/`useGetNode`), 경로 = `getNode` 반복 호출, 실행은 더미 유지
 
 ### `history/frontend.md` — 프론트엔드 (apps/frontend)
 - 2026-09-29 색 규칙: Vuetify 테마 색 이름 의존 확정(prop → 유틸 클래스 → 테마 변수 → 커스텀 테마 색) + 위반 3곳 정리(커스텀 `terminal` 색 등록)
@@ -118,3 +69,5 @@
 ### `history/util-drag.md` — 드래그 인프라 (DraggableSession/useDragGhost/GhostArea)
 - 2026-08-07(3) 포팅 설계 확정(코드 없음) — 구 test-jig 드래그 코드 문제진단(단일슬롯 콜백/synthetic dispatch/이웃정렬 혼입/ghost 손코딩 중복)+재설계 방향 확정
 
+### `history/test-env.md` — 테스트 환경 · 확인용 클라이언트 (2026-10-06 신설)
+- 2026-10-06 CURRENT의 환경·함정·DB 테스트 데이터 줄을 `REF-test-env.md`로 분리
