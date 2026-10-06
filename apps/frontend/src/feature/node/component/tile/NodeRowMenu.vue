@@ -9,8 +9,9 @@ defineProps({
         type: String as PropType<NodeKind>,
         required: true,
     },
+    viDisabled: Boolean,    // 실행 버튼과 같은 조건(저장 중 / 탭 id 준비 전)
 })
-const emit = defineEmits<{ edit: []; rename: []; device: []; remove: [] }>();
+const emit = defineEmits<{ edit: []; vi: []; rename: []; device: []; remove: [] }>();
 </script>
 
 <template>
@@ -20,6 +21,7 @@ const emit = defineEmits<{ edit: []; rename: []; device: []; remove: [] }>();
     </template>
     <v-list density="compact">
         <v-list-item v-if="kind === 'SCRIPT'" prepend-icon="mdi-file-document-edit-outline" title="내용 편집" @click="emit('edit')" />
+        <v-list-item v-if="kind === 'SCRIPT'" prepend-icon="mdi-console-line" title="vi로 편집" :disabled="viDisabled" @click="emit('vi')" />
         <v-list-item prepend-icon="mdi-pencil-outline" title="이름 변경" @click="emit('rename')" />
         <v-list-item v-if="kind === 'FOLDER'" prepend-icon="mdi-lan-connect" title="장비 지정" @click="emit('device')" />
         <v-list-item prepend-icon="mdi-trash-can-outline" title="삭제" base-color="error" @click="emit('remove')" />

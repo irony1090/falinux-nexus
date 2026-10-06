@@ -1,7 +1,7 @@
 import { useTestSocket } from '@/common/websocket/websocket.hook'
 import {
     execProcess, getProcessSnapshot, killProcess, listProcesses, resizeProcess, toProcessResponse,
-    type ProcessResponse, type ProcessResponseDto, type ProcessSnapshot, type ProcessStatus,
+    type ProcessResponse, type ProcessResponseDto, type ProcessSnapshot, type ProcessStatus, type ProcessType,
 } from '@/feature/process/api/process.api'
 import type { TileSize } from '@/feature/widget/util/tile.type'
 import { FitAddon } from '@xterm/addon-fit'
@@ -212,8 +212,8 @@ export const provideProcessTerm = () => {
         if (s === 'CONNECTED' && Object.keys(procs_.value).length) syncOwners()
     })
 
-    // place = 서버가 터미널 타일을 넣을 자리. 응답의 tile·tileVersion은 호출부가 타일 트리에 반영
-    const exec = (nodeId: number, authKey: string, place: ExecPlace) => execProcess({ nodeId, authKey, ...place })
+    // place = 서버가 터미널 타일을 넣을 자리. 응답의 tile·tileVersion은 호출부가 타일 트리에 반영. type EDIT = worker vi 편집
+    const exec = (nodeId: number, authKey: string, place: ExecPlace, type: ProcessType = 'EXEC') => execProcess({ nodeId, authKey, type, ...place })
         .then(res => {
             register(res.proc)
             return res

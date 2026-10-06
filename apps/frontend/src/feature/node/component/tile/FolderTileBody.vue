@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { tabReady } from '@/common/util/tabId.util';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
+import type { ProcessType } from '@/feature/process/api/process.api';
 import { useProcessTerm } from '@/feature/process/store/processTerm.store';
 import { listWorkers, useOnlineWorkers, type WorkerResponse } from '@/feature/worker/api/worker.api';
 import WorkerPickDialog from '@/feature/worker/component/WorkerPickDialog.vue';
@@ -68,29 +69,32 @@ const run = <T>(job: Promise<T>, done?: (res: T) => void) => {
     .finally(() => saving.value = false);
 }
 
-// ---- 실행: 접속 인스턴스 0개 = 안내 / 1개 = 바로 / 여러 개 = 고르기 (REF-node-ui-terminal.md L) ----
+// ---- 실행·vi 편집: 접속 인스턴스 0개 = 안내 / 1개 = 바로 / 여러 개 = 고르기 (REF-node-ui-terminal.md L, E1(진입 위치)) ----
 const { exec } = useProcessTerm();
+const typeLabel = (type: ProcessType) => type === 'EDIT' ? 'vi로 편집' : '실행';
 
 const pickOpen = ref(false);
 const pickNode = ref<NodeResponse>();
+const pickType = ref<ProcessType>('EXEC');
 const pickWorkers = ref<WorkerResponse[]>([]);
 
 // 터미널 타일은 서버가 exec 때 트리에 넣는다 — ⑪-4(타일 없는 실행 중 process)
-const start = (node: NodeResponse, instanceKey: string) => run(exec(node.id, instanceKey, { parentTileId: props.tileId, size: newSize.value }), res => {
+const start = (node: NodeResponse, instanceKey: string, type: ProcessType) => run(exec(node.id, instanceKey, { parentTileId: props.tileId, size: newSize.value }, type), res => {
     pickOpen.value = false;
     if (res.tile && res.tileVersion) reveal(applyServerTile(res.tile, res.tileVersion));
 });
 
-const onExec = (node: NodeResponse) => run(listWorkers(node.id), workers => {
+const onExec = (node: NodeResponse, type: ProcessType = 'EXEC') => run(listWorkers(node.id), workers => {
     if (!workers.length) {
-        openDialog({ type: 'warning', title: `'${node.name}' 실행`, content: '이 스크립트를 실행할 장비가 접속해 있지 않습니다.' });
+        openDialog({ type: 'warning', title: `'${node.name}' ${typeLabel(type)}`, content: `이 스크립트를 ${typeLabel(type)}할 장비가 접속해 있지 않습니다.` });
         return;
     }
     if (workers.length === 1) {
-        start(node, workers[0]!.instanceKey);
+        start(node, workers[0]!.instanceKey, type);
         return;
     }
     pickNode.value = node;
+    pickType.value = type;
     pickWorkers.value = workers;
     pickOpen.value = true;
 });
@@ -225,7 +229,7 @@ const onRemove = (node: NodeResponse) => {
                 </span>
                 <v-btn v-if="n.kind === 'FOLDER'" size="x-small" variant="tonal" color="warning" @click="onOpen(n.id)">새 타일</v-btn>
                 <v-btn v-else size="x-small" variant="tonal" color="primary" :disabled="saving || !tabReady" @click="onExec(n)">실행</v-btn>
-                <node-row-menu :kind="n.kind" @edit="onEdit(n)" @rename="onName({ node: n })" @device="onDevice(n)" @remove="onRemove(n)" />
+                <node-row-menu :kind="n.kind" :vi-disabled="saving || !tabReady" @edit="onEdit(n)" @vi="onExec(n, 'EDIT')" @rename="onName({ node: n })" @device="onDevice(n)" @remove="onRemove(n)" />
             </span>
         </div>
         <p v-if="!listQuery.isPending.value && !children.length" class="empty">비어 있음</p>
@@ -234,10 +238,10 @@ const onRemove = (node: NodeResponse) => {
     <node-name-dialog v-model="nameOpen" :title="nameTitle" :initial="nameInitial" :loading="saving" @submit="onSubmitName" />
     <script-edit-dialog v-model="editOpen" :node="editTarget" />
     <worker-pick-dialog v-model="pickOpen"
-        :title="`실행할 장비: ${pickNode?.name ?? ''}`"
+        :title="`${typeLabel(pickType)}할 장비: ${pickNode?.name ?? ''}`"
         :workers="pickWorkers"
         :loading="saving"
-        @submit="key => pickNode && start(pickNode, key)"
+        @submit="key => pickNode && start(pickNode, key, pickType)"
     />
     <node-device-dialog v-model="deviceOpen"
         :title="`장비 지정: ${deviceTarget?.name ?? ''}`"
