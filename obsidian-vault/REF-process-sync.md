@@ -47,7 +47,7 @@
 | 3 | ⑪(타일 트리 서버 저장) 테이블/API — 구조·결정 → `REF-node-ui-save.md` | 2 이후 권장 |
 | 4 | O(계정 동기화) 화면: 다른 탭·기기가 저장된 트리를 불러와 표시 + 트리 변경 실시간 반영 | 1·3 |
 | 4.5 | SNAPSHOT(화면복원 ring buffer) — 다른 탭·새로고침에서 이전 출력까지 같은 화면. 설계 → `REF-process-snapshot.md`(2026-10-01 사용자: 4단계 다음으로 확정) | 4 |
-| 5 | 공유 P·R·T: `process_shares`, `processes.parent_uid`, 폴더 process DB 영속 + **presence(접속 상태) 함께 설계**(아래 절, 2026-10-06) | 1·4 |
+| 5 | 공유 P·R·T: `process_shares`, `processes.parent_uid`, 폴더 process DB 영속 + **presence(접속 상태) 함께 설계**(아래 절, 2026-10-06) → 구조안 `REF-process-share.md` | 1·4 |
 
 - 1에서 탭 id와 S를 묶는 이유: 크기 우선권의 다음 후보는 구독 구조가 정함(지금 DB sid 목록 → S 후 계정의 연결된 탭). 따로 하면 후보 목록을 두 번 고침. 고치는 파일도 같음(`subscribe.go`·`sizeOwner.go`·`processApi.go`).
 - 2026-10-01 미커밋 코드: sid 단위 크기 우선권(`sizeOwner.go` 등)은 1에서 대부분 바뀌므로 따로 확인·커밋하지 않고 2에서 한 번에. 터미널 임베드(J·K·L·N)는 그대로 사용.
@@ -68,10 +68,12 @@
 | process별 보는 탭 | 따로 없음 — S(구독 역할 분리)로 출력은 계정의 모든 탭에 감 |
 | 폴더별 보는 탭 | 없음 — `NODE:` 동적 구독 미정(열린 질문 4) |
 
+- (2026-10-06 갱신) 범위·전달 확정 → `REF-process-share.md` SH6(presence 범위·전달). 작업 순서는 공유-f(작업 공간 뒤) — "보는 중"이 작업 공간에 기댐. 아래 첫 문장의 "5의 첫 작업 단위"는 이걸로 대체
 - **시점 = 5의 구조 합의 때, 5의 첫 작업 단위로.** 볼 수 있는 계정 집합 = 소유 계정 + `process_shares`(+ T(공유 자식 상속) 재귀)라 공유 전에 만들면 다시 고침. 공유 전엔 "process를 보는 탭 = 소유 계정 탭"이라 정보가 계정별과 같음.
 - 그때 정할 것: 표시 단위(계정 > sid > 탭, 연결 / 60초 보관 중, 크기 소유 탭) / User-Agent를 `browserTab`에 저장할지 / REST 조회만 vs push(`PRESENCE:*`), 수신 범위 = 볼 수 있는 계정 / 폴더 presence 여부(폴더 공유 결정과 함께)
 
 ## 필요할 필드 (5단계 공유 때)
+> 2026-10-06: 이 표는 ⑪(타일 트리 서버 저장) 전 모델 기준(`parent_uid`·폴더 process). 공유 설계는 `REF-process-share.md`로 대체 — 기록용으로 둠
 | 대상 | 필요한 것 | 이유 |
 |---|---|---|
 | 새 테이블 `process_shares` | `(process_uid, user_id, created_at)` | R의 공유 권한. 인가 = 소유자 또는 공유받은 계정 |

@@ -41,3 +41,29 @@ Tz9D (original)
 - 링크는 private — 다른 사람에게 보이려면 아티팩트 페이지의 Share 메뉴에서 공유해야 함.
 - 시안 HTML 원본은 작업 세션의 임시 폴더에만 있었음. 코드로 옮길 때는 Claude에게 링크를 주고 Artifact `read`로 받게 하면 됨. 옮길 부분은 `TileOrder`/`TileSplit` 블록, G탭은 Vuetify `VPagination` 사용.
 - Claude vault 쪽 상세: `REF-node-ui-overview.md`(전체보기·내비), `REF-node-ui-layout.md`(배치 규칙).
+
+## process 공유 · 작업 공간 · active 타일 시안 (2026-10-06)
+
+| 이름 | 버전 | 링크 | 내용 |
+|---|---|---|---|
+| 실행 위치 묶음 시안 | v3 | https://claude.ai/artifact/5jPfaU9APi4m8PuSr71woM | 터미널 머리 줄 `[실행한 타일 번호] 경로 / 이름`(일반·공유 모든 터미널) + 받는 쪽 공유 구분 표시 ①~⑥ + 소유자 화면 |
+| 공유 흐름 시안 | v2 | https://claude.ai/artifact/EbUKnfqwoi5a1A7ESWZH98 | 소유자 쪽 공유 목록 O1~O5 + 공유 걸기 창 단계 + 걸기·풀기 서버 흐름(mermaid) |
+| W1 분리 범위 | v2 | https://claude.ai/artifact/5azxJ7gU21BcKe4BaK7E9Z | 새 작업 공간 분리 때 함께 갈 터미널: 노드 트리 vs 타일 트리, 어긋나는 세 경우, 가(확정)·나(기각) 결과 비교 |
+| active 타일 시안 | v1 | https://claude.ai/artifact/GjJjsxjrmZMRKFYSrY59HY | 표시 강도 가(강하게 흐림)·나(약하게, **확정**)·다(강조만) 비교, 흐림 슬라이더, `Alt+숫자` 단축키 |
+
+### 읽는 법
+- **각 페이지 맨 위 "결론 반영" 상자가 기준**이다(active 타일 시안은 상자 없음 — 나 확정). 본문에서 "제안"으로 표시된 부분은 아직 확정 아님.
+- 시안과 vault가 다르면 **vault(REF)가 우선**.
+
+### 각 시안에서 확정된 것 / 아직 제안인 것
+| 시안 | 확정 | 제안(공유-e(프론트) 때 확정) |
+|---|---|---|
+| 실행 위치 묶음 | 터미널은 실행한 타일의 것(W1) / 머리 줄 번호 + 경로 / 공유받은 것은 경로를 공유 루트부터 / 권한 = 노드, 소유·배치 = 타일 트리 | ①(공유 색) ②(공유한 사람 칩) ③(권한 단계 아이콘) ④(아이콘 변형) ⑥(실행한 사람 표시) B(역방향 연결) |
+| 공유 흐름 | 받는 쪽 수락 없음 / 받는 쪽 `/` 루트에 폴더 타일 + "새 작업 공간에서 진행할까요?" / 공유 사라지면 알림 + 비활성화(닫기만) / SH4(공유 대상 찾기) 창 흐름 | O1~O5, 단계 낮출 때 열린 터미널. 이벤트 이름은 시안의 `SHARE:CREATE/DELETE`가 아니라 `SHARE:CHANGE` + 재조회로 확정(시안 그림은 가칭) |
+| W1 분리 범위 | 가. 타일 트리 하위 | — |
+| active 타일 | 나. 약하게 흐림(기본 0.70) / active = 마지막으로 누른 타일 = 입력 대상 / 위치 번호 단축키 | 단축키 키 조합(`Alt+숫자` 충돌 확인) |
+
+### 참고
+- 링크는 private.
+- 시안 HTML 원본은 세션 임시 폴더에만 있었음 → Claude에게 링크를 주고 Artifact `read`로 받게 하면 됨.
+- Claude vault 쪽: `REF-process-share.md`(공유), `REF-workspace.md`(작업 공간·머리 줄), `REF-node-ui-overview.md` "active 타일 표시".

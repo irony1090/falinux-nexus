@@ -68,3 +68,16 @@ Windows Alt+Tab / Android·iOS 앱 전환처럼 **실행 중인 프로세스를 
 - **현재 코드 확인(2026-09-29)**: `index.html` viewport 메타에 `interactive-widget` 없음. `feature/layout/store/appWindown.store.ts`는 `window` `resize`만 듣고 `size.inner` = visualViewport 크기 → **타일 `capacity` 판정을 `inner`에 연결하면 ①이 그대로 발생**, `outer`(레이아웃 뷰포트)에 연결할 것. 입력 모드·보조 키 줄은 visualViewport `resize`/`scroll` 이벤트를 별도로 들어야 함.
 - 시안(구현 기준 v10)에 폰 "가상 키보드" 토글 + 판정 기준 / 입력 모드 / 터미널 크기 비교 스위치를 넣음. 헤드리스 확인: 레이아웃 뷰포트 판정이면 키보드 열 때 자리 바뀐 타일 0개, 보이는 영역 판정이면 폰 Grid 영역 세로 770 → 428로 줄어 **13타일 전부 재배치(Grid 7 → 13개)** — ①이 실제로 크다는 근거.
 
+
+## active 타일 표시 (2026-10-06 확정)
+| 항목 | 확정 |
+|---|---|
+| active의 뜻 | 마지막으로 누른 타일(타일 안 pointerdown) = **키 입력 대상**. 터미널이면 그 xterm에 포커스 |
+| 표시 강도 | **나. 약하게 흐림**: active 테두리·머리 줄 `primary` 강조 + 나머지 불투명도 낮춤(시안 기본 0.70, 구현 때 조정). 기각: 가(강하게 흐림 — 다른 터미널 출력 감시 방해) / 다(강조만 — 타일 많으면 안 보임) |
+| 처음 상태 | active 없음 = 흐림 없음, 처음 누를 때부터 |
+| 범위 | 탭마다 따로, 서버 저장·계정 동기화 없음 |
+| 전체보기 | active 타일 같은 방식으로 강조 |
+| ⑮(모바일 가상 키보드) | 특수 키 줄 = active 터미널로 |
+| **타일 단축키** | 위치 번호로 active 전환(시안 `Alt+숫자`, 사용자 "매우 맘에 듦"). ※ 구현 때 키 조합 확인: Linux Firefox는 `Alt+1~9`가 탭 전환 / xterm 포커스 중엔 `Alt+숫자`가 터미널 프로그램(tmux·irssi 등)의 메타 키와 겹침 → xterm `attachCustomKeyEventHandler`에서 가로챌지 다른 조합으로 할지 / 10번 이상 타일 |
+
+- 시안: https://claude.ai/artifact/GjJjsxjrmZMRKFYSrY59HY (user vault `user/links.md`)
