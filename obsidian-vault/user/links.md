@@ -67,3 +67,17 @@ Tz9D (original)
 - 링크는 private.
 - 시안 HTML 원본은 세션 임시 폴더에만 있었음 → Claude에게 링크를 주고 Artifact `read`로 받게 하면 됨.
 - Claude vault 쪽: `REF-process-share.md`(공유), `REF-workspace.md`(작업 공간·머리 줄), `REF-node-ui-overview.md` "active 타일 표시".
+
+## 공유-d(실시간) 시안 (2026-10-07)
+
+| 이름 | 상태 | 링크 | 내용 |
+|---|---|---|---|
+| 터미널 다시 열기 시안 | 대체됨(최소화로) | https://claude.ai/artifact/3Z2pqCDeaKwbMNcZ7M2Y9A | SD3(남이 실행한 실행 중 터미널 닫기) 복구 경로: 스크립트 행 "실행 중 N"(+ "닫힘 n") → 목록에서 보기 / 보드로 이동 / 여기 열기. 1장 = 계정 A(소유자) 시점 보드, 직접 누를 수 있음(Play). 2장 = 행 상태·머리 줄 닫기 버튼 비교 |
+| 터미널 최소화 시안 | 확인 대기 | https://claude.ai/artifact/Q2X7sYsDAHPwmVZmE1icgP | SD3 개정안 v6(머리 줄 A안 `RUN▾ [최소화|크기|×]` 적용 + 비교 보드, 최소화 있으면 터미널 탭 기본·목록 kill·모든 kill 확인창·DONE 행 X·"종료하고 닫기" 추가): 실행 중 터미널 머리 줄 최소화(내 것·남의 것 모두) / 루트 타일 `[파일] [터미널 N · 최소화 n]` 탭 전환(터미널 탭 = 이 보드, 최소화 먼저) / 스크립트 행 "실행 중 N · 최소화 n" → 모든 보드의 그 스크립트 터미널(보기 / 열기 / 보드로 이동). Play로 직접 누를 수 있음 |
+
+## 공유-e(프론트 표시) 시안 (2026-10-08)
+
+| 이름 | 상태 | 링크 | 내용 |
+|---|---|---|---|
+| 공유 걸기 창 시안 | 확정 | https://claude.ai/artifact/JaeMH1PY8YgcEbJpddDLs8 | 폴더 타일 경로 줄의 O1(경로 줄 공유 버튼) + 아이디 입력 → 닉네임 확인·단계 선택 → 완료, 직접 눌러 보는 데모(예시 아이디 lee / kim / leee) |
+| 공유 목록 창 시안 | 확정 | https://claude.ai/artifact/Cw9WxYvSjnpyY8bmcSStsg | O1 숫자·O2(적용 공유 목록)·O3(행 공유 개수)·O5(내가 공유한 것), 청록. 직접 눌러 보는 데모 |

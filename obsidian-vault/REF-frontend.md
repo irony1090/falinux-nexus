@@ -7,6 +7,10 @@
 - 경로: `apps/frontend` (package name `frontend-nexus-supervisor`)
 - 커밋: `e511359`(초기 스캐폴딩) → `3a8e92e`(socket hook 재설계 + user/login·다이얼로그 WIP) → `e28252b`(hook 재연결 견고성) (모두 2026-06-30)
 
+## 앱 이름·로고 (2026-10-07)
+- 이름 = **Nexus**(`index.html` `<title>`). 로고 = `src/assets/logo.svg`(헤더 `AppHead.vue`) = `public/favicon.svg` + `public/favicon.ico`(16·32·48, ImageMagick으로 생성)
+- 모양: 어두운 바탕(`terminal` 색 #10161e) 위 타일 2×2 + 가운데 허브 원. 켜진 칸(하늘색, `>_`) = 실행 중 터미널, 허브 = supervisor. 로고는 정적 파일이라 hex 사용(색 규칙의 예외 — 컴포넌트 색이 아님). 기본 Vuetify `logo.png`는 `HelloWorld.vue`(미사용)만 씀
+
 ## 스택 확정 (불변)
 - **Vue3 + TypeScript + Vuetify 4** (`npm create vuetify`, **scratch** preset)
 - **Vue Router (standard, 코드 정의 방식)** — file-based 아님

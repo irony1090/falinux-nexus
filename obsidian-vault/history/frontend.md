@@ -2,6 +2,12 @@
 
 > 요약·재사용 지식 → `REF-frontend.md` / 현재 진행 → `CURRENT.md`
 
+## 2026-10-08 — TileFrame 크기 팝업이 타일을 따라오게
+- 사용자 "크기 조절 툴팁이 타일을 따라오지 않는 것 같아" → 원인: 크기 변경으로 버튼이 움직이는데 `v-menu`가 위치를 다시 계산하지 않음. B안 확정(A안 닫기·C안 직접 그리기 기각): `useResizeCallback(frameEl)` + `setSize` 직후 `VMenu.updateLocation()`. vue-tsc 통과, 사용자 화면 확인 완료(팝업이 크기 조절에 따라 따라옴)
+
+## 2026-10-07 — 앱 이름·로고
+- 사용자 "앱 스토리에 맞게 로고 제작 + 이름 세팅" → 로고 SVG(타일 2×2 + 가운데 허브, 켜진 칸 `>_`) 작성, 헤더·favicon(svg + ico) 적용, 제목 "Nexus". type-check 통과(커밋 전) → `REF-frontend.md` "앱 이름·로고"
+
 ## 2026-09-29 — 색 규칙: Vuetify 컬러 네이밍 의존 확정 + 위반 3곳 정리
 - 사용자 지시: "데모 레이아웃부터 앞으로 만들 레이아웃은 vuetify의 컬러네이밍을 최대한 의존". 쓰는 순서(prop → 유틸 클래스 → 테마 변수 → 커스텀 테마 색 등록) 확정.
 - 터미널 색: A안(커스텀 `terminal`/`on-terminal` 등록) 채택, B안(`surface-variant`)은 dark 테마에서 밝은 회색이라 기각.
