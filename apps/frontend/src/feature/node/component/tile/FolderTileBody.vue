@@ -8,13 +8,18 @@ import WorkerPickDialog from '@/feature/worker/component/WorkerPickDialog.vue';
 import { computed, ref } from 'vue';
 import { VBtn, VIcon, VList, VListItem, VMenu, VProgressLinear } from 'vuetify/components';
 import { useListChildren, useNodeActions, useNodePath, type NodeKind, type NodeResponse } from '../../api/node.api';
+import { useNodeShares } from '../../api/share.api';
 import { useNodeRemove } from '../../hook/nodeRemove.hook';
+import { useScriptRuns } from '../../hook/scriptRuns.hook';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
+import { PERM_OWNER } from '../../util/shareView.util';
 import NodeDeviceDialog from '../dialog/NodeDeviceDialog.vue';
 import NodeNameDialog from '../dialog/NodeNameDialog.vue';
+import ShareDialog from '../dialog/ShareDialog.vue';
 import ScriptEditDialog from '../dialog/ScriptEditDialog.vue';
 import NodeRowMenu from './NodeRowMenu.vue';
+import ScriptRunList from './ScriptRunList.vue';
 
 const props = defineProps({
     tileId: {
@@ -23,7 +28,7 @@ const props = defineProps({
     },
 })
 
-const { tiles, navigate, openFolder, applyServerTile } = useTileTree();
+const { tiles, hash: boardHash, navigate, openFolder, applyServerTile } = useTileTree();
 const { newSize, reveal } = useTileGrids();
 const { open: appDialogOpen, openDialog } = useAppDialog();
 
@@ -46,11 +51,27 @@ const current = computed(() => path.value[path.value.length - 1]);
 const deviceOwner = computed(() => [...path.value].reverse().find(p => !!p.deviceKey));
 const deviceInherited = computed(() => !!deviceOwner.value && deviceOwner.value.id !== current.value?.id);
 
+// 공유 걸기 — O1(경로 줄 공유 버튼). 내 폴더(소유자 단계)일 때만. 서버도 소유자만 허용(SH4(공유 대상 찾기))
+const canShare = computed(() => !!current.value && current.value.kind === 'FOLDER' && current.value.permission === PERM_OWNER);
+const shareOpen = ref(false);
+const shareCount = computed(() => sharesQuery.data.value?.length ?? 0);   // O1 숫자 = 이 폴더에 적용되는 사람 수(이어진 사람 포함)
+const sharesQuery = useNodeShares(computed(() => current.value?.id), canShare);
+
 const deviceTitle = (key: string | null | undefined, from?: string) => {
     if (!key) return '지정된 장비 없음';
     const n = online.value.get(key);
     return [key, from && `상위 폴더 '${from}'에서 상속`, n ? `접속 중 ${n}개` : '접속 안 됨'].filter(v => !!v).join(' — ');
 }
+
+// 스크립트 행 "실행 중 N · 최소화 n" — 눌러서 펼침(실시간-6a)
+const { byNode: runsByNode } = useScriptRuns(nodeId);
+const runsOf = (id: number) => runsByNode.value.get(id) ?? [];
+const runsText = (id: number) => {
+    const runs = runsOf(id);
+    const min = runs.filter(r => r.minimized).length;
+    return `실행 중 ${runs.length}` + (min ? ` · 최소화 ${min}` : '');
+}
+const runsOpen = ref<Record<number, boolean>>({});
 
 const onRefresh = () => {
     listQuery.refetch();
@@ -79,7 +100,7 @@ const pickType = ref<ProcessType>('EXEC');
 const pickWorkers = ref<WorkerResponse[]>([]);
 
 // 터미널 타일은 서버가 exec 때 트리에 넣는다 — ⑪-4(타일 없는 실행 중 process)
-const start = (node: NodeResponse, instanceKey: string, type: ProcessType) => run(exec(node.id, instanceKey, { parentTileId: props.tileId, size: newSize.value }, type), res => {
+const start = (node: NodeResponse, instanceKey: string, type: ProcessType) => run(exec(node.id, instanceKey, { workspace: boardHash.value, parentTileId: props.tileId, size: newSize.value }, type), res => {
     pickOpen.value = false;
     if (res.tile && res.tileVersion) reveal(applyServerTile(res.tile, res.tileVersion));
 });
@@ -191,6 +212,9 @@ const onRemove = (node: NodeResponse) => {
             >
                 <i /><span class="key">{{ deviceOwner?.deviceKey ?? '장비 없음' }}</span><span v-if="deviceInherited">(상속)</span>
             </button>
+            <button v-if="canShare" class="tool share" title="이 폴더 공유" @click="shareOpen = true">
+                <v-icon size="14" icon="mdi-account-multiple-plus" /><span v-if="shareCount" class="share-count">{{ shareCount }}</span>
+            </button>
             <v-menu location="bottom end">
                 <template #activator="{ props: act }">
                     <button v-bind="act" class="tool" title="새로 만들기" :disabled="saving">
@@ -215,15 +239,19 @@ const onRemove = (node: NodeResponse) => {
         <v-btn size="x-small" variant="tonal" :disabled="busy" @click="onRefresh">다시 시도</v-btn>
     </div>
     <template v-else>
-        <div v-for="(n, i) in children" :key="n.id" class="row">
+        <template v-for="(n, i) in children" :key="n.id">
+        <div class="row">
             <span class="ord">{{ i + 1 }}</span>
             <v-icon size="14"
-                :icon="n.kind === 'FOLDER' ? 'mdi-folder' : 'mdi-console'"
+                :icon="n.kind === 'FOLDER' ? (n.ownerNickname ? 'mdi-folder-account' : 'mdi-folder') : 'mdi-console'"
                 :class="n.kind === 'FOLDER' ? 'folder' : 'script'"
             />
             <button v-if="n.kind === 'FOLDER'" class="nm" title="이 타일 안에서 열기" @click="navigate(tileId, n.id)">{{ n.name }}</button>
             <span v-else class="nm">{{ n.name }}</span>
             <span class="tail">
+                <span v-if="n.ownerNickname" class="by" :title="`${n.ownerNickname}님이 공유한 폴더`">← {{ n.ownerNickname }}</span>
+                <span v-if="n.shareCount" class="shared" :title="`${n.shareCount}명에게 공유 중`"><v-icon size="11" icon="mdi-account-multiple" />{{ n.shareCount }}</span>
+                <button v-if="n.kind === 'SCRIPT' && runsOf(n.id).length" class="runs" :class="{ on: runsOpen[n.id] }" title="이 스크립트의 실행 중 터미널" @click="runsOpen[n.id] = !runsOpen[n.id]">{{ runsText(n.id) }}</button>
                 <span v-if="n.deviceKey" class="dev" :class="{ on: online.has(n.deviceKey) }" :title="deviceTitle(n.deviceKey)">
                     <i /><span class="key">{{ n.deviceKey }}</span>
                 </span>
@@ -232,9 +260,12 @@ const onRemove = (node: NodeResponse) => {
                 <node-row-menu :kind="n.kind" :vi-disabled="saving || !tabReady" @edit="onEdit(n)" @vi="onExec(n, 'EDIT')" @rename="onName({ node: n })" @device="onDevice(n)" @remove="onRemove(n)" />
             </span>
         </div>
+        <script-run-list v-if="n.kind === 'SCRIPT' && runsOpen[n.id] && runsOf(n.id).length" :runs="runsOf(n.id)" :name="n.name" />
+        </template>
         <p v-if="!listQuery.isPending.value && !children.length" class="empty">비어 있음</p>
     </template>
 
+    <share-dialog v-if="canShare && current" v-model="shareOpen" :node-id="current.id" :node-name="current.name" />
     <node-name-dialog v-model="nameOpen" :title="nameTitle" :initial="nameInitial" :loading="saving" @submit="onSubmitName" />
     <script-edit-dialog v-model="editOpen" :node="editTarget" />
     <worker-pick-dialog v-model="pickOpen"
@@ -288,6 +319,8 @@ const onRemove = (node: NodeResponse) => {
         color: inherit;
         opacity: 0.7;
         &:disabled { cursor: default; opacity: 0.3; }
+        &.share { display: inline-flex; align-items: center; gap: 3px; color: rgb(var(--v-theme-share)); opacity: 1; }
+        .share-count { font-size: 11px; }
     }
 }
 .bar { height: 2px; }
@@ -318,6 +351,32 @@ const onRemove = (node: NodeResponse) => {
     text-align: left;
 }
 button.nm:hover { color: rgb(var(--v-theme-primary)); }
+// 공유받은 루트 폴더의 소유자
+.by {
+    font-size: 10.5px;
+    white-space: nowrap;
+    color: rgb(var(--v-theme-warning));
+}
+.shared {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 0 6px;
+    border-radius: 8px;
+    font-size: 10.5px;
+    white-space: nowrap;
+    color: rgb(var(--v-theme-share));
+    background: rgba(var(--v-theme-share), 0.12);
+}
+button.runs {
+    padding: 0 6px;
+    border-radius: 8px;
+    font-size: 10.5px;
+    white-space: nowrap;
+    color: rgb(var(--v-theme-success));
+    background: rgba(var(--v-theme-success), 0.12);
+    &.on { background: rgba(var(--v-theme-success), 0.25); }
+}
 .tail {
     display: flex;
     align-items: center;

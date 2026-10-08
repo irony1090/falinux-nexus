@@ -2,7 +2,8 @@ import { BaseAxios, throwCatch, throwThen } from '@/common/api/api.util'
 import { readTabId, TAB_ID_HEADER } from '@/common/util/tabId.util'
 import type { Tile } from '../store/tileTree.store'
 
-// 백엔드: apps/core/cmd/supervisor/router/tile.go (group "/tiles") — ⑪(타일 트리 서버 저장), REF-node-ui-save.md
+// 백엔드: apps/core/cmd/supervisor/router/tile.go (group "/tiles") — ⑪(타일 트리 서버 저장), REF-node-ui-save.md.
+// 보드(작업 공간)마다 트리 하나: hash 빈 값 = 기본 보드(`/tiles`), 그 외 `/tiles/:hash` — WS1(트리 주소)
 
 export type TileTree = {
     rootId: string
@@ -10,6 +11,7 @@ export type TileTree = {
 }
 
 export type TileTreeResponse = {
+    hash: string        // 그 트리의 보드 hash(기본 보드도 실제 hash) — TILES:UPDATE를 자기 보드 것만 받는 데 씀
     tree: TileTree
     version: number
 }
@@ -17,20 +19,22 @@ export type TileTreeResponse = {
 // 409(버전 충돌)는 에러가 아니라 결과 — 서버 트리 위에 자기 동작을 다시 적용해야 하므로 ⑪-2(충돌 처리)
 export type PutTilesResult =
     | { ok: true; version: number }
-    | { ok: false; tree: TileTree; version: number }
+    | ({ ok: false } & TileTreeResponse)
 
 // keepalive 요청 본문 합계 상한(브라우저 64KB). 넘으면 일반 요청으로 보낸다
 const KEEPALIVE_MAX = 64 * 1024
 
-// GET /tiles — 계정의 타일 트리(없으면 서버가 루트만 있는 트리를 만들어 돌려줌)
-export const getTiles = () => BaseAxios.get(
-    '/tiles'
+export const tilesPath = (hash: string) => hash ? `/tiles/${hash}` : '/tiles'
+
+// GET /tiles[/:hash] — 보드의 타일 트리(기본 보드가 없으면 서버가 루트만 있는 트리를 만듦). 서버가 고아 안전망을 먼저 돈다(WS3(고아 안전망 위치))
+export const getTiles = (hash: string) => BaseAxios.get(
+    tilesPath(hash)
 ).then(throwThen<TileTreeResponse>)
 .catch(throwCatch)
 
 // keepalive = 페이지가 사라져도 전송을 끝낸다. axios(XHR)는 지원하지 않아 fetch를 직접 쓴다
-const putTilesKeepalive = (body: string): Promise<PutTilesResult> => fetch(
-    new URL('/tiles', BaseAxios.defaults.baseURL),
+const putTilesKeepalive = (hash: string, body: string): Promise<PutTilesResult> => fetch(
+    new URL(tilesPath(hash), BaseAxios.defaults.baseURL),
     {
         method: 'PUT',
         keepalive: true,
@@ -44,11 +48,12 @@ const putTilesKeepalive = (body: string): Promise<PutTilesResult> => fetch(
     return { ok: true, version: (await res.json()).version }
 })
 
-// PUT /tiles — 읽은 version일 때만 저장. 200 {version} / 409 {tree, version}
-export const putTiles = (tree: TileTree, version: number, keepalive = false): Promise<PutTilesResult> => {
+// PUT /tiles[/:hash] — 읽은 version일 때만 저장. 200 {version} / 409 {hash, tree, version}.
+// 저장본에 없던 터미널 타일은 넣을 수 없다(400) — 터미널 타일은 서버만 넣음(WS5(터미널 타일 추가 주체))
+export const putTiles = (hash: string, tree: TileTree, version: number, keepalive = false): Promise<PutTilesResult> => {
     const body = JSON.stringify({ tree, version })
-    if (keepalive && new Blob([body]).size <= KEEPALIVE_MAX) return putTilesKeepalive(body)
-    return BaseAxios.put('/tiles', body, { validateStatus: s => s === 200 || s === 409 })
+    if (keepalive && new Blob([body]).size <= KEEPALIVE_MAX) return putTilesKeepalive(hash, body)
+    return BaseAxios.put(tilesPath(hash), body, { validateStatus: s => s === 200 || s === 409 })
         .then(res => res.status === 409
             ? { ok: false as const, ...(res.data as TileTreeResponse) }
             : { ok: true as const, version: (res.data as { version: number }).version })

@@ -2,6 +2,9 @@ package router
 
 import (
 	superdb "nexus/internal/supervisor/db/gen"
+	"nexus/internal/web"
+
+	"github.com/labstack/echo/v4"
 )
 
 // process 응답 DTO + DTO↔pgtype 변환. 핸들러는 processApi.go. nodeDto.go와 대칭.
@@ -24,7 +27,11 @@ type processResponse struct {
 	StartedAt  *int64   `json:"startedAt"`
 	FinishedAt *int64   `json:"finishedAt"`
 	UpdatedAt  *int64   `json:"updatedAt"`
-	SizeOwner  *bool    `json:"sizeOwner,omitempty"` // 요청 탭 기준이라 REST 응답에만 싣는다(토픽 발행 땐 nil)
+	SizeOwner  *bool    `json:"sizeOwner,omitempty"`  // 요청 탭 기준이라 REST 응답에만 싣는다(토픽 발행 땐 nil)
+	Permission *int16   `json:"permission,omitempty"` // 요청 계정의 단계(superdb.Perm*). 계정 기준이라 REST 응답에만
+
+	OwnerNickname string `json:"ownerNickname,omitempty"` // 소유자가 요청 계정이 아닐 때만(공유받은 process) — 공유-e-1
+	StartedBy     string `json:"startedBy,omitempty"`     // 실행한 계정 닉네임, 소유자와 다를 때만 — SH9
 }
 
 func newProcessResponse(p superdb.Process) processResponse {
@@ -68,10 +75,78 @@ func withSizeOwner(r processResponse, owner bool) processResponse {
 	return r
 }
 
-func newProcessResponses(ps []superdb.Process) []processResponse {
+func withPermission(r processResponse, perm int16) processResponse {
+	r.Permission = &perm
+	return r
+}
+
+// visibleProcess는 판정 쿼리 행(process + 요청 계정의 단계)이다.
+type visibleProcess struct {
+	Process    superdb.Process
+	Permission int16
+}
+
+func liveRows(rows []superdb.ListVisibleLiveProcessesRow) []visibleProcess {
+	out := make([]visibleProcess, len(rows))
+	for i, row := range rows {
+		out[i] = visibleProcess(row)
+	}
+	return out
+}
+
+func uidRows(rows []superdb.ListVisibleProcessesByUidsRow) []visibleProcess {
+	out := make([]visibleProcess, len(rows))
+	for i, row := range rows {
+		out[i] = visibleProcess(row)
+	}
+	return out
+}
+
+func newProcessResponses(ps []visibleProcess) []processResponse {
 	out := make([]processResponse, len(ps))
 	for i, p := range ps {
-		out[i] = newProcessResponse(p)
+		out[i] = withPermission(newProcessResponse(p.Process), p.Permission)
+	}
+	return out
+}
+
+// withProcessNames는 ps[i]에 대응하는 rs[i]에 소유자·실행한 사람 닉네임을 채운다(REST 응답만, 토픽 발행엔 안 씀).
+func withProcessNames(c echo.Context, userID int64, rs []processResponse, ps []superdb.Process) []processResponse {
+	var ids []int64
+	for _, p := range ps {
+		if p.OwnerUserID != userID {
+			ids = append(ids, p.OwnerUserID)
+		}
+		if p.StartedBy != p.OwnerUserID {
+			ids = append(ids, p.StartedBy)
+		}
+	}
+	if len(ids) == 0 {
+		return rs
+	}
+	rows, err := TxQueries(c).ListUserNicknames(c.Request().Context(), ids)
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	nick := make(map[int64]string, len(rows))
+	for _, row := range rows {
+		nick[row.ID] = row.Nickname
+	}
+	for i, p := range ps {
+		if p.OwnerUserID != userID {
+			rs[i].OwnerNickname = nick[p.OwnerUserID]
+		}
+		if p.StartedBy != p.OwnerUserID {
+			rs[i].StartedBy = nick[p.StartedBy]
+		}
+	}
+	return rs
+}
+
+func processesOf(vs []visibleProcess) []superdb.Process {
+	out := make([]superdb.Process, len(vs))
+	for i, v := range vs {
+		out[i] = v.Process
 	}
 	return out
 }

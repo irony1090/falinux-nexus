@@ -1,4 +1,4 @@
-import { BaseAxios, throwCatch, throwThen } from '@/common/api/api.util'
+import { BaseAxios, throwCatch, throwThen, type CatchErrorResponse } from '@/common/api/api.util'
 import type { QueryOptions } from '@/common/api/query.util'
 import type { Replace } from '@/common/util/index.type'
 import type { QueryClient } from '@tanstack/query-core'
@@ -26,6 +26,10 @@ export type NodeResponse = {
     content: string | null     // SCRIPT 전용
     createdAt: Date            // unix sec (.Unix())
     updatedAt: Date | null     // nullable
+    permission?: number        // 요청 계정의 단계(REST 응답만)
+    ownerNickname?: string     // 공유받은 루트 목록 항목만 — SD8(받는 쪽 루트 목록)
+    shareCount?: number        // 목록 응답만 — 내 폴더에 직접 건 공유 수(차단 제외, 0이면 없음) — O3
+    parentVisible?: boolean    // GET /nodes/:id만 — 부모를 볼 수 있나, false면 경로가 여기서 멈춤(SD9(경로 줄 멈춤))
 }
 type NodeResponseDto = Replace<NodeResponse, {
     createdAt: number
@@ -85,6 +89,24 @@ export const listChildren = (parentId?: number) => BaseAxios.get(
 .then(res => res.map(toNodeResponse))
 .catch(throwCatch)
 
+// 폴더 자식 스크립트에서 실행 중인 process + 내 보드에서의 위치 — 실시간-6a(스크립트 행 "실행 중 N")
+export type RunResponse = {
+    uid: string
+    nodeId: number
+    status: string
+    permission: number     // 요청 계정의 process 단계
+    startedBy: string      // 실행한 계정 닉네임
+    hash?: string          // 내 보드 중 이 터미널 타일이 있는 곳(없으면 위치 없음)
+    tileId?: string
+    minimized?: boolean
+}
+
+// GET /nodes/:id/runs — id 0 = 루트 목록
+export const listRuns = (folderId: number) => BaseAxios.get(
+    `/nodes/${folderId}/runs`
+).then(throwThen<RunResponse[]>)
+.catch(throwCatch)
+
 // GET /nodes/:id — 노드 1건(없음/타인 소유=404)
 export const getNode = (id: number) => BaseAxios.get(
     `/nodes/${id}`
@@ -125,6 +147,8 @@ const Q_KEY = {
         : ['NODE', 'PATH'],
 }
 
+const RUNS_KEY = ['NODE', 'RUNS'] as const
+
 const PATH_DEPTH_MAX = 64   // parentId 사이클 방어
 
 // 루트부터 id까지 경로. 경로 API가 없어 getNode를 parentId 따라 반복 호출한다(조상은 DETAIL 캐시 공유)
@@ -138,7 +162,7 @@ const fetchNodePath = async (queryClient: QueryClient, id: number) => {
             queryFn: () => getNode(nodeId),
         })
         path.unshift(node)
-        cur = node.parentId
+        cur = node.parentVisible === false ? null : node.parentId
     }
     return path
 }
@@ -207,7 +231,9 @@ export const useGetNode = (id: Ref<number>, { enabled }: QueryOptions = {}) => {
     return useQuery({
         enabled: isReady,
         queryKey: Q_KEY.DETAIL(id),
-        queryFn: () => getNode(id.value)
+        queryFn: () => getNode(id.value),
+        // 404 = 볼 수 없음(공유 취소·삭제) — 재시도하지 않고 바로 알린다(실시간-6b)
+        retry: (count, err) => (err as CatchErrorResponse)?.status !== 404 && count < 3,
     })
 }
 
@@ -221,3 +247,11 @@ export const useNodePath = (id: Ref<number | null>) => {
         queryFn: () => id.value === null ? [] : fetchNodePath(queryClient, id.value)
     })
 }
+
+// 폴더(null = 루트 목록)의 자식 스크립트별 실행 중 목록. 갱신은 useScriptRuns가 소켓 이벤트로 무효화
+export const useNodeRuns = (folderId: Ref<number | null>) => useQuery({
+    queryKey: [...RUNS_KEY, folderId],
+    queryFn: () => listRuns(folderId.value ?? 0),
+})
+
+export const invalidateNodeRuns = (queryClient: QueryClient) => queryClient.invalidateQueries({ queryKey: RUNS_KEY })

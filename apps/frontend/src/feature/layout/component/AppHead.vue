@@ -1,9 +1,13 @@
 <template>
 <v-app-bar ref="vElRef" height="auto" elevation="2" >
     <template #prepend>
-        <v-avatar v-ripple image="@/assets/logo.png" size="28" @click="moveIndex"/>
+        <v-avatar v-ripple image="@/assets/logo.svg" size="28" rounded="lg" title="Nexus" @click="moveIndex"/>
     </template>
-    <v-app-bar-title class="text-primary">{{ auth?.nickname ?? '-' }}</v-app-bar-title>
+    <!-- 보드 페이지는 이 자리에 보드 메뉴를 Teleport로 넣고(닉네임은 그 메뉴 안), 그 외 페이지는 닉네임 -->
+    <v-app-bar-title class="text-primary">
+        <div id="app-head-title" />
+        <template v-if="!route.meta.board">{{ auth?.nickname ?? '-' }}</template>
+    </v-app-bar-title>
     <!-- 페이지가 Teleport로 자기 내비를 넣는 자리 (예: TileWorkspace) -->
     <div id="app-head-nav" class="AppHead__nav" />
     <template #append>
@@ -16,13 +20,14 @@
 import { VAppBar, VAppBarNavIcon, VAvatar } from 'vuetify/components'
 import { useAppHead } from '../store/appHead.store';
 import { useAppNav } from '../store/appNav.store';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/feature/user/store/auth.store';
 import { computed } from 'vue';
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
 import { computeResizeSize } from '@/common/hook/vue.hook';
 
 const router = useRouter();
+const route = useRoute();
 // @ts-ignore
 const { vElRef, size } = useAppHead()
 

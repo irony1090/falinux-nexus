@@ -2,14 +2,21 @@
 import type { TileSpan } from '@/feature/widget/util/tile.type';
 import { effectiveSize } from '@/feature/widget/util/tileSplit.util';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
-import type { ProcessStatus } from '@/feature/process/api/process.api';
-import { isRunning, useProcessTerm } from '@/feature/process/store/processTerm.store';
+import { isRunning, STATUS_PILL, useProcessTerm } from '@/feature/process/store/processTerm.store';
 import { computed, ref } from 'vue';
-import { VBtn, VCard, VChip, VIcon, VMenu } from 'vuetify/components';
-import { useGetNode } from '../../api/node.api';
+import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
+import { useRouter } from 'vue-router';
+import { VBtn, VCard, VChip, VIcon, VList, VListItem, VListSubheader, VMenu } from 'vuetify/components';
+import { useGetNode, useNodePath } from '../../api/node.api';
+import { useTerminalKill } from '../../hook/terminalKill.hook';
+import { boardLabel, boardPath, useBoards } from '../../store/boards.store';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
+import { isReadOnly, permInfo } from '../../util/shareView.util';
+import NodeNameDialog from '../dialog/NodeNameDialog.vue';
+import PresenceDialog from '../dialog/PresenceDialog.vue';
 import FolderTileBody from './FolderTileBody.vue';
+import RootTerminalList from './RootTerminalList.vue';
 import TerminalTileBody from './TerminalTileBody.vue';
 
 const props = defineProps({
@@ -19,9 +26,12 @@ const props = defineProps({
     },
 })
 
-const { tiles, close, resize } = useTileTree();
-const { cap, posOf, instanceOf, reveal, overview } = useTileGrids();
-const { procs, restored, kill, dispose } = useProcessTerm();
+const { tiles, hash: boardHash, resize, setMinimized, detachToBoard, moveToBoard, navigate } = useTileTree();
+const { list: boards, defaultBoard, add: addBoard } = useBoards();
+const router = useRouter();
+const { cap, posOf, instanceOf, reveal, overview, terminals, rootTab } = useTileGrids();
+const { procs, restored, gone } = useProcessTerm();
+const { killing, closeTile, confirmKill } = useTerminalKill();
 const { openDialog } = useAppDialog();
 
 const tile = computed(() => tiles.value[props.tileId]);
@@ -29,7 +39,7 @@ const tile = computed(() => tiles.value[props.tileId]);
 const openerTile = computed(() => tile.value?.parent ? tiles.value[tile.value.parent] : undefined);
 
 // useGetNode는 id가 NaN이면 조회하지 않는다 (nodeId null = 루트 목록)
-const { data: node } = useGetNode(computed(() => tile.value?.nodeId ?? NaN));
+const { data: node, error: nodeError } = useGetNode(computed(() => tile.value?.nodeId ?? NaN));
 const { data: openerNode } = useGetNode(computed(() => openerTile.value?.nodeId ?? NaN));
 
 // 이름을 받기 전에는 node id로 표시
@@ -46,23 +56,38 @@ const opener = computed(() => {
     return parent?.type === 'folder' ? label(parent.nodeId, openerNode.value?.name) : undefined;
 })
 
+// ---- 공유-e-1(받는 쪽 표시): 공유받은 것 = 소유자 닉네임이 있는 노드·process. 폴더 = 노드 응답 / 터미널 = process 응답 ----
 const proc = computed(() => tile.value?.type === 'terminal' ? procs.value[tile.value.uid] : undefined);
-const running = computed(() => isRunning(proc.value?.status));
+const shareOwner = computed(() => tile.value?.type === 'terminal' ? proc.value?.ownerNickname : node.value?.ownerNickname);
+const sharePerm = computed(() => tile.value?.type === 'terminal' ? proc.value?.permission : node.value?.permission);
+const shareInfo = computed(() => shareOwner.value ? permInfo(sharePerm.value) : undefined);
+const readOnly = computed(() => tile.value?.type === 'terminal' && isReadOnly(sharePerm.value));
+const shareRoot = computed(() => tile.value?.type === 'folder' && !!shareOwner.value && node.value?.parentVisible === false); // 공유 시작 지점
+const startedBy = computed(() => proc.value?.startedBy);
 
-// PENDING = worker 연결이 끊겨 기다리는 중(프로세스는 살아 있음)
-const PILL: Record<ProcessStatus, { text: string; color?: string }> = {
-    PENDING: { text: 'WAIT', color: 'warning' },
-    PROCESS: { text: 'RUN', color: 'success' },
-    COMPLETED: { text: 'DONE' },
-    FAILED: { text: 'FAIL', color: 'error' },
-};
-const pill = computed(() => proc.value ? PILL[proc.value.status] : { text: '-' });
-// 실행 중 터미널은 닫기 비활성(kill 먼저) — 결정 A(닫기와 kill). 복원 전엔 상태를 몰라 막는다 — 3-d②(복원 전 닫기)
+// 터미널 머리 줄 `[실행한 타일 위치 번호] 실행된 경로 / 이름` — 번호 = 소유(타일 트리), 경로 = 스크립트가 있는 폴더(노드 트리). REF-workspace.md "터미널 머리 줄"
+const ownerPos = computed(() => tile.value?.type === 'terminal' && tile.value.parent ? posOf.value.get(tile.value.parent) : undefined);
+const { data: scriptPath } = useNodePath(computed(() => tile.value?.type === 'terminal' ? tile.value.nodeId : null));
+const pathText = computed(() => [shareOwner.value, ...(scriptPath.value ?? []).slice(0, -1).map(p => p.name)].filter(Boolean).join(' / '));
+
+// 볼 수 없는 타일(공유 취소·삭제·범위 밖 이동) — 실시간-6b. 폴더 = 노드 404 / 터미널 = 서버가 process를 안 돌려줌. 닫기만 가능
+const unavailable = computed(() => {
+    const t = tile.value;
+    if (!t) return false;
+    if (t.type === 'terminal') return !!gone.value[t.uid];
+    return t.nodeId !== null && (nodeError.value as { status?: number } | null)?.status === 404;
+})
+
+const running = computed(() => isRunning(proc.value?.status));
+const presenceOpen = ref(false);   // 접속 상태 패널(공유-f)
+
+const pill = computed(() => proc.value ? STATUS_PILL[proc.value.status] : { text: '-' });
+// 복원 전엔 상태를 몰라 X를 막는다 — 3-d②(복원 전 닫기)
 const unknown = computed(() => tile.value?.type === 'terminal' && !proc.value && !restored.value);
-const closable = computed(() => !!tile.value?.parent && !running.value && !unknown.value);
 
 const fmt = (v: TileSpan) => v === 1 ? '1' : '.5';
 const sizeText = computed(() => tile.value ? `${fmt(tile.value.size.w)}×${fmt(tile.value.size.h)}` : '');
+// 이 화면에서 실제로 보이는 크기가 다를 때만
 const shownText = computed(() => {
     if (!tile.value) return '';
     const s = effectiveSize(tile.value.size, cap.value);
@@ -70,34 +95,72 @@ const shownText = computed(() => {
     return text === sizeText.value ? '' : text;
 })
 
+// 크기를 바꾸면 버튼이 옮겨지는데 v-menu는 이를 감지 못함 → 프레임 크기 변화·크기 변경 직후에 위치 재계산
+const frameEl = ref<HTMLElement>();
+const sizeMenu = ref<InstanceType<typeof VMenu>>();
+const relocateSizeMenu = () => requestAnimationFrame(() => sizeMenu.value?.updateLocation?.(new Event('resize')));
+useResizeCallback(frameEl, relocateSizeMenu);
+
 const setSize = (axis: 'w' | 'h', v: TileSpan) => {
     if (!tile.value) return;
     resize(tile.value.id, { ...tile.value.size, [axis]: v });
     reveal(tile.value.id);
+    relocateSizeMenu();
 }
-const killing = ref(false);
-const onKill = () => {
+const sizeTitle = computed(() => `크기 ${sizeText.value}` + (shownText.value ? ` (이 화면에서는 ${shownText.value})` : ''));
+
+// ---- 머리 줄 A안 `RUN▾ [최소화 | 크기 | ×]` — SD3(실행 중 터미널 치우기). X는 실행 중이면 kill 확인창 ----
+const isRoot = computed(() => !tile.value?.parent);
+const minCount = computed(() => terminals.value.filter(t => t.minimized).length);
+const setTab = (v: 'files' | 'terminals') => rootTab.value = v;
+
+// 최소화한 타일이 어디로 갔는지 보이게 루트 타일을 터미널 탭으로
+const onMinimize = () => {
     if (tile.value?.type !== 'terminal') return;
-    killing.value = true;
-    kill(tile.value.uid)
-    .catch(err => openDialog({ type: 'error', content: err?.message || '종료하지 못했습니다' }))
-    .finally(() => killing.value = false);
+    setMinimized(tile.value.id, true);
+    setTab('terminals');
 }
-const onClose = () => {
+// ---- 보드: 폴더 타일(루트 제외)을 하위째 새 보드로 분리(기본 보드에서만) / 다른 보드로 이동 — W1(분리 범위)·W3(이동 범위) ----
+const isDefaultBoard = computed(() => !!defaultBoard.value && defaultBoard.value.hash === boardHash.value);
+const otherBoards = computed(() => boards.value.filter(b => b.hash !== boardHash.value));
+const boardMenu = computed(() => tile.value?.type === 'folder' && !!tile.value.parent && !unavailable.value);
+const boardBusy = ref(false);
+const boardRun = (job: Promise<unknown>) => {
+    boardBusy.value = true;
+    job.catch(err => openDialog({ type: 'error', content: err?.message || '요청에 실패했습니다' }))
+    .finally(() => boardBusy.value = false);
+}
+
+const detachOpen = ref(false);
+const onDetach = (name: string) => {
     const t = tile.value;
     if (!t) return;
-    close(t.id);
-    if (t.type === 'terminal') dispose(t.uid);
+    boardRun(detachToBoard(t.id, name).then(b => {
+        detachOpen.value = false;
+        addBoard(b);
+        router.push(boardPath(b));
+    }));
+}
+const onMove = (to: string) => {
+    const t = tile.value;
+    if (t) boardRun(moveToBoard(t.id, to));
+}
+
+const onX = () => {
+    const t = tile.value;
+    if (!t) return;
+    if (t.type === 'terminal' && running.value && !unavailable.value) confirmKill(t.id, name.value);
+    else closeTile(t.id);
 }
 </script>
 
 <template>
-<div v-if="tile" class="TileFrame" :class="[`TileFrame--${tile.type}`, { 'TileFrame--overview': overview }]">
+<div v-if="tile" ref="frameEl" class="TileFrame" :class="[`TileFrame--${tile.type}`, { 'TileFrame--overview': overview, 'TileFrame--shared': !!shareOwner }]">
     <!-- 전체보기 라벨: 축소 배율을 거꾸로 곱해 읽을 수 있는 크기 유지 -->
     <div v-if="overview" class="ov-name">
         <span class="pos">{{ posOf.get(tile.id) }}</span>
         <v-icon size="14"
-            :icon="tile.type === 'folder' ? 'mdi-folder' : 'mdi-console'"
+            :icon="tile.type === 'folder' ? (shareOwner ? 'mdi-folder-account' : 'mdi-folder') : 'mdi-console'"
             :color="tile.type === 'folder' ? 'warning' : 'primary'"
         />
         <span class="name">{{ name }}</span>
@@ -106,48 +169,116 @@ const onClose = () => {
     <div class="TileFrame__head" :inert="overview">
         <span class="pos">{{ posOf.get(tile.id) }}</span>
         <v-icon size="14"
-            :icon="tile.type === 'folder' ? 'mdi-folder' : 'mdi-console'"
+            :icon="tile.type === 'folder' ? (shareOwner ? 'mdi-folder-account' : 'mdi-folder') : 'mdi-console'"
             :color="tile.type === 'folder' ? 'warning' : 'primary'"
         />
-        <span class="name">{{ name }}</span>
-        <span v-if="opener" class="opener text-warning">← {{ opener }}</span>
-        <span class="spacer" />
-
         <template v-if="tile.type === 'terminal'">
-            <v-chip size="x-small" variant="tonal" class="pill" :color="pill.color" :title="proc?.exitCode != null ? `exit ${proc.exitCode}` : undefined">{{ pill.text }}</v-chip>
-            <v-btn v-if="running" size="x-small" variant="text" icon="mdi-stop" title="kill" :loading="killing" @click="onKill" />
+            <span v-if="ownerPos" class="owner" title="이 터미널을 실행한 타일">[{{ ownerPos }}]</span>
+            <span v-if="pathText" class="path" :title="pathText">{{ pathText }} /</span>
+            <span class="name">{{ name }}</span>
+            <span v-if="startedBy" class="by" :title="`${startedBy}님이 실행`">실행: {{ startedBy }}</span>
+        </template>
+        <template v-else>
+            <span class="name">{{ name }}</span>
+            <v-chip v-if="shareRoot" size="x-small" variant="flat" color="share" prepend-icon="mdi-account" :title="`${shareOwner}님이 공유한 폴더`">{{ shareOwner }}</v-chip>
+            <span v-if="opener" class="opener text-warning">← {{ opener }}</span>
+        </template>
+        <span class="spacer" />
+        <span v-if="shareInfo" class="perm" :title="`공유 단계: ${shareInfo.text}`">
+            <v-icon size="14" :icon="shareInfo.icon" />{{ shareInfo.text }}
+        </span>
+
+        <template v-if="tile.type === 'terminal' && !unavailable">
+            <v-btn size="x-small" variant="text" icon="mdi-account-multiple-outline" title="접속 상태" @click="presenceOpen = true" />
+            <v-menu v-if="running" location="bottom end">
+                <template #activator="{ props: act }">
+                    <v-chip v-bind="act" size="x-small" variant="tonal" class="pill" :color="pill.color" append-icon="mdi-menu-down" :disabled="!!killing[tile.uid]">{{ pill.text }}</v-chip>
+                </template>
+                <v-list density="compact">
+                    <v-list-item prepend-icon="mdi-stop" title="종료…" @click="confirmKill(tile.id, name, ['kill'])" />
+                    <v-list-item prepend-icon="mdi-close-box-outline" title="종료하고 닫기…" @click="confirmKill(tile.id, name, ['killClose'])" />
+                </v-list>
+            </v-menu>
+            <v-chip v-else size="x-small" variant="tonal" class="pill" :color="pill.color" :title="proc?.exitCode != null ? `exit ${proc.exitCode}` : undefined">{{ pill.text }}</v-chip>
         </template>
 
-        <v-menu location="bottom end" :close-on-content-click="false">
+        <v-menu v-if="boardMenu" location="bottom end">
             <template #activator="{ props: act }">
-                <button v-bind="act" class="size-btn" title="크기 조절">
-                    {{ sizeText }}<i v-if="shownText" class="text-warning" title="이 화면에서는 이 크기로 보임">={{ shownText }}</i>
-                </button>
+                <v-btn v-bind="act" size="x-small" variant="text" icon="mdi-dots-vertical" title="보드" :loading="boardBusy" />
             </template>
-            <v-card class="size-pop">
-                <div v-for="axis in (['w', 'h'] as const)" :key="axis" class="size-row">
-                    <span>{{ axis === 'w' ? '가로' : '세로' }}</span>
-                    <v-btn v-for="v in ([0.5, 1] as const)" :key="v"
-                        size="x-small"
-                        :variant="tile.size[axis] === v ? 'flat' : 'outlined'"
-                        :color="tile.size[axis] === v ? 'primary' : undefined"
-                        :disabled="v === 0.5 && cap[axis === 'w' ? 'x' : 'y'] === 1"
-                        @click="setSize(axis, v)"
-                    >{{ v.toFixed(1) }}</v-btn>
-                </div>
-                <p v-if="cap.x === 1 || cap.y === 1" class="size-hint">1칸인 축의 0.5는 이 화면에선 1.0으로 보임</p>
-            </v-card>
+            <v-list density="compact" min-width="180">
+                <v-list-item v-if="isDefaultBoard" title="새 보드로 분리" prepend-icon="mdi-view-dashboard-outline" @click="detachOpen = true" />
+                <template v-if="otherBoards.length">
+                    <v-list-subheader>다른 보드로 이동</v-list-subheader>
+                    <v-list-item v-for="b in otherBoards" :key="b.hash"
+                        :title="boardLabel(b)"
+                        :prepend-icon="b.isDefault ? 'mdi-home-outline' : 'mdi-arrow-right'"
+                        @click="onMove(b.hash)"
+                    />
+                </template>
+                <v-list-item v-if="!isDefaultBoard && !otherBoards.length" subtitle="옮길 보드가 없습니다" disabled />
+            </v-list>
         </v-menu>
 
-        <v-btn size="x-small" variant="text" icon="mdi-close"
-            :disabled="!closable"
-            :title="running ? '실행 중에는 닫을 수 없음 (kill 먼저)' : '닫기'"
-            @click="onClose"
-        />
+        <span class="win">
+            <button v-if="tile.type === 'terminal' && !unavailable" title="최소화" @click="onMinimize">
+                <v-icon size="14" icon="mdi-window-minimize" />
+            </button>
+            <v-menu v-if="!unavailable" ref="sizeMenu" location="bottom end" :close-on-content-click="false">
+                <template #activator="{ props: act }">
+                    <button v-bind="act" :class="{ 'text-warning': shownText }" :title="sizeTitle">
+                        <v-icon size="14" icon="mdi-resize" />
+                    </button>
+                </template>
+                <v-card class="size-pop">
+                    <p class="size-now">{{ sizeTitle }}</p>
+                    <div v-for="axis in (['w', 'h'] as const)" :key="axis" class="size-row">
+                        <span>{{ axis === 'w' ? '가로' : '세로' }}</span>
+                        <v-btn v-for="v in ([0.5, 1] as const)" :key="v"
+                            size="x-small"
+                            :variant="tile.size[axis] === v ? 'flat' : 'outlined'"
+                            :color="tile.size[axis] === v ? 'primary' : undefined"
+                            :disabled="v === 0.5 && cap[axis === 'w' ? 'x' : 'y'] === 1"
+                            @click="setSize(axis, v)"
+                        >{{ v.toFixed(1) }}</v-btn>
+                    </div>
+                    <p v-if="cap.x === 1 || cap.y === 1" class="size-hint">1칸인 축의 0.5는 이 화면에선 1.0으로 보임</p>
+                </v-card>
+            </v-menu>
+            <button v-if="!isRoot"
+                :disabled="unknown"
+                :title="tile.type === 'terminal' && running ? '종료…' : '닫기'"
+                @click="onX"
+            >
+                <v-icon size="14" icon="mdi-close" />
+            </button>
+        </span>
     </div>
 
-    <folder-tile-body v-if="tile.type === 'folder'" :tile-id="tile.id" :inert="overview" />
+    <!-- 루트 타일 탭 `[파일] [터미널 N · 최소화 n]` -->
+    <div v-if="isRoot" class="root-tabs" :inert="overview">
+        <button :class="{ on: rootTab === 'files' }" @click="setTab('files')">파일</button>
+        <button :class="{ on: rootTab === 'terminals' }" @click="setTab('terminals')">
+            터미널 {{ terminals.length }}<template v-if="minCount"> · 최소화 {{ minCount }}</template>
+        </button>
+    </div>
+    <span v-if="readOnly && !unavailable" class="ro">보기 전용 · 입력 안 됨</span>
+    <div v-if="unavailable" class="revoked text-warning">
+        <v-icon size="18" icon="mdi-link-off" />
+        <span>공유가 취소되었거나 삭제되어 볼 수 없습니다.</span>
+        <template v-if="isRoot && tile.type === 'folder'">
+            <span class="sub">루트 타일은 닫을 수 없어 기본 목록으로 돌아갑니다.</span>
+            <v-btn size="x-small" variant="tonal" color="primary" @click="navigate(tile.id, null)">기본으로 돌아가기</v-btn>
+        </template>
+        <span v-else class="sub">닫기만 할 수 있습니다.</span>
+    </div>
+    <template v-else-if="tile.type === 'folder'">
+        <folder-tile-body v-show="!isRoot || rootTab === 'files'" :tile-id="tile.id" :inert="overview" />
+        <root-terminal-list v-if="isRoot && rootTab === 'terminals'" :inert="overview" />
+    </template>
     <terminal-tile-body v-else :tile-id="tile.id" :inert="overview" />
+    <presence-dialog v-if="tile.type === 'terminal' && !unavailable" v-model="presenceOpen" :uid="tile.uid" :name="name" />
+    <node-name-dialog v-if="boardMenu" v-model="detachOpen" title="새 보드" :initial="node?.name ?? ''" :loading="boardBusy" @submit="onDetach" />
 </div>
 </template>
 
@@ -163,6 +294,19 @@ const onClose = () => {
     border-radius: 6px;
     background: rgb(var(--v-theme-surface));
     position: relative;
+}
+.revoked {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: vars.$spacing-md;
+    text-align: center;
+    font-size: 12px;
+    .sub { font-size: 11px; opacity: 0.7; }
 }
 // 전체보기: 안쪽 조작 막음(inert + 클릭은 Tile로), 폴더는 흐리게
 .TileFrame--overview {
@@ -227,19 +371,97 @@ const onClose = () => {
     white-space: nowrap;
     font-size: 11px;
 }
+.owner {
+    font-family: monospace;
+    font-size: 11px;
+    opacity: 0.75;
+}
+.path {
+    flex: 0 3 auto;     // 좁으면 경로부터 줄어든다
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    opacity: 0.7;
+}
 .spacer { flex: 1; }
+.by {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    opacity: 0.7;
+}
+.perm {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 11px;
+    color: rgb(var(--v-theme-share));
+}
+// ① 공유 색 — 왼쪽 띠 + 머리 줄 바탕 (테마 색 이름 share)
+.TileFrame--shared {
+    border-color: rgb(var(--v-theme-share));
+    box-shadow: inset 3px 0 0 rgb(var(--v-theme-share));
+    > .TileFrame__head { background: rgba(var(--v-theme-share), 0.12); }
+}
+.ro {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    z-index: 2;
+    padding: 0 6px;
+    font-size: 11px;
+    border: 1px solid rgba(var(--v-theme-on-terminal), 0.35);
+    border-radius: 4px;
+    background: rgba(var(--v-theme-terminal), 0.7);
+    color: rgb(var(--v-theme-on-terminal));
+    pointer-events: none;
+}
 .pill { font-family: monospace; }
-.size-btn {
+// 창 버튼 묶음 [최소화 | 크기 | ×] — kill은 여기서 떼어 RUN▾ 칩에(오클릭 방지)
+.win {
+    display: inline-flex;
     height: 20px;
-    padding: 0 5px;
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     border-radius: 4px;
-    background: none;
-    color: inherit;
-    font-family: monospace;
-    font-size: 10px;
-    cursor: pointer;
-    i { font-style: normal; margin-left: 2px; }
+    overflow: hidden;
+    > button {
+        width: 22px;
+        display: grid;
+        place-items: center;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: inherit;
+        cursor: pointer;
+        & + button { border-left: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+        &:hover:not(:disabled) { background: rgba(var(--v-theme-on-surface), 0.08); }
+        &:disabled { cursor: default; opacity: 0.3; }
+    }
+}
+.root-tabs {
+    flex: none;
+    display: flex;
+    border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    font-size: 11.5px;
+    > button {
+        padding: 4px vars.$spacing-md;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: none;
+        color: inherit;
+        opacity: 0.65;
+        cursor: pointer;
+        &.on {
+            opacity: 1;
+            border-bottom-color: rgb(var(--v-theme-primary));
+            font-weight: vars.$weight-md;
+        }
+    }
 }
 .size-pop {
     display: flex;
@@ -253,6 +475,12 @@ const onClose = () => {
     align-items: center;
     gap: vars.$spacing-sm;
     > span { width: 30px; opacity: 0.7; }
+}
+.size-now {
+    margin: 0;
+    font-family: monospace;
+    font-size: 10.5px;
+    opacity: 0.7;
 }
 .size-hint {
     max-width: 180px;

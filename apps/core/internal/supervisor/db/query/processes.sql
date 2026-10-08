@@ -10,8 +10,9 @@ INSERT INTO processes (
     env,
     cwd,
     rows,
-    cols
-) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11 )
+    cols,
+    started_by
+) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12 )
 RETURNING *;
 
 -- name: GetProcess :one
@@ -60,15 +61,11 @@ SELECT * FROM processes
 WHERE device_key = $1
   AND status IN ('PENDING','PROCESS');
 
--- name: ListLiveProcessesByOwner :many
-SELECT * FROM processes
-WHERE owner_user_id = $1
+-- name: ListOwnLiveProcesses :many
+-- 고아 안전망 대상 = 내가 소유하거나 실행한 살아 있는 process(공유받은 것 제외) — WS3(고아 안전망 위치)
+SELECT uid, node_id
+FROM processes
+WHERE (owner_user_id = $1 OR started_by = $1)
   AND status IN ('PENDING','PROCESS')
-ORDER BY created_at ASC;
-
--- 요청한 uid만, 상태 무관(끝난 것 포함) — 3-d①(끝난 process 조회). 남의 것·없는 uid는 빠짐
--- name: ListProcessesByUids :many
-SELECT * FROM processes
-WHERE owner_user_id = sqlc.arg(owner_user_id)
-  AND uid = ANY(sqlc.arg(uids)::text[])
+  AND node_id IS NOT NULL
 ORDER BY created_at ASC;

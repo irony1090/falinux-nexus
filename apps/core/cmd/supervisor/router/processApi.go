@@ -3,11 +3,12 @@ package router
 import (
 	"context"
 	"log"
+	"slices"
 	"time"
 
-	"nexus/cmd/supervisor/process"
 	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
+	"nexus/internal/supervisor/store"
 	"nexus/internal/web"
 
 	"github.com/labstack/echo/v4"
@@ -42,26 +43,18 @@ func (r *supervisorRouter) requireTab(c echo.Context, sid string) string {
 	return tabID
 }
 
-// requireOwnedEntry는 실행 중인 uid의 entry를 반환한다. 없거나 요청 계정 것이 아니면 404(존재를 드러내지 않음).
-func (r *supervisorRouter) requireOwnedEntry(uid string, userID int64) *process.ProcessEntry {
-	entry, ok := r.processManager.Get(uid)
-	if !ok || entry.Inter == nil || entry.Record == nil || entry.Record.OwnerUserID != userID {
-		panic(web.Err(404, "존재하지 않는 process입니다"))
-	}
-	return entry
-}
-
-// listProcesses는 그 계정의 살아 있는 process를 요청 탭 기준 sizeOwner와 함께 반환한다(U(목록 API)).
+// listProcesses는 그 계정이 볼 수 있는 살아 있는 process를 요청 탭 기준 sizeOwner와 함께 반환한다(U(목록 API)).
 func (r *supervisorRouter) listProcesses(c echo.Context) error {
 	sess := r.requireSession(c)
 	tabID := r.requestTab(c, sess.Name())
 
-	processes, err := r.processManager.ListLive(sess.Data.ID)
+	processes, err := r.processManager.ListVisibleLive(sess.Data.ID)
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
 
-	out := newProcessResponses(processes)
+	rows := liveRows(processes)
+	out := withProcessNames(c, sess.Data.ID, newProcessResponses(rows), processesOf(rows))
 	for i := range out {
 		out[i] = withSizeOwner(out[i], tabID != "" && r.sizeOwnerOf(out[i].Uid) == tabID)
 	}
@@ -70,7 +63,7 @@ func (r *supervisorRouter) listProcesses(c echo.Context) error {
 
 const lookupMax = 256 // 한 번에 조회할 uid 개수 상한(타일 수보다 넉넉히)
 
-// lookupProcesses는 요청한 uid(?uids=a&uids=b)의 process를 상태와 무관하게 반환한다. 남의 것·없는 uid는 빠짐
+// lookupProcesses는 요청한 uid(?uids=a&uids=b)의 process를 상태와 무관하게 반환한다. 볼 수 없는 것·없는 uid는 빠짐
 // — 3-d①(끝난 process 조회): 새로고침 뒤 터미널 타일 복원용, 살아 있는 것 전체는 listProcesses
 func (r *supervisorRouter) lookupProcesses(c echo.Context) error {
 	sess := r.requireSession(c)
@@ -83,15 +76,16 @@ func (r *supervisorRouter) lookupProcesses(c echo.Context) error {
 	if len(uids) == 0 {
 		return c.JSON(200, []processResponse{})
 	}
-	processes, err := TxQueries(c).ListProcessesByUids(c.Request().Context(), superdb.ListProcessesByUidsParams{
-		OwnerUserID: sess.Data.ID,
-		Uids:        uids,
+	processes, err := TxQueries(c).ListVisibleProcessesByUids(c.Request().Context(), superdb.ListVisibleProcessesByUidsParams{
+		UserID: sess.Data.ID,
+		Uids:   uids,
 	})
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
 
-	out := newProcessResponses(processes)
+	rows := uidRows(processes)
+	out := withProcessNames(c, sess.Data.ID, newProcessResponses(rows), processesOf(rows))
 	for i := range out {
 		out[i] = withSizeOwner(out[i], tabID != "" && r.sizeOwnerOf(out[i].Uid) == tabID)
 	}
@@ -104,6 +98,7 @@ type execRequest struct {
 	AuthKey string `json:"authKey" validate:"required"`               // worker 인스턴스 키(main#sub). 후보 = GET /workers?nodeId=
 	Type    string `json:"type" validate:"omitempty,oneof=EXEC EDIT"` // 비우면 EXEC
 
+	Workspace    string    `json:"workspace"`    // 터미널 타일을 넣을 작업 공간 hash. 비우면 기본
 	ParentTileID string    `json:"parentTileId"` // 터미널 타일을 붙일 폴더 타일. 없거나 닫혔으면 루트
 	Size         *tileSize `json:"size"`         // 없으면 0.5×0.5
 }
@@ -116,7 +111,7 @@ type execResponse struct {
 }
 
 // execProcess는 frontend의 "이 노드 실행" 요청을 받아 worker에 명령한다(router.Exec 위임).
-// 그 계정의 연결된 소켓은 relay 기동 전에 전부 구독되고, 요청 탭이 크기 소유자가 된다.
+// EXEC = 조작(20) / EDIT(vi 편집) = 편집(30). 볼 수 있는 계정의 연결된 소켓은 relay 기동 전에 전부 구독되고, 요청 탭이 크기 소유자가 된다.
 func (r *supervisorRouter) execProcess(c echo.Context) error {
 	sess := r.requireSession(c)
 	tabID := r.requireTab(c, sess.Name())
@@ -135,24 +130,28 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 		panic(web.Err(400, "타일 크기가 올바르지 않습니다"))
 	}
 
-	node, err := TxQueries(c).GetNode(c.Request().Context(), superdb.GetNodeParams{
-		ID:          body.NodeID,
-		OwnerUserID: sess.Data.ID,
-	})
-	if err != nil {
-		panic(web.Err(404, "노드를 찾을 수 없습니다"))
+	if body.Workspace != "" {
+		requestWorkspace(c, sess.Data.ID, body.Workspace) // 실행 전에 확인 — 없는 작업 공간이면 실행하지 않음
 	}
+
+	min := superdb.PermOperate
+	if protocol.ExecType(body.Type) == protocol.ExecTypeEdit {
+		min = superdb.PermEdit
+	}
+	node, perm := requireNode(c, sess.Data.ID, body.NodeID, min)
 	// 다른 장비로 잘못 실행되는 것 방지: authKey의 main_key = 스크립트의 상속 device_key (서브키 위조 검증은 별도)
-	if main, _ := splitInstanceKey(body.AuthKey); main != resolveMainKey(c.Request().Context(), TxQueries(c), body.NodeID, sess.Data.ID) {
+	if main, _ := splitInstanceKey(body.AuthKey); main != resolveMainKey(c.Request().Context(), TxQueries(c), body.NodeID, node.OwnerUserID) {
 		panic(web.Err(400, "이 스크립트의 실행 대상 장비가 아닙니다"))
 	}
 
-	uid, err := r.Exec(*sess.Data, body.AuthKey, protocol.ExecType(body.Type), node, tabID)
+	uid, err := r.Exec(sess.Data.ID, body.AuthKey, protocol.ExecType(body.Type), node, tabID)
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
 	entry, _ := r.processManager.Get(uid)
-	res := execResponse{processResponse: withSizeOwner(newProcessResponse(*entry.Record), r.sizeOwnerOf(uid) == tabID)}
+	// 새 process엔 process 공유 행이 없어 단계 = 노드 단계
+	res := execResponse{processResponse: withPermission(withSizeOwner(newProcessResponse(*entry.Record), r.sizeOwnerOf(uid) == tabID), perm)}
+	res.processResponse = withProcessNames(c, sess.Data.ID, []processResponse{res.processResponse}, []superdb.Process{*entry.Record})[0]
 	if !entry.HasProcess() {
 		return c.JSON(200, res)
 	}
@@ -160,14 +159,15 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 	// 요청 컨텍스트를 쓰면 브라우저가 응답 전에 끊을 때 저장이 취소돼 멀쩡한 process가 kill된다
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	tile, tree, err := appendTerminalTile(ctx, sess.Data.ID, body.ParentTileID, size, node.ID, uid)
+	tile, tree, err := appendTerminalTile(ctx, sess.Data.ID, body.Workspace, body.ParentTileID, size, node.ID, uid)
 	if err != nil {
 		if kErr := entry.Inter.Kill(); kErr != nil {
 			log.Printf("[process] 타일 저장 실패 후 kill 실패 uid=%s: %v", uid, kErr)
 		}
 		panic(web.Err(500, "터미널 타일 저장에 실패해 실행을 중단했습니다: %v", err))
 	}
-	r.publishTiles(sess.Data.ID, tree.Tree, tree.Version, tabID) // 별도 트랜잭션이 이미 커밋됨
+	r.publishTiles(sess.Data.ID, tree, tabID) // 별도 트랜잭션이 이미 커밋됨
+	r.attachViewerTiles(sess.Data.ID, node.ID, uid)
 	res.Tile, res.TileVersion = &tile, tree.Version
 	return c.JSON(200, res)
 }
@@ -176,7 +176,7 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 // 종료 STATUS는 relay가 그 계정의 구독 소켓 전부에 발행한다.
 func (r *supervisorRouter) killProcess(c echo.Context) error {
 	sess := r.requireSession(c)
-	entry := r.requireOwnedEntry(c.Param("processId"), sess.Data.ID)
+	entry := r.requireProcess(c.Param("processId"), sess.Data.ID, superdb.PermOperate)
 	if err := entry.Inter.Kill(); err != nil {
 		panic(web.Err(500, "%v", err))
 	}
@@ -209,7 +209,7 @@ func (r *supervisorRouter) resizeProcess(c echo.Context) error {
 		panic(web.Err(400, "%v", err))
 	}
 
-	entry := r.requireOwnedEntry(uid, sess.Data.ID)
+	entry := r.requireProcess(uid, sess.Data.ID, superdb.PermOperate)
 	if !r.claimSizeOwner(uid, tabID) {
 		panic(web.Err(403, "크기를 바꿀 수 있는 탭이 아닙니다"))
 	}
@@ -228,5 +228,35 @@ func (r *supervisorRouter) resizeProcess(c echo.Context) error {
 	entry.SetRecord(&row)
 	AfterCommit(c, func() { r.publishProcess(row) })
 
-	return c.JSON(200, withSizeOwner(newProcessResponse(row), true))
+	res := withPermission(withSizeOwner(newProcessResponse(row), true), r.processPerm(uid, sess.Data.ID))
+	return c.JSON(200, withProcessNames(c, sess.Data.ID, []processResponse{res}, []superdb.Process{row})[0])
+}
+
+// attachViewerTiles: 실행자 외에 볼 수 있는 계정 전부의 트리에 터미널 타일을 넣고 push한다(계정 id 순) — SD2.
+// 실패는 로그만: 그 계정이 못 볼 뿐 process는 정상이고, 소유자는 고아 안전망이 보완한다
+func (r *supervisorRouter) attachViewerTiles(starter, nodeID int64, uid string) {
+	viewers, err := store.GetStorePool().Queries().ListProcessViewers(context.Background(), uid)
+	if err != nil {
+		log.Printf("[process] 터미널 타일 대상 조회 실패 uid=%s: %v", uid, err)
+		return
+	}
+	users := make([]int64, 0, len(viewers))
+	for _, v := range viewers {
+		if v.UserID != starter {
+			users = append(users, v.UserID)
+		}
+	}
+	slices.Sort(users)
+	for _, userID := range users {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		tree, err := attachViewerTerminal(ctx, userID, nodeID, uid)
+		cancel()
+		if err != nil {
+			log.Printf("[process] 터미널 타일 추가 실패 user=%d uid=%s: %v", userID, uid, err)
+			continue
+		}
+		if tree != nil {
+			r.publishTiles(userID, *tree, "")
+		}
+	}
 }

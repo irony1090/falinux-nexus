@@ -1,25 +1,46 @@
 -- nodes 카탈로그 쿼리. 설계 → REF-node-label.md.
 -- 규약:
---  · 모든 조회/변경은 owner_user_id로 스코핑(per-user 카탈로그 — 남의 노드 접근 차단).
+--  · 조회/변경은 owner_user_id로 스코핑. 공유 판정 뒤에는 인자 = 대상 노드의 소유자(SB4(노드 쓰기 쿼리의 owner 인자)) — 예외 GetNodeByID.
 --  · 루트 자식은 parent_id IS NULL → `IS NOT DISTINCT FROM`로 NULL=루트도 한 쿼리에서 커버.
 --  · ord(그리드 순서)는 호출자가 midpoint/append로 계산해 넘긴다(MaxChildOrd 참고).
---  · 주의(핸들러 책임): ① parent_id는 같은 owner 노드여야 함 ② 자기 자신의 자손으로 Move 금지(사이클).
+--  · 핸들러 책임: ① parent_id는 같은 owner 노드여야 함 ② 자기 자신의 자손으로 Move 금지(IsDescendant).
 
 -- name: CreateFolder :one
 INSERT INTO nodes (
-    owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key
-) VALUES ( $1, $2, 'FOLDER', $3, $4, $5, $6, $7 )
+    owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, created_by
+) VALUES ( $1, $2, 'FOLDER', $3, $4, $5, $6, $7, $8 )
 RETURNING *;
 
 -- name: CreateScript :one
 INSERT INTO nodes (
-    owner_user_id, parent_id, kind, name, ord, position_x, position_y, content
-) VALUES ( $1, $2, 'SCRIPT', $3, $4, $5, $6, $7 )
+    owner_user_id, parent_id, kind, name, ord, position_x, position_y, content, created_by
+) VALUES ( $1, $2, 'SCRIPT', $3, $4, $5, $6, $7, $8 )
 RETURNING *;
 
 -- name: GetNode :one
 SELECT * FROM nodes
 WHERE id = $1 AND owner_user_id = $2;
+
+-- name: GetNodeByID :one
+-- owner 조건 없음 — NodePermission 판정 뒤에만 부를 것.
+SELECT * FROM nodes
+WHERE id = $1;
+
+-- name: IsDescendant :one
+-- node가 ancestor 자신이거나 그 아래인가(위로 올라가며 확인). SB6(이동 사이클 검사).
+WITH RECURSIVE anc(id, parent_id, depth) AS (
+    SELECT n.id, n.parent_id, 0
+    FROM nodes n
+    WHERE n.id = sqlc.arg(node_id)
+  UNION ALL
+    SELECT n.id, n.parent_id, u.depth + 1
+    FROM nodes n
+    JOIN anc u ON n.id = u.parent_id
+    WHERE u.depth < 64
+)
+SELECT (COUNT(*) > 0)::boolean AS found
+FROM anc
+WHERE id = sqlc.arg(ancestor_id)::bigint;
 
 -- name: ListChildren :many
 -- 한 폴더의 자식(또는 parent NULL이면 루트) 그리드/리스트 순서로.
@@ -99,7 +120,7 @@ LIMIT 1;
 --    ※ set_*(=프론트 valid, "패치할지") ≠ pgtype.Valid("non-null?") — 핸들러에서 분리할 것.
 --  · position_x/y는 한 좌표쌍이라 set_position 하나로 함께 제어.
 --  · device_key=FOLDER만 / content=SCRIPT만 — 잘못된 kind면 CHECK가 거부(핸들러 선검증 권장).
---  · parent_id를 자기 자손으로 바꾸면 사이클 — 핸들러 책임.
+--  · parent_id를 자기 자손으로 바꾸면 사이클 — 핸들러가 IsDescendant로 막음.
 UPDATE nodes
 SET name       = COALESCE(sqlc.narg('name'), name),
     ord        = COALESCE(sqlc.narg('ord'),  ord),
@@ -111,3 +132,17 @@ SET name       = COALESCE(sqlc.narg('name'), name),
     updated_at = NOW()
 WHERE id = sqlc.arg('id') AND owner_user_id = sqlc.arg('owner_user_id')
 RETURNING *;
+
+-- name: ListNodeAncestors :many
+-- 노드의 조상 id(가까운 순, 자신 제외). 실시간-4(exec 타일)에서 다른 계정의 터미널 타일 위치를 고를 때 쓴다.
+WITH RECURSIVE up(id, parent_id, depth) AS (
+    SELECT n.id, n.parent_id, 0
+    FROM nodes n
+    WHERE n.id = sqlc.arg(node_id)::bigint
+  UNION ALL
+    SELECT n.id, n.parent_id, u.depth + 1
+    FROM nodes n
+    JOIN up u ON n.id = u.parent_id
+    WHERE u.depth < 64
+)
+SELECT id FROM up WHERE depth > 0 ORDER BY depth ASC;

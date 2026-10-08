@@ -1,0 +1,13 @@
+<!-- Nexus 로고: 가운데 허브(supervisor)에 이어진 타일 4칸(보드·터미널), 켜진 한 칸 = 실행 중 터미널 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Nexus</title>
+  <rect width="64" height="64" rx="14" fill="#10161e"/>
+  <rect x="10" y="10" width="20" height="20" rx="4" fill="#38bdf8"/>
+  <path d="M15 15.5 L20.5 20 L15 24.5" fill="none" stroke="#10161e" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M22.5 24.5 H26" stroke="#10161e" stroke-width="2.6" stroke-linecap="round"/>
+  <rect x="34" y="10" width="20" height="20" rx="4" fill="#2b3a4d"/>
+  <rect x="10" y="34" width="20" height="20" rx="4" fill="#2b3a4d"/>
+  <rect x="34" y="34" width="20" height="20" rx="4" fill="#2b3a4d"/>
+  <circle cx="32" cy="32" r="7.5" fill="#10161e"/>
+  <circle cx="32" cy="32" r="4.5" fill="#c8d3df"/>
+</svg>

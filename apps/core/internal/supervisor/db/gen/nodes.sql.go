@@ -14,9 +14,9 @@ import (
 const createFolder = `-- name: CreateFolder :one
 
 INSERT INTO nodes (
-    owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key
-) VALUES ( $1, $2, 'FOLDER', $3, $4, $5, $6, $7 )
-RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at
+    owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, created_by
+) VALUES ( $1, $2, 'FOLDER', $3, $4, $5, $6, $7, $8 )
+RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at, created_by
 `
 
 type CreateFolderParams struct {
@@ -27,15 +27,16 @@ type CreateFolderParams struct {
 	PositionX   pgtype.Numeric
 	PositionY   pgtype.Numeric
 	DeviceKey   pgtype.Text
+	CreatedBy   int64
 }
 
 // nodes 카탈로그 쿼리. 설계 → REF-node-label.md.
 // 규약:
 //
-//	· 모든 조회/변경은 owner_user_id로 스코핑(per-user 카탈로그 — 남의 노드 접근 차단).
+//	· 조회/변경은 owner_user_id로 스코핑. 공유 판정 뒤에는 인자 = 대상 노드의 소유자(SB4(노드 쓰기 쿼리의 owner 인자)) — 예외 GetNodeByID.
 //	· 루트 자식은 parent_id IS NULL → `IS NOT DISTINCT FROM`로 NULL=루트도 한 쿼리에서 커버.
 //	· ord(그리드 순서)는 호출자가 midpoint/append로 계산해 넘긴다(MaxChildOrd 참고).
-//	· 주의(핸들러 책임): ① parent_id는 같은 owner 노드여야 함 ② 자기 자신의 자손으로 Move 금지(사이클).
+//	· 핸들러 책임: ① parent_id는 같은 owner 노드여야 함 ② 자기 자신의 자손으로 Move 금지(IsDescendant).
 func (q *Queries) CreateFolder(ctx context.Context, arg CreateFolderParams) (Node, error) {
 	row := q.db.QueryRow(ctx, createFolder,
 		arg.OwnerUserID,
@@ -45,6 +46,7 @@ func (q *Queries) CreateFolder(ctx context.Context, arg CreateFolderParams) (Nod
 		arg.PositionX,
 		arg.PositionY,
 		arg.DeviceKey,
+		arg.CreatedBy,
 	)
 	var i Node
 	err := row.Scan(
@@ -60,15 +62,16 @@ func (q *Queries) CreateFolder(ctx context.Context, arg CreateFolderParams) (Nod
 		&i.Content,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
 
 const createScript = `-- name: CreateScript :one
 INSERT INTO nodes (
-    owner_user_id, parent_id, kind, name, ord, position_x, position_y, content
-) VALUES ( $1, $2, 'SCRIPT', $3, $4, $5, $6, $7 )
-RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at
+    owner_user_id, parent_id, kind, name, ord, position_x, position_y, content, created_by
+) VALUES ( $1, $2, 'SCRIPT', $3, $4, $5, $6, $7, $8 )
+RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at, created_by
 `
 
 type CreateScriptParams struct {
@@ -79,6 +82,7 @@ type CreateScriptParams struct {
 	PositionX   pgtype.Numeric
 	PositionY   pgtype.Numeric
 	Content     pgtype.Text
+	CreatedBy   int64
 }
 
 func (q *Queries) CreateScript(ctx context.Context, arg CreateScriptParams) (Node, error) {
@@ -90,6 +94,7 @@ func (q *Queries) CreateScript(ctx context.Context, arg CreateScriptParams) (Nod
 		arg.PositionX,
 		arg.PositionY,
 		arg.Content,
+		arg.CreatedBy,
 	)
 	var i Node
 	err := row.Scan(
@@ -105,6 +110,7 @@ func (q *Queries) CreateScript(ctx context.Context, arg CreateScriptParams) (Nod
 		&i.Content,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -126,7 +132,7 @@ func (q *Queries) DeleteNode(ctx context.Context, arg DeleteNodeParams) error {
 }
 
 const getNode = `-- name: GetNode :one
-SELECT id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at FROM nodes
+SELECT id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at, created_by FROM nodes
 WHERE id = $1 AND owner_user_id = $2
 `
 
@@ -151,12 +157,69 @@ func (q *Queries) GetNode(ctx context.Context, arg GetNodeParams) (Node, error) 
 		&i.Content,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
 
+const getNodeByID = `-- name: GetNodeByID :one
+SELECT id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at, created_by FROM nodes
+WHERE id = $1
+`
+
+// owner 조건 없음 — NodePermission 판정 뒤에만 부를 것.
+func (q *Queries) GetNodeByID(ctx context.Context, id int64) (Node, error) {
+	row := q.db.QueryRow(ctx, getNodeByID, id)
+	var i Node
+	err := row.Scan(
+		&i.ID,
+		&i.OwnerUserID,
+		&i.ParentID,
+		&i.Kind,
+		&i.Name,
+		&i.Ord,
+		&i.PositionX,
+		&i.PositionY,
+		&i.DeviceKey,
+		&i.Content,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedBy,
+	)
+	return i, err
+}
+
+const isDescendant = `-- name: IsDescendant :one
+WITH RECURSIVE anc(id, parent_id, depth) AS (
+    SELECT n.id, n.parent_id, 0
+    FROM nodes n
+    WHERE n.id = $2
+  UNION ALL
+    SELECT n.id, n.parent_id, u.depth + 1
+    FROM nodes n
+    JOIN anc u ON n.id = u.parent_id
+    WHERE u.depth < 64
+)
+SELECT (COUNT(*) > 0)::boolean AS found
+FROM anc
+WHERE id = $1::bigint
+`
+
+type IsDescendantParams struct {
+	AncestorID int64
+	NodeID     int64
+}
+
+// node가 ancestor 자신이거나 그 아래인가(위로 올라가며 확인). SB6(이동 사이클 검사).
+func (q *Queries) IsDescendant(ctx context.Context, arg IsDescendantParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isDescendant, arg.AncestorID, arg.NodeID)
+	var found bool
+	err := row.Scan(&found)
+	return found, err
+}
+
 const listChildren = `-- name: ListChildren :many
-SELECT id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at FROM nodes
+SELECT id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at, created_by FROM nodes
 WHERE owner_user_id = $1
   AND parent_id IS NOT DISTINCT FROM $2
 ORDER BY ord, name, id
@@ -190,10 +253,46 @@ func (q *Queries) ListChildren(ctx context.Context, arg ListChildrenParams) ([]N
 			&i.Content,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.CreatedBy,
 		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listNodeAncestors = `-- name: ListNodeAncestors :many
+WITH RECURSIVE up(id, parent_id, depth) AS (
+    SELECT n.id, n.parent_id, 0
+    FROM nodes n
+    WHERE n.id = $1::bigint
+  UNION ALL
+    SELECT n.id, n.parent_id, u.depth + 1
+    FROM nodes n
+    JOIN up u ON n.id = u.parent_id
+    WHERE u.depth < 64
+)
+SELECT id FROM up WHERE depth > 0 ORDER BY depth ASC
+`
+
+// 노드의 조상 id(가까운 순, 자신 제외). 실시간-4(exec 타일)에서 다른 계정의 터미널 타일 위치를 고를 때 쓴다.
+func (q *Queries) ListNodeAncestors(ctx context.Context, nodeID int64) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listNodeAncestors, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -227,7 +326,7 @@ SET parent_id  = $2,
     ord        = $3,
     updated_at = NOW()
 WHERE id = $1 AND owner_user_id = $4
-RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at
+RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at, created_by
 `
 
 type MoveNodeParams struct {
@@ -259,6 +358,7 @@ func (q *Queries) MoveNode(ctx context.Context, arg MoveNodeParams) (Node, error
 		&i.Content,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -274,7 +374,7 @@ SET name       = COALESCE($1, name),
     content    = CASE WHEN $10::boolean  THEN $11    ELSE content    END,
     updated_at = NOW()
 WHERE id = $12 AND owner_user_id = $13
-RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at
+RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at, created_by
 `
 
 type PatchNodeParams struct {
@@ -301,7 +401,7 @@ type PatchNodeParams struct {
 //	  ※ set_*(=프론트 valid, "패치할지") ≠ pgtype.Valid("non-null?") — 핸들러에서 분리할 것.
 //	· position_x/y는 한 좌표쌍이라 set_position 하나로 함께 제어.
 //	· device_key=FOLDER만 / content=SCRIPT만 — 잘못된 kind면 CHECK가 거부(핸들러 선검증 권장).
-//	· parent_id를 자기 자손으로 바꾸면 사이클 — 핸들러 책임.
+//	· parent_id를 자기 자손으로 바꾸면 사이클 — 핸들러가 IsDescendant로 막음.
 func (q *Queries) PatchNode(ctx context.Context, arg PatchNodeParams) (Node, error) {
 	row := q.db.QueryRow(ctx, patchNode,
 		arg.Name,
@@ -332,6 +432,7 @@ func (q *Queries) PatchNode(ctx context.Context, arg PatchNodeParams) (Node, err
 		&i.Content,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -342,7 +443,7 @@ SET position_x = $2,
     position_y = $3,
     updated_at = NOW()
 WHERE id = $1 AND owner_user_id = $4
-RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at
+RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at, created_by
 `
 
 type PlaceNodeParams struct {
@@ -374,6 +475,7 @@ func (q *Queries) PlaceNode(ctx context.Context, arg PlaceNodeParams) (Node, err
 		&i.Content,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -383,7 +485,7 @@ UPDATE nodes
 SET name       = $2,
     updated_at = NOW()
 WHERE id = $1 AND owner_user_id = $3
-RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at
+RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at, created_by
 `
 
 type RenameNodeParams struct {
@@ -408,6 +510,7 @@ func (q *Queries) RenameNode(ctx context.Context, arg RenameNodeParams) (Node, e
 		&i.Content,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }
@@ -448,7 +551,7 @@ UPDATE nodes
 SET content    = $2,
     updated_at = NOW()
 WHERE id = $1 AND owner_user_id = $3 AND kind = 'SCRIPT'
-RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at
+RETURNING id, owner_user_id, parent_id, kind, name, ord, position_x, position_y, device_key, content, created_at, updated_at, created_by
 `
 
 type UpdateNodeContentParams struct {
@@ -474,6 +577,7 @@ func (q *Queries) UpdateNodeContent(ctx context.Context, arg UpdateNodeContentPa
 		&i.Content,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.CreatedBy,
 	)
 	return i, err
 }

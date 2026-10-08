@@ -73,6 +73,30 @@ func (router *supervisorRouter) mountUsers(e *echo.Echo) {
 	g.POST("/session", router.signIn)
 	g.GET("/session", router.checkSession)
 	g.DELETE("/session", router.signOut)
+	g.GET("/lookup", router.lookupUser)
+}
+
+// userLookupResponse: 공유 대상 조회 결과 — 닉네임 + 내부 id만(SH4(공유 대상 찾기))
+type userLookupResponse struct {
+	ID       int64  `json:"id"`
+	Nickname string `json:"nickname"`
+}
+
+// lookupUser는 아이디(?identification=)가 정확히 일치하는 계정을 찾는다. 없으면 404, 자기 자신이면 400(SH4(공유 대상 찾기)).
+func (router *supervisorRouter) lookupUser(c echo.Context) error {
+	sess := router.requireSession(c)
+	ident := c.QueryParam("identification")
+	if ident == "" {
+		panic(web.Err(400, "아이디를 입력하세요"))
+	}
+	user, err := TxQueries(c).GetUserByIdentification(c.Request().Context(), toHash(ident))
+	if err != nil {
+		panic(web.Err(404, "계정을 찾을 수 없습니다"))
+	}
+	if user.ID == sess.Data.ID {
+		panic(web.Err(400, "자기 자신에게는 공유할 수 없습니다"))
+	}
+	return c.JSON(200, userLookupResponse{ID: user.ID, Nickname: user.Nickname})
 }
 
 // createUser는 신규 계정을 만든다. 같은 트랜잭션 안에서 중복 검사 후 INSERT.

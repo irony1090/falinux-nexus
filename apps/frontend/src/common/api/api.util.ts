@@ -9,6 +9,7 @@ export type CommonResponse<T = {}> = {
 
 export type CatchErrorResponse = {
     message: string;
+    status?: number;    // HTTP 상태 — 서버 응답이 있을 때만
     stack: string | undefined;
 }
 export const throwThen = <T>(response: AxiosResponse<CommonResponse>): T => {
@@ -32,7 +33,7 @@ export const throwCatch = (error: AxiosError | CommonResponse) => {
         if (axiosError.response) {
             const { data } = axiosError.response || {};
             const message = (data?.result || data.message || data.error) ?? '서버 에러가 발생했습니다';
-            throw { message } as CatchErrorResponse;
+            throw { message, status: axiosError.response.status } as CatchErrorResponse;
         } else {
             console.log('[THROW] isAxiosError', error);
             throw { 

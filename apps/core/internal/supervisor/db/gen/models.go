@@ -21,6 +21,15 @@ type Node struct {
 	Content     pgtype.Text
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
+	CreatedBy   int64
+}
+
+type NodeShare struct {
+	NodeID     int64
+	UserID     int64
+	Permission int16
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
 }
 
 type Process struct {
@@ -42,6 +51,15 @@ type Process struct {
 	StartedAt   pgtype.Timestamptz
 	FinishedAt  pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
+	StartedBy   int64
+}
+
+type ProcessShare struct {
+	ProcessUid string
+	UserID     int64
+	Permission int16
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
 }
 
 type TileTree struct {
@@ -49,6 +67,11 @@ type TileTree struct {
 	Tree      []byte
 	Version   int64
 	UpdatedAt pgtype.Timestamptz
+	ID        int64
+	Hash      string
+	Name      string
+	Ord       int32
+	IsDefault bool
 }
 
 type User struct {

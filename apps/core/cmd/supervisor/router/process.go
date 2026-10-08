@@ -28,7 +28,8 @@ import (
 // Exec은 frontend의 "이 노드 실행/편집" 요청을 받아 worker에 명령하는 진입점이다.
 // kind로 manager.Exec(EXEC/folder) vs manager.ExecEdit(EDIT)를 고른다. tabID는 요청 탭 —
 // 실행 성공 시 크기 소유자가 된다(성공 시 uid, 실패 시 error를 돌려준다).
-func (r *supervisorRouter) Exec(owner superdb.User, authKey string, kind protocol.ExecType, node superdb.Node, tabID string) (string, error) {
+// process 소유 = 노드 소유자, startedBy = 실행한 계정 — SH9(받은 쪽이 실행한 process의 소유)
+func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.ExecType, node superdb.Node, tabID string) (string, error) {
 	worker, _ := r.workers.Get(authKey)
 
 	// 1. 상태 등록(manager). UID·spec·Inter는 manager가 authoritative하게 만든다.
@@ -37,7 +38,7 @@ func (r *supervisorRouter) Exec(owner superdb.User, authKey string, kind protoco
 	if kind == protocol.ExecTypeEdit {
 		register = r.processManager.ExecEdit
 	}
-	entry, err := register(worker, authKey, node, owner)
+	entry, err := register(worker, authKey, node, node.OwnerUserID, startedBy)
 	if err != nil {
 		return "", err
 	}
@@ -65,9 +66,9 @@ func (r *supervisorRouter) Exec(owner superdb.User, authKey string, kind protoco
 		return "", fmt.Errorf("content 선배치 실패: %w", err)
 	}
 
-	// 4. 계정의 연결된 소켓 전부 구독(O(계정 동기화)). 반드시 relay Start() 이전이라야 RUNNING 등
+	// 4. 볼 수 있는 계정의 연결된 소켓 전부 구독(O(계정 동기화)). 반드시 relay Start() 이전이라야 RUNNING 등
 	//    초기 이벤트를 놓치지 않는다. 이후 연결되는 소켓은 handleSubscribeWS가 DB로 구독한다.
-	r.subscribeUser(uid, owner.ID)
+	r.subscribeViewers(uid)
 
 	// 5. fan-out relay 기동: Output()/Status() 드레인 → PROCESS:<uid> 토픽으로 Publish.
 	//    종료 시 구독 정리(cleanupProcessTopic)까지 묶어서 한다 — startRelay 참조.
@@ -113,7 +114,7 @@ func (r *supervisorRouter) publishProcess(rec superdb.Process) {
 //
 // 재발 방지: worker 끊김(Detach)으로 끝난 relay는 구독을 정리하지 않는다. process는 살아 있고,
 // 정리하면 재접속 Rebind 뒤 새 relay의 발행을 받을 소켓이 없어진다(2026-10-01 실행 확인한 "Rebind 뒤
-// 출력 끊김"). 재접속이 빨라 새 구독(subscribeUser)이 먼저 걸려도 이 정리가 늦게 돌아 지우는 경합도 같이 막는다.
+// 출력 끊김"). 재접속이 빨라 새 구독(subscribeViewers)이 먼저 걸려도 이 정리가 늦게 돌아 지우는 경합도 같이 막는다.
 func (r *supervisorRouter) startRelay(uid string, inter *execute.AgentInteractive) {
 	relay := bind.NewRelay(uid, inter, r.screens.open(uid), func(k protocol.MsgType, p any) error {
 		return r.subscribeHub.Publish(processTopic(uid), k, p)
@@ -303,7 +304,7 @@ func (r *supervisorRouter) sync(conn *transport.Conn, auth *protocol.RegisterReq
 
 // reconcileReconnect는 재접속한 worker의 보고(reported)와 DB의 활성(PENDING/PROCESS) uid
 // 목록을 3-way 대조한다(REF-process "재접속 재바인딩"):
-//   - 교집합: Rebind로 새 Inter 장착 + 계정 소켓 재구독(W) + relay 재기동 + applyStatus로 보고 상태 동기화.
+//   - 교집합: Rebind로 새 Inter 장착 + 볼 수 있는 계정 소켓 재구독(W) + relay 재기동 + applyStatus로 보고 상태 동기화.
 //   - DB만 앎(worker 재부팅 소실): CommandFailed로 종결 + 브라우저에 FAILED 직접 발행(Y — entry·relay가 없어서).
 //   - worker만 앎(고아): 로그만 남기고 무시(YAGNI, kill 지시 안 함).
 func (r *supervisorRouter) reconcileReconnect(deviceKey string, worker *transport.Conn, reported []protocol.SyncEntry) {
@@ -339,7 +340,7 @@ func (r *supervisorRouter) reconcileReconnect(deviceKey string, worker *transpor
 			log.Printf("[process] Rebind uid=%s: %v", uid, err)
 			continue
 		}
-		r.subscribeUser(uid, newEntry.Record.OwnerUserID) // W(재접속 재구독): 끊긴 사이 연결된 소켓·supervisor 재시작 대비
+		r.subscribeViewers(uid) // W(재접속 재구독): 끊긴 사이 연결된 소켓·supervisor 재시작 대비
 		r.startRelay(uid, newEntry.Inter)
 		r.applyStatus(uid, entry.Status, entry.PID, 0)
 	}
@@ -376,7 +377,7 @@ func (r *supervisorRouter) editResult(req protocol.Frame) (any, error) {
 	if nodeID == 0 || entry.Record == nil {
 		return nil, fmt.Errorf("편집 대상 노드를 찾을 수 없습니다: %s", body.UID)
 	}
-	owner := entry.Record.OwnerUserID
+	owner := entry.Record.OwnerUserID // SH9로 process 소유자 = 노드 소유자
 
 	q := store.GetStorePool().Queries()
 	ctx := context.Background()

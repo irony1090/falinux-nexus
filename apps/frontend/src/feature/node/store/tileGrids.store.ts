@@ -25,12 +25,14 @@ const readOvPercent = () => {
 // 트리 + 측정한 Grid 영역 -> Grid 목록 + 가로 스크롤 위치 -> 헤더 내비 — REF-node-ui-impl.md "④ Grid 파생"
 // 측정·스크롤 기록은 TileStrip, 여기는 등록된 strip 요소에 scrollTo만 한다
 export const provideTileGrids = () => {
-    const { tiles, rootId } = useTileTree()
+    const { tiles, rootId, ready } = useTileTree()
 
     const area = ref<Area | null>(null)
 
     const cap = computed(() => capacity(area.value ?? { w: 0, h: 0 }))
-    const order = computed(() => flatten(tiles.value, rootId.value))
+    const flat = computed(() => flatten(tiles.value, rootId.value))
+    // 배치 = 최소화 제외 — 최소화한 터미널은 위치 번호가 없다
+    const order = computed(() => flat.value.filter(o => !o.tile.minimized))
     // 측정 전엔 그리지 않는다 — 기본 cap을 가정해 그리면 측정 직후 배치가 튄다
     const grids = computed(() => area.value
         ? pack(order.value.map(o => o.tile), t => effectiveSize(t.size, cap.value))
@@ -40,10 +42,10 @@ export const provideTileGrids = () => {
     // 타일 순번(1부터)
     const posOf = computed(() => new Map(order.value.map((o, i) => [o.tile.id, i + 1])))
 
-    // 같은 노드를 여러 번 실행했으면 순서대로 몇 번째인지, 한 번뿐이면 없음
+    // 같은 노드를 여러 번 실행했으면 순서대로 몇 번째인지, 한 번뿐이면 없음. 최소화 포함 — 최소화로 번호가 바뀌지 않게
     const instanceOf = computed(() => {
         const byNode = new Map<number, Array<string>>()
-        order.value.forEach(({ tile }) => {
+        flat.value.forEach(({ tile }) => {
             if (tile.type !== 'terminal') return
             byNode.set(tile.nodeId, [...(byNode.get(tile.nodeId) ?? []), tile.id])
         })
@@ -53,6 +55,18 @@ export const provideTileGrids = () => {
         })
         return rst
     })
+
+    // 루트 타일 터미널 탭 목록 — 최소화 먼저, 그다음 배치 순서
+    const terminals = computed(() => {
+        const all = flat.value.flatMap(({ tile }) => tile.type === 'terminal' ? [tile] : [])
+        return [...all.filter(t => t.minimized), ...all.filter(t => !t.minimized)]
+    })
+
+    // 루트 타일 탭. 보드를 불러올 때 최소화가 있으면 터미널 탭 / 이 탭에서 최소화하면 터미널 탭으로(TileFrame) — REF-process-share-realtime-ui.md
+    const rootTab = ref<'files' | 'terminals'>('files')
+    watch(ready, r => {
+        if (r) rootTab.value = terminals.value.some(t => t.minimized) ? 'terminals' : 'files'
+    }, { immediate: true })
 
     // 가로 스크롤 — TileStrip이 기록, TileNav가 읽음
     const stripEl = shallowRef<HTMLElement>()
@@ -142,6 +156,8 @@ export const provideTileGrids = () => {
         newSize,
         posOf,
         instanceOf,
+        terminals,
+        rootTab,
         stripEl,
         scrollX,
         viewW,

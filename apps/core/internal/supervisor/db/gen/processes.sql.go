@@ -23,9 +23,10 @@ INSERT INTO processes (
     env,
     cwd,
     rows,
-    cols
-) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11 )
-RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at
+    cols,
+    started_by
+) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12 )
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by
 `
 
 type CreateProcessParams struct {
@@ -40,6 +41,7 @@ type CreateProcessParams struct {
 	Cwd         string
 	Rows        int16
 	Cols        int16
+	StartedBy   int64
 }
 
 func (q *Queries) CreateProcess(ctx context.Context, arg CreateProcessParams) (Process, error) {
@@ -55,6 +57,7 @@ func (q *Queries) CreateProcess(ctx context.Context, arg CreateProcessParams) (P
 		arg.Cwd,
 		arg.Rows,
 		arg.Cols,
+		arg.StartedBy,
 	)
 	var i Process
 	err := row.Scan(
@@ -76,12 +79,13 @@ func (q *Queries) CreateProcess(ctx context.Context, arg CreateProcessParams) (P
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.UpdatedAt,
+		&i.StartedBy,
 	)
 	return i, err
 }
 
 const getProcess = `-- name: GetProcess :one
-SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at FROM processes WHERE uid = $1
+SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by FROM processes WHERE uid = $1
 `
 
 func (q *Queries) GetProcess(ctx context.Context, uid string) (Process, error) {
@@ -106,12 +110,13 @@ func (q *Queries) GetProcess(ctx context.Context, uid string) (Process, error) {
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.UpdatedAt,
+		&i.StartedBy,
 	)
 	return i, err
 }
 
 const listActiveByDevice = `-- name: ListActiveByDevice :many
-SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at FROM processes
+SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by FROM processes
 WHERE device_key = $1
   AND status IN ('PENDING','PROCESS')
 `
@@ -144,6 +149,7 @@ func (q *Queries) ListActiveByDevice(ctx context.Context, deviceKey string) ([]P
 			&i.StartedAt,
 			&i.FinishedAt,
 			&i.UpdatedAt,
+			&i.StartedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -155,42 +161,31 @@ func (q *Queries) ListActiveByDevice(ctx context.Context, deviceKey string) ([]P
 	return items, nil
 }
 
-const listLiveProcessesByOwner = `-- name: ListLiveProcessesByOwner :many
-SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at FROM processes
-WHERE owner_user_id = $1
+const listOwnLiveProcesses = `-- name: ListOwnLiveProcesses :many
+SELECT uid, node_id
+FROM processes
+WHERE (owner_user_id = $1 OR started_by = $1)
   AND status IN ('PENDING','PROCESS')
+  AND node_id IS NOT NULL
 ORDER BY created_at ASC
 `
 
-func (q *Queries) ListLiveProcessesByOwner(ctx context.Context, ownerUserID int64) ([]Process, error) {
-	rows, err := q.db.Query(ctx, listLiveProcessesByOwner, ownerUserID)
+type ListOwnLiveProcessesRow struct {
+	Uid    string
+	NodeID pgtype.Int8
+}
+
+// 고아 안전망 대상 = 내가 소유하거나 실행한 살아 있는 process(공유받은 것 제외) — WS3(고아 안전망 위치)
+func (q *Queries) ListOwnLiveProcesses(ctx context.Context, ownerUserID int64) ([]ListOwnLiveProcessesRow, error) {
+	rows, err := q.db.Query(ctx, listOwnLiveProcesses, ownerUserID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Process
+	var items []ListOwnLiveProcessesRow
 	for rows.Next() {
-		var i Process
-		if err := rows.Scan(
-			&i.Uid,
-			&i.Type,
-			&i.OwnerUserID,
-			&i.NodeID,
-			&i.DeviceKey,
-			&i.Cmd,
-			&i.Args,
-			&i.Env,
-			&i.Cwd,
-			&i.Rows,
-			&i.Cols,
-			&i.Status,
-			&i.Pid,
-			&i.ExitCode,
-			&i.CreatedAt,
-			&i.StartedAt,
-			&i.FinishedAt,
-			&i.UpdatedAt,
-		); err != nil {
+		var i ListOwnLiveProcessesRow
+		if err := rows.Scan(&i.Uid, &i.NodeID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -202,7 +197,7 @@ func (q *Queries) ListLiveProcessesByOwner(ctx context.Context, ownerUserID int6
 }
 
 const listProcessesByOwner = `-- name: ListProcessesByOwner :many
-SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at FROM processes
+SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by FROM processes
 WHERE owner_user_id = $1
 ORDER BY created_at DESC
 `
@@ -235,58 +230,7 @@ func (q *Queries) ListProcessesByOwner(ctx context.Context, ownerUserID int64) (
 			&i.StartedAt,
 			&i.FinishedAt,
 			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listProcessesByUids = `-- name: ListProcessesByUids :many
-SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at FROM processes
-WHERE owner_user_id = $1
-  AND uid = ANY($2::text[])
-ORDER BY created_at ASC
-`
-
-type ListProcessesByUidsParams struct {
-	OwnerUserID int64
-	Uids        []string
-}
-
-// 요청한 uid만, 상태 무관(끝난 것 포함) — 3-d①(끝난 process 조회). 남의 것·없는 uid는 빠짐
-func (q *Queries) ListProcessesByUids(ctx context.Context, arg ListProcessesByUidsParams) ([]Process, error) {
-	rows, err := q.db.Query(ctx, listProcessesByUids, arg.OwnerUserID, arg.Uids)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Process
-	for rows.Next() {
-		var i Process
-		if err := rows.Scan(
-			&i.Uid,
-			&i.Type,
-			&i.OwnerUserID,
-			&i.NodeID,
-			&i.DeviceKey,
-			&i.Cmd,
-			&i.Args,
-			&i.Env,
-			&i.Cwd,
-			&i.Rows,
-			&i.Cols,
-			&i.Status,
-			&i.Pid,
-			&i.ExitCode,
-			&i.CreatedAt,
-			&i.StartedAt,
-			&i.FinishedAt,
-			&i.UpdatedAt,
+			&i.StartedBy,
 		); err != nil {
 			return nil, err
 		}
@@ -305,7 +249,7 @@ SET status      = $2,
     finished_at = NOW(),
     updated_at  = NOW()
 WHERE uid = $1
-RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by
 `
 
 type MarkProcessDoneParams struct {
@@ -336,6 +280,7 @@ func (q *Queries) MarkProcessDone(ctx context.Context, arg MarkProcessDoneParams
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.UpdatedAt,
+		&i.StartedBy,
 	)
 	return i, err
 }
@@ -345,7 +290,7 @@ UPDATE processes
 SET status     = 'PENDING',
     updated_at = NOW()
 WHERE uid = $1
-RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by
 `
 
 func (q *Queries) MarkProcessPending(ctx context.Context, uid string) (Process, error) {
@@ -370,6 +315,7 @@ func (q *Queries) MarkProcessPending(ctx context.Context, uid string) (Process, 
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.UpdatedAt,
+		&i.StartedBy,
 	)
 	return i, err
 }
@@ -381,7 +327,7 @@ SET status     = 'PROCESS',
     started_at = NOW(),
     updated_at = NOW()
 WHERE uid = $1
-RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by
 `
 
 type MarkProcessRunningParams struct {
@@ -411,6 +357,7 @@ func (q *Queries) MarkProcessRunning(ctx context.Context, arg MarkProcessRunning
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.UpdatedAt,
+		&i.StartedBy,
 	)
 	return i, err
 }
@@ -421,7 +368,7 @@ SET rows       = $2,
     cols       = $3,
     updated_at = NOW()
 WHERE uid = $1
-RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by
 `
 
 type UpdateProcessLayoutParams struct {
@@ -452,6 +399,7 @@ func (q *Queries) UpdateProcessLayout(ctx context.Context, arg UpdateProcessLayo
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.UpdatedAt,
+		&i.StartedBy,
 	)
 	return i, err
 }

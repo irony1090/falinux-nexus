@@ -3,11 +3,14 @@ package router
 import (
 	"context"
 	"log"
+	"sort"
 	"sync"
 	"time"
 
 	"nexus/internal/protocol"
+	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/supervisor/store"
+	"nexus/internal/transport"
 )
 
 // 크기 우선권: PTY rows/cols를 바꿀 수 있는 탭은 process당 하나 — REF-process-sync.md Q(크기 우선권 단위)
@@ -81,23 +84,88 @@ func (r *supervisorRouter) notifySizeOwner(uid, tabID string) {
 	}
 }
 
-// sizeOwnerOnConnect는 탭이 붙은 직후(tabs.attach 뒤) 부른다: 대기 중인 넘김 취소 + 빈 소유권 가져가기.
+// sizeOwnerOnConnect는 탭이 붙은 직후(tabs.attach 뒤) 부른다: 대기 중인 넘김 취소 + 빈 소유권은 보는 탭이 가져감(resync).
+// uids = 그 계정이 조작(20) 이상인 것만(subscribeLiveProcesses) — SB3(크기 우선권 후보)
 func (r *supervisorRouter) sizeOwnerOnConnect(tabID string, uids []string) {
 	o := r.sizeOwners
-	var claimed []string
 	o.mu.Lock()
 	for _, uid := range uids {
-		switch o.owner[uid] {
-		case tabID:
+		if o.owner[uid] == tabID {
 			o.stopTimerLocked(uid)
-		case "":
-			o.owner[uid] = tabID
-			claimed = append(claimed, uid)
 		}
 	}
 	o.mu.Unlock()
-	for _, uid := range claimed {
-		r.notifySizeOwner(uid, tabID)
+	r.resyncSizeOwners(uids)
+}
+
+// onTabView: 탭이 보는 작업 공간이 바뀌면 그 계정이 조작할 수 있는 process의 크기 우선권을 다시 맞춘다 — WS7(보는 작업 공간 전달)
+func (r *supervisorRouter) onTabView(conn *transport.Conn, userID int64) {
+	conn.On(protocol.MsgTabView, func(ev protocol.Frame) {
+		var body protocol.TabViewEvent
+		if err := ev.Bind(&body); err != nil {
+			return
+		}
+		if _, ok := r.tabs.setView(conn, body.Hash); !ok {
+			return
+		}
+		procs, err := r.processManager.ListVisibleLive(userID)
+		if err != nil {
+			log.Printf("[sizeOwner] 살아 있는 process 조회 실패 user=%d: %v", userID, err)
+			return
+		}
+		uids := make([]string, 0, len(procs))
+		for _, p := range procs {
+			if p.Permission >= superdb.PermOperate {
+				uids = append(uids, p.Process.Uid)
+			}
+		}
+		r.resyncSizeOwners(uids)
+	})
+}
+
+func (r *supervisorRouter) resyncSizeOwners(uids []string) {
+	for _, uid := range uids {
+		r.resyncSizeOwner(uid)
+	}
+}
+
+// resyncSizeOwner는 소유자가 그 터미널을 화면에 둔 탭인지 맞춘다 — WS7(보는 작업 공간 전달):
+// 비어 있으면 첫 후보가 가져가고, 연결된 소유자가 후보가 아니면(다른 작업 공간을 봄·터미널이 옮겨짐) 첫 후보로 넘긴다(없으면 비움).
+// 끊긴 소유자(tabGrace 대기)는 sizeOwnerOnDisconnect 규칙에 맡긴다. 끝난 process(소유 기록 없음 + memory에 없음)는 건드리지 않는다
+func (r *supervisorRouter) resyncSizeOwner(uid string) {
+	cands := r.sizeOwnerCandidates(uid)
+	_, running := r.processManager.Get(uid)
+
+	o := r.sizeOwners
+	o.mu.Lock()
+	cur, known := o.owner[uid]
+	if !running && !known {
+		o.mu.Unlock()
+		return
+	}
+	if cur != "" && (o.timers[uid] != nil || r.tabs.connOf(cur) == nil) {
+		o.mu.Unlock()
+		return
+	}
+	next := ""
+	for _, t := range cands {
+		if t.tabID == cur {
+			o.mu.Unlock()
+			return
+		}
+		if next == "" {
+			next = t.tabID
+		}
+	}
+	if next == cur {
+		o.mu.Unlock()
+		return
+	}
+	o.owner[uid] = next
+	o.mu.Unlock()
+
+	if next != "" {
+		r.notifySizeOwner(uid, next)
 	}
 }
 
@@ -134,17 +202,15 @@ func (r *supervisorRouter) sizeOwnerOnSignOut(sid string) {
 	}
 }
 
-// handoffSizeOwner는 leaving의 소유권을 process 소유 계정의 연결된 탭 중 먼저 연결된 탭에 넘긴다. 없으면 비워 둔다.
+// handoffSizeOwner는 leaving의 소유권을 다음 후보 탭(sizeOwnerCandidates)에 넘긴다. 없으면 비워 둔다.
 // 재접속과의 경합: connect는 tabs.attach -> o.mu 순서라, 아래 잠금 안에서 leaving의 소켓이 보이면
 // 재접속이 이긴 것이므로 넘기지 않는다(force = 로그아웃은 소켓이 남아 있어도 넘김).
 func (r *supervisorRouter) handoffSizeOwner(uid, leaving, excludeSid string, force bool) {
 	next := ""
-	if userID, ok := r.processOwner(uid); ok {
-		for _, t := range r.tabs.tabsOfUser(userID) {
-			if t.tabID != leaving && (excludeSid == "" || t.sid != excludeSid) {
-				next = t.tabID
-				break
-			}
+	for _, t := range r.sizeOwnerCandidates(uid) {
+		if t.tabID != leaving && (excludeSid == "" || t.sid != excludeSid) {
+			next = t.tabID
+			break
 		}
 	}
 
@@ -167,15 +233,49 @@ func (r *supervisorRouter) handoffSizeOwner(uid, leaving, excludeSid string, for
 	}
 }
 
-// processOwner는 uid의 소유 계정을 반환한다(PENDING은 memory에 없어 DB로).
-func (r *supervisorRouter) processOwner(uid string) (int64, bool) {
-	if entry, ok := r.processManager.Get(uid); ok && entry.Record != nil {
-		return entry.Record.OwnerUserID, true
-	}
-	rec, err := store.GetStorePool().Queries().GetProcess(context.Background(), uid)
+// sizeOwnerCandidates는 크기 우선권 후보 탭을 넘길 순서대로 반환한다 — SB3(크기 우선권 후보):
+// 조작(20) 이상 계정의 탭만, process 소유 계정 탭 먼저 -> 다른 계정 탭, 각각 연결 순. PENDING은 memory에 없어 DB로 본다.
+// 그중 그 uid의 터미널 타일이 있는 작업 공간을 보는 탭만 — WS7(보는 작업 공간 전달)
+func (r *supervisorRouter) sizeOwnerCandidates(uid string) []browserTab {
+	q := store.GetStorePool().Queries()
+	viewers, err := q.ListProcessViewers(context.Background(), uid)
 	if err != nil {
-		log.Printf("[sizeOwner] 소유 계정 조회 실패 uid=%s: %v", uid, err)
-		return 0, false
+		log.Printf("[sizeOwner] 후보 계정 조회 실패 uid=%s: %v", uid, err)
+		return nil
 	}
-	return rec.OwnerUserID, true
+	trees, err := q.ListTreesWithTerminal(context.Background(), uid)
+	if err != nil {
+		log.Printf("[sizeOwner] 터미널 위치 조회 실패 uid=%s: %v", uid, err)
+		return nil
+	}
+	viewing := func(tabs []browserTab) []browserTab {
+		var out []browserTab
+		for _, t := range tabs {
+			if tabViews(t, trees) {
+				out = append(out, t)
+			}
+		}
+		return out
+	}
+	var owner, others []browserTab
+	for _, v := range viewers {
+		switch {
+		case v.Permission == superdb.PermOwner:
+			owner = viewing(r.tabs.tabsOfUser(v.UserID))
+		case v.Permission >= superdb.PermOperate:
+			others = append(others, viewing(r.tabs.tabsOfUser(v.UserID))...)
+		}
+	}
+	sort.SliceStable(others, func(i, j int) bool { return others[i].connectedAt.Before(others[j].connectedAt) })
+	return append(owner, others...)
+}
+
+// tabViews: 탭이 trees 중 자기 계정의 작업 공간을 보는 중인지(viewing "" = 기본)
+func tabViews(tab browserTab, trees []superdb.ListTreesWithTerminalRow) bool {
+	for _, t := range trees {
+		if t.UserID == tab.userID && (tab.viewing == t.Hash || (tab.viewing == "" && t.IsDefault)) {
+			return true
+		}
+	}
+	return false
 }

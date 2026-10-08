@@ -28,6 +28,9 @@ export type ProcessResponse = {
     finishedAt: Date | null
     updatedAt: Date | null
     sizeOwner?: boolean     // 요청 탭이 PTY 크기 소유자인지. REST 응답에만 있고 소켓 PROCESS:UPDATE엔 없음
+    permission?: number     // 요청 계정의 단계 — REST 응답에만
+    ownerNickname?: string  // 소유자가 내가 아닐 때(공유받은 process)만 — REST 응답에만
+    startedBy?: string      // 실행한 계정 닉네임, 소유자와 다를 때만 — REST 응답에만
 }
 export type ProcessResponseDto = Replace<ProcessResponse, {
     createdAt: number
@@ -67,7 +70,8 @@ export type ExecProcessRequest = {
     nodeId: number
     authKey: string     // worker 인스턴스 키(main#sub). 후보 = listWorkers(nodeId)
     type?: ProcessType   // 비우면 EXEC
-    parentTileId?: string   // 터미널 타일을 붙일 폴더 타일. 없거나 닫혔으면 서버가 루트에 붙임
+    workspace?: string      // 터미널 타일을 넣을 보드 hash, 비우면 기본 보드
+    parentTileId?: string   // 터미널 타일을 붙일 폴더 타일. 없거나 닫혔으면 서버가 그 보드 루트에 붙임
     size?: TileSize         // 없으면 0.5×0.5
 }
 

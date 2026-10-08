@@ -7,40 +7,107 @@ package superdb
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createTileTree = `-- name: CreateTileTree :one
-INSERT INTO tile_trees (user_id, tree)
-VALUES ($1, $2)
-ON CONFLICT (user_id) DO NOTHING
-RETURNING user_id, tree, version, updated_at
+INSERT INTO tile_trees (user_id, hash, tree, is_default)
+VALUES ($1, $2, $3, true)
+ON CONFLICT (user_id) WHERE is_default DO NOTHING
+RETURNING user_id, tree, version, updated_at, id, hash, name, ord, is_default
 `
 
 type CreateTileTreeParams struct {
 	UserID int64
+	Hash   string
 	Tree   []byte
 }
 
 // 이미 있으면(다른 탭이 먼저 만듦) 행 없음(pgx.ErrNoRows) → 호출자가 GetTileTree로 다시 읽는다
 func (q *Queries) CreateTileTree(ctx context.Context, arg CreateTileTreeParams) (TileTree, error) {
-	row := q.db.QueryRow(ctx, createTileTree, arg.UserID, arg.Tree)
+	row := q.db.QueryRow(ctx, createTileTree, arg.UserID, arg.Hash, arg.Tree)
 	var i TileTree
 	err := row.Scan(
 		&i.UserID,
 		&i.Tree,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.ID,
+		&i.Hash,
+		&i.Name,
+		&i.Ord,
+		&i.IsDefault,
 	)
 	return i, err
 }
 
-const getTileTree = `-- name: GetTileTree :one
-
-SELECT user_id, tree, version, updated_at FROM tile_trees
-WHERE user_id = $1
+const createWorkspaceTree = `-- name: CreateWorkspaceTree :one
+INSERT INTO tile_trees (user_id, hash, name, tree, ord)
+VALUES (
+    $1, $2, $3, $4,
+    (SELECT COALESCE(MAX(ord), 0) + 1 FROM tile_trees WHERE user_id = $1)
+)
+RETURNING user_id, tree, version, updated_at, id, hash, name, ord, is_default
 `
 
-// tile_trees 쿼리. 설계 → REF-node-ui-save.md "작업 단위 3-a~3-e".
+type CreateWorkspaceTreeParams struct {
+	UserID int64
+	Hash   string
+	Name   string
+	Tree   []byte
+}
+
+// 기본이 아닌 작업 공간 만들기(분리) — 목록 끝(ord 최대 + 1)
+func (q *Queries) CreateWorkspaceTree(ctx context.Context, arg CreateWorkspaceTreeParams) (TileTree, error) {
+	row := q.db.QueryRow(ctx, createWorkspaceTree,
+		arg.UserID,
+		arg.Hash,
+		arg.Name,
+		arg.Tree,
+	)
+	var i TileTree
+	err := row.Scan(
+		&i.UserID,
+		&i.Tree,
+		&i.Version,
+		&i.UpdatedAt,
+		&i.ID,
+		&i.Hash,
+		&i.Name,
+		&i.Ord,
+		&i.IsDefault,
+	)
+	return i, err
+}
+
+const deleteTileTree = `-- name: DeleteTileTree :execrows
+DELETE FROM tile_trees
+WHERE user_id = $1 AND hash = $2 AND NOT is_default
+`
+
+type DeleteTileTreeParams struct {
+	UserID int64
+	Hash   string
+}
+
+// 기본은 삭제 불가(W2(삭제 처리)) — 0행 = 없음 또는 기본
+func (q *Queries) DeleteTileTree(ctx context.Context, arg DeleteTileTreeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteTileTree, arg.UserID, arg.Hash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const getTileTree = `-- name: GetTileTree :one
+
+SELECT user_id, tree, version, updated_at, id, hash, name, ord, is_default FROM tile_trees
+WHERE user_id = $1 AND is_default
+`
+
+// tile_trees 쿼리. 설계 → REF-node-ui-save.md "작업 단위 3-a~3-e", 작업 공간 여러 개 → REF-workspace-impl.md
+// 이름에 ByHash가 없는 쿼리 = 기본 작업 공간(is_default) 대상
 func (q *Queries) GetTileTree(ctx context.Context, userID int64) (TileTree, error) {
 	row := q.db.QueryRow(ctx, getTileTree, userID)
 	var i TileTree
@@ -49,13 +116,74 @@ func (q *Queries) GetTileTree(ctx context.Context, userID int64) (TileTree, erro
 		&i.Tree,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.ID,
+		&i.Hash,
+		&i.Name,
+		&i.Ord,
+		&i.IsDefault,
+	)
+	return i, err
+}
+
+const getTileTreeByHash = `-- name: GetTileTreeByHash :one
+SELECT user_id, tree, version, updated_at, id, hash, name, ord, is_default FROM tile_trees
+WHERE user_id = $1 AND hash = $2
+`
+
+type GetTileTreeByHashParams struct {
+	UserID int64
+	Hash   string
+}
+
+// 다른 계정의 hash면 행 없음(404)
+func (q *Queries) GetTileTreeByHash(ctx context.Context, arg GetTileTreeByHashParams) (TileTree, error) {
+	row := q.db.QueryRow(ctx, getTileTreeByHash, arg.UserID, arg.Hash)
+	var i TileTree
+	err := row.Scan(
+		&i.UserID,
+		&i.Tree,
+		&i.Version,
+		&i.UpdatedAt,
+		&i.ID,
+		&i.Hash,
+		&i.Name,
+		&i.Ord,
+		&i.IsDefault,
+	)
+	return i, err
+}
+
+const getTileTreeByHashForUpdate = `-- name: GetTileTreeByHashForUpdate :one
+SELECT user_id, tree, version, updated_at, id, hash, name, ord, is_default FROM tile_trees
+WHERE user_id = $1 AND hash = $2
+FOR UPDATE
+`
+
+type GetTileTreeByHashForUpdateParams struct {
+	UserID int64
+	Hash   string
+}
+
+func (q *Queries) GetTileTreeByHashForUpdate(ctx context.Context, arg GetTileTreeByHashForUpdateParams) (TileTree, error) {
+	row := q.db.QueryRow(ctx, getTileTreeByHashForUpdate, arg.UserID, arg.Hash)
+	var i TileTree
+	err := row.Scan(
+		&i.UserID,
+		&i.Tree,
+		&i.Version,
+		&i.UpdatedAt,
+		&i.ID,
+		&i.Hash,
+		&i.Name,
+		&i.Ord,
+		&i.IsDefault,
 	)
 	return i, err
 }
 
 const getTileTreeForUpdate = `-- name: GetTileTreeForUpdate :one
-SELECT user_id, tree, version, updated_at FROM tile_trees
-WHERE user_id = $1
+SELECT user_id, tree, version, updated_at, id, hash, name, ord, is_default FROM tile_trees
+WHERE user_id = $1 AND is_default
 FOR UPDATE
 `
 
@@ -68,6 +196,194 @@ func (q *Queries) GetTileTreeForUpdate(ctx context.Context, userID int64) (TileT
 		&i.Tree,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.ID,
+		&i.Hash,
+		&i.Name,
+		&i.Ord,
+		&i.IsDefault,
+	)
+	return i, err
+}
+
+const listTileTreeDocs = `-- name: ListTileTreeDocs :many
+SELECT hash, is_default, tree
+FROM tile_trees
+WHERE user_id = $1
+`
+
+type ListTileTreeDocsRow struct {
+	Hash      string
+	IsDefault bool
+	Tree      []byte
+}
+
+// 잠그지 않는 전체 읽기 — 고아 안전망(WS3(고아 안전망 위치))의 먼저 보기, 고아가 있을 때만 ListTileTreesForUpdate로 잠근다
+func (q *Queries) ListTileTreeDocs(ctx context.Context, userID int64) ([]ListTileTreeDocsRow, error) {
+	rows, err := q.db.Query(ctx, listTileTreeDocs, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTileTreeDocsRow
+	for rows.Next() {
+		var i ListTileTreeDocsRow
+		if err := rows.Scan(&i.Hash, &i.IsDefault, &i.Tree); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTileTrees = `-- name: ListTileTrees :many
+SELECT id, hash, name, ord, is_default, version, updated_at
+FROM tile_trees
+WHERE user_id = $1
+ORDER BY ord, id
+`
+
+type ListTileTreesRow struct {
+	ID        int64
+	Hash      string
+	Name      string
+	Ord       int32
+	IsDefault bool
+	Version   int64
+	UpdatedAt pgtype.Timestamptz
+}
+
+// 작업 공간 목록용이라 tree는 뺀다
+func (q *Queries) ListTileTrees(ctx context.Context, userID int64) ([]ListTileTreesRow, error) {
+	rows, err := q.db.Query(ctx, listTileTrees, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTileTreesRow
+	for rows.Next() {
+		var i ListTileTreesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Hash,
+			&i.Name,
+			&i.Ord,
+			&i.IsDefault,
+			&i.Version,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTileTreesForUpdate = `-- name: ListTileTreesForUpdate :many
+SELECT user_id, tree, version, updated_at, id, hash, name, ord, is_default FROM tile_trees
+WHERE user_id = $1
+ORDER BY id
+FOR UPDATE
+`
+
+// 계정의 트리 전부 잠금 — WS2(변경 방식)의 두 트리 이동·WS3(고아 안전망 위치)의 전체 검사.
+// 여러 행을 잠그는 곳은 반드시 이 쿼리만 쓴다: 잠금 순서를 id 순으로 고정해야 두 트랜잭션이
+// 서로 상대가 잡은 행을 기다리는 데드락이 생기지 않는다(한 행만 잠그는 쿼리는 해당 없음)
+func (q *Queries) ListTileTreesForUpdate(ctx context.Context, userID int64) ([]TileTree, error) {
+	rows, err := q.db.Query(ctx, listTileTreesForUpdate, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TileTree
+	for rows.Next() {
+		var i TileTree
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Tree,
+			&i.Version,
+			&i.UpdatedAt,
+			&i.ID,
+			&i.Hash,
+			&i.Name,
+			&i.Ord,
+			&i.IsDefault,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTreesWithTerminal = `-- name: ListTreesWithTerminal :many
+SELECT user_id, hash, is_default
+FROM tile_trees
+WHERE jsonb_path_exists(tree, '$.tiles.* ? (@.type == "terminal" && @.uid == $uid)', jsonb_build_object('uid', $1::text))
+`
+
+type ListTreesWithTerminalRow struct {
+	UserID    int64
+	Hash      string
+	IsDefault bool
+}
+
+// 그 uid의 터미널 타일이 있는 작업 공간(계정 무관) — 크기 우선권 후보 좁힘(WS7)
+func (q *Queries) ListTreesWithTerminal(ctx context.Context, uid string) ([]ListTreesWithTerminalRow, error) {
+	rows, err := q.db.Query(ctx, listTreesWithTerminal, uid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTreesWithTerminalRow
+	for rows.Next() {
+		var i ListTreesWithTerminalRow
+		if err := rows.Scan(&i.UserID, &i.Hash, &i.IsDefault); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const renameTileTree = `-- name: RenameTileTree :one
+UPDATE tile_trees
+SET name = $1, updated_at = NOW()
+WHERE user_id = $2 AND hash = $3
+RETURNING user_id, tree, version, updated_at, id, hash, name, ord, is_default
+`
+
+type RenameTileTreeParams struct {
+	Name   string
+	UserID int64
+	Hash   string
+}
+
+// 이름은 트리 내용이 아니라 version을 올리지 않는다
+func (q *Queries) RenameTileTree(ctx context.Context, arg RenameTileTreeParams) (TileTree, error) {
+	row := q.db.QueryRow(ctx, renameTileTree, arg.Name, arg.UserID, arg.Hash)
+	var i TileTree
+	err := row.Scan(
+		&i.UserID,
+		&i.Tree,
+		&i.Version,
+		&i.UpdatedAt,
+		&i.ID,
+		&i.Hash,
+		&i.Name,
+		&i.Ord,
+		&i.IsDefault,
 	)
 	return i, err
 }
@@ -75,8 +391,8 @@ func (q *Queries) GetTileTreeForUpdate(ctx context.Context, userID int64) (TileT
 const updateTileTree = `-- name: UpdateTileTree :one
 UPDATE tile_trees
 SET tree = $1, version = version + 1, updated_at = NOW()
-WHERE user_id = $2 AND version = $3
-RETURNING user_id, tree, version, updated_at
+WHERE user_id = $2 AND is_default AND version = $3
+RETURNING user_id, tree, version, updated_at, id, hash, name, ord, is_default
 `
 
 type UpdateTileTreeParams struct {
@@ -94,6 +410,48 @@ func (q *Queries) UpdateTileTree(ctx context.Context, arg UpdateTileTreeParams) 
 		&i.Tree,
 		&i.Version,
 		&i.UpdatedAt,
+		&i.ID,
+		&i.Hash,
+		&i.Name,
+		&i.Ord,
+		&i.IsDefault,
+	)
+	return i, err
+}
+
+const updateTileTreeByHash = `-- name: UpdateTileTreeByHash :one
+UPDATE tile_trees
+SET tree = $1, version = version + 1, updated_at = NOW()
+WHERE user_id = $2 AND hash = $3 AND version = $4
+RETURNING user_id, tree, version, updated_at, id, hash, name, ord, is_default
+`
+
+type UpdateTileTreeByHashParams struct {
+	Tree    []byte
+	UserID  int64
+	Hash    string
+	Version int64
+}
+
+// UpdateTileTree와 같은 version 규칙 — PUT /tiles/:hash, 서버 동작 API(WS2(변경 방식))
+func (q *Queries) UpdateTileTreeByHash(ctx context.Context, arg UpdateTileTreeByHashParams) (TileTree, error) {
+	row := q.db.QueryRow(ctx, updateTileTreeByHash,
+		arg.Tree,
+		arg.UserID,
+		arg.Hash,
+		arg.Version,
+	)
+	var i TileTree
+	err := row.Scan(
+		&i.UserID,
+		&i.Tree,
+		&i.Version,
+		&i.UpdatedAt,
+		&i.ID,
+		&i.Hash,
+		&i.Name,
+		&i.Ord,
+		&i.IsDefault,
 	)
 	return i, err
 }

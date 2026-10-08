@@ -73,3 +73,32 @@ func (q *Queries) GetUserByIdentification(ctx context.Context, identification st
 	)
 	return i, err
 }
+
+const listUserNicknames = `-- name: ListUserNicknames :many
+SELECT id, nickname FROM users WHERE id = ANY($1::bigint[])
+`
+
+type ListUserNicknamesRow struct {
+	ID       int64
+	Nickname string
+}
+
+func (q *Queries) ListUserNicknames(ctx context.Context, ids []int64) ([]ListUserNicknamesRow, error) {
+	rows, err := q.db.Query(ctx, listUserNicknames, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUserNicknamesRow
+	for rows.Next() {
+		var i ListUserNicknamesRow
+		if err := rows.Scan(&i.ID, &i.Nickname); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

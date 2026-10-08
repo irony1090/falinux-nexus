@@ -50,10 +50,10 @@ func (p *ProcessManager) Exec(
 	worker *transport.Conn,
 	workerKey string,
 	node superdb.Node,
-	owner superdb.User,
+	ownerID, startedBy int64,
 ) (*ProcessEntry, error) {
 	if node.Kind == superdb.NodeKindFolder {
-		return p.openFolder(workerKey, node, owner)
+		return p.openFolder(workerKey, node, ownerID, startedBy)
 	}
 
 	if worker == nil {
@@ -62,7 +62,7 @@ func (p *ProcessManager) Exec(
 
 	// Cmd/Args는 파라미터가 아니라 execScript가 node로부터 WorkerNodePath로 내부작성한다
 	// (router 선배치 DestPath와 단일 출처 공유). content는 router가 파일로 먼저 깔아 둔다.
-	return p.execScript(worker, workerKey, protocol.ExecTypeExec, node, owner)
+	return p.execScript(worker, workerKey, protocol.ExecTypeExec, node, ownerID, startedBy)
 }
 
 // ExecEdit은 SCRIPT 노드를 편집 세션(EDIT)으로 등록한다. EXEC과 동일하게 memory+pool+Inter를
@@ -73,7 +73,7 @@ func (p *ProcessManager) ExecEdit(
 	worker *transport.Conn,
 	workerKey string,
 	node superdb.Node,
-	owner superdb.User,
+	ownerID, startedBy int64,
 ) (*ProcessEntry, error) {
 	if worker == nil {
 		return nil, fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", workerKey)
@@ -83,11 +83,11 @@ func (p *ProcessManager) ExecEdit(
 	}
 	// EDIT도 Cmd/Args를 execScript가 내부작성한다: Cmd={WORKER_EDITOR}, Args=[WorkerNodePath].
 	// 종료 시 router가 MsgEditResult를 받아 nodes.content를 UPDATE한다(이 함수는 개시만).
-	return p.execScript(worker, workerKey, protocol.ExecTypeEdit, node, owner)
+	return p.execScript(worker, workerKey, protocol.ExecTypeEdit, node, ownerID, startedBy)
 }
 
 // openFolder는 folder-open을 memory 전용 레코드로 등록한다(worker 무접촉).
-func (p *ProcessManager) openFolder(workerKey string, node superdb.Node, owner superdb.User) (*ProcessEntry, error) {
+func (p *ProcessManager) openFolder(workerKey string, node superdb.Node, ownerID, startedBy int64) (*ProcessEntry, error) {
 	uid, err := p.createKey()
 	if err != nil {
 		return nil, err
@@ -97,7 +97,8 @@ func (p *ProcessManager) openFolder(workerKey string, node superdb.Node, owner s
 		Uid:         uid,
 		Type:        string(protocol.ExecTypeExec),
 		DeviceKey:   workerKey,
-		OwnerUserID: owner.ID,
+		OwnerUserID: ownerID,
+		StartedBy:   startedBy,
 	}
 	prc.NodeID.Valid, prc.NodeID.Int64 = true, node.ID
 	prc.Pid.Valid, prc.Pid.Int32 = false, -1
@@ -112,12 +113,13 @@ func (p *ProcessManager) openFolder(workerKey string, node superdb.Node, owner s
 
 // execScript는 SCRIPT의 EXEC/EDIT 공통 경로다. UID 발급 → AgentInteractive 생성 →
 // memory 등록 → pool 영속(재시작 복구·프론트 목록). pool 실패 시 memory 롤백.
+// ownerID = 노드 소유자, startedBy = 실행한 계정 — SH9(받은 쪽이 실행한 process의 소유)
 func (p *ProcessManager) execScript(
 	worker *transport.Conn,
 	workerKey string,
 	kind protocol.ExecType,
 	node superdb.Node,
-	owner superdb.User,
+	ownerID, startedBy int64,
 ) (*ProcessEntry, error) {
 	if worker == nil {
 		return nil, fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", workerKey)
@@ -156,7 +158,7 @@ func (p *ProcessManager) execScript(
 	params := superdb.CreateProcessParams{
 		Uid:         uid,
 		Type:        string(kind),
-		OwnerUserID: owner.ID,
+		OwnerUserID: ownerID,
 		DeviceKey:   workerKey,
 		Cmd:         cmd,
 		Args:        args,
@@ -164,6 +166,7 @@ func (p *ProcessManager) execScript(
 		Cwd:         "",
 		Rows:        0,
 		Cols:        0,
+		StartedBy:   startedBy,
 	}
 	params.NodeID.Valid, params.NodeID.Int64 = true, node.ID
 
@@ -221,11 +224,11 @@ func newWorkerInteractive(worker *transport.Conn, uid string) *execute.AgentInte
 	)
 }
 
-// ListLive는 계정의 살아 있는(PENDING/PROCESS) process를 실행 순서대로 반환한다(DB — PENDING은 memory에 없어서).
-func (p *ProcessManager) ListLive(userID int64) ([]superdb.Process, error) {
+// ListVisibleLive는 계정이 볼 수 있는(소유 + 공유받은) 살아 있는(PENDING/PROCESS) process를 단계와 함께 실행 순서대로 반환한다(DB — PENDING은 memory에 없어서).
+func (p *ProcessManager) ListVisibleLive(userID int64) ([]superdb.ListVisibleLiveProcessesRow, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	return p.pool.Queries().ListLiveProcessesByOwner(ctx, userID)
+	return p.pool.Queries().ListVisibleLiveProcesses(ctx, userID)
 }
 
 // Detach는 worker 끊김(PENDING) 전용 정리다: 종료 STATUS 없이 relay만 끝내고 memory에서 뺀다.

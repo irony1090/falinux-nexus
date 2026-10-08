@@ -64,20 +64,18 @@ type snapshotResponse struct {
 }
 
 // snapshotProcess는 실행 중(PENDING 포함) process의 화면 복원 버퍼를 반환한다. 버퍼가 없으면(끝남·supervisor 재시작) 404.
-// 소유자 확인은 DB로 한다 — PENDING은 memory entry가 없다.
+// 크기는 DB로 읽는다 — PENDING은 memory entry가 없다.
 func (r *supervisorRouter) snapshotProcess(c echo.Context) error {
 	sess := r.requireSession(c)
 	uid := c.Param("processId")
 
-	rows, err := TxQueries(c).ListProcessesByUids(c.Request().Context(), superdb.ListProcessesByUidsParams{
-		OwnerUserID: sess.Data.ID,
-		Uids:        []string{uid},
-	})
+	checkPerm(r.processPerm(uid, sess.Data.ID), superdb.PermView, "화면 복원 버퍼가 없습니다")
+	rec, err := TxQueries(c).GetProcess(c.Request().Context(), uid)
 	if err != nil {
-		panic(web.Err(500, "%v", err))
+		panic(web.Err(404, "화면 복원 버퍼가 없습니다"))
 	}
 	sc, ok := r.screens.get(uid)
-	if len(rows) == 0 || !ok {
+	if !ok {
 		panic(web.Err(404, "화면 복원 버퍼가 없습니다"))
 	}
 	data, off, alt := sc.Snapshot()
@@ -87,7 +85,7 @@ func (r *supervisorRouter) snapshotProcess(c echo.Context) error {
 	if redraw {
 		go r.redraw(entry, sc) // 스냅샷 뒤라 다시 그리기 출력은 off 뒤로 온다
 	}
-	return c.JSON(200, snapshotResponse{Data: data, Off: off, Alt: alt, Redraw: redraw, Cols: rows[0].Cols, Rows: rows[0].Rows})
+	return c.JSON(200, snapshotResponse{Data: data, Off: off, Alt: alt, Redraw: redraw, Cols: rec.Cols, Rows: rec.Rows})
 }
 
 const redrawWait = 500 * time.Millisecond

@@ -97,6 +97,36 @@ type nodeResponse struct {
 	Content   *string `json:"content"`
 	CreatedAt int64   `json:"createdAt"`
 	UpdatedAt *int64  `json:"updatedAt"`
+
+	Permission *int16 `json:"permission,omitempty"` // 요청 계정의 단계(superdb.Perm*). 계정 기준이라 REST 응답에만(토픽 발행 땐 nil)
+
+	OwnerNickname *string `json:"ownerNickname,omitempty"` // 공유받은 루트 목록 항목만 — SD8(받는 쪽 루트 목록)
+	ParentVisible *bool   `json:"parentVisible,omitempty"` // GET /nodes/:id만: 요청 계정이 parent를 볼 수 있나 — SD9(경로 줄 멈춤)
+	ShareCount    int64   `json:"shareCount,omitempty"`    // 목록 응답만: 내 폴더에 직접 건 공유 수(차단 제외, 0이면 생략) — O3
+}
+
+// fillShareCounts는 목록 응답 중 내가 소유한 폴더에 shareCount를 채운다(쿼리 1회).
+func fillShareCounts(c echo.Context, out []nodeResponse) {
+	var ids []int64
+	for _, r := range out {
+		if r.Kind == "FOLDER" && r.Permission != nil && *r.Permission == superdb.PermOwner {
+			ids = append(ids, r.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return
+	}
+	rows, err := TxQueries(c).CountDirectShares(c.Request().Context(), ids)
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	counts := make(map[int64]int64, len(rows))
+	for _, row := range rows {
+		counts[row.NodeID] = row.Cnt
+	}
+	for i := range out {
+		out[i].ShareCount = counts[out[i].ID]
+	}
 }
 
 func newNodeResponse(n superdb.Node) nodeResponse {
@@ -129,10 +159,35 @@ func newNodeResponse(n superdb.Node) nodeResponse {
 	return r
 }
 
-func newNodeResponses(ns []superdb.Node) []nodeResponse {
+func withNodePermission(r nodeResponse, perm int16) nodeResponse {
+	r.Permission = &perm
+	return r
+}
+
+// newOwnedNodeResponses는 소유한 노드 목록(루트)을 소유자 단계로 변환한다.
+func newOwnedNodeResponses(ns []superdb.Node) []nodeResponse {
 	out := make([]nodeResponse, len(ns))
 	for i, n := range ns {
-		out[i] = newNodeResponse(n)
+		out[i] = withNodePermission(newNodeResponse(n), superdb.PermOwner)
+	}
+	return out
+}
+
+// newSharedRootResponses는 공유받은 루트 폴더 목록을 단계·소유자 닉네임과 함께 변환한다.
+func newSharedRootResponses(rows []superdb.ListSharedRootsRow) []nodeResponse {
+	out := make([]nodeResponse, len(rows))
+	for i, row := range rows {
+		out[i] = withNodePermission(newNodeResponse(row.Node), row.Permission)
+		nick := row.OwnerNickname
+		out[i].OwnerNickname = &nick
+	}
+	return out
+}
+
+func newVisibleNodeResponses(rows []superdb.ListChildrenVisibleRow) []nodeResponse {
+	out := make([]nodeResponse, len(rows))
+	for i, row := range rows {
+		out[i] = withNodePermission(newNodeResponse(row.Node), row.Permission)
 	}
 	return out
 }

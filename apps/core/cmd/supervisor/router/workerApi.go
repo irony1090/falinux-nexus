@@ -37,7 +37,7 @@ func splitInstanceKey(key string) (string, string) {
 }
 
 // resolveMainKey: 스크립트 node의 실행 대상 main_key(가장 가까운 폴더의 device_key 상속).
-// 없거나(귀속 폴더 없음) 타인 소유 node면 404
+// ownerID = 노드 소유자(판정 뒤 호출). 귀속 폴더가 없으면 404
 func resolveMainKey(ctx context.Context, q *superdb.Queries, nodeID, ownerID int64) string {
 	key, err := q.ResolveDeviceKey(ctx, superdb.ResolveDeviceKeyParams{ID: nodeID, OwnerUserID: ownerID})
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !key.Valid) {
@@ -49,7 +49,7 @@ func resolveMainKey(ctx context.Context, q *superdb.Queries, nodeID, ownerID int
 	return key.String
 }
 
-// listWorkers: 접속 중인 인스턴스 목록. ?nodeId= 면 그 스크립트의 실행 대상 main_key 인스턴스만
+// listWorkers: 접속 중인 인스턴스 목록. ?nodeId= 면 그 스크립트의 실행 대상 main_key 인스턴스만(조작(20) 이상)
 func (r *supervisorRouter) listWorkers(c echo.Context) error {
 	sess := r.requireSession(c)
 
@@ -59,7 +59,8 @@ func (r *supervisorRouter) listWorkers(c echo.Context) error {
 		if err != nil {
 			panic(web.Err(400, "잘못된 nodeId입니다"))
 		}
-		mainKey = resolveMainKey(c.Request().Context(), TxQueries(c), nodeID, sess.Data.ID)
+		node, _ := requireNode(c, sess.Data.ID, nodeID, superdb.PermOperate)
+		mainKey = resolveMainKey(c.Request().Context(), TxQueries(c), nodeID, node.OwnerUserID)
 	}
 
 	found := r.workers.FindAll(func(key string, _ *transport.Conn) bool {

@@ -286,12 +286,40 @@ type TabIDEvent struct {
 	TabID string `json:"tabId"`
 }
 
+// 탭이 지금 보는 작업 공간 — 라우트가 바뀔 때마다·연결 직후 1번. Hash "" = 기본(`/`) — WS7(보는 작업 공간 전달)
+const MsgTabView MsgType = "TAB:VIEW" // browser→sup EVENT: TabViewEvent
+
+type TabViewEvent struct {
+	Hash string `json:"hash"`
+}
+
 // 계정의 타일 트리 저장 통지 — TILES:<userId> 토픽, 4 O(계정 동기화) 화면 (REF-node-ui-sync.md)
 const MsgTilesUpdate MsgType = "TILES:UPDATE" // sup→browser EVENT: TilesUpdateEvent
 
 // TilesUpdateEvent: 저장된 트리 전체 + version(4①(push 내용)). TabID = 저장한 탭, 받는 쪽이 자기 것을 거른다(4②(내 변경 되받기)) — 모르면 ""
+// Hash = 저장된 작업 공간, 받는 탭은 보는 작업 공간이 아니면 무시(WS6(TILES 이벤트 구분))
 type TilesUpdateEvent struct {
+	Hash    string          `json:"hash"`
 	Tree    json.RawMessage `json:"tree"`
 	Version int64           `json:"version"`
 	TabID   string          `json:"tabId"`
+}
+
+// 공유 변경(걸기·풀기·단계 변경·노드 이동·삭제) — TILES:<userId> 토픽(SD4), 받은 쪽이 다시 조회한다(SD6). REF-process-share-reconcile.md
+const MsgShareChange MsgType = "SHARE:CHANGE" // sup→browser EVENT: ShareChangeEvent
+
+type ShareChangeEvent struct{}
+
+// 작업 공간 목록 변경(만들기·이름·삭제) — TILES:<userId> 토픽, 목록 전체를 보낸다 (REF-workspace-impl.md)
+const MsgWorkspacesUpdate MsgType = "WORKSPACES:UPDATE" // sup→browser EVENT: WorkspacesUpdateEvent
+
+type WorkspaceItem struct {
+	Hash      string `json:"hash"`
+	Name      string `json:"name"`
+	IsDefault bool   `json:"isDefault"`
+	Ord       int32  `json:"ord"`
+}
+
+type WorkspacesUpdateEvent struct {
+	Workspaces []WorkspaceItem `json:"workspaces"`
 }

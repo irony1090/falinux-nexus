@@ -22,7 +22,7 @@ const STATUS_BY_CODE: ProcessStatus[] = ['PENDING', 'PROCESS', 'COMPLETED', 'FAI
 
 export type TermHandle = { term: Terminal; fit: FitAddon }
 
-export type ExecPlace = { parentTileId: string; size: TileSize }
+export type ExecPlace = { workspace: string; parentTileId: string; size: TileSize }
 
 const base64ToBytes = (b64: string) => {
     const binary = atob(b64)
@@ -41,6 +41,14 @@ const utf8 = new TextEncoder()
 
 export const isRunning = (status?: ProcessStatus) => status === 'PROCESS' || status === 'PENDING'
 
+// 상태 칩. PENDING = worker 연결이 끊겨 기다리는 중(프로세스는 살아 있음)
+export const STATUS_PILL: Record<ProcessStatus, { text: string; color?: string }> = {
+    PENDING: { text: 'WAIT', color: 'warning' },
+    PROCESS: { text: 'RUN', color: 'success' },
+    COMPLETED: { text: 'DONE' },
+    FAILED: { text: 'FAIL', color: 'error' },
+}
+
 // 타일 화면의 process: uid -> 상태·크기 소유 여부·xterm. 타일 트리와 수명이 같다(pages/index.vue에서 provide).
 // 재발 방지: xterm은 컴포넌트가 아니라 여기서 가진다 — 타일이 다른 Grid로 가면 재마운트되므로
 // 컴포넌트가 가지면 화면이 사라진다. 타일은 attach/detach로 DOM만 붙였다 뗀다 (REF-node-ui-terminal.md J)
@@ -50,6 +58,7 @@ export const provideProcessTerm = () => {
 
     const procs_ = ref<Record<string, ProcessResponse>>({})
     const owners_ = ref<Record<string, boolean>>({})
+    const gone_ = ref<Record<string, true>>({})     // 볼 수 없게 된 터미널(공유 취소·삭제) — 실시간-6b. 타일은 남고 비활성화
     const restored_ = ref(false)        // 복원 전엔 모르는 uid의 터미널 타일을 닫지 못하게 — 3-d②(복원 전 닫기)
     const handles = new Map<string, TermHandle>()   // 반응형에 넣지 않는다(xterm 객체를 proxy로 감싸면 안 됨)
 
@@ -192,8 +201,10 @@ export const provideProcessTerm = () => {
     }))
 
     offs.push(on<ProcessResponseDto>('PROCESS:UPDATE', dto => {
-        if (!procs_.value[dto.uid]) return
-        procs_.value[dto.uid] = toProcessResponse(dto)
+        const old = procs_.value[dto.uid]
+        if (!old) return
+        const { permission, ownerNickname, startedBy } = old // 계정 기준 값은 REST 응답에만 있어 이벤트로 덮지 않는다
+        procs_.value[dto.uid] = { ...toProcessResponse(dto), permission, ownerNickname, startedBy }
     }))
 
     // 등록 전(복원 중)에 와도 기록한다 — register가 이 값을 유지
@@ -272,6 +283,7 @@ export const provideProcessTerm = () => {
         expired.clear()
         procs_.value = {}
         owners_.value = {}
+        gone_.value = {}
         restored_.value = false
     }
 
@@ -313,6 +325,21 @@ export const provideProcessTerm = () => {
         delete owners_.value[uid]
     }
 
+    // 볼 수 없게 됨: xterm을 비운다(서버는 이미 구독 해제 — 다시 보이면 restore가 스냅샷으로 새로 등록)
+    const markGone = (uid: string) => {
+        gone_.value[uid] = true
+        dispose(uid)
+    }
+    const clearGone = (uid: string) => { delete gone_.value[uid] }
+    // 공유 단계가 바뀌었을 때 계정 기준 값만 갱신 — 공유-e-1. 터미널 내용은 건드리지 않는다
+    const refreshAccount = (p: ProcessResponse) => {
+        const old = procs_.value[p.uid]
+        if (old) procs_.value[p.uid] = { ...old, permission: p.permission, ownerNickname: p.ownerNickname, startedBy: p.startedBy }
+    }
+    const pruneGone = (keep: ReadonlySet<string>) => {
+        Object.keys(gone_.value).forEach(u => { if (!keep.has(u)) delete gone_.value[u] })
+    }
+
     // 트리에서 빠진 끝난 터미널의 xterm 정리 — 4④(다른 탭이 닫은 터미널). 실행 중은 남김(이 탭 exec 직후 타일 반영 전일 수 있음)
     const prune = (keep: ReadonlySet<string>) => {
         Object.values(procs_.value).forEach(p => {
@@ -331,6 +358,11 @@ export const provideProcessTerm = () => {
         procs: readonly(procs_),
         owners: readonly(owners_),
         restored: readonly(restored_),
+        gone: readonly(gone_),
+        markGone,
+        clearGone,
+        refreshAccount,
+        pruneGone,
         exec,
         restore,
         reset,
