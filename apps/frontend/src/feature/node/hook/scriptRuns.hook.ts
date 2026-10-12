@@ -3,14 +3,14 @@ import { useQueryClient } from '@tanstack/vue-query'
 import { computed, onUnmounted, type Ref } from 'vue'
 import { invalidateNodeRuns, useNodeRuns, type RunResponse } from '../api/node.api'
 
-// 폴더의 스크립트 행 "실행 중 N" — 실시간-6a. 실행·종료·타일 변화·공유 변화가 오면 목록을 다시 받는다
+// 폴더의 스크립트 행 "실행 중 N" — 실시간-6a. 실행·종료·종료 요청·타일 변화·공유 변화가 오면 목록을 다시 받는다
 export const useScriptRuns = (folderId: Ref<number | null>) => {
     const queryClient = useQueryClient()
     const { on } = useTestSocket()
     const query = useNodeRuns(folderId)
 
     const invalidate = () => { void invalidateNodeRuns(queryClient) }
-    const offs = ['TILES:UPDATE', 'STATUS', 'SHARE:CHANGE'].map(type => on(type, invalidate))
+    const offs = ['TILES:UPDATE', 'STATUS', 'PROCESS:UPDATE', 'SHARE:CHANGE'].map(type => on(type, invalidate))
     onUnmounted(() => offs.forEach(off => off()))
 
     const byNode = computed(() => {

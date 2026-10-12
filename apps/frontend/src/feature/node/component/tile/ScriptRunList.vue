@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { STATUS_PILL } from '@/feature/process/store/processTerm.store';
+import { pillOf } from '@/feature/process/store/processTerm.store';
 import type { ProcessStatus } from '@/feature/process/api/process.api';
 import { useQueryClient } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
@@ -63,9 +63,9 @@ const onOpen = (row: (typeof rows.value)[number]) => {
 }
 const onKill = (row: (typeof rows.value)[number]) => {
     if (row.local) confirmKill(row.local.id, props.name);
-    else confirmKillUid(row.r.uid, props.name);
+    else confirmKillUid(row.r.uid, props.name, !!row.r.terminating);
 }
-const pill = (status: string) => STATUS_PILL[status as ProcessStatus] ?? { text: status };
+const pill = (r: RunResponse) => pillOf(r.status as ProcessStatus, r.terminating);
 </script>
 
 <template>
@@ -80,12 +80,12 @@ const pill = (status: string) => STATUS_PILL[status as ProcessStatus] ?? { text:
             <template v-else>위치 없음</template>
             <span class="by"> · {{ row.r.startedByMe ? '나' : row.r.startedBy }}</span>
         </span>
-        <v-chip size="x-small" variant="tonal" class="pill" :color="pill(row.r.status).color">{{ pill(row.r.status).text }}</v-chip>
+        <v-chip size="x-small" variant="tonal" class="pill" :color="pill(row.r).color">{{ pill(row.r).text }}</v-chip>
         <span class="acts">
             <v-btn v-if="row.local" size="x-small" variant="tonal" :color="row.minimized ? 'primary' : undefined" @click="onOpen(row)">{{ row.minimized ? '열기' : '보기' }}</v-btn>
             <v-btn v-else-if="row.board" size="x-small" variant="tonal" @click="onOpen(row)">보드로 이동</v-btn>
             <v-btn v-else size="x-small" variant="tonal" color="primary" :loading="!!opening[row.r.uid]" @click="onAdd(row)">내 보드에 열기</v-btn>
-            <v-btn v-if="row.r.permission >= PERM_OPERATE" size="x-small" variant="text" icon="mdi-stop" title="종료…" :loading="!!killing[row.r.uid]" @click="onKill(row)" />
+            <v-btn v-if="row.r.permission >= PERM_OPERATE" size="x-small" variant="text" :icon="row.r.terminating ? 'mdi-stop-circle' : 'mdi-stop'" :title="row.r.terminating ? '강제 종료…' : '종료…'" :loading="!!killing[row.r.uid]" @click="onKill(row)" />
         </span>
     </div>
 </div>

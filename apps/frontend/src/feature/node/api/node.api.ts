@@ -97,6 +97,8 @@ export type RunResponse = {
     permission: number     // 요청 계정의 process 단계
     startedBy: string      // 실행한 계정 닉네임
     startedByMe?: boolean  // 내가 실행 — "나"로 표시
+    terminating?: boolean  // 종료 요청됨 — ProcessResponse와 같은 뜻
+    forced?: boolean
     hash?: string          // 내 보드 중 이 터미널 타일이 있는 곳(없으면 위치 없음)
     tileId?: string
     minimized?: boolean

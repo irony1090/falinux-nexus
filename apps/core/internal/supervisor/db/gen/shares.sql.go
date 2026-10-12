@@ -735,7 +735,7 @@ func (q *Queries) ListSharedRoots(ctx context.Context, userID int64) ([]ListShar
 }
 
 const listVisibleLiveProcesses = `-- name: ListVisibleLiveProcesses :many
-SELECT p.uid, p.type, p.owner_user_id, p.node_id, p.device_key, p.cmd, p.args, p.env, p.cwd, p.rows, p.cols, p.status, p.pid, p.exit_code, p.created_at, p.started_at, p.finished_at, p.updated_at, p.started_by, process_permission($1, p.uid)::smallint AS permission
+SELECT p.uid, p.type, p.owner_user_id, p.node_id, p.device_key, p.cmd, p.args, p.env, p.cwd, p.rows, p.cols, p.status, p.pid, p.exit_code, p.created_at, p.started_at, p.finished_at, p.updated_at, p.started_by, p.kill_requested_at, p.kill_forced, process_permission($1, p.uid)::smallint AS permission
 FROM processes p
 WHERE p.status IN ('PENDING','PROCESS')
   AND process_permission($1, p.uid) > 0
@@ -777,6 +777,8 @@ func (q *Queries) ListVisibleLiveProcesses(ctx context.Context, userID int64) ([
 			&i.Process.FinishedAt,
 			&i.Process.UpdatedAt,
 			&i.Process.StartedBy,
+			&i.Process.KillRequestedAt,
+			&i.Process.KillForced,
 			&i.Permission,
 		); err != nil {
 			return nil, err
@@ -792,7 +794,8 @@ func (q *Queries) ListVisibleLiveProcesses(ctx context.Context, userID int64) ([
 const listVisibleLiveProcessesInFolder = `-- name: ListVisibleLiveProcessesInFolder :many
 
 SELECT p.uid, p.node_id, p.status, process_permission($1, p.uid)::smallint AS permission,
-       p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname
+       p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced
 FROM processes p
 JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by
@@ -815,6 +818,8 @@ type ListVisibleLiveProcessesInFolderRow struct {
 	Permission        int16
 	StartedBy         int64
 	StartedByNickname string
+	Terminating       bool
+	KillForced        bool
 }
 
 // ===== 스크립트 행 "실행 중 N"(실시간-6a) =====
@@ -835,6 +840,8 @@ func (q *Queries) ListVisibleLiveProcessesInFolder(ctx context.Context, arg List
 			&i.Permission,
 			&i.StartedBy,
 			&i.StartedByNickname,
+			&i.Terminating,
+			&i.KillForced,
 		); err != nil {
 			return nil, err
 		}
@@ -847,7 +854,7 @@ func (q *Queries) ListVisibleLiveProcessesInFolder(ctx context.Context, arg List
 }
 
 const listVisibleProcessesByUids = `-- name: ListVisibleProcessesByUids :many
-SELECT p.uid, p.type, p.owner_user_id, p.node_id, p.device_key, p.cmd, p.args, p.env, p.cwd, p.rows, p.cols, p.status, p.pid, p.exit_code, p.created_at, p.started_at, p.finished_at, p.updated_at, p.started_by, process_permission($1, p.uid)::smallint AS permission
+SELECT p.uid, p.type, p.owner_user_id, p.node_id, p.device_key, p.cmd, p.args, p.env, p.cwd, p.rows, p.cols, p.status, p.pid, p.exit_code, p.created_at, p.started_at, p.finished_at, p.updated_at, p.started_by, p.kill_requested_at, p.kill_forced, process_permission($1, p.uid)::smallint AS permission
 FROM processes p
 WHERE p.uid = ANY($2::text[])
   AND process_permission($1, p.uid) > 0
@@ -894,6 +901,8 @@ func (q *Queries) ListVisibleProcessesByUids(ctx context.Context, arg ListVisibl
 			&i.Process.FinishedAt,
 			&i.Process.UpdatedAt,
 			&i.Process.StartedBy,
+			&i.Process.KillRequestedAt,
+			&i.Process.KillForced,
 			&i.Permission,
 		); err != nil {
 			return nil, err

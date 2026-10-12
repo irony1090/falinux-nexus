@@ -57,7 +57,7 @@ func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.E
 		perm = 0644
 	}
 	if _, err := r.SendBuffer(authKey, transfer.NewReadBuffer(content, 0), destPath, perm); err != nil {
-		r.processManager.Remove(uid)
+		r.failExec(uid)
 		return "", fmt.Errorf("content 선배치 실패: %w", err)
 	}
 
@@ -74,20 +74,31 @@ func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.E
 	defer cancel()
 	res, err := worker.Call(ctx, protocol.MsgExec, entry.Spec())
 	if err != nil {
-		r.processManager.Remove(uid)
+		r.failExec(uid)
 		return "", fmt.Errorf("MsgExec 전송 실패: %w", err)
 	}
 	var execRes protocol.ExecResponse
 	if err := res.Bind(&execRes); err != nil {
-		r.processManager.Remove(uid)
+		r.failExec(uid)
 		return "", err
 	}
 	if !execRes.Accept {
-		r.processManager.Remove(uid)
+		r.failExec(uid)
 		return "", fmt.Errorf("worker가 실행을 거부했습니다: %s", execRes.Reason)
 	}
 	r.setSizeOwner(uid, tabID) // 실행한 탭 = 크기 소유자
 	return uid, nil
+}
+
+const exitExecFailed = 126 // 실행이 시작되지 못함(셸 관례 "실행 불가")
+
+// failExec는 시작되지 못한 process를 DB까지 FAILED로 닫는다 — 메모리만 지우면 PENDING 행이 "실행 중"으로 남는다(2026-10-12 발견).
+// EXEC는 applyStatus가 메모리도 정리하고, EDIT는 editResult를 기다리느라 남기므로 여기서 지운다
+func (r *supervisorRouter) failExec(uid string) {
+	r.applyStatus(uid, execute.CommandFailed, 0, exitExecFailed)
+	if _, ok := r.processManager.Get(uid); ok {
+		r.processManager.Remove(uid)
+	}
 }
 
 // processTopic은 한 process의 fan-out 토픽 키다(구독/발행 단일 출처).
@@ -298,7 +309,7 @@ func (r *supervisorRouter) sync(conn *transport.Conn, auth *protocol.RegisterReq
 
 // reconcileReconnect는 재접속한 worker의 보고(reported)와 DB의 활성(PENDING/PROCESS) uid
 // 목록을 3-way 대조한다(REF-process "재접속 재바인딩"):
-//   - 교집합: Rebind로 새 Inter 장착 + 볼 수 있는 계정 소켓 재구독(W) + relay 재기동 + applyStatus로 보고 상태 동기화.
+//   - 교집합: Rebind로 새 Inter 장착 + 볼 수 있는 계정 소켓 재구독(W) + relay 재기동 + applyStatus로 보고 상태 동기화 + 기록된 종료 요청 전달(종료-3(재접속 전달)).
 //   - DB만 앎(worker 재부팅 소실): CommandFailed로 종결 + 브라우저에 FAILED 직접 발행(Y — entry·relay가 없어서).
 //   - worker만 앎(고아): 로그만 남기고 무시(YAGNI, kill 지시 안 함).
 func (r *supervisorRouter) reconcileReconnect(deviceKey string, worker *transport.Conn, reported []protocol.SyncEntry) {
@@ -311,16 +322,16 @@ func (r *supervisorRouter) reconcileReconnect(deviceKey string, worker *transpor
 		return
 	}
 
-	dbUIDs := make(map[string]struct{}, len(dbRows))
+	dbUIDs := make(map[string]superdb.Process, len(dbRows))
 	for _, row := range dbRows {
-		dbUIDs[row.Uid] = struct{}{}
+		dbUIDs[row.Uid] = row
 	}
 	reportedByUID := make(map[string]protocol.SyncEntry, len(reported))
 	for _, e := range reported {
 		reportedByUID[e.UID] = e
 	}
 
-	for uid := range dbUIDs {
+	for uid, row := range dbUIDs {
 		entry, ok := reportedByUID[uid]
 		if !ok {
 			// supervisor만 앎: worker 재부팅으로 소실 → 성공/실패 알 길 없어 Failed로 종결.
@@ -337,6 +348,13 @@ func (r *supervisorRouter) reconcileReconnect(deviceKey string, worker *transpor
 		r.subscribeViewers(uid) // W(재접속 재구독): 끊긴 사이 연결된 소켓·supervisor 재시작 대비
 		r.startRelay(uid, newEntry.Inter)
 		r.applyStatus(uid, entry.Status, entry.PID, 0)
+		if row.KillRequestedAt.Valid { // 종료-3(재접속 전달): EVENT 배달 고루틴이라 Call 응답을 기다리지 않게 따로 띄운다
+			go func() {
+				if err := newEntry.Inter.Kill(row.KillForced); err != nil {
+					log.Printf("[process] 재접속 종료 전달 실패 uid=%s force=%v: %v", uid, row.KillForced, err)
+				}
+			}()
+		}
 	}
 
 	for uid := range reportedByUID {
@@ -347,7 +365,9 @@ func (r *supervisorRouter) reconcileReconnect(deviceKey string, worker *transpor
 }
 
 // publishLost는 relay 없이 종료된 process(재접속 때 worker에 없음)의 FAILED를 직접 발행하고 구독을 정리한다.
+// 구독이 이미 정리됐을 수 있어(relay가 끝난 process) 볼 수 있는 계정 소켓을 먼저 다시 구독한다 — 새로고침 없이 목록에서 빠지게
 func (r *supervisorRouter) publishLost(uid string) {
+	r.subscribeViewers(uid)
 	ev := protocol.StatusEvent{UID: uid, Status: execute.CommandFailed, ExitCode: 502}
 	if err := r.subscribeHub.Publish(processTopic(uid), protocol.MsgStatus, ev); err != nil {
 		log.Printf("[process] Publish 실패 topic=%s: %v", processTopic(uid), err)

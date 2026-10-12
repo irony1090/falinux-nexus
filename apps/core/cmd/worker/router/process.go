@@ -86,7 +86,7 @@ func (r *workerRouter) exec(req protocol.Frame) (any, error) {
 
 	entry := &procEntry{uid: body.UID, kind: kind, editPath: editPath, inter: inter}
 	if !r.procs.Append(body.UID, entry) {
-		_ = inter.Kill()
+		_ = inter.Kill(true)
 		return protocol.ExecResponse{Accept: false, Reason: "중복되는 uid"}, nil
 	}
 
@@ -200,7 +200,7 @@ func (r *workerRouter) kill(req protocol.Frame) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("존재하지 않는 process: %s", body.UID)
 	}
-	if err := entry.inter.Kill(); err != nil {
+	if err := entry.inter.Kill(body.Force); err != nil {
 		return nil, err
 	}
 	return nil, nil

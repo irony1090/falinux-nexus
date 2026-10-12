@@ -188,9 +188,8 @@ func newWorkerInteractive(worker *transport.Conn, uid string) *execute.AgentInte
 			_, err := worker.Call(context.Background(), protocol.MsgResize, protocol.ResizeRequest{UID: uid, Rows: rows, Cols: cols})
 			return err
 		},
-		func() error { // onKill
-			// log.Printf("NEW_INTER ARGS3")
-			_, err := worker.Call(context.Background(), protocol.MsgKill, protocol.KillRequest{UID: uid})
+		func(force bool) error { // onKill
+			_, err := worker.Call(context.Background(), protocol.MsgKill, protocol.KillRequest{UID: uid, Force: force})
 			return err
 		},
 	)

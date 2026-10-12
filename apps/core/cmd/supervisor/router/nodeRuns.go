@@ -17,6 +17,8 @@ type runResponse struct {
 	Permission  int16  `json:"permission"`
 	StartedBy   string `json:"startedBy"`
 	StartedByMe bool   `json:"startedByMe,omitempty"` // 내가 실행했으면 프론트가 닉네임 대신 "나"
+	Terminating bool   `json:"terminating,omitempty"` // 종료 요청됨 — processResponse와 같은 뜻
+	Forced      bool   `json:"forced,omitempty"`
 
 	Hash      string `json:"hash,omitempty"` // 내 어느 보드에도 타일이 없으면 비어 있음
 	TileID    string `json:"tileId,omitempty"`
@@ -64,6 +66,7 @@ func (r *supervisorRouter) listNodeRuns(c echo.Context) error {
 	for i, row := range rows {
 		loc := where[row.Uid]
 		out[i] = runResponse{Uid: row.Uid, NodeID: row.NodeID.Int64, Status: row.Status, Permission: row.Permission, StartedBy: row.StartedByNickname, StartedByMe: row.StartedBy == sess.Data.ID,
+			Terminating: row.Terminating, Forced: row.KillForced,
 			Hash: loc.hash, TileID: loc.tileID, Minimized: loc.minimized}
 	}
 	return c.JSON(200, out)

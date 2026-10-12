@@ -283,6 +283,21 @@ func checkTerminalUIDs(next, stored *tileDoc) error {
 	return nil
 }
 
+// closedTerminals: 저장본에 있었는데 새 트리에서 빠진 터미널 uid(사용자 저장에서 빠짐 = 닫기, checkTerminalUIDs가 추가는 막음)
+func closedTerminals(next, stored *tileDoc) []string {
+	keep := map[string]bool{}
+	for _, uid := range next.terminalUIDs() {
+		keep[uid] = true
+	}
+	var out []string
+	for _, uid := range stored.terminalUIDs() {
+		if !keep[uid] {
+			out = append(out, uid)
+		}
+	}
+	return out
+}
+
 // appendTerminalTile: exec 성공 직후 터미널 타일을 서버 트리에 넣는다 — ⑪-4(타일 없는 실행 중 process).
 // 요청 트랜잭션이 아니라 별도 트랜잭션으로 핸들러 안에서 커밋까지 끝낸다: 요청 트랜잭션은 응답을 보낸 뒤
 // 커밋되므로 그 실패를 핸들러가 알 수 없고, 그러면 실패 시 process kill(보상)을 할 수 없다 (REF-node-ui-save-impl.md "3-b'(exec 연동) 구현").
@@ -672,6 +687,10 @@ func (r *supervisorRouter) putTiles(c echo.Context) error {
 		panic(web.Err(500, "%v", err))
 	}
 	tabID := r.requestTab(c, sess.Name())
-	AfterCommit(c, func() { r.publishTiles(userID, rec, tabID) })
+	closed := closedTerminals(&doc, &stored)
+	AfterCommit(c, func() {
+		r.publishTiles(userID, rec, tabID)
+		r.forceAbandoned(closed)
+	})
 	return c.JSON(http.StatusOK, tilePutResponse{Version: rec.Version})
 }

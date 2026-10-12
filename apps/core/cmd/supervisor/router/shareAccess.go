@@ -29,6 +29,7 @@ func (r *supervisorRouter) reconcileAccess(users []int64, uids []string) {
 	if len(uids) > 0 {
 		r.applyAccess(users, uids)
 		r.resyncSizeOwners(uids)
+		r.forceAbandoned(uids) // 권한이 보기로 내려가거나 풀려 조작 계정 타일이 0개가 될 수 있음 — 종료-4(모두 닫음)
 	}
 	for _, u := range users {
 		r.publishShareChange(u)
@@ -123,7 +124,7 @@ func attachSharedTerminals(c echo.Context, userID int64, uids []string, saved sa
 			continue
 		}
 		rec, err := TxQueries(c).GetProcess(c.Request().Context(), uid)
-		if err != nil || !rec.NodeID.Valid {
+		if err != nil || !rec.NodeID.Valid || rec.KillRequestedAt.Valid { // 종료 요청된 것은 자동으로 안 붙임 — KP3(자동으로 다시 붙이기)
 			continue
 		}
 		saved.add(attachTerminal(c, userID, rec.NodeID.Int64, uid))

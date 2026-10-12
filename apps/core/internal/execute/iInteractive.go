@@ -7,7 +7,7 @@ type IInteractive interface {
 	OutputAll() ([]byte, error)
 	Write(data []byte) error
 	Status() (CommandStatus, int, error)
-	Kill() error
+	Kill(force bool) error // force = SIGKILL, 아니면 SIGTERM(정리 기회)
 	// Layout은 터미널 창 크기를 바꾼다. 로컬 PTY는 ioctl 결과(syscall.Errno, error 인터페이스
 	// 구현체라 그대로 반환 가능)를, 원격(AgentInteractive)은 worker.Call의 실제 응답 에러를
 	// 반환한다 — 둘 다 "그 자리에서 확인된 진짜 결과"를 돌려준다는 계약은 동일.

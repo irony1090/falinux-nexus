@@ -11,7 +11,7 @@ type AgentInteractive struct {
 	output    *syncProcess.SyncData[[]byte]
 	status    *syncProcess.SyncData[CommandStatus]
 	onWrite   func(data []byte) error
-	onKill    func() error
+	onKill    func(force bool) error
 	onLayout  func(cols, rows uint16) error
 	onceClose sync.Once
 	detached  bool // Done 대신 Detach로 닫힘(종료 아님)
@@ -20,7 +20,7 @@ type AgentInteractive struct {
 func NewAgentInteractive(
 	onWrite func(data []byte) error,
 	onLayout func(cols, rows uint16) error,
-	onKill func() error,
+	onKill func(force bool) error,
 ) *AgentInteractive {
 	ai := &AgentInteractive{
 		exitCode: -1,
@@ -51,7 +51,7 @@ func (a *AgentInteractive) Status() (CommandStatus, int, error) {
 	sts, err := a.status.Shift()
 	return sts, a.exitCode, err
 }
-func (a *AgentInteractive) Kill() error { return a.onKill() }
+func (a *AgentInteractive) Kill(force bool) error { return a.onKill(force) }
 func (a *AgentInteractive) Layout(cols, rows uint16) error {
 	return a.onLayout(cols, rows)
 }

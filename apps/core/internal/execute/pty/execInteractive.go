@@ -71,15 +71,20 @@ type Interactive struct {
 	cmd      *exec.Cmd
 }
 
-func (i *Interactive) Kill() error {
+// Kill은 프로세스 그룹 전체에 신호를 보낸다(Setsid라 pgid = pid).
+func (i *Interactive) Kill(force bool) error {
 	if i.cmd == nil || i.cmd.Process == nil {
 		return nil
 	}
-	return syscall.Kill(-i.cmd.Process.Pid, syscall.SIGKILL)
+	sig := syscall.SIGTERM
+	if force {
+		sig = syscall.SIGKILL
+	}
+	return syscall.Kill(-i.cmd.Process.Pid, sig)
 }
 
 // exitCodeOf는 종료된 프로세스의 exit code를 유닉스 관례로 계산한다. 시그널로 죽었으면(Kill()의
-// SIGKILL 포함 — 외부에서 kill된 경우도 동일) Go의 ProcessState.ExitCode()는 -1을 줘서 "정상
+// SIGTERM·SIGKILL 포함 — 외부에서 kill된 경우도 동일) Go의 ProcessState.ExitCode()는 -1을 줘서 "정상
 // 종료했지만 코드가 0이 아님(진짜 실패)"과 구분이 안 된다. bash/docker/systemd와 동일하게
 // 128+시그널번호(SIGKILL=137)로 인코딩해 두 케이스를 구분 가능하게 한다.
 func exitCodeOf(state *os.ProcessState) int {

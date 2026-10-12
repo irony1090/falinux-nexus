@@ -2,7 +2,7 @@
 import type { TileSpan } from '@/feature/widget/util/tile.type';
 import { effectiveSize } from '@/feature/widget/util/tileSplit.util';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
-import { isRunning, STATUS_PILL, useProcessTerm } from '@/feature/process/store/processTerm.store';
+import { isRunning, pillOf, useProcessTerm } from '@/feature/process/store/processTerm.store';
 import { computed, ref } from 'vue';
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
 import { useRouter } from 'vue-router';
@@ -81,9 +81,10 @@ const unavailable = computed(() => {
 })
 
 const running = computed(() => isRunning(proc.value?.status));
+const terminating = computed(() => running.value && !!proc.value?.terminating);
 const presenceOpen = ref(false);   // 접속 상태 패널(공유-f)
 
-const pill = computed(() => proc.value ? STATUS_PILL[proc.value.status] : { text: '-' });
+const pill = computed(() => pillOf(proc.value?.status, proc.value?.terminating));
 // 복원 전엔 상태를 몰라 X를 막는다 — 3-d②(복원 전 닫기)
 const unknown = computed(() => tile.value?.type === 'terminal' && !proc.value && !restored.value);
 
@@ -111,7 +112,7 @@ const setSize = (axis: 'w' | 'h', v: TileSpan) => {
 }
 const sizeTitle = computed(() => `크기 ${sizeText.value}` + (shownText.value ? ` (이 화면에서는 ${shownText.value})` : ''));
 
-// ---- 머리 줄 A안 `RUN▾ [최소화 | 크기 | ×]` — SD3(실행 중 터미널 치우기). X는 실행 중이면 kill 확인창 ----
+// ---- 머리 줄 A안 `RUN▾ [최소화 | 크기 | ×]` — SD3(실행 중 터미널 치우기). X는 실행 중이면 kill 확인창(종료 요청 뒤엔 강제 종료·닫기) ----
 const isRoot = computed(() => !tile.value?.parent);
 const minCount = computed(() => terminals.value.filter(t => t.minimized).length);
 const setTab = (v: 'files' | 'terminals') => rootTab.value = v;
@@ -163,7 +164,8 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
 const onX = () => {
     const t = tile.value;
     if (!t) return;
-    if (t.type === 'terminal' && running.value && !unavailable.value) confirmKill(t.id, name.value);
+    // 보기 계정은 종료할 수 없고 "모두 닫음"에도 안 세므로 그냥 닫는다(REF-process-kill.md)
+    if (t.type === 'terminal' && running.value && !unavailable.value && !readOnly.value) confirmKill(t.id, name.value);
     else closeTile(t.id);
 }
 </script>
@@ -210,11 +212,14 @@ const onX = () => {
 
         <template v-if="tile.type === 'terminal' && !unavailable">
             <v-btn size="x-small" variant="text" icon="mdi-account-multiple-outline" title="접속 상태" @click="presenceOpen = true" />
-            <v-menu v-if="running" location="bottom end">
+            <v-menu v-if="running && !readOnly" location="bottom end">
                 <template #activator="{ props: act }">
                     <v-chip v-bind="act" size="x-small" variant="tonal" class="pill" :color="pill.color" append-icon="mdi-menu-down" :disabled="!!killing[tile.uid]">{{ pill.text }}</v-chip>
                 </template>
-                <v-list density="compact">
+                <v-list v-if="terminating" density="compact">
+                    <v-list-item prepend-icon="mdi-stop-circle" title="강제 종료…" @click="confirmKill(tile.id, name, ['force'])" />
+                </v-list>
+                <v-list v-else density="compact">
                     <v-list-item prepend-icon="mdi-stop" title="종료…" @click="confirmKill(tile.id, name, ['kill'])" />
                     <v-list-item prepend-icon="mdi-close-box-outline" title="종료하고 닫기…" @click="confirmKill(tile.id, name, ['killClose'])" />
                 </v-list>
@@ -267,7 +272,7 @@ const onX = () => {
             </v-menu>
             <button v-if="!isRoot"
                 :disabled="unknown"
-                :title="tile.type === 'terminal' && running ? '종료…' : '닫기'"
+                :title="tile.type === 'terminal' && running && !readOnly ? (terminating ? '강제 종료·닫기…' : '종료…') : '닫기'"
                 @click="onX"
             >
                 <v-icon size="14" icon="mdi-close" />

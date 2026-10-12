@@ -10,25 +10,27 @@ import (
 // process 응답 DTO + DTO↔pgtype 변환. 핸들러는 processApi.go. nodeDto.go와 대칭.
 
 type processResponse struct {
-	Uid        string   `json:"uid"`
-	Type       string   `json:"type"`
-	NodeID     *int64   `json:"nodeId"`
-	DeviceKey  string   `json:"deviceKey"`
-	Cmd        string   `json:"cmd"`
-	Args       []string `json:"args"`
-	Env        []string `json:"env"`
-	Cwd        string   `json:"cwd"`
-	Rows       int16    `json:"rows"`
-	Cols       int16    `json:"cols"`
-	Status     string   `json:"status"`
-	Pid        *int32   `json:"pid"`
-	ExitCode   *int32   `json:"exitCode"`
-	CreatedAt  int64    `json:"createdAt"`
-	StartedAt  *int64   `json:"startedAt"`
-	FinishedAt *int64   `json:"finishedAt"`
-	UpdatedAt  *int64   `json:"updatedAt"`
-	SizeOwner  *bool    `json:"sizeOwner,omitempty"`  // 요청 탭 기준이라 REST 응답에만 싣는다(토픽 발행 땐 nil)
-	Permission *int16   `json:"permission,omitempty"` // 요청 계정의 단계(superdb.Perm*). 계정 기준이라 REST 응답에만
+	Uid         string   `json:"uid"`
+	Type        string   `json:"type"`
+	NodeID      *int64   `json:"nodeId"`
+	DeviceKey   string   `json:"deviceKey"`
+	Cmd         string   `json:"cmd"`
+	Args        []string `json:"args"`
+	Env         []string `json:"env"`
+	Cwd         string   `json:"cwd"`
+	Rows        int16    `json:"rows"`
+	Cols        int16    `json:"cols"`
+	Status      string   `json:"status"`
+	Pid         *int32   `json:"pid"`
+	ExitCode    *int32   `json:"exitCode"`
+	CreatedAt   int64    `json:"createdAt"`
+	StartedAt   *int64   `json:"startedAt"`
+	FinishedAt  *int64   `json:"finishedAt"`
+	UpdatedAt   *int64   `json:"updatedAt"`
+	Terminating bool     `json:"terminating,omitempty"` // 종료 요청됨 — 상태 값과 별개(KP2(상태 표현))
+	Forced      bool     `json:"forced,omitempty"`      // 강제 종료(SIGKILL)까지 요청됨
+	SizeOwner   *bool    `json:"sizeOwner,omitempty"`   // 요청 탭 기준이라 REST 응답에만 싣는다(토픽 발행 땐 nil)
+	Permission  *int16   `json:"permission,omitempty"`  // 요청 계정의 단계(superdb.Perm*). 계정 기준이라 REST 응답에만
 
 	OwnerNickname string `json:"ownerNickname,omitempty"` // 소유자가 요청 계정이 아닐 때만(공유받은 process) — 공유-e-1
 	StartedBy     string `json:"startedBy,omitempty"`     // 실행한 계정 닉네임, 소유자와 다를 때만 — SH9
@@ -40,6 +42,7 @@ func newProcessResponse(p superdb.Process) processResponse {
 		Uid: p.Uid, Type: p.Type, DeviceKey: p.DeviceKey,
 		Cmd: p.Cmd, Args: p.Args, Env: p.Env, Cwd: p.Cwd,
 		Rows: p.Rows, Cols: p.Cols, Status: p.Status,
+		Terminating: p.KillRequestedAt.Valid, Forced: p.KillForced,
 	}
 	if p.NodeID.Valid {
 		v := p.NodeID.Int64

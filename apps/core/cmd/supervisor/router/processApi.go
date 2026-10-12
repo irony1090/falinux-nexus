@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"errors"
 	"log"
 	"slices"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"nexus/internal/supervisor/store"
 	"nexus/internal/web"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 )
 
@@ -161,7 +163,7 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 	defer cancel()
 	tile, tree, err := appendTerminalTile(ctx, sess.Data.ID, body.Workspace, body.ParentTileID, size, node.ID, uid)
 	if err != nil {
-		if kErr := entry.Inter.Kill(); kErr != nil {
+		if kErr := entry.Inter.Kill(true); kErr != nil {
 			log.Printf("[process] 타일 저장 실패 후 kill 실패 uid=%s: %v", uid, kErr)
 		}
 		panic(web.Err(500, "터미널 타일 저장에 실패해 실행을 중단했습니다: %v", err))
@@ -172,15 +174,64 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 	return c.JSON(200, res)
 }
 
-// killProcess는 실행 중인 process를 종료한다(worker에 MsgKill 전달, entry.Inter.Kill()).
-// 종료 STATUS는 relay가 그 계정의 구독 소켓 전부에 발행한다.
+// killRequest: 종료 요청. (POST /processes/kill/:processId) force = 강제 종료(SIGKILL), 아니면 SIGTERM
+type killRequest struct {
+	Force bool `json:"force"`
+}
+
+// killProcess는 종료 요청을 DB에 기록하고 커밋 뒤 worker에 보낸다. worker가 끊겨 있어도(PENDING) 기록만 하고
+// 재접속 때 reconcileReconnect가 보낸다 — REF-process-kill.md. 종료 STATUS는 relay가 구독 소켓 전부에 발행한다.
 func (r *supervisorRouter) killProcess(c echo.Context) error {
 	sess := r.requireSession(c)
-	entry := r.requireProcess(c.Param("processId"), sess.Data.ID, superdb.PermOperate)
-	if err := entry.Inter.Kill(); err != nil {
+	uid := c.Param("processId")
+	var body killRequest
+	if err := c.Bind(&body); err != nil {
+		panic(web.Err(400, "%v", err))
+	}
+	perm := r.processPerm(uid, sess.Data.ID)
+	checkPerm(perm, superdb.PermOperate, "존재하지 않는 process입니다")
+
+	row, err := TxQueries(c).RequestProcessKill(c.Request().Context(), superdb.RequestProcessKillParams{Uid: uid, Force: body.Force})
+	if errors.Is(err, pgx.ErrNoRows) {
+		panic(web.Err(404, "실행 중인 process가 아닙니다"))
+	}
+	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
-	return c.JSON(200, map[string]any{})
+	AfterCommit(c, func() { r.sendKill(row) })
+
+	res := withPermission(newProcessResponse(row), perm)
+	return c.JSON(200, withProcessNames(c, sess.Data.ID, []processResponse{res}, []superdb.Process{row})[0])
+}
+
+// sendKill은 커밋된 종료 요청을 발행하고 접속 중인 worker에 보낸다(force = row.KillForced). 커밋 뒤에만 부를 것.
+// 끊겨 있으면(memory에 없음) 아무것도 안 보낸다 — 재접속 때 reconcileReconnect가 DB 기록을 보고 보낸다
+func (r *supervisorRouter) sendKill(row superdb.Process) {
+	r.publishProcess(row)
+	entry, ok := r.processManager.Get(row.Uid)
+	if !ok || entry.Inter == nil {
+		return
+	}
+	entry.SetRecord(&row)
+	if err := entry.Inter.Kill(row.KillForced); err != nil {
+		log.Printf("[process] 종료 전달 실패 uid=%s force=%v: %v", row.Uid, row.KillForced, err)
+	}
+}
+
+// forceAbandoned는 uids 중 종료 요청됐는데 조작 이상 계정의 보드 어디에도 터미널 타일이 없는 것을 강제 종료로 바꿔 보낸다 — 종료-4(모두 닫음).
+// 타일 닫기·공유 변경의 커밋 뒤에만 부른다. 종료 요청 때는 판정하지 않는다(그때 이미 타일이 없어도 SIGTERM만 — 2026-10-12 결정)
+func (r *supervisorRouter) forceAbandoned(uids []string) {
+	if len(uids) == 0 {
+		return
+	}
+	rows, err := store.GetStorePool().Queries().ForceAbandonedKills(context.Background(), superdb.ForceAbandonedKillsParams{Uids: uids, MinPerm: superdb.PermOperate})
+	if err != nil {
+		log.Printf("[process] 모두 닫음 판정 실패 uids=%v: %v", uids, err)
+		return
+	}
+	for _, row := range rows {
+		r.sendKill(row)
+	}
 }
 
 // resizeRequest: 터미널 창 크기 변경 요청. (POST /processes/resize/:processId)

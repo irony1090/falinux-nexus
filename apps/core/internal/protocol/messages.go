@@ -203,9 +203,10 @@ type ResizeRequest struct {
 	Cols uint16 `json:"cols"`
 }
 
-// KillRequest: process 종료. (MsgKill REQ)
+// KillRequest: process 종료. (MsgKill REQ) Force = SIGKILL, 아니면 SIGTERM — REF-process-kill.md
 type KillRequest struct {
-	UID string `json:"uid"`
+	UID   string `json:"uid"`
+	Force bool   `json:"force,omitempty"`
 }
 
 // StatusEvent: process 상태 변화 통보. (MsgStatus EVENT, worker→sup)

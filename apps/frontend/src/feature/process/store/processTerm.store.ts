@@ -49,6 +49,10 @@ export const STATUS_PILL: Record<ProcessStatus, { text: string; color?: string }
     FAILED: { text: 'FAIL', color: 'error' },
 }
 
+// 종료 요청된 실행 중 process는 상태 값이 그대로라 칩만 바꾼다 — KP2(상태 표현)
+export const pillOf = (status?: ProcessStatus, terminating?: boolean): { text: string; color?: string } =>
+    !status ? { text: '-' } : isRunning(status) && terminating ? { text: '종료 중', color: 'warning' } : STATUS_PILL[status]
+
 // 타일 화면의 process: uid -> 상태·크기 소유 여부·xterm. 타일 트리와 수명이 같다(pages/index.vue에서 provide).
 // 재발 방지: xterm은 컴포넌트가 아니라 여기서 가진다 — 타일이 다른 Grid로 가면 재마운트되므로
 // 컴포넌트가 가지면 화면이 사라진다. 타일은 attach/detach로 DOM만 붙였다 뗀다 (REF-node-ui-terminal.md J)
@@ -203,6 +207,7 @@ export const provideProcessTerm = () => {
     offs.push(on<ProcessResponseDto>('PROCESS:UPDATE', dto => {
         const old = procs_.value[dto.uid]
         if (!old) return
+        if (!isRunning(old.status) && isRunning(dto.status)) return   // 종료 STATUS보다 늦게 온 UPDATE로 실행 중에 되돌리지 않는다
         const { permission, ownerNickname, startedBy, startedByMe } = old // 계정 기준 값은 REST 응답에만 있어 이벤트로 덮지 않는다
         procs_.value[dto.uid] = { ...toProcessResponse(dto), permission, ownerNickname, startedBy, startedByMe }
     }))
@@ -287,7 +292,12 @@ export const provideProcessTerm = () => {
         restored_.value = false
     }
 
-    const kill = (uid: string) => killProcess(uid)
+    // 응답의 상태는 쓰지 않는다 — 종료 STATUS가 응답보다 먼저 올 수 있어서. 종료 요청 표시만
+    const kill = (uid: string, force = false) => killProcess(uid, force)
+        .then(res => {
+            const old = procs_.value[uid]
+            if (old) procs_.value[uid] = { ...old, terminating: res.terminating, forced: res.forced }
+        })
 
     // 소유자만 보낸다. 실패하면(403 포함 — 상태 코드가 버려져 구분 불가) 서버 기준으로 다시 맞춘다
     const syncSize = (uid: string, cols: number, rows: number) => {
@@ -325,7 +335,7 @@ export const provideProcessTerm = () => {
         if (node?.parentElement === el) el.removeChild(node)
     }
 
-    // 타일을 닫을 때 (실행 중엔 닫기가 막혀 있음)
+    // 타일을 닫을 때 (실행 중이면 종료 요청 뒤에만)
     const dispose = (uid: string) => {
         handles.get(uid)?.term.dispose()
         handles.delete(uid)
@@ -348,10 +358,10 @@ export const provideProcessTerm = () => {
         Object.keys(gone_.value).forEach(u => { if (!keep.has(u)) delete gone_.value[u] })
     }
 
-    // 트리에서 빠진 끝난 터미널의 xterm 정리 — 4④(다른 탭이 닫은 터미널). 실행 중은 남김(이 탭 exec 직후 타일 반영 전일 수 있음)
+    // 트리에서 빠진 끝난·종료 요청된 터미널의 xterm 정리 — 4④(다른 탭이 닫은 터미널). 그 밖의 실행 중은 남김(이 탭 exec 직후 타일 반영 전일 수 있음)
     const prune = (keep: ReadonlySet<string>) => {
         Object.values(procs_.value).forEach(p => {
-            if (!keep.has(p.uid) && !isRunning(p.status)) dispose(p.uid)
+            if (!keep.has(p.uid) && (!isRunning(p.status) || p.terminating)) dispose(p.uid)
         })
     }
 

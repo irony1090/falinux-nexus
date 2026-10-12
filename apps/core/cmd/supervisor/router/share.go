@@ -258,7 +258,7 @@ func (r *supervisorRouter) putProcessShare(c echo.Context) error {
 	}
 	// 못 보다가 보게 될 때만 받는 쪽에 터미널 타일 — SD7(받는 쪽 타일 추가 시점)
 	saved := savedTrees{}
-	if before <= superdb.PermBlock && mustProcessPerm(c, userID, rec.Uid) > superdb.PermBlock && rec.NodeID.Valid {
+	if before <= superdb.PermBlock && mustProcessPerm(c, userID, rec.Uid) > superdb.PermBlock && rec.NodeID.Valid && !rec.KillRequestedAt.Valid {
 		saved.add(attachTerminal(c, userID, rec.NodeID.Int64, rec.Uid))
 	}
 	r.afterShareChange(c, userID, []string{rec.Uid}, saved)

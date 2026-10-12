@@ -27,6 +27,8 @@ export type ProcessResponse = {
     startedAt: Date | null
     finishedAt: Date | null
     updatedAt: Date | null
+    terminating?: boolean   // 종료 요청됨 — 상태 값은 그대로 PENDING/PROCESS(REF-process-kill.md KP2(상태 표현))
+    forced?: boolean        // 강제 종료(SIGKILL)까지 요청됨
     sizeOwner?: boolean     // 요청 탭이 PTY 크기 소유자인지. REST 응답에만 있고 소켓 PROCESS:UPDATE엔 없음
     permission?: number     // 요청 계정의 단계 — REST 응답에만
     ownerNickname?: string  // 소유자가 내가 아닐 때(공유받은 process)만 — REST 응답에만
@@ -103,10 +105,12 @@ export const execProcess = (param: ExecProcessRequest) => BaseAxios.post(
 .then(({ tile, tileVersion, ...proc }): ExecProcessResponse => ({ proc: toProcessResponse(proc), tile, tileVersion }))
 .catch(throwCatch)
 
-// POST /processes/kill/:processId — 실행 중인 process 종료
-export const killProcess = (processId: string) => BaseAxios.post(
-    `/processes/kill/${processId}`
-).then(throwThen<Record<string, never>>)
+// POST /processes/kill/:processId — 종료 요청(force = SIGKILL, 아니면 SIGTERM). 장비가 끊겨 있으면 기록해 두고 재접속 때 전달
+export const killProcess = (processId: string, force = false) => BaseAxios.post(
+    `/processes/kill/${processId}`,
+    { force }
+).then(throwThen<ProcessResponseDto>)
+.then(toProcessResponse)
 .catch(throwCatch)
 
 export type ResizeProcessRequest = {

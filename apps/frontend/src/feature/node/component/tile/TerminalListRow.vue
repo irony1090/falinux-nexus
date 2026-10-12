@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { isRunning, STATUS_PILL, useProcessTerm } from '@/feature/process/store/processTerm.store';
+import { isRunning, pillOf, useProcessTerm } from '@/feature/process/store/processTerm.store';
 import { computed } from 'vue';
 import { VBtn, VChip, VIcon } from 'vuetify/components';
 import { useGetNode, useNodePath } from '../../api/node.api';
 import { useTerminalKill } from '../../hook/terminalKill.hook';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
+import { isReadOnly } from '../../util/shareView.util';
 
 const props = defineProps({
     tileId: {
@@ -36,9 +37,12 @@ const name = computed(() => {
 
 const proc = computed(() => tile.value ? procs.value[tile.value.uid] : undefined);
 const running = computed(() => isRunning(proc.value?.status));
-const pill = computed(() => proc.value ? STATUS_PILL[proc.value.status] : { text: '-' });
+const terminating = computed(() => running.value && !!proc.value?.terminating);
+const pill = computed(() => pillOf(proc.value?.status, proc.value?.terminating));
+const readOnly = computed(() => isReadOnly(proc.value?.permission));  // 보기 계정 = 종료 없이 닫기만
+const killable = computed(() => running.value && !readOnly.value);
 // 복원 전엔 상태를 몰라 닫기를 막는다 — 3-d②(복원 전 닫기)
-const closable = computed(() => !running.value && (!!proc.value || restored.value));
+const closable = computed(() => !killable.value && (!!proc.value || restored.value));
 
 const onOpen = () => {
     const t = tile.value;
@@ -59,7 +63,7 @@ const onOpen = () => {
     <v-chip size="x-small" variant="tonal" class="pill" :color="pill.color">{{ pill.text }}</v-chip>
     <span class="acts">
         <v-btn size="x-small" variant="tonal" :color="tile.minimized ? 'primary' : undefined" @click="onOpen">{{ tile.minimized ? '열기' : '보기' }}</v-btn>
-        <v-btn v-if="running" size="x-small" variant="text" icon="mdi-stop" title="종료…" :loading="!!killing[tile.uid]" @click="confirmKill(tile.id, name)" />
+        <v-btn v-if="killable" size="x-small" variant="text" :icon="terminating ? 'mdi-stop-circle' : 'mdi-stop'" :title="terminating ? '강제 종료·닫기…' : '종료…'" :loading="!!killing[tile.uid]" @click="confirmKill(tile.id, name)" />
         <v-btn v-else size="x-small" variant="text" icon="mdi-close" title="닫기" :disabled="!closable" @click="closeTile(tile.id)" />
     </span>
 </div>
