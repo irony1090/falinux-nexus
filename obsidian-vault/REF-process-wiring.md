@@ -18,7 +18,7 @@
   - 형식에 **`proc.Uid` 포함 = 실행 인스턴스별 격리**(동시/재실행 충돌 방지). process PK=uid(numeric id 없음)라 "process.Id"=Uid. node.ID = 어떤 스크립트인지.
   - 이 문자열을 **router 전송(DestPath)과 manager Cmd/Args가 함께** 사용(불일치=버그). manager는 Record 생성 전이라 발급된 uid로 `superdb.Process{Uid: uid}` 넘겨 조립.
   - **worker 치환(양 채널 동일 규칙)**: `resolveDest`(수신)·`exec`(실행) 둘 다 `{WORKER_BASE}→ProcessRoot` 치환 후 ProcessRoot 하위 traversal 검증 → 선배치=실행 경로 일치. ⚠️ resolveDest의 구 `baseDir/instanceKey` 루트 폐기(instanceKey별 격리 포기, `baseDir`·`instanceKey()`는 dead code화).
-  - **EXEC**: `Cmd=path`, `Args=[]`, 전송 perm 0755. (content→실행 세부정책=TODO: 직접실행 vs `sh -c`)
+  - **EXEC**: `Cmd=path`, `Args=[]`, 전송 perm 0755. (실행 방식 = 직접 실행, shebang 필수 — 2026-10-12 사용자 결정 A(현상 유지). shebang 없으면 Go exec가 `ENOEXEC`로 실패, 셸처럼 `/bin/sh` 대신 실행 안 함)
   - **EDIT**: `Cmd={WORKER_EDITOR}`(치환 토큰 — vi 하드코딩 폐기), `Args=[path]`, perm 0644. worker `localize()`가 `{WORKER_EDITOR}`도 치환=`resolveEditor()`=`$VISUAL>$EDITOR>vi`. **TUI 에디터 강제 + PTY `$TERM` 세팅**은 실제 PTY 실행부(TODO)에서.
 - **bind.Relay / 배치 드레인**: `NewRelay(uid, IInteractive, publish).Start()`→`pumpOutput`(MsgData)/`pumpStatus`(MsgStatus). `SyncData.ShiftAll()`+`IInteractive.OutputAll()`(연결바이트) 추가로 **락경합·프레임 수 감소**. publish=클로저(`hub.Publish("PROCESS:"+uid,…)`)로 Hub 제네릭 결합 회피. 토픽 접두사=`processTopic()`(`cmd/supervisor/router/process.go`) 단일 출처, 2026-07-21 `PROC:`→`PROCESS:`로 정정(구 `processSubscribeKey`의 dead code 프리픽스와 맞춤 — `history/process-reconnect.md` 참조).
 - **EDIT 계약 2개(프로토콜 밖, 배선에서 보장)**: ① 전송 `DestPath`==MsgExec `Args` 경로 일치 ② `MsgEditResult`(UID→NodeID→`UpdateNodeContent`) **처리 전 엔트리 teardown 금지**(EditResult엔 nodeId 없어 UID 매핑 필요).
