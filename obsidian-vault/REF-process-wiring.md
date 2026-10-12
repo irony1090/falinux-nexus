@@ -10,6 +10,7 @@
   - **router = wire**: authKey→worker conn 조회·MsgExec 전송·bind.Relay 기동·소켓 핸들러. **트리거는 router**(소켓 Handle→`router.Exec(owner,authKey,kind,node)`→manager 호출). 소켓이 manager를 직접 부르면 manager가 router화됨.
   - **bind.Relay = fan-out**: `Output()/Status()` 드레인→`hub.Publish`. `IInteractive` 위 재사용(AgentInteractive/로컬PTY 무관).
 - **ProcessEntry**(memory 값, 키=UID) = `{Record *superdb.Process, Inter *AgentInteractive}`. **folder=Inter nil**(레코드-only, worker 무접촉). `HasProcess()`=Inter有 / `NodeID()` / `Spec()`=Record→MsgExec용 ProcessSpec 투영.
+- (2026-10-12) **folder-open(`openFolder`) 자체를 제거** — 폴더 exec = 400. 아래 줄은 기록용 → `REF-process-share-terminal-place.md` "openFolder 제거"
 - **folder-open은 worker 연결 여부와 무관**(2026-07-02 발견 → 2026-07-03 수정 완료): folder(`openFolder`)는 worker 무접촉이 설계 의도. 구 `router.Exec`가 `node.Kind` 분기 전에 `r.workers.Get(authKey)` 존재를 선검증해 오프라인 device의 폴더 열람까지 막던 버그. **수정 = router 사전 게이트 제거**(`worker, _ := r.workers.Get(authKey)`, nil 허용) → worker 필요 검증을 manager로 단일 위임. manager 측 검증 위치 = `Exec`(folder 분기 뒤 `worker==nil`) + `ExecEdit` + `execScript`(기존). device 오프라인이어도 folder 열림 / SCRIPT·EDIT은 worker 없으면 에러.
 - **spec은 파라미터 아님 → node로부터 내부작성**: manager가 UID 발급 후 node로 구성→CreateProcessParams로 persist. **바인딩=Record 하나(진실의 출처)**, 와이어 spec은 `entry.Spec()`으로 필요할 때 파생(별도 상주 금지—resize 등 drift 방지). 초기 Rows/Cols=0(**resize-on-attach**).
 - **content 전달 = 파일 선배치**(인라인 폐기, 2026-07-01(2) 구현 완료): EXEC·EDIT 둘 다 worker에 파일 먼저 깔고 경로를 가리킴.
