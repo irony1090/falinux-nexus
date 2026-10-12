@@ -40,9 +40,7 @@ func (p *ProcessManager) Get(uid string) (*ProcessEntry, bool) {
 	return p.memory.Get(uid)
 }
 
-// Exec은 node를 실행 상태로 등록한다. spec은 파라미터로 받지 않고 node로부터 내부 작성한다.
-//   - FOLDER : worker에서 아무것도 실행되지 않음 → memory 레코드만(Inter=nil, pool 미저장).
-//   - SCRIPT : 실 프로세스 → memory + pool + AgentInteractive(EXEC).
+// Exec은 SCRIPT node를 실행 상태로 등록한다(memory + pool + AgentInteractive(EXEC)). spec은 node로부터 내부 작성한다.
 //
 // UID는 매니저가 발급해 entry.Record.Uid로 authoritative하다. 실제 MsgExec 전송은
 // 호출자(router)가 entry.Spec()으로 ProcessSpec을 얻어 worker에 전송한다.
@@ -52,12 +50,11 @@ func (p *ProcessManager) Exec(
 	node superdb.Node,
 	ownerID, startedBy int64,
 ) (*ProcessEntry, error) {
-	if node.Kind == superdb.NodeKindFolder {
-		return p.openFolder(workerKey, node, ownerID, startedBy)
-	}
-
 	if worker == nil {
 		return nil, fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", workerKey)
+	}
+	if node.Kind != superdb.NodeKindScript {
+		return nil, fmt.Errorf("실행할 수 없는 대상입니다")
 	}
 
 	// Cmd/Args는 파라미터가 아니라 execScript가 node로부터 WorkerNodePath로 내부작성한다
@@ -84,31 +81,6 @@ func (p *ProcessManager) ExecEdit(
 	// EDIT도 Cmd/Args를 execScript가 내부작성한다: Cmd={WORKER_EDITOR}, Args=[WorkerNodePath].
 	// 종료 시 router가 MsgEditResult를 받아 nodes.content를 UPDATE한다(이 함수는 개시만).
 	return p.execScript(worker, workerKey, protocol.ExecTypeEdit, node, ownerID, startedBy)
-}
-
-// openFolder는 folder-open을 memory 전용 레코드로 등록한다(worker 무접촉).
-func (p *ProcessManager) openFolder(workerKey string, node superdb.Node, ownerID, startedBy int64) (*ProcessEntry, error) {
-	uid, err := p.createKey()
-	if err != nil {
-		return nil, err
-	}
-
-	prc := &superdb.Process{
-		Uid:         uid,
-		Type:        string(protocol.ExecTypeExec),
-		DeviceKey:   workerKey,
-		OwnerUserID: ownerID,
-		StartedBy:   startedBy,
-	}
-	prc.NodeID.Valid, prc.NodeID.Int64 = true, node.ID
-	prc.Pid.Valid, prc.Pid.Int32 = false, -1
-
-	entry := &ProcessEntry{Record: prc, Inter: nil}
-	if !p.memory.Append(uid, entry) {
-		return nil, fmt.Errorf("중복되는 키가 존재합니다: %s", uid)
-	}
-
-	return entry, nil
 }
 
 // execScript는 SCRIPT의 EXEC/EDIT 공통 경로다. UID 발급 → AgentInteractive 생성 →

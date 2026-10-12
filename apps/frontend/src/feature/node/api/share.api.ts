@@ -27,10 +27,10 @@ export type PutNodeShareResponse = {
     previous: number | null     // 이 노드에 있던 직접 단계, 없으면 null
 }
 
-// 폴더만(스크립트 400). 같은 사람에게 다시 걸면 단계 변경(upsert)
-export const putNodeShare = (nodeId: number, userId: number, permission: number) => BaseAxios.put(
+// 폴더만(스크립트 400). 같은 사람에게 다시 걸면 단계 변경(upsert). tileId = 공유 버튼을 누른 폴더 타일(받는 쪽 타일이 그 uid를 받음)
+export const putNodeShare = (nodeId: number, userId: number, permission: number, tileId?: string) => BaseAxios.put(
     `/nodes/${nodeId}/shares/${userId}`,
-    { permission }
+    { permission, tileId }
 ).then(throwThen<PutNodeShareResponse>)
 .catch(throwCatch)
 

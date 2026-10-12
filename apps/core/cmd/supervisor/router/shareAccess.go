@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"log"
+	"slices"
 
 	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
@@ -68,15 +69,19 @@ func liveUnder(c echo.Context, nodeID int64) []string {
 	return uids
 }
 
-// attachSharedTile은 받는 쪽 기본 보드 루트 끝에 타일을 넣는다 — SD7(받는 쪽 타일 추가 시점).
-// has = 받는 쪽 어느 보드에든 이미 있으면 안 넣음(nil 반환). 넣었으면 저장된 트리를 반환 — 커밋 뒤 TILES:UPDATE는 호출부가
-func attachSharedTile(c echo.Context, userID int64, has func(*tileDoc) bool, tile tileItem) *superdb.TileTree {
+// attachSharedFolder는 받는 쪽 기본 보드 루트 끝에 폴더 타일을 넣는다 — SD7(받는 쪽 타일 추가 시점)·SH2(받는 쪽 화면 위치).
+// 받는 쪽 어느 보드에든 그 노드의 폴더 타일이 이미 있으면 안 넣음(nil 반환). 커밋 뒤 TILES:UPDATE는 호출부가.
+// uid = 공유한 타일의 uid(FU2). 받는 쪽 계정에 이미 같은 uid가 있으면(그 타일이 다른 폴더로 들어간 뒤 다시 공유 등) 새로 발급 — 계정 안 uid는 하나
+func attachSharedFolder(c echo.Context, userID, nodeID int64, uid string) *superdb.TileTree {
 	ensureTileTree(c, userID)
 	var def superdb.TileTree
 	for _, rec := range lockWorkspaces(c, userID) {
 		doc := mustParseDoc(rec.Tree)
-		if has(&doc) {
+		if _, ok := doc.folderTileOf(nodeID); ok {
 			return nil
+		}
+		if uid != "" && doc.hasFolderUID(uid) {
+			uid = ""
 		}
 		if rec.IsDefault {
 			def = rec
@@ -84,10 +89,7 @@ func attachSharedTile(c echo.Context, userID int64, has func(*tileDoc) bool, til
 	}
 	doc := mustParseDoc(def.Tree)
 	root := doc.Tiles[doc.RootID]
-	tile.ID = uuid.NewString()
-	tile.Parent = &root.ID
-	tile.Kids = []string{}
-	tile.Size = tileSize{W: 0.5, H: 0.5}
+	tile := tileItem{ID: uuid.NewString(), Type: "folder", Parent: &root.ID, Kids: []string{}, Size: tileSize{W: 0.5, H: 0.5}, NodeID: &nodeID, UID: uid}
 	doc.Tiles[tile.ID] = tile
 	root.Kids = append(root.Kids, tile.ID)
 	doc.Tiles[root.ID] = root
@@ -95,11 +97,27 @@ func attachSharedTile(c echo.Context, userID int64, has func(*tileDoc) bool, til
 	return &upd
 }
 
-// attachSharedTerminals는 uids 중 userID가 볼 수 있는 살아 있는 process의 터미널 타일을 받는 쪽 기본 보드 끝에 넣는다 — 폴더 공유를 건 시점에
-// 이미 실행 중이던 터미널을 받는 쪽도 볼 수 있게(exec 때는 그 시점의 볼 수 있는 계정에만 들어가므로 빈틈). 이미 타일이 있는 uid는 건너뜀.
-// 마지막으로 저장한 트리(앞선 타일을 모두 포함)를 반환, 넣은 게 없으면 nil
-func attachSharedTerminals(c echo.Context, userID int64, uids []string) *superdb.TileTree {
-	var last *superdb.TileTree
+// sharedFromUID: 공유 버튼을 누른 내 폴더 타일의 uid(지금 그 노드를 보여 주는 타일만, 아직 저장 전이라 uid가 없으면 "")
+func sharedFromUID(c echo.Context, userID int64, tileID string, nodeID int64) string {
+	if tileID == "" {
+		return ""
+	}
+	docs, err := TxQueries(c).ListTileTreeDocs(c.Request().Context(), userID)
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	for _, d := range docs {
+		doc := mustParseDoc(d.Tree)
+		if t, ok := doc.Tiles[tileID]; ok && t.Type == "folder" && t.NodeID != nil && *t.NodeID == nodeID {
+			return t.UID
+		}
+	}
+	return ""
+}
+
+// attachSharedTerminals는 uids 중 userID가 볼 수 있는 살아 있는 process의 터미널 타일을 넣는다(이미 있으면 건너뜀) — 폴더 공유를 건 시점에
+// 이미 실행 중이던 터미널·노드 이동으로 새로 보게 된 터미널(exec 때는 그 시점의 볼 수 있는 계정에만 들어가므로 빈틈). 바뀐 보드는 saved에
+func attachSharedTerminals(c echo.Context, userID int64, uids []string, saved savedTrees) {
 	for _, uid := range uids {
 		if mustProcessPerm(c, userID, uid) <= superdb.PermBlock {
 			continue
@@ -108,41 +126,90 @@ func attachSharedTerminals(c echo.Context, userID int64, uids []string) *superdb
 		if err != nil || !rec.NodeID.Valid {
 			continue
 		}
-		nodeID := rec.NodeID.Int64
-		if t := attachSharedTile(c, userID, hasTerminalOf(uid), tileItem{Type: "terminal", NodeID: &nodeID, UID: uid}); t != nil {
-			last = t
-		}
-	}
-	return last
-}
-
-// hasFolderOf: 그 노드를 보여 주는 폴더 타일이 있나(다른 폴더로 이동해 간 타일은 아님)
-func hasFolderOf(nodeID int64) func(*tileDoc) bool {
-	return func(d *tileDoc) bool {
-		for _, t := range d.Tiles {
-			if t.Type == "folder" && t.NodeID != nil && *t.NodeID == nodeID {
-				return true
-			}
-		}
-		return false
+		saved.add(attachTerminal(c, userID, rec.NodeID.Int64, uid))
 	}
 }
 
-func hasTerminalOf(uid string) func(*tileDoc) bool {
-	return func(d *tileDoc) bool {
-		_, ok := d.terminalOf(uid)
-		return ok
+// attachTerminal: insertTerminal(placeTerminal 위치)을 요청 트랜잭션으로 — 공유 시 터미널·내 보드에 열기·process 단독 공유·노드 이동
+func attachTerminal(c echo.Context, userID, nodeID int64, uid string) *superdb.TileTree {
+	t, err := insertTerminal(c.Request().Context(), TxQueries(c), userID, nodeID, uid)
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	return t
+}
+
+// savedTrees: 한 계정에서 바뀐 보드(hash별 마지막 저장본) — 폴더 타일과 터미널이 다른 보드에 들어갈 수 있어 보드마다 push
+type savedTrees map[string]superdb.TileTree
+
+func (s savedTrees) add(t *superdb.TileTree) {
+	if t != nil {
+		s[t.Hash] = *t
 	}
 }
 
 // afterShareChange: 커밋 뒤 재계산 -> 받는 쪽 타일 push. 구독을 먼저 넣어야 타일을 받은 탭의 복원 조회 뒤 출력이 빠지지 않는다
-func (r *supervisorRouter) afterShareChange(c echo.Context, userID int64, uids []string, added *superdb.TileTree) {
+func (r *supervisorRouter) afterShareChange(c echo.Context, userID int64, uids []string, saved savedTrees) {
 	AfterCommit(c, func() {
 		r.reconcileAccess([]int64{userID}, uids)
-		if added != nil {
-			r.publishTiles(userID, *added, "")
+		for _, t := range saved {
+			r.publishTiles(userID, t, "")
 		}
 	})
+}
+
+// ===== 노드 이동으로 새로 보게 된 터미널 =====
+
+type accessKey struct {
+	user int64
+	uid  string
+}
+
+// permIndex: users × uids 단계(요청 트랜잭션 — 같은 요청의 이동이 보임)
+func permIndex(c echo.Context, users []int64, uids []string) map[accessKey]int16 {
+	out := map[accessKey]int16{}
+	if len(users) == 0 || len(uids) == 0 {
+		return out
+	}
+	rows, err := TxQueries(c).ListProcessPermissionMatrix(c.Request().Context(), superdb.ListProcessPermissionMatrixParams{UserIds: users, Uids: uids})
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	for _, row := range rows {
+		out[accessKey{row.UserID, row.Uid}] = row.Permission
+	}
+	return out
+}
+
+// attachNewlyVisible: 이동 전(before) 못 보다가 이동 뒤 보게 된 계정 × process에 터미널 타일 — SD7(받는 쪽 타일 추가 시점)과 같은 규칙.
+// 순서 의존: 계정 id 순으로 넣는다. 다른 계정 트리를 여럿 잠그므로, 두 이동이 서로 반대 순서로 잠가 교착되지 않게
+func attachNewlyVisible(c echo.Context, before map[accessKey]int16, users []int64, uids []string) map[int64]savedTrees {
+	after := permIndex(c, users, uids)
+	sorted := slices.Sorted(slices.Values(users))
+	out := map[int64]savedTrees{}
+	for _, u := range sorted {
+		var fresh []string
+		for _, uid := range uids {
+			k := accessKey{u, uid}
+			if after[k] > superdb.PermBlock && before[k] <= superdb.PermBlock {
+				fresh = append(fresh, uid)
+			}
+		}
+		if len(fresh) > 0 {
+			out[u] = savedTrees{}
+			attachSharedTerminals(c, u, fresh, out[u])
+		}
+	}
+	return out
+}
+
+// publishSaved: 계정별로 바뀐 보드 push(커밋 뒤)
+func (r *supervisorRouter) publishSaved(saved map[int64]savedTrees) {
+	for u, trees := range saved {
+		for _, t := range trees {
+			r.publishTiles(u, t, "")
+		}
+	}
 }
 
 func uniq[T comparable](in []T) []T {

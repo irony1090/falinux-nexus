@@ -139,6 +139,9 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 		min = superdb.PermEdit
 	}
 	node, perm := requireNode(c, sess.Data.ID, body.NodeID, min)
+	if node.Kind != superdb.NodeKindScript {
+		panic(web.Err(400, "스크립트만 실행할 수 있습니다"))
+	}
 	// 다른 장비로 잘못 실행되는 것 방지: authKey의 main_key = 스크립트의 상속 device_key (서브키 위조 검증은 별도)
 	if main, _ := splitInstanceKey(body.AuthKey); main != resolveMainKey(c.Request().Context(), TxQueries(c), body.NodeID, node.OwnerUserID) {
 		panic(web.Err(400, "이 스크립트의 실행 대상 장비가 아닙니다"))
@@ -152,9 +155,6 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 	// 새 process엔 process 공유 행이 없어 단계 = 노드 단계
 	res := execResponse{processResponse: withPermission(withSizeOwner(newProcessResponse(*entry.Record), r.sizeOwnerOf(uid) == tabID), perm)}
 	res.processResponse = withProcessNames(c, sess.Data.ID, []processResponse{res.processResponse}, []superdb.Process{*entry.Record})[0]
-	if !entry.HasProcess() {
-		return c.JSON(200, res)
-	}
 	// 타일을 못 넣으면 실행을 되돌린다 — 보이지도 kill되지도 않는 process를 남기지 않기 위해. kill도 실패하면 3-d 안전망이 받음
 	// 요청 컨텍스트를 쓰면 브라우저가 응답 전에 끊을 때 저장이 취소돼 멀쩡한 process가 kill된다
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -191,7 +191,7 @@ type resizeRequest struct {
 
 // resizeProcess는 실행 중인 process의 PTY 창 크기를 바꾼다. entry.Inter.Layout이 worker에
 // MsgResize(REQ)를 전달하고(process/manager.go newWorkerInteractive의 onLayout) 그 응답을
-// 그대로 기다린다 — folder-open(Inter=nil)이거나 이미 종료된 uid는 404, worker가 거부/끊김이면
+// 그대로 기다린다 — 이미 종료된 uid는 404, worker가 거부/끊김이면
 // 500이라 DB/memory엔 손대지 않는다. worker가 실제로 확인해 준 값만 "진짜 결과"로 취급해
 // DB(UpdateProcessLayout)+memory(entry.SetRecord)를 갱신하고, 커밋 성공 후에만
 // PROCESS:<uid> 토픽에 MsgProcessUpdate로 알린다(kill/exec와 달리 뒤이어 오는 STATUS 이벤트가

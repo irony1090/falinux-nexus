@@ -265,7 +265,7 @@ const onRemove = (node: NodeResponse) => {
         <p v-if="!listQuery.isPending.value && !children.length" class="empty">비어 있음</p>
     </template>
 
-    <share-dialog v-if="canShare && current" v-model="shareOpen" :node-id="current.id" :node-name="current.name" />
+    <share-dialog v-if="canShare && current" v-model="shareOpen" :node-id="current.id" :node-name="current.name" :tile-id="tileId" />
     <node-name-dialog v-model="nameOpen" :title="nameTitle" :initial="nameInitial" :loading="saving" @submit="onSubmitName" />
     <script-edit-dialog v-model="editOpen" :node="editTarget" />
     <worker-pick-dialog v-model="pickOpen"

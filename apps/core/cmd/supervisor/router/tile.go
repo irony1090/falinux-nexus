@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"slices"
 
 	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/supervisor/store"
+	"nexus/internal/util"
 	"nexus/internal/web"
 
 	"github.com/google/uuid"
@@ -43,8 +45,8 @@ type tileItem struct {
 	Parent    *string  `json:"parent"`
 	Kids      []string `json:"kids"`
 	Size      tileSize `json:"size"`
-	NodeID    *int64   `json:"nodeId"` // folder: null = 루트 목록 / terminal: 필수
-	UID       string   `json:"uid,omitempty"`
+	NodeID    *int64   `json:"nodeId"`        // folder: null = 루트 목록 / terminal: 필수
+	UID       string   `json:"uid,omitempty"` // terminal: process uid / folder: 서버가 발급하는 타일 uid(FU1), 공유로 생긴 받는 쪽 타일은 공유한 타일과 같은 값(FU2)
 	Adopted   bool     `json:"adopted,omitempty"`
 	Minimized bool     `json:"minimized,omitempty"` // 배치에서만 빠짐(트리·uid 유지) — SD3(실행 중 터미널 치우기)
 }
@@ -104,7 +106,7 @@ func (d *tileDoc) validate() error {
 		}
 		switch t.Type {
 		case "folder":
-			if t.UID != "" || t.Adopted || t.Minimized {
+			if t.Adopted || t.Minimized {
 				return fmt.Errorf("폴더 타일에 터미널 필드가 있습니다: %s", key)
 			}
 		case "terminal":
@@ -155,15 +157,36 @@ func (d *tileDoc) validate() error {
 	return nil
 }
 
-// marshal: 모르는 필드는 버리고 서버 기준 모양으로 저장. kids는 null 대신 []
+// marshal: 모르는 필드는 버리고 서버 기준 모양으로 저장. kids는 null 대신 [], uid 없는 폴더 타일은 발급 — 모든 저장이 여기를 지난다
 func (d *tileDoc) marshal() ([]byte, error) {
 	for key, t := range d.Tiles {
 		if t.Kids == nil {
 			t.Kids = []string{}
-			d.Tiles[key] = t
 		}
+		if t.Type == "folder" && t.UID == "" {
+			uid, err := util.RandomKey(16, "", "")
+			if err != nil {
+				return nil, err
+			}
+			t.UID = uid
+		}
+		d.Tiles[key] = t
 	}
 	return json.Marshal(d)
+}
+
+// keepFolderUIDs: 프론트가 보낸 폴더 uid는 믿지 않는다 — 저장본에 같은 id의 폴더 타일이 있으면 그 uid, 없으면 비워서 marshal이 새로 발급(FU2·FU3)
+func (d *tileDoc) keepFolderUIDs(stored *tileDoc) {
+	for key, t := range d.Tiles {
+		if t.Type != "folder" {
+			continue
+		}
+		t.UID = ""
+		if s, ok := stored.Tiles[key]; ok && s.Type == "folder" {
+			t.UID = s.UID
+		}
+		d.Tiles[key] = t
+	}
 }
 
 func (d *tileDoc) mustMarshal() []byte {
@@ -332,7 +355,6 @@ func appendTerminalTile(ctx context.Context, userID int64, hash, parentTileID st
 }
 
 // attachViewerTerminal: exec 때 실행자가 아닌 계정의 트리에 터미널 타일을 넣는다 — SD2(실행 때 터미널 타일을 넣을 계정).
-// 어느 보드에든 이미 있으면 nil / 위치 = 스크립트의 가장 가까운 조상 폴더 타일 아래, 없으면 기본 보드 루트 끝.
 // 계정마다 별도 트랜잭션(한 번에 한 계정 트리만 잠금 → 교착 없음)
 func attachViewerTerminal(ctx context.Context, userID, nodeID int64, uid string) (*superdb.TileTree, error) {
 	tx := store.GetStorePool().Transaction()
@@ -344,60 +366,7 @@ func attachViewerTerminal(ctx context.Context, userID, nodeID int64, uid string)
 		if err != nil {
 			return nil, err
 		}
-		if _, err := loadOrCreateTileTree(ctx, q, userID); err != nil {
-			return nil, err
-		}
-		recs, err := q.ListTileTreesForUpdate(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		docs := make([]tileDoc, len(recs))
-		var def int
-		for i, rec := range recs {
-			if err := json.Unmarshal(rec.Tree, &docs[i]); err != nil {
-				return nil, err
-			}
-			if _, ok := docs[i].terminalOf(uid); ok {
-				return nil, nil
-			}
-			if rec.IsDefault {
-				def = i
-			}
-		}
-		ancestors, err := q.ListNodeAncestors(ctx, nodeID)
-		if err != nil {
-			return nil, err
-		}
-		at, parentID := def, docs[def].RootID
-	find:
-		for _, anc := range ancestors {
-			for i := range docs {
-				for _, t := range docs[i].Tiles {
-					if t.Type == "folder" && t.NodeID != nil && *t.NodeID == anc {
-						at, parentID = i, t.ID
-						break find
-					}
-				}
-			}
-		}
-		doc := &docs[at]
-		parent := doc.Tiles[parentID]
-		tile := tileItem{ID: uuid.NewString(), Type: "terminal", Parent: &parent.ID, Kids: []string{}, Size: tileSize{W: 0.5, H: 0.5}, NodeID: &nodeID, UID: uid}
-		parent.Kids = append(parent.Kids, tile.ID)
-		doc.Tiles[parent.ID] = parent
-		doc.Tiles[tile.ID] = tile
-		if err := doc.validate(); err != nil {
-			return nil, err
-		}
-		tree, err := doc.marshal()
-		if err != nil {
-			return nil, err
-		}
-		saved, err := q.UpdateTileTreeByHash(ctx, superdb.UpdateTileTreeByHashParams{UserID: userID, Hash: recs[at].Hash, Version: recs[at].Version, Tree: tree})
-		if err != nil {
-			return nil, err
-		}
-		return &saved, nil
+		return insertTerminal(ctx, q, userID, nodeID, uid)
 	}()
 	if err != nil {
 		_ = tx.Rollback(ctx, err)
@@ -407,6 +376,156 @@ func attachViewerTerminal(ctx context.Context, userID, nodeID int64, uid string)
 		return nil, err
 	}
 	return upd, nil
+}
+
+// insertTerminal: userID의 보드에 uid 터미널 타일을 placeTerminal 위치에 넣는다. 어느 보드에든 이미 있으면 nil.
+// q = 호출부 트랜잭션. 계정 트리 전부를 ListTileTreesForUpdate로 잠근다(잠금 순서)
+func insertTerminal(ctx context.Context, q *superdb.Queries, userID, nodeID int64, uid string) (*superdb.TileTree, error) {
+	if _, err := loadOrCreateTileTree(ctx, q, userID); err != nil {
+		return nil, err
+	}
+	recs, err := q.ListTileTreesForUpdate(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	docs := make([]tileDoc, len(recs))
+	var def int
+	for i, rec := range recs {
+		if err := json.Unmarshal(rec.Tree, &docs[i]); err != nil {
+			return nil, err
+		}
+		if _, ok := docs[i].terminalOf(uid); ok {
+			return nil, nil
+		}
+		if rec.IsDefault {
+			def = i
+		}
+	}
+	ancestors, err := visibleAncestors(ctx, q, userID, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	src, err := sourceFolderUID(ctx, q, uid)
+	if err != nil {
+		return nil, err
+	}
+	at, parentID := placeTerminal(docs, def, ancestors, src)
+	doc := &docs[at]
+	parent := doc.Tiles[parentID]
+	tile := tileItem{ID: uuid.NewString(), Type: "terminal", Parent: &parent.ID, Kids: []string{}, Size: tileSize{W: 0.5, H: 0.5}, NodeID: &nodeID, UID: uid}
+	parent.Kids = append(parent.Kids, tile.ID)
+	doc.Tiles[parent.ID] = parent
+	doc.Tiles[tile.ID] = tile
+	if err := doc.validate(); err != nil {
+		return nil, err
+	}
+	tree, err := doc.marshal()
+	if err != nil {
+		return nil, err
+	}
+	saved, err := q.UpdateTileTreeByHash(ctx, superdb.UpdateTileTreeByHashParams{UserID: userID, Hash: recs[at].Hash, Version: recs[at].Version, Tree: tree})
+	if err != nil {
+		return nil, err
+	}
+	return &saved, nil
+}
+
+// visibleAncestors: 조상 중 userID가 볼 수 있는 것(가까운 순) — 공유가 풀려 배너만 남은 폴더 타일 아래로 넣지 않게
+func visibleAncestors(ctx context.Context, q *superdb.Queries, userID, nodeID int64) ([]int64, error) {
+	ancestors, err := q.ListNodeAncestors(ctx, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	out := ancestors[:0]
+	for _, anc := range ancestors {
+		perm, err := q.NodePermission(ctx, superdb.NodePermissionParams{UserID: userID, NodeID: anc})
+		if err != nil {
+			return nil, err
+		}
+		if perm > superdb.PermBlock {
+			out = append(out, anc)
+		}
+	}
+	return out, nil
+}
+
+// sourceFolderUID: 실행한 계정 트리에서 그 터미널이 붙은 폴더 타일의 uid(W1 = 실행 버튼을 누른 타일). 없으면 ""
+func sourceFolderUID(ctx context.Context, q *superdb.Queries, uid string) (string, error) {
+	rec, err := q.GetProcess(ctx, uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	docs, err := q.ListTileTreeDocs(ctx, rec.StartedBy)
+	if err != nil {
+		return "", err
+	}
+	for _, d := range docs {
+		var doc tileDoc
+		if err := json.Unmarshal(d.Tree, &doc); err != nil {
+			return "", err
+		}
+		if t, ok := doc.terminalOf(uid); ok && t.Parent != nil {
+			return doc.Tiles[*t.Parent].UID, nil
+		}
+	}
+	return "", nil
+}
+
+// placeTerminal: 터미널 타일을 넣을 보드·부모. 순서: ① 실행한 타일과 같은 uid이고 지금도 조상 폴더를 보여 주는 폴더 타일(FU2)
+// ② 가장 가까운 조상 폴더를 보여 주는 폴더 타일(보드 id 순) ③ 기본 보드 루트.
+// ②의 열쇠 = nodeId — uid는 공유로 이어진 타일에만 같으므로 ②가 빠지면 못 찾는 경우가 남음(REF-process-share-terminal-place.md)
+func placeTerminal(docs []tileDoc, def int, ancestors []int64, srcUID string) (int, string) {
+	if srcUID != "" {
+		for i := range docs {
+			if id, ok := docs[i].linkedFolderTile(srcUID, ancestors); ok {
+				return i, id
+			}
+		}
+	}
+	for _, anc := range ancestors {
+		for i := range docs {
+			if id, ok := docs[i].folderTileOf(anc); ok {
+				return i, id
+			}
+		}
+	}
+	return def, docs[def].RootID
+}
+
+// linkedFolderTile: uid가 같고 지금 보여 주는 노드가 조상 중 하나인 폴더 타일(계정 안 폴더 uid는 하나라 순서 무관)
+func (d *tileDoc) linkedFolderTile(uid string, ancestors []int64) (string, bool) {
+	for _, t := range d.Tiles {
+		if t.Type == "folder" && t.UID == uid && t.NodeID != nil && slices.Contains(ancestors, *t.NodeID) {
+			return t.ID, true
+		}
+	}
+	return "", false
+}
+
+func (d *tileDoc) hasFolderUID(uid string) bool {
+	for _, t := range d.Tiles {
+		if t.Type == "folder" && t.UID == uid {
+			return true
+		}
+	}
+	return false
+}
+
+// folderTileOf: 그 노드를 보여 주는 폴더 타일 중 루트에서 너비 우선으로 처음 닿는 것(map 순서에 기대지 않게)
+func (d *tileDoc) folderTileOf(nodeID int64) (string, bool) {
+	queue := []string{d.RootID}
+	for len(queue) > 0 {
+		t := d.Tiles[queue[0]]
+		queue = queue[1:]
+		if t.Type == "folder" && t.NodeID != nil && *t.NodeID == nodeID {
+			return t.ID, true
+		}
+		queue = append(queue, t.Kids...)
+	}
+	return "", false
 }
 
 // terminalOf: uid의 터미널 타일
@@ -539,6 +658,7 @@ func (r *supervisorRouter) putTiles(c echo.Context) error {
 	if err := checkTerminalUIDs(&doc, &stored); err != nil {
 		panic(web.Err(400, "%v", err))
 	}
+	doc.keepFolderUIDs(&stored)
 
 	// 읽은 뒤 다른 저장이 끼었으면 version 조건으로 걸린다 — 위 검사의 기준이 바뀐 경우도 여기서 409
 	rec, err := TxQueries(c).UpdateTileTreeByHash(c.Request().Context(), superdb.UpdateTileTreeByHashParams{

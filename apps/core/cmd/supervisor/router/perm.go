@@ -71,7 +71,7 @@ func (r *supervisorRouter) processPerm(uid string, userID int64) int16 {
 	return perm
 }
 
-// requireProcess는 판정을 통과한 실행 중 entry를 반환한다. 끝났거나 worker 끊김(memory에 없음)·folder면 404.
+// requireProcess는 판정을 통과한 실행 중 entry를 반환한다. 끝났거나 worker 끊김(memory에 없음)이면 404.
 func (r *supervisorRouter) requireProcess(uid string, userID int64, min int16) *process.ProcessEntry {
 	checkPerm(r.processPerm(uid, userID), min, "존재하지 않는 process입니다")
 	entry, ok := r.processManager.Get(uid)

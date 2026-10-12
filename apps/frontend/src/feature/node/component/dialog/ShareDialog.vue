@@ -17,6 +17,10 @@ const props = defineProps({
         type: String,
         default: () => '',
     },
+    tileId: {
+        type: String,
+        default: () => '',
+    },
 })
 const open = defineModel<boolean>({ type: Boolean, default: () => false });
 
@@ -69,7 +73,7 @@ const act = (job: Promise<unknown>) => {
     message.value = undefined;
     return job.catch(err => note.value = err?.message || '요청에 실패했습니다').finally(() => loading.value = false);
 }
-const onChange = (e: NodeShareEntry, value: number) => act(putNodeShare(props.nodeId, e.userId, value).then(() => {
+const onChange = (e: NodeShareEntry, value: number) => act(putNodeShare(props.nodeId, e.userId, value, props.tileId).then(() => {
     note.value = `${e.nickname}님의 단계를 ${levelTitle(value) ?? '차단'}(으)로 바꿨습니다`;
     return refresh();
 }))
@@ -81,7 +85,7 @@ const onEditStart = (e: NodeShareEntry) => {
     editing.value = e.userId;
     pick.value = e.permission;
 }
-const onApply = (e: NodeShareEntry) => act(putNodeShare(props.nodeId, e.userId, pick.value).then(() => {
+const onApply = (e: NodeShareEntry) => act(putNodeShare(props.nodeId, e.userId, pick.value, props.tileId).then(() => {
     editing.value = undefined;
     note.value = `${e.nickname}님은 이 폴더에서 ${levelTitle(pick.value) ?? '차단'}(으)로 바뀌었습니다`;
     return refresh();
@@ -107,7 +111,7 @@ const onFind = () => {
 const onShare = () => {
     if (!found.value) return;
     loading.value = true;
-    putNodeShare(props.nodeId, found.value.id, level.value)
+    putNodeShare(props.nodeId, found.value.id, level.value, props.tileId)
         .then(res => {
             previous.value = res.previous;
             step.value = 'done';

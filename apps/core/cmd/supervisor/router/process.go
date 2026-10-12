@@ -23,10 +23,10 @@ import (
 //
 // 상태 생성(UID·spec·pool·AgentInteractive)은 ProcessManager에 위임하고, 여기선 "누구(who)"에
 // 대한 라우팅/전송만 한다: worker 조회 → manager 호출 → (content 선배치) → MsgExec 전송 →
-// bind.Relay 기동. folder-open은 worker 무접촉이라 presence만 남기고 조기 반환한다.
+// bind.Relay 기동.
 
 // Exec은 frontend의 "이 노드 실행/편집" 요청을 받아 worker에 명령하는 진입점이다.
-// kind로 manager.Exec(EXEC/folder) vs manager.ExecEdit(EDIT)를 고른다. tabID는 요청 탭 —
+// kind로 manager.Exec(EXEC) vs manager.ExecEdit(EDIT)를 고른다. tabID는 요청 탭 —
 // 실행 성공 시 크기 소유자가 된다(성공 시 uid, 실패 시 error를 돌려준다).
 // process 소유 = 노드 소유자, startedBy = 실행한 계정 — SH9(받은 쪽이 실행한 process의 소유)
 func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.ExecType, node superdb.Node, tabID string) (string, error) {
@@ -44,12 +44,7 @@ func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.E
 	}
 	uid := entry.Record.Uid
 
-	// 2. folder-open: worker 무접촉 → presence만 남기고 조기 종료(전송/relay 없음 → 구독도 무의미).
-	if !entry.HasProcess() {
-		return uid, nil
-	}
-
-	// 3. content 선배치: node 본문을 실행 경로에 파일로 먼저 깐다. DestPath는 manager가 spec에
+	// 2. content 선배치: node 본문을 실행 경로에 파일로 먼저 깐다. DestPath는 manager가 spec에
 	//    쓴 것과 동일한 WorkerNodePath라 실행 대상과 정확히 일치한다(worker가 양쪽 동일 치환).
 	//    EXEC=실행 가능(0755) / EDIT=편집 대상(0644). 전송 실패 시 등록 롤백.
 	destPath := process.WorkerNodePath(node, *entry.Record)
@@ -66,15 +61,15 @@ func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.E
 		return "", fmt.Errorf("content 선배치 실패: %w", err)
 	}
 
-	// 4. 볼 수 있는 계정의 연결된 소켓 전부 구독(O(계정 동기화)). 반드시 relay Start() 이전이라야 RUNNING 등
+	// 3. 볼 수 있는 계정의 연결된 소켓 전부 구독(O(계정 동기화)). 반드시 relay Start() 이전이라야 RUNNING 등
 	//    초기 이벤트를 놓치지 않는다. 이후 연결되는 소켓은 handleSubscribeWS가 DB로 구독한다.
 	r.subscribeViewers(uid)
 
-	// 5. fan-out relay 기동: Output()/Status() 드레인 → PROCESS:<uid> 토픽으로 Publish.
+	// 4. fan-out relay 기동: Output()/Status() 드레인 → PROCESS:<uid> 토픽으로 Publish.
 	//    종료 시 구독 정리(cleanupProcessTopic)까지 묶어서 한다 — startRelay 참조.
 	r.startRelay(uid, entry.Inter)
 
-	// 6. worker에 실행 명령. spec은 Record에서 파생(단일 진실의 출처).
+	// 5. worker에 실행 명령. spec은 Record에서 파생(단일 진실의 출처).
 	ctx, cancel := context.WithTimeout(context.Background(), sendCallTimeout)
 	defer cancel()
 	res, err := worker.Call(ctx, protocol.MsgExec, entry.Spec())
