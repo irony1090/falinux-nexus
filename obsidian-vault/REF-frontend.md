@@ -1,6 +1,6 @@
 # REF: frontend (apps/frontend)
 
-> supervisor용 프론트엔드. 상세 이력 → `history/frontend.md`(+resize/다이얼로그 `history/process-resize.md`) / 현재 진행 → `CURRENT.md`
+> supervisor용 프론트엔드. 상세 이력 → `history/frontend.md` / 로그인·API·다이얼로그 → `REF-frontend-auth.md`(+resize/다이얼로그 `history/process-resize.md`) / 현재 진행 → `CURRENT.md`
 > node 카탈로그 관련 백엔드 설계 → `REF-node-label.md`. node 카탈로그 UI 컨셉(배치도/트리/모바일) → `REF-node-ui.md`. process resize 백엔드 배선 → `REF-process-resize.md`.
 
 ## 위치/정체성
@@ -71,12 +71,8 @@
   - **브라우저에 `Handle` 없음**(서버→브라우저 REQ 미수신, 비대칭).
 - 검증: 3모드 e2e 통과(2026-06-30) — `REF-realtime.md`/`history/realtime.md`.
 
-## user/login + 공용 API + 전역 다이얼로그 (WIP, 커밋 3a8e92e)
-> 아직 마무리 전(실서버 연동·라우터 가드 남음). 구조만 자리잡음.
-- **인증**: `feature/user/store/auth.store.ts`(auth 상태) + `feature/user/api/user.api.ts`. `pages/Login.vue` + 라우트 `/login`(router/index.ts, 수동 정의).
-- **공용 API 계층**: `common/api/api.util.ts`(fetch 래퍼) + `query.util.ts`. socket hook과 별개의 REST 호출 통로.
-- **전역 다이얼로그**: `feature/layout/component/AppDialog.vue` + `store/appDialog.store.ts`(reactive 모듈 패턴 — 컴포넌트 밖에서 다이얼로그 open). layout store 계열: `appHead`/`appNav`/`appWindown`/`appDialog`.
-- **`AppDialog` 주의(2026-09-30)**: `content`는 `v-html`로 그려진다 → 사용자 입력(노드 이름 등)은 `content`가 아니라 `title`(텍스트 보간)로 넘긴다. 버튼에 `bindButton`을 묶지 않은 Enter·Space·Esc는 창 닫기로 처리되므로, 삭제 같은 되돌릴 수 없는 버튼에는 Enter를 묶지 않는다(사용 예: `FolderTileBody.vue` 삭제 확인, `ScriptEditDialog.vue` 닫기 확인).
+## user/login · 공용 API · 전역 다이얼로그 → `REF-frontend-auth.md`
+- 로그인 상태(모듈 단일 값)·라우터 가드·401 처리·AppDialog 주의(content = v-html)·회원가입 보류 메모는 분리 파일에
 
 ## REST API 클라이언트 (`feature/{node,process}/api`, 2026-07-21)
 - `feature/node/api/node.api.ts`: `createNode`/`listChildren`/`getNode`/`patchNode`/`deleteNode` (node.go+nodeDto.go 미러) + vue-query `useListChildren`/`useGetNode`/`useNodeQueryClient`(invalidateAll/-Force). `Q_KEY`는 `LIST(parentId?)`/`DETAIL(id)`.
@@ -92,7 +88,7 @@
 - `AppHead.vue`/`appHead.store.ts`도 이 공유 그룹으로 이전: 기존 `useResize(elRef)`(자체 옵저버) → `useResizeCallback(elRef, cb)` + `computeResizeSize()`로 `size`를 직접 갱신. `vElRef` 타입도 `any` → `InstanceType<typeof VAppBar>`로 정정.
 
 ## 미착수/다음
-- user/login 마무리: 실서버 인증 왕복·라우터 가드(비로그인 → `/login`)·세션 복원.
+- 회원가입 파트(보류) → `REF-frontend-auth.md` "회원가입"
 - node 카탈로그 UI = termspace 영감 2D 타일 그리드(터미널/폴더 타일, 깊이2 고정)로 전면 재설계 중(2026-08-10, 옛 캔버스+트리 컨셉 폐기). **설계 → `REF-node-ui.md`**(열린 질문 다수) / **레이아웃(순서·reflow) → `REF-node-ui-layout.md` / 화면 크기별 표시 → `REF-node-ui-projection.md`**. Phase1 첫 코드(`TileLayout.vue`, → `REF-widget.md`) 착수(2026-08-19)했으나 아직 axis/Band 모델과 미연동. node CRUD REST 클라이언트는 있으나 아직 호출하는 UI 없음.
 - socket 수신 핸들러 실연동: node `on('NODE:CREATE'|…)` → 트리/캔버스 갱신 (→ `REF-realtime.md`). process는 `ProcessDialog`가 `DATA` 연동 완료, `PROCESS:UPDATE`/`STATUS`는 스텁만.
 - process 입력(키스트로크) 배선 — 고빈도라 REST 부적합, 소켓 메시지 쪽이 유력하나 미정.

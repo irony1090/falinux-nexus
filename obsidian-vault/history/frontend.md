@@ -1,6 +1,6 @@
 # history/frontend — apps/frontend
 
-> 요약·재사용 지식 → `REF-frontend.md` / 현재 진행 → `CURRENT.md`
+> 요약·재사용 지식 → `REF-frontend.md` / 로그인·API·다이얼로그 이력 → `history/frontend-auth.md` / 현재 진행 → `CURRENT.md`
 
 ## 2026-10-08 — TileFrame 크기 팝업이 타일을 따라오게
 - 사용자 "크기 조절 툴팁이 타일을 따라오지 않는 것 같아" → 원인: 크기 변경으로 버튼이 움직이는데 `v-menu`가 위치를 다시 계산하지 않음. B안 확정(A안 닫기·C안 직접 그리기 기각): `useResizeCallback(frameEl)` + `setSize` 직후 `VMenu.updateLocation()`. vue-tsc 통과, 사용자 화면 확인 완료(팝업이 크기 조절에 따라 따라옴)
@@ -40,9 +40,3 @@
 ## 2026-06-30 — 폰트 마무리 정리
 - 기본폰트 적용 확인: `settings.scss` `$body-font-family: ('Noto Sans Korean', sans-serif)`.
 - Roboto 제거: `@fontsource/roboto` 의존성 삭제, `main.ts` `import 'unfonts.css'` 주석화, `vite.config.mts` unplugin-fonts `Fonts()` 주석화.
-
-## 2026-06-30 — user/login + 공용 API + 전역 다이얼로그 WIP (커밋 3a8e92e에 동반)
-- `feature/user`: `store/auth.store.ts`(auth 상태) + `api/user.api.ts`. `pages/Login.vue` + 라우트 `/login`(수동 정의).
-- `common/api`: `api.util.ts`(fetch 래퍼) + `query.util.ts` — socket hook과 별개 REST 통로.
-- `feature/layout` 전역 다이얼로그: `AppDialog.vue` + `appDialog.store.ts`(reactive 모듈 패턴, 컴포넌트 밖 open). layout store: appHead/appNav/appWindown/appDialog.
-- 상태: 구조만 자리잡음, 실서버 연동·라우터 가드 미완(→ REF-frontend 미착수/다음).

@@ -55,6 +55,11 @@
 - 2026-08-07 앱 레이아웃 루트를 `ProvideAppLayout.vue`로 교체(공유 리사이즈 그룹 킥 겸임) + AppHead가 공유 리사이즈 그룹으로 이전
 - 2026-06-30 apps/frontend 초기 스캐폴딩 (Vue3+TS+Vuetify, Router/Pinia X, Noto 폰트, .gitignore, 커밋 e511359)
 - 2026-06-30 폰트 마무리 정리 (Roboto 제거, Noto 기본폰트 적용 확인)
+
+### `history/frontend-auth.md` — 로그인 · 공용 API · 전역 다이얼로그 (2026-10-12 frontend에서 분리)
+- 2026-10-12(3) 사용자 확인 → 파트(user/login 마무리) 마감·커밋
+- 2026-10-12(2) 보드에서 로그아웃 시 "보드 삭제" 오인 알림 수정(`boards.loaded` 조건)
+- 2026-10-12 파트(user/login 마무리) 로그인-1(상태를 모듈로)~로그인-5(확인) 구현, 헤드리스 12/12
 - 2026-06-30 user/login + 공용 API + 전역 다이얼로그 WIP (커밋 3a8e92e 동반)
 
 ### `history/realtime.md` — 실시간 push (socket)

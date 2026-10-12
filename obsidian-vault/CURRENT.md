@@ -12,9 +12,12 @@
 - **2026-10-12 파트(active 타일 · 위치 번호 단축키 + 다른 계정 active 배지) 마감** — 로컬 active(`Ctrl+Alt+숫자`) + 원격 배지(터미널·폴더) 사용자 확인 후 커밋 → `REF-node-ui-active.md`. 뺀 것: "위치 없음" 행 열기(`openProcessTile`)는 active 안 됨(응답에 tile id 없음)
   - 개발 DB에 테스트 계정 `active-<시각>` 3개(폴더 11개씩) 남음
 - **2026-10-12 파트(worker 명부(roster)) 마감** — 명부-1(기록)~명부-4(확인) 사용자 확인 후 커밋 → `REF-node-label.md` "roster 계획"(구현 메모·한계 포함). label·DraggableSession 리팩터 보류 결정도 같이 커밋
-- **다음 파트 후보**: 프론트 user/login 마무리 / process 결정 필요 항목(EXEC 실행 방식·kill 정책, 아래) / Node 핸들러 책임 미적용 2개(아래). 사용자와 정할 것
+- **2026-10-12 파트(user/login 마무리) 마감** — 로그인-1(상태를 모듈로)~로그인-5(확인) + 보드에서 로그아웃 시 "보드 삭제" 오인 알림 수정, 사용자 확인 후 커밋 → `REF-frontend-auth.md`
+  - 개발용 로그인 기본값은 이제 `apps/frontend/.env.development.local`(git 제외, 만들어 둠)
+- **회원가입 파트 = 나중에**(2026-10-12 사용자 결정): 가입 정책 + 장비 실행 권한 + bcrypt 전환을 함께 정한 뒤 → `REF-frontend-auth.md` "회원가입"
+- **다음 파트 후보**(사용자와 정할 것): process 결정 필요 항목(EXEC 실행 방식·kill 정책, 아래) / Node 핸들러 책임 미적용 2개(아래) / 회원가입
 - 5 공유에서 뒤로 미룬 것: 숨기기(`node_shares.hidden_at`, 복원 UI "숨긴 공유 N") / 잘라내기(SH10(노드 복사) 확장) / 보드 미리보기(`/` 루트 타일 안 다른 보드 카드, `REF-workspace.md` "희망안") / 단축키 키 조합 / `tabGrace` 60초 만료·크기 우선권 넘김 실측
-- 커밋 상태: 2026-10-12 파트(active 타일·원격 배지) 마감까지 전부 커밋(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`). **push는 한 번도 안 함**(태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
+- 커밋 상태: 2026-10-12 파트(user/login 마무리) 마감까지 전부 커밋(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`). **push는 한 번도 안 함**(태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
 - 재부팅으로 사라지는 것: 2026-10-12 두 세션의 scratchpad(`12185a69…`·`f3a527cf…`) 확인 스크립트·격리 설정 전부(`g_test.py`·`of_test.py`·`pw/ui.mjs`·`pw/active.mjs`·`pw/remote.mjs`·`vite.iso.mts`·`pw/node_modules`). 다시 쓸 땐 `REF-test-env.md` "격리 실행"·"2026-10-12 확인 스크립트"·`REF-process-share-verify.md` "방법"(항목표가 곧 재작성 명세). 임시 DB `nexus_active_tmp`는 삭제함, 5050·3000은 사용자 것
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
 - 역할 분담(2026-09-29 개정): node 타일 UI·process 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다
@@ -59,8 +62,8 @@
 - **결정 필요**: 끊긴 창 kill 거절 vs 큐잉(입력은 I3(PENDING 중 입력) = 버림 확정) / ~~공유 kill 인가~~(SH3(받은 계정 권한)으로 해소: 조작 이상) / kill 에스컬레이션
 - **정리 잔여(구)**: `register.go` 주석 SendBuffer 테스트. worker `baseDir` 필드·`instanceKey()` dead code화(정리 여부 판단)
 
-### 프론트 user/login — WIP (→ `REF-frontend.md`)
-- `feature/user`(`auth.store.ts` + `api/user.api.ts`), `pages/Login.vue` + `/login` 라우트, 전역 다이얼로그. 실서버 연동·가드 마무리 남음
+### 프론트 user/login — 마감(2026-10-12, → `REF-frontend-auth.md`)
+- 서버 쪽 잔여는 이번 범위 밖: 아래 "잔여(틈날 때)"의 `SESSION_KEY` env화 · checkSession `createdAt=0`
 
 ---
 
@@ -74,6 +77,6 @@
 - **supervisor 영속성**: registry 메모리 → PG 미착수
 
 ## 잔여 (틈날 때)
-- `api.util.ts` `throwCatch`가 HTTP 상태 코드를 버림 → 서버 미기동도 세션 만료처럼 `auth` null → 사용자 설정(`userPrefs`) 삭제. 공용 에러 처리 손볼 때 401만 삭제하도록(`auth.store.ts` TODO)
+- ~~`throwCatch` 상태 코드 / 서버 미기동 시 설정 삭제~~ → 로그인-3(401만 로그아웃)으로 해소(2026-10-12)
 - `SESSION_KEY` 등 env화(현재 `"irony"` 하드코딩)
 - checkSession createdAt=0(pgtype.Timestamptz gob 미직렬화) → sess.Data.ID로 DB 재조회
