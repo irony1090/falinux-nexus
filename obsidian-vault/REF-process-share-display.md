@@ -66,7 +66,7 @@
 | 모바일 390px 머리 줄 | 넘침 0px (통과) |
 
 - **발견·수정**: `SHARE:CHANGE` 때 폴더 타일은 노드 재조회로 바뀌지만 터미널의 `permission`은 process 스토어에 남아 있었음 → `processTerm.store.ts` `refreshAccount`(계정 기준 세 값만 갱신) + `terminalRestore.hook.ts` `recheck`가 조회 결과마다 호출
-- 남은 사소한 것: ⑥이 내가 실행한 것에도 `실행: 내 닉네임`으로 나옴(시안은 "나"). 필요하면 로그인 닉네임과 비교해 "나"로 바꿈 — 사용자 판단
+- ~~남은 사소한 것: ⑥이 내가 실행한 것에도 `실행: 내 닉네임`으로 나옴~~ → 2026-10-12 "나"로 수정(서버 `startedByMe`) → `REF-process-share-verify.md`
 - 확인 스크립트(scratchpad `pw/lib.mjs`·`setup.mjs`·`view1~4.mjs`, `vite.iso.mts`, 재부팅 시 사라짐). 격리 프론트는 `vite`를 import하지 말고 기존 설정 객체를 펼쳐 쓰면 됨(scratchpad에서 `vite`를 못 찾음)
 
 ## 공유-e-2(공유 걸기 창) 구조안 (2026-10-08 확정, 코드 없음)
