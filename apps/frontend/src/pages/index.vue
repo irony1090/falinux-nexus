@@ -21,6 +21,7 @@ import { provideBoards } from '@/feature/node/store/boards.store';
 import { provideRemoteActive } from '@/feature/node/store/remoteActive.store';
 import { useTerminalRestore } from '@/feature/node/hook/terminalRestore.hook';
 import { useShareChange } from '@/feature/node/hook/shareChange.hook';
+import { useNodeChange } from '@/feature/node/hook/nodeChange.hook';
 import { provideProcessTerm } from '@/feature/process/store/processTerm.store';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { useTestSocket } from '@/common/websocket/websocket.hook';
@@ -47,6 +48,7 @@ const { ready, loadError, load, reset } = tileTree;
 const { reset: resetTerms } = processTerm;
 useTerminalRestore(tileTree, processTerm);
 useShareChange();
+useNodeChange();
 
 watch(auth, val => {
     if (val) {

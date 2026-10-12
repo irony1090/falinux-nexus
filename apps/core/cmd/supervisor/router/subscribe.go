@@ -2,7 +2,6 @@ package router
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
@@ -11,10 +10,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 )
-
-func nodeSubscribeTopic(parentId int64) string {
-	return fmt.Sprintf("NODE:%d", parentId)
-}
 
 // handleSubscribeWS: 브라우저 소켓 = 탭 하나. URL `?tabId=`는 sessionStorage에 있던 이전 탭 id(없으면 빈 값).
 func (r *supervisorRouter) handleSubscribeWS(c echo.Context) error {

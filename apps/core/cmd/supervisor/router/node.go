@@ -1,11 +1,14 @@
 package router
 
 import (
+	"context"
 	"log"
+	"slices"
 	"strconv"
 
 	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
+	"nexus/internal/supervisor/store"
 	"nexus/internal/web"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -36,29 +39,53 @@ func paramID(c echo.Context) int64 {
 	return id
 }
 
-// parentOrRoot는 pgtype.Int8 parentId를 토픽 키로 정규화한다(NULL=루트=0).
-// NODE:0은 구독자가 없어 발행이 버려진다 — SB5(NODE:0 누설 수정). 루트 토픽 설계는 열린 질문 4(NODE 동적 구독)에서.
-func parentOrRoot(p pgtype.Int8) int64 {
-	if p.Valid {
-		return p.Int64
-	}
-	return 0
+// node 변경 전달 = 볼 수 있는 접속 계정의 계정 토픽 — REF-node-list-sync.md NS2(받는 계정)·NS3(판정 시점)
+
+// publishNode는 커밋 뒤 판정해서 보낸다(노드 자신 + 부모 + parents). 반드시 AfterCommit 안에서 부를 것 — 롤백 시 누설
+func (router *supervisorRouter) publishNode(kind protocol.MsgType, node superdb.Node, parents ...pgtype.Int8) {
+	users := router.nodeRecipients(context.Background(), store.GetStorePool().Queries(), nodeJudgeIDs(node, parents...))
+	router.publishNodeTo(users, kind, node)
 }
 
-// publishNode는 node의 (현재) 부모 폴더 토픽에 kind 이벤트를 발행한다. 커밋 성공 후에만
-// 실행되도록 반드시 AfterCommit(c, func(){ router.publishNode(...) })로 예약해서 부른다
-// (REF-realtime.md "commit 이후 Publish" — tx 안에서 바로 부르면 롤백 시 누설).
-func (router *supervisorRouter) publishNode(kind protocol.MsgType, node superdb.Node) {
-	router.publishNodeTopic(nodeSubscribeTopic(parentOrRoot(node.ParentID)), kind, node)
+// publishNodeTo는 미리 구한 계정들에 보낸다(삭제 — 커밋 뒤엔 노드가 없어 판정 불가). AfterCommit 안에서만
+func (router *supervisorRouter) publishNodeTo(users []int64, kind protocol.MsgType, node superdb.Node) {
+	res := newNodeResponse(node)
+	for _, u := range users {
+		if err := router.subscribeHub.Publish(tilesTopic(u), kind, res); err != nil {
+			log.Printf("[node] 발행 실패 user=%d kind=%s: %v", u, kind, err)
+		}
+	}
 }
 
-// publishNodeTopic은 명시적 토픽에 발행한다 — 이동(parentId 변경)이 old parent 쪽에도
-// 알려야 할 때(REF-realtime.md "이동/삭제 = old parent + new parent 2개 토픽") publishNode와
-// 함께 쓴다. 마찬가지로 AfterCommit 안에서만 호출한다.
-func (router *supervisorRouter) publishNodeTopic(topic string, kind protocol.MsgType, node superdb.Node) {
-	if err := router.subscribeHub.Publish(topic, kind, newNodeResponse(node)); err != nil {
-		log.Printf("[node] Publish 실패 topic=%s kind=%s: %v", topic, kind, err)
+// nodeRecipients는 접속 중 계정 중 ids 하나라도 보기 이상인 계정이다. 조회 실패 = 아무에게도 안 보냄
+func (router *supervisorRouter) nodeRecipients(ctx context.Context, q *superdb.Queries, ids []int64) []int64 {
+	users := router.tabs.onlineUsers()
+	if len(users) == 0 {
+		return nil
 	}
+	rows, err := q.ListNodePermissionMatrix(ctx, superdb.ListNodePermissionMatrixParams{UserIds: users, NodeIds: ids})
+	if err != nil {
+		log.Printf("[node] 받는 계정 조회 실패 nodes=%v: %v", ids, err)
+		return nil
+	}
+	var out []int64
+	for _, row := range rows {
+		if row.Permission > superdb.PermBlock && !slices.Contains(out, row.UserID) {
+			out = append(out, row.UserID)
+		}
+	}
+	return out
+}
+
+// nodeJudgeIDs: 노드 자신(공유 루트면 부모를 못 보는 받은 쪽이 있음) + 부모 + 이동 전 부모
+func nodeJudgeIDs(node superdb.Node, parents ...pgtype.Int8) []int64 {
+	ids := []int64{node.ID}
+	for _, p := range append([]pgtype.Int8{node.ParentID}, parents...) {
+		if p.Valid && !slices.Contains(ids, p.Int64) {
+			ids = append(ids, p.Int64)
+		}
+	}
+	return ids
 }
 
 // createNode는 FOLDER/SCRIPT 노드를 만든다. ord 미지정 시 형제 끝에 append.
@@ -182,8 +209,7 @@ func (router *supervisorRouter) patchNode(c echo.Context) error {
 	q, ctx := TxQueries(c), c.Request().Context()
 
 	target, perm := requireNode(c, sess.Data.ID, id, superdb.PermEdit)
-	// parentId가 바뀌는(=이동) 요청이면 발행 시 old parent 토픽에도 알려야 하므로 미리 잡아 둔다.
-	oldParent := target.ParentID
+	oldParent := target.ParentID // 이동이면 옛 부모를 보는 계정에도 보낸다(그 목록에서 빠져야 함)
 	moving := body.ParentID.Set
 	if moving {
 		checkMove(c, sess.Data.ID, target, perm, body.ParentID.Value)
@@ -211,7 +237,7 @@ func (router *supervisorRouter) patchNode(c echo.Context) error {
 		}
 	}
 
-	AfterCommit(c, func() { router.publishNode(protocol.MsgNodeUpdate, node) })
+	AfterCommit(c, func() { router.publishNode(protocol.MsgNodeUpdate, node, oldParent) })
 	if reparent {
 		users = mergeUsers(c, users, id)
 		added := attachNewlyVisible(c, before, users, uids)
@@ -219,13 +245,6 @@ func (router *supervisorRouter) patchNode(c echo.Context) error {
 			router.reconcileAccess(users, uids)
 			router.publishSaved(added)
 		})
-	}
-	if moving {
-		oldTopic := nodeSubscribeTopic(parentOrRoot(oldParent))
-		newTopic := nodeSubscribeTopic(parentOrRoot(node.ParentID))
-		if oldTopic != newTopic {
-			AfterCommit(c, func() { router.publishNodeTopic(oldTopic, protocol.MsgNodeUpdate, node) })
-		}
 	}
 	return c.JSON(200, withNodePermission(newNodeResponse(node), perm))
 }
@@ -282,14 +301,16 @@ func (router *supervisorRouter) deleteNode(c echo.Context) error {
 	if perm < superdb.PermOwner {
 		requireNoLowerShare(c, sess.Data.ID, id)
 	}
-	users, uids := collectAround(c, id) // 삭제 전에만 구할 수 있음
+	// 둘 다 삭제 전에만 구할 수 있음 — NS3(판정 시점)
+	users, uids := collectAround(c, id)
+	recipients := router.nodeRecipients(c.Request().Context(), TxQueries(c), nodeJudgeIDs(victim))
 	if err := TxQueries(c).DeleteNode(c.Request().Context(), superdb.DeleteNodeParams{
 		ID:          id,
 		OwnerUserID: victim.OwnerUserID,
 	}); err != nil {
 		panic(web.Err(500, "%v", err))
 	}
-	AfterCommit(c, func() { router.publishNode(protocol.MsgNodeDelete, victim) })
+	AfterCommit(c, func() { router.publishNodeTo(recipients, protocol.MsgNodeDelete, victim) })
 	AfterCommit(c, func() { router.reconcileAccess(users, uids) })
 	return c.JSON(200, map[string]any{})
 }

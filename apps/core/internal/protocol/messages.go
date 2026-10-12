@@ -250,7 +250,7 @@ type SyncEvent struct {
 // ===== node 카탈로그 (supervisor → browser) =====
 //
 // worker는 관여하지 않는다(node는 순수 supervisor PG 영속). REST(CRUD) 커밋 성공 후
-// subscribeHub가 NODE:<parentId> 토픽 구독자에게 EVENT로 push한다. 세분화 kind(created/
+// 그 노드를 볼 수 있는 접속 계정의 TILES:<userId> 토픽으로 EVENT를 push한다(REF-node-list-sync.md). 세분화 kind(created/
 // moved/renamed 등) 대신 CRUD 3종 + payload=항상 전체 node 구조체로 통일한다(REF-realtime.md
 // "Kind(MsgType) 어휘 — node 도메인 확정"). 이동/이름변경은 별도 kind 없이 UPDATE에 흡수.
 const (

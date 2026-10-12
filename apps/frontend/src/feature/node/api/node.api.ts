@@ -198,9 +198,22 @@ export const useNodeQueryClient = (queryClient: QueryClient) => {
         })
     }
 
+    // 다른 곳에서 바뀐 노드 — 부모 목록 + 그 노드를 담은 목록 전부(옛 부모·루트의 공유 루트 자리) — NS4(프론트 반영)
+    const invalidateChanged = (node: { id: number, parentId: number | null }) => {
+        const parentKey = node.parentId ?? undefined
+        queryClient.invalidateQueries({
+            queryKey: Q_KEY.LIST().slice(0, 2),
+            predicate: q => q.queryKey[2] === parentKey
+                || (q.state.data as NodeResponse[] | undefined)?.some(n => n.id === node.id) === true,
+        })
+        queryClient.invalidateQueries({ queryKey: Q_KEY.DETAIL(node.id), exact: true })
+        queryClient.invalidateQueries({ queryKey: Q_KEY.PATH(), exact: false })
+    }
+
     return {
         invalidateAllForce,
         invalidateAll,
+        invalidateChanged,
         fetchPath: (id: number) => fetchNodePath(queryClient, id),
     }
 }
