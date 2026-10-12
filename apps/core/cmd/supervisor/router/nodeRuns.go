@@ -11,11 +11,12 @@ import (
 // 스크립트 행 "실행 중 N · 최소화 n"(실시간-6a): 폴더의 자식 스크립트별 살아 있는 process + 내 보드에서의 위치.
 
 type runResponse struct {
-	Uid        string `json:"uid"`
-	NodeID     int64  `json:"nodeId"`
-	Status     string `json:"status"`
-	Permission int16  `json:"permission"`
-	StartedBy  string `json:"startedBy"`
+	Uid         string `json:"uid"`
+	NodeID      int64  `json:"nodeId"`
+	Status      string `json:"status"`
+	Permission  int16  `json:"permission"`
+	StartedBy   string `json:"startedBy"`
+	StartedByMe bool   `json:"startedByMe,omitempty"` // 내가 실행했으면 프론트가 닉네임 대신 "나"
 
 	Hash      string `json:"hash,omitempty"` // 내 어느 보드에도 타일이 없으면 비어 있음
 	TileID    string `json:"tileId,omitempty"`
@@ -62,7 +63,7 @@ func (r *supervisorRouter) listNodeRuns(c echo.Context) error {
 	}
 	for i, row := range rows {
 		loc := where[row.Uid]
-		out[i] = runResponse{Uid: row.Uid, NodeID: row.NodeID.Int64, Status: row.Status, Permission: row.Permission, StartedBy: row.StartedByNickname,
+		out[i] = runResponse{Uid: row.Uid, NodeID: row.NodeID.Int64, Status: row.Status, Permission: row.Permission, StartedBy: row.StartedByNickname, StartedByMe: row.StartedBy == sess.Data.ID,
 			Hash: loc.hash, TileID: loc.tileID, Minimized: loc.minimized}
 	}
 	return c.JSON(200, out)

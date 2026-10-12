@@ -276,7 +276,7 @@ ORDER BY u.nickname, n.name, n.id;
 -- name: ListVisibleLiveProcessesInFolder :many
 -- 폴더의 직접 자식 스크립트에서 실행된 살아 있는 process 중 내가 볼 수 있는 것. 단계 판정은 process_permission만.
 SELECT p.uid, p.node_id, p.status, process_permission(sqlc.arg(user_id), p.uid)::smallint AS permission,
-       COALESCE(u.nickname, '')::text AS started_by_nickname
+       p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname
 FROM processes p
 JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by

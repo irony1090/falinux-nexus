@@ -31,6 +31,7 @@ export type ProcessResponse = {
     permission?: number     // 요청 계정의 단계 — REST 응답에만
     ownerNickname?: string  // 소유자가 내가 아닐 때(공유받은 process)만 — REST 응답에만
     startedBy?: string      // 실행한 계정 닉네임, 소유자와 다를 때만 — REST 응답에만
+    startedByMe?: boolean   // startedBy가 나 — "나"로 표시. REST 응답에만
 }
 export type ProcessResponseDto = Replace<ProcessResponse, {
     createdAt: number

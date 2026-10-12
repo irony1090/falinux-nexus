@@ -203,8 +203,8 @@ export const provideProcessTerm = () => {
     offs.push(on<ProcessResponseDto>('PROCESS:UPDATE', dto => {
         const old = procs_.value[dto.uid]
         if (!old) return
-        const { permission, ownerNickname, startedBy } = old // 계정 기준 값은 REST 응답에만 있어 이벤트로 덮지 않는다
-        procs_.value[dto.uid] = { ...toProcessResponse(dto), permission, ownerNickname, startedBy }
+        const { permission, ownerNickname, startedBy, startedByMe } = old // 계정 기준 값은 REST 응답에만 있어 이벤트로 덮지 않는다
+        procs_.value[dto.uid] = { ...toProcessResponse(dto), permission, ownerNickname, startedBy, startedByMe }
     }))
 
     // 등록 전(복원 중)에 와도 기록한다 — register가 이 값을 유지
@@ -334,7 +334,7 @@ export const provideProcessTerm = () => {
     // 공유 단계가 바뀌었을 때 계정 기준 값만 갱신 — 공유-e-1. 터미널 내용은 건드리지 않는다
     const refreshAccount = (p: ProcessResponse) => {
         const old = procs_.value[p.uid]
-        if (old) procs_.value[p.uid] = { ...old, permission: p.permission, ownerNickname: p.ownerNickname, startedBy: p.startedBy }
+        if (old) procs_.value[p.uid] = { ...old, permission: p.permission, ownerNickname: p.ownerNickname, startedBy: p.startedBy, startedByMe: p.startedByMe }
     }
     const pruneGone = (keep: ReadonlySet<string>) => {
         Object.keys(gone_.value).forEach(u => { if (!keep.has(u)) delete gone_.value[u] })

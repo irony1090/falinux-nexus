@@ -24,7 +24,7 @@ func (r *supervisorRouter) onProcessInput(conn *transport.Conn, userID int64) {
 func (r *supervisorRouter) input(userID int64, body protocol.DataEvent) {
 	entry, ok := r.processManager.Get(body.UID)
 	if !ok || entry.Inter == nil || entry.Record == nil {
-		return // 종료됨 / worker 끊김(Detach로 memory에서 빠짐) / folder
+		return // 종료됨 / worker 끊김(Detach로 memory에서 빠짐)
 	}
 	if r.processPerm(body.UID, userID) < superdb.PermOperate { // SB2(입력 권한 확인 방식): 소유자면 메모리, 아니면 입력마다 DB
 		log.Printf("[process] 조작 권한 없는 입력 버림 uid=%s user=%d", body.UID, userID)

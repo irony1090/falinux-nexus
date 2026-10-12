@@ -78,7 +78,7 @@ const pill = (status: string) => STATUS_PILL[status as ProcessStatus] ?? { text:
             <template v-if="row.local">이 보드</template>
             <template v-else-if="row.board">{{ boardLabel(row.board) }}</template>
             <template v-else>위치 없음</template>
-            <span class="by"> · {{ row.r.startedBy }}</span>
+            <span class="by"> · {{ row.r.startedByMe ? '나' : row.r.startedBy }}</span>
         </span>
         <v-chip size="x-small" variant="tonal" class="pill" :color="pill(row.r.status).color">{{ pill(row.r.status).text }}</v-chip>
         <span class="acts">

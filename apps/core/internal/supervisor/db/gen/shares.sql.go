@@ -753,7 +753,7 @@ func (q *Queries) ListVisibleLiveProcesses(ctx context.Context, userID int64) ([
 const listVisibleLiveProcessesInFolder = `-- name: ListVisibleLiveProcessesInFolder :many
 
 SELECT p.uid, p.node_id, p.status, process_permission($1, p.uid)::smallint AS permission,
-       COALESCE(u.nickname, '')::text AS started_by_nickname
+       p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname
 FROM processes p
 JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by
@@ -774,6 +774,7 @@ type ListVisibleLiveProcessesInFolderRow struct {
 	NodeID            pgtype.Int8
 	Status            string
 	Permission        int16
+	StartedBy         int64
 	StartedByNickname string
 }
 
@@ -793,6 +794,7 @@ func (q *Queries) ListVisibleLiveProcessesInFolder(ctx context.Context, arg List
 			&i.NodeID,
 			&i.Status,
 			&i.Permission,
+			&i.StartedBy,
 			&i.StartedByNickname,
 		); err != nil {
 			return nil, err

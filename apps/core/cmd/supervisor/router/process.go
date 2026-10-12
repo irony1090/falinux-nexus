@@ -150,7 +150,7 @@ func (r *supervisorRouter) output(ev protocol.Frame) {
 	}
 	entry, ok := r.processManager.Get(body.UID)
 	if !ok || entry.Inter == nil {
-		return // 이미 정리됐거나 folder-only 엔트리 → 버림
+		return // 이미 정리된 엔트리 → 버림
 	}
 	entry.Inter.PushOutput(body.Data)
 }
@@ -263,8 +263,7 @@ func (r *supervisorRouter) applyStatus(uid string, status execute.CommandStatus,
 
 // reconcileDisconnect는 worker 연결이 끊겼을 때 그 device 소유 활성 process를 전부
 // PENDING으로 낙관적 전이한다(REF-process "worker 끊김→PENDING"). deviceKey=InstanceKey
-// (workers 레지스트리 키와 동일). FOLDER는 pool 미저장이라 ListActiveByDevice에 안 잡혀
-// 자동 제외된다.
+// (workers 레지스트리 키와 동일).
 func (r *supervisorRouter) reconcileDisconnect(deviceKey string) {
 	q := store.GetStorePool().Queries()
 	ctx := context.Background()

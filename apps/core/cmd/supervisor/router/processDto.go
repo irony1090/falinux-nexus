@@ -32,6 +32,7 @@ type processResponse struct {
 
 	OwnerNickname string `json:"ownerNickname,omitempty"` // 소유자가 요청 계정이 아닐 때만(공유받은 process) — 공유-e-1
 	StartedBy     string `json:"startedBy,omitempty"`     // 실행한 계정 닉네임, 소유자와 다를 때만 — SH9
+	StartedByMe   bool   `json:"startedByMe,omitempty"`   // StartedBy가 요청 계정이면 true — 프론트가 "나"로 표시(닉네임은 유일하지 않음)
 }
 
 func newProcessResponse(p superdb.Process) processResponse {
@@ -138,6 +139,7 @@ func withProcessNames(c echo.Context, userID int64, rs []processResponse, ps []s
 		}
 		if p.StartedBy != p.OwnerUserID {
 			rs[i].StartedBy = nick[p.StartedBy]
+			rs[i].StartedByMe = p.StartedBy == userID
 		}
 	}
 	return rs

@@ -63,7 +63,7 @@ const sharePerm = computed(() => tile.value?.type === 'terminal' ? proc.value?.p
 const shareInfo = computed(() => shareOwner.value ? permInfo(sharePerm.value) : undefined);
 const readOnly = computed(() => tile.value?.type === 'terminal' && isReadOnly(sharePerm.value));
 const shareRoot = computed(() => tile.value?.type === 'folder' && !!shareOwner.value && node.value?.parentVisible === false); // 공유 시작 지점
-const startedBy = computed(() => proc.value?.startedBy);
+const startedBy = computed(() => proc.value?.startedByMe ? '나' : proc.value?.startedBy);
 
 // 터미널 머리 줄 `[실행한 타일 위치 번호] 실행된 경로 / 이름` — 번호 = 소유(타일 트리), 경로 = 스크립트가 있는 폴더(노드 트리). REF-workspace.md "터미널 머리 줄"
 const ownerPos = computed(() => tile.value?.type === 'terminal' && tile.value.parent ? posOf.value.get(tile.value.parent) : undefined);
@@ -176,7 +176,7 @@ const onX = () => {
             <span v-if="ownerPos" class="owner" title="이 터미널을 실행한 타일">[{{ ownerPos }}]</span>
             <span v-if="pathText" class="path" :title="pathText">{{ pathText }} /</span>
             <span class="name">{{ name }}</span>
-            <span v-if="startedBy" class="by" :title="`${startedBy}님이 실행`">실행: {{ startedBy }}</span>
+            <span v-if="startedBy" class="by" :title="proc?.startedByMe ? '내가 실행' : `${startedBy}님이 실행`">실행: {{ startedBy }}</span>
         </template>
         <template v-else>
             <span class="name">{{ name }}</span>
