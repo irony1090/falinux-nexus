@@ -9,10 +9,13 @@
 
 ## ⚠️ 다음 세션 시작 시
 - **2026-10-12 파트(5 공유) 마감** — 동기화·공유·보드·presence 전부 `master`에 커밋(공유-g(확인) 통합 70/70 + 위치 21/21 + 헤드리스, ⑥ "나" 수정 포함). 상세·원문 색인 → `INDEX-process-share.md`(세션 시작 시 안 읽음, 필요하면 INDEX부터)
-- **다음 = 새 파트 고르기** (사용자 결정). 후보: Node 모듈 roster·label / 프론트 user/login 마무리 / active 타일 표시(확정, 구현 전 → `REF-node-ui-overview.md`) / DraggableSession 리팩터 / process 결정 필요 항목(아래)
+- **2026-10-12 파트(active 타일 · 위치 번호 단축키 + 다른 계정 active 배지) 마감** — 로컬 active(`Ctrl+Alt+숫자`) + 원격 배지(터미널·폴더) 사용자 확인 후 커밋 → `REF-node-ui-active.md`. 뺀 것: "위치 없음" 행 열기(`openProcessTile`)는 active 안 됨(응답에 tile id 없음)
+  - 개발 DB에 테스트 계정 `active-<시각>` 3개(폴더 11개씩) 남음
+- **다음 파트 = 사용자에게 고르기 받기**(아래 후보)
+- 이 파트 다음 후보: Node 모듈 roster·label / 프론트 user/login 마무리 / DraggableSession 리팩터 / process 결정 필요 항목(아래)
 - 5 공유에서 뒤로 미룬 것: 숨기기(`node_shares.hidden_at`, 복원 UI "숨긴 공유 N") / 잘라내기(SH10(노드 복사) 확장) / 보드 미리보기(`/` 루트 타일 안 다른 보드 카드, `REF-workspace.md` "희망안") / 단축키 키 조합 / `tabGrace` 60초 만료·크기 우선권 넘김 실측
-- 커밋 상태: 2026-10-12까지 전부 커밋(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`). **push는 한 번도 안 함**(태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
-- 재부팅으로 사라지는 것(세션 scratchpad `/tmp/claude-1000/-home-jh-bae-irony-nexus/12185a69…/scratchpad/`): `g_test.py`(공유-b~f 통합 70) · `of_test.py`(터미널 위치·폴더 uid 21, `Client` 클래스 원본 — `g_test.py`가 `exec`로 씀) · `ui_prep.py` + `pw/ui.mjs`(헤드리스) · `vite.iso.mts`. 다시 쓸 땐 `REF-test-env.md` "격리 실행"·`REF-process-share-verify.md` "방법"
+- 커밋 상태: 2026-10-12 파트(active 타일·원격 배지) 마감까지 전부 커밋(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`). **push는 한 번도 안 함**(태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
+- 재부팅으로 사라지는 것(2026-10-12 세션 scratchpad `/tmp/claude-1000/-home-jh-bae-irony-nexus/12185a69…/scratchpad/`, **재부팅하면 전부 사라짐**): `g_test.py`(공유-b~f 통합 70) · `of_test.py`(터미널 위치·폴더 uid 21, `Client` 클래스 원본) · `ui_prep.py` + `pw/ui.mjs`(헤드리스, playwright-core 1.56.1) · `vite.iso.mts`(격리 프론트 3001). 다시 쓸 땐 `REF-test-env.md` "격리 실행"·`REF-process-share-verify.md` "방법"(항목표가 곧 재작성 명세). 임시 DB `nexus_of_tmp`는 삭제함, 5050·3000은 사용자 것
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
 - 역할 분담(2026-09-29 개정): node 타일 UI·process 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다
 

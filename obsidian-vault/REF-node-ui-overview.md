@@ -78,6 +78,6 @@ Windows Alt+Tab / Android·iOS 앱 전환처럼 **실행 중인 프로세스를 
 | 범위 | 탭마다 따로, 서버 저장·계정 동기화 없음 |
 | 전체보기 | active 타일 같은 방식으로 강조 |
 | ⑮(모바일 가상 키보드) | 특수 키 줄 = active 터미널로 |
-| **타일 단축키** | 위치 번호로 active 전환(시안 `Alt+숫자`, 사용자 "매우 맘에 듦"). ※ 구현 때 키 조합 확인: Linux Firefox는 `Alt+1~9`가 탭 전환 / xterm 포커스 중엔 `Alt+숫자`가 터미널 프로그램(tmux·irssi 등)의 메타 키와 겹침 → xterm `attachCustomKeyEventHandler`에서 가로챌지 다른 조합으로 할지 / 10번 이상 타일 |
+| **타일 단축키** | 위치 번호로 active 전환(시안 `Alt+숫자`, 사용자 "매우 맘에 듦") → **구현은 `Ctrl+Alt+숫자`(2026-10-12, `REF-node-ui-active.md`)**. ※ 구현 때 키 조합 확인: Linux Firefox는 `Alt+1~9`가 탭 전환 / xterm 포커스 중엔 `Alt+숫자`가 터미널 프로그램(tmux·irssi 등)의 메타 키와 겹침 → xterm `attachCustomKeyEventHandler`에서 가로챌지 다른 조합으로 할지 / 10번 이상 타일 |
 
 - 시안: https://claude.ai/artifact/GjJjsxjrmZMRKFYSrY59HY (user vault `user/links.md`)

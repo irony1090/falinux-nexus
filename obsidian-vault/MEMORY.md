@@ -64,14 +64,14 @@ sqlc.yaml  README.md  .gitignore
 | DB/스토어 (sqlc·goose·store) | 구현 완료 | `REF-db.md` |
 | Node 카탈로그 | DB+CRUD+핸들러+PatchNode(`9c9d22e`) + `GET /workers`·exec 대상 장비 검증(`ba5b857`). UI 연동(연동 1차·타일 터미널·⑪(타일 트리 서버 저장)·4 O(계정 동기화) 화면) 마감 → `INDEX-node-ui-link.md`. roster/label 남음 | `REF-node-label.md`(+`REF-node-ui.md` UI 컨셉 / `REF-node-ui-overview.md` 전체보기·가상 키보드) |
 | 공용 PATCH 래퍼 (`internal/patch`) | `patch.Field[T]` 3-state(`{valid,value}`), worker도 재사용 예정 | `REF-node-label.md` |
-| 프론트엔드 (apps/frontend) | 스캐폴딩·socket hook·user/login WIP·전역 다이얼로그 + node 타일 UI(레이아웃 → `INDEX-node-ui-layout.md`, 연동 → `INDEX-node-ui-link.md`, 둘 다 마감) + 터미널 기능(→ `INDEX-process-terminal.md`). 남은 것 = ⑮(모바일 가상 키보드) iPhone 확인·user/login 마무리·active 타일 표시(확정, 구현 전) | `REF-frontend.md`(+`REF-node-ui.md` 컨셉 / `REF-node-ui-overview.md` 전체보기·가상 키보드) |
+| 프론트엔드 (apps/frontend) | 스캐폴딩·socket hook·user/login WIP·전역 다이얼로그 + node 타일 UI(레이아웃 → `INDEX-node-ui-layout.md`, 연동 → `INDEX-node-ui-link.md`, 둘 다 마감) + 터미널 기능(→ `INDEX-process-terminal.md`). 남은 것 = ⑮(모바일 가상 키보드) iPhone 확인·user/login 마무리 / active 타일 표시·위치 번호 단축키·다른 계정 active 배지 = **마감(2026-10-12, `REF-node-ui-active.md`)** | `REF-frontend.md`(+`REF-node-ui.md` 컨셉 / `REF-node-ui-overview.md` 전체보기·가상 키보드) |
 | 실시간 push (socket) | 전송 토대·3모드 e2e 커밋(3a8e92e). **ping/pong(`transport.KeepAlive`, 10초/25초)로 응답 없는 소켓의 Hub 막힘 해소**(`e395433`, 2026-10-01). node Kind 어휘 확정 + process 동적구독 REST 완료 + **node CRUD 발행처 배선 완료**(`AfterCommit` 훅, 이동=2토픽, 2026-07-16, 빌드/vet 통과·e2e 미검증). 남은 것=NODE 동적구독 어휘·프론트 수신 | `REF-realtime.md` |
 | 위젯 (Skeleton/SkeletonGroup/StickyBox/TileLayout) | Skeleton/SkeletonGroup shimmer 로딩 위젯 신설 + StickyBox 컴포넌트 구현·스토어 리팩터(reportSelf/viewportClient, 2026-08-07) + TileLayout(CSS grid 타일 위젯, node UI Phase1 뼈대, 2026-08-19). 셋 다 실사용 미배선(TileLayout은 index.vue 데모만) | `REF-widget.md` |
 | 범용 유틸 (EventInterface/Memoized/LifecycleRegistry/GroupedSet) | 4종 + 공유 리사이즈 관측 그룹(`feature/common`, AppHead·StickyBox가 씀, 2026-08-07). 반복 주제(전역 규칙)라 전용 REF | `REF-util.md`(+`REF-util-drag.md` DraggableSession/useDragGhost/GhostArea, 설계 확정·구현전) |
 
 ## reference 인덱스
-- 설계/재사용 지식: `REF-process.md` `REF-db.md` `REF-node-label.md` `REF-node-ui.md` `REF-node-ui-overview.md` `REF-frontend.md` `REF-realtime.md` `REF-widget.md` `REF-util.md` `REF-util-drag.md` `REF-test-env.md`(테스트 환경·함정)
-- 작업 이력(주제별): `history/node-label.md` `history/node-ui.md` `history/node-ui-overview.md` `history/frontend.md` `history/realtime.md` `history/widget.md` `history/util.md` `history/util-drag.md` `history/test-env.md`
+- 설계/재사용 지식: `REF-process.md` `REF-db.md` `REF-node-label.md` `REF-node-ui.md` `REF-node-ui-overview.md` `REF-node-ui-active.md`(active 타일·단축키 `Ctrl+Alt+숫자`·다른 계정 active 배지) `REF-frontend.md` `REF-realtime.md` `REF-widget.md` `REF-util.md` `REF-util-drag.md` `REF-test-env.md`(테스트 환경·함정)
+- 작업 이력(주제별): `history/node-label.md` `history/node-ui.md` `history/node-ui-overview.md` `history/node-ui-active.md` `history/frontend.md` `history/realtime.md` `history/widget.md` `history/util.md` `history/util-drag.md` `history/test-env.md`
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 통신 인프라(마감) → `INDEX-infra.md` / process 배선(마감) → `INDEX-process-wiring.md` / node UI 레이아웃 설계(마감) → `INDEX-node-ui-layout.md` / node UI 연동(마감) → `INDEX-node-ui-link.md` / process 터미널 기능(마감) → `INDEX-process-terminal.md` / process 동기화·공유·보드(마감) → `INDEX-process-share.md`
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md`
