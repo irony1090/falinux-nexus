@@ -9,7 +9,7 @@ import { createBoard, moveBoardFolder, type BoardChangeResult } from '../api/boa
 const TILE_TREE_STORE_KEY = Symbol('TileTreeStore')
 
 type TileBase = TileNode & { parent: string | null }    // parent = 이 타일을 연 폴더 타일 (노드 트리의 부모 아님)
-export type FolderTile = TileBase & { type: 'folder'; nodeId: number | null }  // null = 루트 목록
+export type FolderTile = TileBase & { type: 'folder'; nodeId: number | null; uid?: string }  // null = 루트 목록, uid = 서버 발급(새 타일은 저장 뒤 생김), 공유로 받은 타일은 공유한 타일과 같음
 export type TerminalTile = TileBase & { type: 'terminal'; nodeId: number; uid: string }
 export type Tile = FolderTile | TerminalTile
 

@@ -28,6 +28,7 @@ func (r *supervisorRouter) mountShares(e *echo.Echo) {
 
 type shareRequest struct {
 	Permission *int16 `json:"permission" validate:"required"`
+	TileID     string `json:"tileId"` // 노드 공유: 공유 버튼을 누른 폴더 타일 — 받는 쪽 폴더 타일이 그 uid를 받음(FU2)
 }
 
 // shareEntry: 대상에 실제로 적용되는 한 계정의 공유. 출처는 노드 공유만(process는 direct로 구분).
@@ -53,8 +54,8 @@ func paramUserID(c echo.Context) int64 {
 	return id
 }
 
-// bindSharePermission은 공유 단계를 읽는다. 저장할 수 있는 단계 = 0 차단·10 보기·20 조작·30 편집(40 소유자는 저장 안 함).
-func bindSharePermission(c echo.Context) int16 {
+// bindShareRequest는 공유 단계와 공유한 타일 id를 읽는다. 저장할 수 있는 단계 = 0 차단·10 보기·20 조작·30 편집(40 소유자는 저장 안 함).
+func bindShareRequest(c echo.Context) (int16, string) {
 	var body shareRequest
 	if err := c.Bind(&body); err != nil {
 		panic(web.Err(400, "%v", err))
@@ -64,7 +65,7 @@ func bindSharePermission(c echo.Context) int16 {
 	}
 	switch *body.Permission {
 	case superdb.PermBlock, superdb.PermView, superdb.PermOperate, superdb.PermEdit:
-		return *body.Permission
+		return *body.Permission, body.TileID
 	}
 	panic(web.Err(400, "공유 단계는 0, 10, 20, 30 중 하나입니다"))
 }
@@ -160,7 +161,7 @@ func (r *supervisorRouter) putNodeShare(c echo.Context) error {
 		panic(web.Err(400, "폴더만 공유할 수 있습니다"))
 	}
 	userID := requireShareTarget(c, node.OwnerUserID)
-	perm := bindSharePermission(c)
+	perm, tileID := bindShareRequest(c)
 	q, ctx := TxQueries(c), c.Request().Context()
 
 	var previous *int16
@@ -176,15 +177,12 @@ func (r *supervisorRouter) putNodeShare(c echo.Context) error {
 		panic(web.Err(500, "%v", err))
 	}
 	// 못 보다가 보게 될 때만 받는 쪽에 폴더 타일 — SD7(받는 쪽 타일 추가 시점)
-	var added *superdb.TileTree
+	saved := savedTrees{}
 	if before <= superdb.PermBlock && mustNodePerm(c, userID, node.ID) > superdb.PermBlock {
-		nodeID := node.ID
-		added = attachSharedTile(c, userID, hasFolderOf(node.ID), tileItem{Type: "folder", NodeID: &nodeID})
-		if t := attachSharedTerminals(c, userID, liveUnder(c, node.ID)); t != nil { // 이미 실행 중인 터미널도 — 마지막 저장본이 폴더 타일까지 포함
-			added = t
-		}
+		saved.add(attachSharedFolder(c, userID, node.ID, sharedFromUID(c, sess.Data.ID, tileID, node.ID)))
+		attachSharedTerminals(c, userID, liveUnder(c, node.ID), saved) // 이미 실행 중인 터미널도 — 폴더 타일을 먼저 넣어야 그 아래로 감(placeTerminal)
 	}
-	r.afterShareChange(c, userID, liveUnder(c, node.ID), added)
+	r.afterShareChange(c, userID, liveUnder(c, node.ID), saved)
 	return c.JSON(200, shareChangeResponse{Entry: findShareEntry(r.nodeShareEntries(c, node.ID), userID), Previous: previous})
 }
 
@@ -243,7 +241,7 @@ func (r *supervisorRouter) putProcessShare(c echo.Context) error {
 		panic(web.Err(400, "끝난 process는 공유할 수 없습니다"))
 	}
 	userID := requireShareTarget(c, rec.OwnerUserID)
-	perm := bindSharePermission(c)
+	perm, _ := bindShareRequest(c)
 	q, ctx := TxQueries(c), c.Request().Context()
 
 	var previous *int16
@@ -259,12 +257,11 @@ func (r *supervisorRouter) putProcessShare(c echo.Context) error {
 		panic(web.Err(500, "%v", err))
 	}
 	// 못 보다가 보게 될 때만 받는 쪽에 터미널 타일 — SD7(받는 쪽 타일 추가 시점)
-	var added *superdb.TileTree
+	saved := savedTrees{}
 	if before <= superdb.PermBlock && mustProcessPerm(c, userID, rec.Uid) > superdb.PermBlock && rec.NodeID.Valid {
-		nodeID := rec.NodeID.Int64
-		added = attachSharedTile(c, userID, hasTerminalOf(rec.Uid), tileItem{Type: "terminal", NodeID: &nodeID, UID: rec.Uid})
+		saved.add(attachTerminal(c, userID, rec.NodeID.Int64, rec.Uid))
 	}
-	r.afterShareChange(c, userID, []string{rec.Uid}, added)
+	r.afterShareChange(c, userID, []string{rec.Uid}, saved)
 	return c.JSON(200, shareChangeResponse{Entry: findShareEntry(r.processShareEntries(c, rec.Uid), userID), Previous: previous})
 }
 
@@ -284,7 +281,7 @@ func (r *supervisorRouter) deleteProcessShare(c echo.Context) error {
 	return c.JSON(200, shareChangeResponse{Entry: findShareEntry(r.processShareEntries(c, rec.Uid), userID)})
 }
 
-// openProcessTile은 볼 수 있는 살아 있는 process의 터미널 타일이 내 어느 보드에도 없으면 기본 보드 끝에 넣는다("위치 없음" 행의 열기).
+// openProcessTile은 볼 수 있는 살아 있는 process의 터미널 타일이 내 어느 보드에도 없으면 넣는다("위치 없음" 행의 열기, 위치 = placeTerminal).
 // 이미 있으면 아무것도 안 하고 added=false. 보기(10) 이상, 끝난 process는 400.
 func (r *supervisorRouter) openProcessTile(c echo.Context) error {
 	sess := r.requireSession(c)
@@ -300,8 +297,7 @@ func (r *supervisorRouter) openProcessTile(c echo.Context) error {
 	if !rec.NodeID.Valid {
 		panic(web.Err(400, "타일을 만들 수 없는 process입니다"))
 	}
-	nodeID := rec.NodeID.Int64
-	added := attachSharedTile(c, sess.Data.ID, hasTerminalOf(uid), tileItem{Type: "terminal", NodeID: &nodeID, UID: uid})
+	added := attachTerminal(c, sess.Data.ID, rec.NodeID.Int64, uid)
 	if added != nil {
 		userID, tree := sess.Data.ID, *added
 		AfterCommit(c, func() { r.publishTiles(userID, tree, "") })

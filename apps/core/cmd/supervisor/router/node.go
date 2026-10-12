@@ -192,8 +192,13 @@ func (router *supervisorRouter) patchNode(c echo.Context) error {
 	reparent := moving && !sameParent(oldParent, body.ParentID.Value)
 	var users []int64
 	var uids []string
+	var before map[accessKey]int16
 	if reparent {
 		users, uids = collectAround(c, id)
+		if dest := body.ParentID.Value; dest != nil { // 이동해 들어갈 쪽 계정도 이동 전 단계가 있어야 "새로 보게 됨"을 가린다
+			users = mergeUsers(c, users, *dest)
+		}
+		before = permIndex(c, users, uids)
 	}
 
 	node, err := q.PatchNode(ctx, body.toParams(id, target.OwnerUserID))
@@ -209,7 +214,11 @@ func (router *supervisorRouter) patchNode(c echo.Context) error {
 	AfterCommit(c, func() { router.publishNode(protocol.MsgNodeUpdate, node) })
 	if reparent {
 		users = mergeUsers(c, users, id)
-		AfterCommit(c, func() { router.reconcileAccess(users, uids) })
+		added := attachNewlyVisible(c, before, users, uids)
+		AfterCommit(c, func() {
+			router.reconcileAccess(users, uids)
+			router.publishSaved(added)
+		})
 	}
 	if moving {
 		oldTopic := nodeSubscribeTopic(parentOrRoot(oldParent))
