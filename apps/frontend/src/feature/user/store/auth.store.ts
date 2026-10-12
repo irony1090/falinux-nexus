@@ -1,85 +1,84 @@
-import { inject, provide, readonly, ref, watch } from 'vue';
-import { checkSession, signIn, signOut, type UserResponse } from '../api/user.api';
-import { equals } from '@/common/util/index.util';
+import { onUnauthorized, type CatchErrorResponse } from '@/common/api/api.util';
 import { clearUserPrefs } from '@/common/util/userPrefs.util';
-import { useRoute, useRouter } from 'vue-router';
+import { readonly, ref } from 'vue';
+import { checkSession, signIn, signOut, type UserResponse } from '../api/user.api';
 
+// 로그인 상태는 모듈 하나에 둔다 — 라우터 가드(컴포넌트 밖)와 화면이 같은 값을 본다 — 로그인-1(상태를 모듈로)
+// undefined = 아직 확인 전 / null = 로그인 안 됨 / 값 = 로그인됨
+const auth = ref<UserResponse | null | undefined>();
+const offline = ref(false);     // 마지막 세션 확인이 서버 연결 실패(401 아님)
+const loading = ref(false);
+let pending: Promise<void> | null = null;
 
-const AUTH_STORE_KEY = 'AUTH_STORE_KEY';
+// 사용자 설정은 로그아웃·세션 만료(401)일 때만 지운다. 서버 연결 실패로는 지우지 않는다 — 로그인-3(401만 로그아웃)
+const expire = () => {
+    auth.value = null;
+    clearUserPrefs();
+}
 
-export const provideAuthStore = () => {
-    const router = useRouter();
-    const route = useRoute();
-    
-    const auth = ref<UserResponse|null|undefined>()
-
-    const loadding = ref(false);
-
-    const confirm  = () => {
-        loadding.value = true;
-        return checkSession()
-        .then(res => {
-            auth.value = res;
-        }).catch(_err => {
-            auth.value = null;
-        })
-        .finally(() => loadding.value = false)
-    }
-
-    const logout = () =>{
-        loadding.value = true;
-        signOut().finally(confirm)
-    }
-    const login = (id: string, pw: string) => {
-        loadding.value = true;
-        return signIn({
-            identification: id,
-            password: pw
-        }).then(async _ => {
-            await confirm()
-            // auth.value = res
-            // return res;
-        }).finally(() => {
-            loadding.value = false;
-        })
-    }
-
-
-    // 로그아웃·세션 만료 모두 null로 수렴 — 기기별 사용자 설정 삭제
-    // TODO: 서버 미기동(네트워크 에러)도 null이 되어 지워짐. throwCatch가 상태 코드를 버려서 401과 구분 불가
-    watch(auth, val => {
-        if (val === null) clearUserPrefs()
+const confirm = (): Promise<void> => {
+    if (pending) return pending;
+    loading.value = true;
+    pending = checkSession()
+    .then(res => {
+        auth.value = res;
+        offline.value = false;
     })
-
-    watch(auth, val => {
-        if (loadding.value || val !== undefined)
+    .catch((err: CatchErrorResponse) => {
+        if (err?.status === 401) {
+            offline.value = false;
+            expire();
             return;
-        confirm()
-    }, { immediate: true})
-    
-    const ctx = {
-        auth: readonly(auth),
-        loading: readonly(loadding),
-        logout, login,
-    }
-    watch([auth, route], ([val, rVal]) => {
-        if (!!val || !rVal) return;
-        
-        if (rVal.fullPath !== '/') {
-            router.push('/login')
-            // routerMng.login().move()
         }
+        offline.value = true;
+        if (auth.value === undefined) auth.value = null;    // 처음 확인이 실패하면 로그인 화면으로(설정은 유지)
     })
+    .finally(() => {
+        loading.value = false;
+        pending = null;
+    });
+    return pending;
+}
 
-    provide(AUTH_STORE_KEY, ctx)
+// 라우터 가드용 — 처음 한 번만 서버에 묻고, 이후로는 바로 끝난다
+export const ensureSession = () => auth.value === undefined ? confirm() : Promise.resolve();
+
+// 다른 API가 401을 받으면 = 세션 만료
+onUnauthorized(() => {
+    if (auth.value) expire();
+});
+
+const login = (id: string, pw: string) => {
+    loading.value = true;
+    return signIn({ identification: id, password: pw })
+    .then(() => confirm())
+    .finally(() => loading.value = false);
+}
+
+// 서버 요청이 실패해도 이 화면은 로그아웃 상태로 둔다
+const logout = () => {
+    loading.value = true;
+    return signOut()
+    .catch(() => {})
+    .finally(() => {
+        loading.value = false;
+        expire();
+    });
+}
+
+const ctx = {
+    auth: readonly(auth),
+    offline: readonly(offline),
+    loading: readonly(loading),
+    login, logout,
+}
+
+export const authState = ctx.auth;
+
+// App.vue에서 한 번 — 앱이 뜨자마자 세션을 확인한다
+export const provideAuthStore = () => {
+    ensureSession();
     return ctx;
 }
 
-
-type UseAuthStore = ReturnType<typeof provideAuthStore>
-
-export const useAuthStore = () => {
-    const context = inject<UseAuthStore>(AUTH_STORE_KEY)!;
-    if (!context) throw new Error('useAuthStore is not provided');
-    return context;
-}
+export const useAuthStore = () => ctx;

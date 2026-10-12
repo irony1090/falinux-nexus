@@ -72,3 +72,14 @@ BaseAxios.interceptors.request.use(config => {
     if (tabId) config.headers.set(TAB_ID_HEADER, tabId);
     return config;
 });
+
+// 401(세션 만료) 알림 — common이 feature/user를 import하지 않도록 등록 방식으로 둔다 — 로그인-3(401만 로그아웃)
+// `/users/session`은 auth가 직접 결과를 처리하므로 알리지 않는다
+const unauthorizedListeners: Array<() => void> = [];
+export const onUnauthorized = (cb: () => void) => unauthorizedListeners.push(cb);
+
+BaseAxios.interceptors.response.use(undefined, (error: AxiosError) => {
+    if (error.response?.status === 401 && !error.config?.url?.startsWith('/users/session'))
+        unauthorizedListeners.forEach(cb => cb());
+    return Promise.reject(error);
+});

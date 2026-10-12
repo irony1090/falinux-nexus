@@ -20,6 +20,7 @@
 import { VAppBar, VAppBarNavIcon, VAvatar } from 'vuetify/components'
 import { useAppHead } from '../store/appHead.store';
 import { useAppNav } from '../store/appNav.store';
+import { useAppDialog } from '../store/appDialog.store';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/feature/user/store/auth.store';
 import { computed } from 'vue';
@@ -37,11 +38,24 @@ useResizeCallback(elRef, () => {
 })
 const { open } = useAppNav();
 const { auth, logout } = useAuthStore();
+const { open: dialogOpen, openDialog } = useAppDialog();
 
+// 로그아웃은 확인 뒤 — 이동은 라우터(authGuard)가 한다 — 로그인-4(화면 정리)
 const toggleNaiv = () => {
     // open.value = !open.value
-    if (!auth.value) router.push('/login')
-    else logout()
+    if (!auth.value) {
+        router.push('/login');
+        return;
+    }
+    openDialog({
+        type: 'warning',
+        title: '로그아웃',
+        content: '로그아웃할까요? 실행 중인 터미널은 계속 실행됩니다.',
+        buttons: [
+            { view: '취소', type: 'info', bindButton: 'Escape', action: () => dialogOpen.value = false },
+            { view: '로그아웃', type: 'warning', bindButton: 'Enter', action: () => { dialogOpen.value = false; logout(); } },
+        ],
+    })
 }
 
 const moveIndex = () => router.push('/')

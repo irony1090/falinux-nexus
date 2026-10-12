@@ -3,25 +3,23 @@ import { LazyListener } from '@/common/listener/lazy.listener';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { ref, watch } from 'vue';
 import type { SubmitEventPromise } from 'vuetify';
-import { VCard, VCardTitle, VCardActions, VBtn, VForm, VTextField, VCheckbox, VImg } from 'vuetify/components'
+import { VAlert, VCard, VCardTitle, VCardActions, VBtn, VForm, VTextField, VCheckbox, VImg } from 'vuetify/components'
 import Cookies from 'js-cookie';
 import { isNil } from '@/common/util/index.util';
 import { useAuthStore } from '@/feature/user/store/auth.store';
-import { useRouter } from 'vue-router';
 
 const REMEMBER_ID_COOKIE_KEY = 'remember_id';
 
-const { loading, login, auth } = useAuthStore();
+const { loading, login, offline } = useAuthStore();
 const isLazyLoading = ref(false);
 const lazyListener = new LazyListener(false, { time: 750, startLazy: v => !v})
 lazyListener.onValue = v => isLazyLoading.value = v;
 
 const { openDialog } = useAppDialog();
 
-const router = useRouter();
-
-const id = ref(Cookies.get(REMEMBER_ID_COOKIE_KEY) ?? 'irony')
-const pw = ref('!Fa1289')
+// 개발용 기본값은 `.env.development.local`(git 제외)에만 — 로그인-4(화면 정리)
+const id = ref(Cookies.get(REMEMBER_ID_COOKIE_KEY) ?? import.meta.env.VITE_DEV_LOGIN_ID ?? '')
+const pw = ref(import.meta.env.VITE_DEV_LOGIN_PW ?? '')
 
 const rememberId = ref(!isNil(Cookies.get(REMEMBER_ID_COOKIE_KEY)));
 
@@ -52,27 +50,19 @@ const onSubmit = (e: SubmitEventPromise) => {
     const exit = !!idM || !!pwM
     if (exit) return
     
-    // routerMng.main().move()
-    // router.push('/')
-
+    // 성공 뒤 이동은 라우터(authGuard)가 한다
     login(id.value, pw.value)
     .then( _ => {
         if (rememberId.value)
             Cookies.set(REMEMBER_ID_COOKIE_KEY, id.value, { expires: 7 })
         else 
             Cookies.remove(REMEMBER_ID_COOKIE_KEY)
-        // router.replace('/workspace')
-        // console.log('[SUCCESS]', res);
     }).catch(err => {
         openDialog({
             type: 'error',
             content: err.message
         })
     })
-}
-
-const onRegister = () => {
-    
 }
 
 watch(loading, val => {
@@ -82,10 +72,6 @@ watch(loading, val => {
 watch(id, () => idMsg.value = undefined)
 watch(pw, () => pwMsg.value = undefined)
 
-watch(auth, val => {
-    if (!val) return;
-    router.push('/')
-}, { immediate: true })
 
 </script>
 
@@ -106,6 +92,7 @@ watch(auth, val => {
         <v-card-title><h3 class="text-primary">NEXUS-supervisor</h3></v-card-title>
         <v-form @submit="onSubmit">
             <div class="content">
+                <v-alert v-if="offline" type="warning" variant="tonal" density="compact" text="서버에 연결할 수 없습니다" />
                 <v-text-field 
                     label="ID"
                     name="idenfitication"
@@ -145,14 +132,6 @@ watch(auth, val => {
                     :disabled="isLazyLoading"
                 >
                     로그인
-                </v-btn>
-                <v-btn
-                    variant="text"
-                    color="primary"
-                    :disabled="isLazyLoading"
-                    @click="onRegister"
-                >
-                    회원가입
                 </v-btn>
             </v-card-actions>
         </v-form>

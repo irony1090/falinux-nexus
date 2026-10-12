@@ -80,8 +80,9 @@ watch([tabReady, hash], ([r, h]) => {
 
 // 보던 보드가 목록에서 사라짐(다른 곳에서 삭제) -> 기본 보드로(안의 타일은 서버가 기본 보드 끝으로 옮김, W2(삭제 처리)).
 // "있다가 없어짐"만 본다 — 막 만든 보드는 목록 이벤트보다 이동이 먼저일 수 있고, 없는 hash는 트리 404로 안내된다
-watch(() => [hash.value, !!boards.byHash(hash.value)] as const, ([h, has], [prevH, had]) => {
-    if (!h || h !== prevH || !had || has) return;
+// 로그아웃 때 목록을 비우는 것(reset, loaded = false)은 삭제가 아니다
+watch(() => [hash.value, !!boards.byHash(hash.value), boards.loaded.value] as const, ([h, has, loaded], [prevH, had]) => {
+    if (!h || h !== prevH || !had || has || !loaded) return;
     const removedHere = boards.removedHere(h);
     router.replace('/');
     if (!removedHere) openDialog({ type: 'info', content: '보던 보드가 삭제되어 기본 보드로 이동했습니다. 안의 타일은 기본 보드 끝으로 옮겨졌습니다.' });
