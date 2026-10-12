@@ -17,11 +17,12 @@
 - **회원가입 파트 = 나중에**(2026-10-12 사용자 결정): 가입 정책 + 장비 실행 권한 + bcrypt 전환을 함께 정한 뒤 → `REF-frontend-auth.md` "회원가입"
 - **2026-10-12 파트(process 종료 정책) 마감** — 종료-1(신호 구분)~종료-6(확인) + 실행 실패 정리, 사용자 확인 후 커밋 → `REF-process-kill.md`. 확인용 스크립트 → `user/kill-test-scripts.md`
   - 적용 주의: worker도 다시 빌드해야 함(옛 worker는 force를 몰라 늘 SIGKILL)
-- **다음 파트 후보 2개(사용자 선택 대기)**: ① 폴더 목록 동기화(열린 질문 4(NODE 동적 구독), 2026-10-12 사용자 제기 — 아래 열린 질문 4) ② 바인딩 타일(설계 확정, 코드 없음): 다른 계정이 실행한 터미널을 받는 폴더 타일 = 처음 연 타일(수동 고정 우선), 접속 중 + 지금 보는 보드에 있을 때만 붙임 → `REF-tile-binding.md`. 둘 다 다음 = 구조안 작성·승인
+- **2026-10-12 파트(폴더 목록 동기화) 마감** — node 변경을 볼 수 있는 접속 계정의 `TILES:<userId>`로 보냄(NB(계정 토픽으로 보내기)), 동기화-1(서버 발행 대상)~동기화-3(확인) 사용자 확인 후 커밋 → `REF-node-list-sync.md`. 열린 질문 4(NODE 동적 구독)·4⑤(폴더 목록 동기화) 해소
+- **다음 파트 = 바인딩 타일**(사용자 시작 신호 대기)(설계 확정, 코드 없음): 다른 계정이 실행한 터미널을 받는 폴더 타일 = 처음 연 타일(수동 고정 우선), 접속 중 + 지금 보는 보드에 있을 때만 붙임 → `REF-tile-binding.md`. 다음 = 구조안 작성·승인
 - 그 다음 후보: Node 핸들러 책임 미적용 2개(아래) / 회원가입
 - 5 공유에서 뒤로 미룬 것: 숨기기(`node_shares.hidden_at`, 복원 UI "숨긴 공유 N") / 잘라내기(SH10(노드 복사) 확장) / 보드 미리보기(`/` 루트 타일 안 다른 보드 카드, `REF-workspace.md` "희망안") / 단축키 키 조합 / `tabGrace` 60초 만료·크기 우선권 넘김 실측
-- 커밋 상태: 2026-10-12 파트(process 종료 정책) 마감까지 전부 커밋(바인딩 타일 설계 vault 포함)(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`). **push는 한 번도 안 함**(태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
-- 재부팅으로 사라지는 것: 2026-10-12 세션들의 scratchpad 확인 스크립트·격리 설정 전부(`vite.iso.mts`·`pw/`(node_modules 포함)·`iso/`(supervisor·worker 바이너리·env)·`roster_api.py`·`pw/roster.mjs`·`pw/login.mjs`·`pw/logout_board.mjs`·`pw/board_removed.mjs` · 종료 파트 `kill_test.py`·`fail_test.py`·`pw/kill.mjs` 등). 다시 쓸 땐 `REF-test-env.md` "격리 실행"·"2026-10-12 확인 스크립트"(active·명부·로그인 항목이 곧 재작성 명세)·`REF-process-share-verify.md` "방법"·`REF-process-kill.md` "종료-6(확인) 결과"·"실행 실패 정리". 임시 DB(`nexus_roster_tmp`·`nexus_login_tmp`·`nexus_kill_tmp`)는 삭제함, 5050·3000은 사용자 것
+- 커밋 상태: 2026-10-12 파트(폴더 목록 동기화) 마감까지 전부 커밋(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`). **push는 한 번도 안 함**(태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
+- 재부팅으로 사라지는 것: 2026-10-12 세션들의 scratchpad 확인 스크립트·격리 설정 전부(`vite.iso.mts`·`pw/`(node_modules 포함)·`iso/`(supervisor·worker 바이너리·env)·`roster_api.py`·`pw/roster.mjs`·`pw/login.mjs`·`pw/logout_board.mjs`·`pw/board_removed.mjs` · 종료 파트 `kill_test.py`·`fail_test.py`·`pw/kill.mjs` · 동기화 파트 `sync_test.py`·`pw/sync.mjs` 등). 다시 쓸 땐 `REF-test-env.md` "격리 실행"·"2026-10-12 확인 스크립트"(active·명부·로그인 항목이 곧 재작성 명세)·`REF-process-share-verify.md` "방법"·`REF-process-kill.md` "종료-6(확인) 결과"·"실행 실패 정리". 임시 DB(`nexus_roster_tmp`·`nexus_login_tmp`·`nexus_kill_tmp`·`nexus_sync_tmp`)는 삭제함, 5050·3000은 사용자 것
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
 - 역할 분담(2026-09-29 개정): node 타일 UI·process 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다
 
@@ -37,8 +38,7 @@
 **열린 질문 (번호 유지, 해소된 ②⑥~⑭는 REF/history에)**
 1. 분할 UX — 버튼메뉴 vs 드래그드롭(VSCode류). 시안은 실행/새 타일 버튼
 3. 라우팅 스킴 재검토(옛 `/nodes/:parentId?`가 이 모델에 맞는지)
-4. `NODE:<parentId>` 동적 구독/해지 — node도 process처럼 REST로 갈지 미정. 4⑤(폴더 목록 동기화)가 여기 걸림
-   - 2026-10-12 사용자 제기: 공유 폴더에서 소유자가 만든 폴더가 받은 쪽에 바로 안 뜸(스크립트·반대 방향도 같음). 원인 = 서버는 `NODE:<parentId>`에 발행하지만 **그 토픽을 구독시키는 코드도, 프론트 `NODE:*` 수신도 없음** → 같은 계정 다른 탭도 안 됨, 새로고침 버튼만. 다음 파트 후보
+4. ~~`NODE:<parentId>` 동적 구독/해지~~ — **해소**(2026-10-12 파트(폴더 목록 동기화): 동적 구독 대신 계정 토픽 + 발행 시점 판정, → `REF-node-list-sync.md`)
 5. **네이밍**: 전체 개념 "그리드" vs "타일링", `Band`(가칭) — 작업 공간 화면 이름은 **"보드"로 확정**(2026-10-07)
 15. **모바일 가상 키보드**: A+B 확정·반영, **iPhone 실기기 확인만 남음** → `REF-node-ui-overview.md` "모바일 가상 키보드". **주의**: `appWindown.store.ts`의 `size.inner`(visualViewport)에 판정을 연결하면 안 됨
 
@@ -73,7 +73,7 @@
 ---
 
 ## 미해결 이슈 (이월)
-- **`NODE:` 동적 구독**: `NODE:0` 누설은 구독 줄 삭제로 닫음(2026-10-07). 루트·폴더 토픽 설계는 열린 질문 4 → `REF-process-share-authz.md` SB5
+- ~~`NODE:` 동적 구독~~ → 2026-10-12 파트(폴더 목록 동기화)로 해소(계정 토픽, → `REF-node-list-sync.md`)
 - **같은 터미널을 연 탭이 여러 개면 질의 시퀀스(`ESC[6n` 등)에 탭마다 xterm이 응답** → process가 응답을 탭 수만큼 받음. 방안 후보: 크기 소유 탭만 응답 전달 → `REF-process-snapshot-impl.md` "스냅샷-d"
 - **input**: I3(PENDING 중 입력 버림) 확인만 남음(socat 재현 → `REF-process-reconnect.md` "재현 방법") → `REF-process-input.md`
 - **Hub 막힘**: ping/pong(`e395433`)으로 해결, 남은 한계 = 막힘 최대 약 25초 → `REF-realtime.md` "발견"

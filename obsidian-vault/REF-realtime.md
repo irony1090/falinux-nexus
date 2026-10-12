@@ -71,7 +71,7 @@
 - ✅ **node 도메인 Kind 어휘 확정**(2026-07-16, 위 절) — 구현은 미착수.
 - ✅ **process 도메인 동적 구독/해지**(2026-07-16) — 소켓 메시지(`MsgSubscribe`/`MsgUnsubscribe`) 대신 **REST**로 확정·구현 완료. `browsers`(conn→sid) registry 포함. 상세 → `REF-process-subscription.md` "REST 구독/해지 배선" 절.
 - ✅ **node CRUD 발행처 배선**(2026-07-16) — 위 절. `AfterCommit` 훅으로 커밋 후에만 Publish, 이동은 old+new 2토픽.
-- ⬜ **NODE:<parentId> 동적 구독 어휘**: 위 process 쪽과 달리 아직 미정 — REST로 갈지(위 결정과 일관성) 소켓 메시지로 갈지부터 정해야 함. DB 인가 포함, `NODE:0` 고정 구독 대체. **발행은 이미 되지만** 프론트가 펼친 폴더 토픽을 구독할 방법이 없어 `NODE:0` 밖 변경은 아직 안 닿음.
+- ⛔ (2026-10-12 폐기 — node 변경은 계정 토픽으로, → `REF-node-list-sync.md`) **NODE:<parentId> 동적 구독 어휘**: 위 process 쪽과 달리 아직 미정 — REST로 갈지(위 결정과 일관성) 소켓 메시지로 갈지부터 정해야 함. DB 인가 포함, `NODE:0` 고정 구독 대체. **발행은 이미 되지만** 프론트가 펼친 폴더 토픽을 구독할 방법이 없어 `NODE:0` 밖 변경은 아직 안 닿음.
 - ⬜ **프론트 수신**: `on('NODE:CREATE'|'NODE:UPDATE'|'NODE:DELETE'|'process.output'|…)` 실제 핸들러 → 트리/캔버스 갱신. REST 클라이언트 함수(`GET/POST/DELETE /processes/subscribe*`)도 프론트에 아직 없음.
 - ⬜ device presence kind 결정(`DEVICE:ONLINE`/`OFFLINE` 후보, 미확정).
 - ✅ **process 도메인에도 CRUD류 kind 합류**(2026-07-22): 기존 `MsgData`/`MsgStatus`(저수준 스트림)에 더해 `MsgProcessUpdate`("PROCESS:UPDATE", 전체 process 구조체 payload — node의 CRUD kind와 동일 원칙)를 `PROCESS:<uid>` 토픽 위에 추가. 첫 사용처는 resize. → `REF-process-resize.md`.

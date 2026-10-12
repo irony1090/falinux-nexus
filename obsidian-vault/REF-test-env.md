@@ -61,3 +61,6 @@
 - **함정**: 격리 supervisor는 `TMPDIR=<scratchpad>/iso/tmp`(폴더가 있어야 함) — 없는 경로면 `initEnv`에서 panic
 
 ## 2026-10-12 확인 스크립트 (종료 정책) → `REF-process-kill.md` "종료-6(확인) 결과"(socat 경유 격리 worker로 끊김 재현 포함)
+
+## 2026-10-12 확인 스크립트 (폴더 목록 동기화) → `REF-node-list-sync.md` "동기화-3(확인) 결과"(worker 없이 supervisor·프론트만, 재연결 = 격리 supervisor 재시작)
+- 함정: 같은 계정 두 브라우저는 타일 배치가 동기화돼 한쪽이 폴더로 들어가면 다른 쪽도 따라감

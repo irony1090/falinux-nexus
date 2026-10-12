@@ -34,7 +34,7 @@
 - **경로의 조상은 DETAIL 캐시를 같이 쓴다**: `fetchNodePath`가 `queryClient.fetchQuery(Q_KEY.DETAIL(id))`로 부르므로 `TileFrame`의 `useGetNode`와 같은 캐시 항목. 깊이 N 폴더의 첫 조회만 N번, 이후는 캐시(staleTime 1분).
 - **무효화**: `useNodeQueryClient().invalidateAll`에 `['NODE','PATH']` 전체 무효화 추가 — 조상의 이름·위치가 바뀌면 자손 경로가 달라지는데 어느 자손인지 키로 알 수 없어서.
 - `useGetNode`는 id가 `NaN`이면 조회하지 않음(기존 규약) → 루트(`nodeId: null`)는 `?? NaN`으로 넘김.
-- **목록 갱신**: NODE 실시간 구독 없음(열린 질문 4). 브레드크럼 줄 오른쪽 새로고침 버튼(`refetch`) + 3(node 관리 UI)에서 변경 뒤 무효화.
+- **목록 갱신**: (2026-10-12부터 실시간 반영 → `REF-node-list-sync.md`) 당시엔 NODE 실시간 구독 없음(열린 질문 4). 브레드크럼 줄 오른쪽 새로고침 버튼(`refetch`) + 3(node 관리 UI)에서 변경 뒤 무효화.
 - **로딩 표시 = `VProgressLinear`(2px)**, `Skeleton` 위젯 미사용: `SkeletonGroup`의 clipPath id가 `CLIP_PATH` 고정이라 폴더 타일 여러 개가 동시에 로딩하면 id가 겹침(→ `REF-widget.md` 위젯 쪽 수정 필요).
 - 오류 = 목록 자리에 서버 메시지 + "다시 시도". 기본 `retry: 2`라 401도 재시도 뒤에 표시됨.
 - 미리보기는 이제 supervisor + 로그인 필요(세션 없으면 401).
