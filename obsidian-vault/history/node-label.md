@@ -5,6 +5,26 @@
 
 ---
 
+### 2026-10-12(4) - 사용자 확인 → 파트(worker 명부(roster)) 마감·커밋
+
+### 2026-10-12(3) - 명부-2(조회·삭제 API)~명부-4(확인) 구현·격리 확인 (커밋 전, 사용자 확인 대기)
+- 사용자 "각 단계별로 확인할게 없으면 명부쪽 쭉 진행해줘" → 명부-2~4 연속 진행
+- 명부-2: `workerApi.go`에 `GET /workers/instances[?mainKey=]`(online = 레지스트리) + `DELETE /workers/instances/:mainKey/:subKey`(접속 중 409 / 없음 404 / 성공 200 `{}`) + `pathParam`(RawPath일 때만 디코딩)
+  - 처음에 204로 썼다가 프론트 `throwThen`이 200 아니면 던지는 걸 보고 200 `{}`로 바꿈(`deleteNode`와 같음)
+- 명부-3: `worker.api.ts` `useOnlineWorkers` → `useWorkerRoster`(명부 10초 폴링, main_key별 `{online, instances}`) + `listWorkerInstances`·`deleteWorkerInstance`·`invalidateWorkerRoster` / `WorkerPickDialog` `offline` prop(끊긴 것 disabled + "마지막 접속 n분 전", 부제목 "접속 n / 명부 m") / `NodeDeviceDialog` 칩 후보 → 명부 목록(펼치기·끊긴 것만 삭제·AppDialog 확인) / `FolderTileBody` 칩 `n/m` + title 여러 줄(인스턴스 목록)
+- 명부-4: 격리(임시 DB + 5051 + 프론트 3001, 같은 NAME worker 3개 중 1개 끊음) API 10/10 + 헤드리스 화면 11/11(칩 2/3·title·다이얼로그 펼침·고르기 접속 2 + 끊김 1·삭제 확인·삭제 뒤 2/2). vue-tsc·go build·vet 통과. 확인 뒤 격리 프로세스·DB 정리
+
+### 2026-10-12(2) - 명부-1(기록) 구현 (커밋 전)
+- 구조안(파일 5개 + 기록 방식) 제시 → 사용자 "승인"
+- `00009_worker_instances.sql`(PK `(main_key, sub_key)` + `first_seen`·`last_seen`) / `query/workers.sql`(Upsert·Touch·List(`main_key = ''`면 전체)·Delete(`:execrows`) — List·Delete는 명부-2(조회·삭제)용, sqlc 한 번에) / `router/roster.go` `recordSeen(key, connected)`(동기 + 2초 timeout, 실패는 로그만) / `register.go` `Append` 뒤 + `supervisorRouter.go` `Remove` 뒤 호출. 중복 접속 거절은 `body.Key`를 비우므로 끊김 기록도 안 됨
+- 확인: build·vet 통과 + 격리(임시 DB `nexus_roster_tmp` + 5051, worker `NAME=roster-dev`) 접속 → 행 생성 / 끊김 → `last_seen`만 갱신 / 재시작 → 같은 서브키로 행 1개 유지, `first_seen` 그대로. 확인 뒤 프로세스 종료·DB 삭제
+
+### 2026-10-12 - roster 계획·UI 스토리 확정 (코드 없음)
+- 조사(worker subkey는 SQLite `identity`로 재시작 후에도 유지 / 등록 `register.go` / 끊김 `supervisorRouter.go` `workers.Remove` / `GET /workers` 10초 폴링) → RS1(기록 시점)~RS6(위조 검증) 제안 → UI 스토리 4장면 https://claude.ai/artifact/3M5jJDyHoFPGMPxdUnKsc2 → 사용자 "UI 맘에 든다, 이대로 진행". 다음 = 명부-1(마이그레이션 00009 + 등록·끊김 기록)
+
+### 2026-10-12 - Label 모듈 보류 결정
+- 사용자 "label은 지금 시스템에 필요할까" → 검토: 공유는 파트(5 공유)로 해결 / 모아 보기 = 보드 / 찾기 = 검색이 먼저 / 나중 추가 비용 낮음 → 사용자 "보류". 근거·다시 볼 조건 → `REF-node-label.md` "Label 모듈"
+
 ### 2026-09-30 - `GET /workers` + exec 대상 장비 검증 (연동 1차 1번)
 - 사용자가 supervisor·worker를 켜 두고 연동 착수. 구조안(`GET /workers` 전체 / `?nodeId=` 상속 해석) + 두 가지 추천(인스턴스 1개면 바로 실행, `execProcess`에서 main_key 검증) → 사용자 "둘 다 추천대로".
 - **작성**: `workerApi.go` 신규(`mountWorkers`, `splitInstanceKey`, `resolveMainKey`) + `processApi.go` 검증 + `supervisorRouter.go` 마운트 / 프론트 `worker.api.ts`. 기존 설계(2026-06-29 "Exec 인스턴스 선택")를 그대로 구현.

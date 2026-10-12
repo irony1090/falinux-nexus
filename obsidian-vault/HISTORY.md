@@ -14,6 +14,11 @@
 ## history/ 파일 색인 (진행 중 파트)
 
 ### `history/node-label.md` — Node/Label 모듈
+- 2026-10-12(4) 사용자 확인 → 파트(worker 명부(roster)) 마감·커밋
+- 2026-10-12(3) 명부-2(조회·삭제 API)~명부-4(확인) 구현, 격리 API 10/10 + 헤드리스 11/11(커밋 전, 사용자 확인 대기)
+- 2026-10-12(2) 명부-1(기록) 구현·격리 확인(커밋 전)
+- 2026-10-12 roster 계획(RS1(기록 시점)~RS6(위조 검증))·UI 스토리 확정, 다음 = 명부-1
+- 2026-10-12 Label 모듈 보류 결정(공유는 5 공유로 해결·모아 보기 = 보드·검색이 먼저)
 - 2026-09-30 (후속) 테스트 스크립트 id 2~4를 폴더 id 1로 이동 + `device_key` 지정(DB 직접 UPDATE)
 - 2026-09-30 `GET /workers`(접속 인스턴스, `?nodeId=` 상속 해석) + `execProcess` 대상 장비 검증 — 연동 1차 1번
 - 2026-06-29 Node 모듈 구현 (스키마·쿼리·핸들러·PatchNode·internal/patch, build/vet 통과)
@@ -67,6 +72,7 @@
 - 2026-08-07 `EventInterface`+`LifecycleRegistry` 신설, `Memoized` 확장(EventInterface 상속+create/remove 이벤트)
 
 ### `history/util-drag.md` — 드래그 인프라 (DraggableSession/useDragGhost/GhostArea)
+- 2026-10-12 보류 결정(소비처였던 캔버스·트리 드래그 폐기, 드래그 UX 넣을 때 재검토)
 - 2026-08-07(3) 포팅 설계 확정(코드 없음) — 구 test-jig 드래그 코드 문제진단(단일슬롯 콜백/synthetic dispatch/이웃정렬 혼입/ghost 손코딩 중복)+재설계 방향 확정
 
 ### `history/test-env.md` — 테스트 환경 · 확인용 클라이언트 (2026-10-06 신설)

@@ -11,11 +11,11 @@
 - **2026-10-12 파트(5 공유) 마감** — 동기화·공유·보드·presence 전부 `master`에 커밋(공유-g(확인) 통합 70/70 + 위치 21/21 + 헤드리스, ⑥ "나" 수정 포함). 상세·원문 색인 → `INDEX-process-share.md`(세션 시작 시 안 읽음, 필요하면 INDEX부터)
 - **2026-10-12 파트(active 타일 · 위치 번호 단축키 + 다른 계정 active 배지) 마감** — 로컬 active(`Ctrl+Alt+숫자`) + 원격 배지(터미널·폴더) 사용자 확인 후 커밋 → `REF-node-ui-active.md`. 뺀 것: "위치 없음" 행 열기(`openProcessTile`)는 active 안 됨(응답에 tile id 없음)
   - 개발 DB에 테스트 계정 `active-<시각>` 3개(폴더 11개씩) 남음
-- **다음 파트 = 사용자에게 고르기 받기**(아래 후보)
-- 이 파트 다음 후보: Node 모듈 roster·label / 프론트 user/login 마무리 / DraggableSession 리팩터 / process 결정 필요 항목(아래)
+- **2026-10-12 파트(worker 명부(roster)) 마감** — 명부-1(기록)~명부-4(확인) 사용자 확인 후 커밋 → `REF-node-label.md` "roster 계획"(구현 메모·한계 포함). label·DraggableSession 리팩터 보류 결정도 같이 커밋
+- **다음 파트 후보**: 프론트 user/login 마무리 / process 결정 필요 항목(EXEC 실행 방식·kill 정책, 아래) / Node 핸들러 책임 미적용 2개(아래). 사용자와 정할 것
 - 5 공유에서 뒤로 미룬 것: 숨기기(`node_shares.hidden_at`, 복원 UI "숨긴 공유 N") / 잘라내기(SH10(노드 복사) 확장) / 보드 미리보기(`/` 루트 타일 안 다른 보드 카드, `REF-workspace.md` "희망안") / 단축키 키 조합 / `tabGrace` 60초 만료·크기 우선권 넘김 실측
 - 커밋 상태: 2026-10-12 파트(active 타일·원격 배지) 마감까지 전부 커밋(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`). **push는 한 번도 안 함**(태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
-- 재부팅으로 사라지는 것(2026-10-12 세션 scratchpad `/tmp/claude-1000/-home-jh-bae-irony-nexus/12185a69…/scratchpad/`, **재부팅하면 전부 사라짐**): `g_test.py`(공유-b~f 통합 70) · `of_test.py`(터미널 위치·폴더 uid 21, `Client` 클래스 원본) · `ui_prep.py` + `pw/ui.mjs`(헤드리스, playwright-core 1.56.1) · `vite.iso.mts`(격리 프론트 3001). 다시 쓸 땐 `REF-test-env.md` "격리 실행"·`REF-process-share-verify.md` "방법"(항목표가 곧 재작성 명세). 임시 DB `nexus_of_tmp`는 삭제함, 5050·3000은 사용자 것
+- 재부팅으로 사라지는 것: 2026-10-12 두 세션의 scratchpad(`12185a69…`·`f3a527cf…`) 확인 스크립트·격리 설정 전부(`g_test.py`·`of_test.py`·`pw/ui.mjs`·`pw/active.mjs`·`pw/remote.mjs`·`vite.iso.mts`·`pw/node_modules`). 다시 쓸 땐 `REF-test-env.md` "격리 실행"·"2026-10-12 확인 스크립트"·`REF-process-share-verify.md` "방법"(항목표가 곧 재작성 명세). 임시 DB `nexus_active_tmp`는 삭제함, 5050·3000은 사용자 것
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
 - 역할 분담(2026-09-29 개정): node 타일 UI·process 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다
 
@@ -39,11 +39,8 @@
 
 ---
 
-## 🎯 병행 작업: DraggableSession / useDragGhost 리팩터 (설계 확정, 구현 미착수)
-구 test-jig 드래그 코드가 재활용하기 어려울 만큼 복잡해서 먼저 재설계함. 상세 → `REF-util-drag.md`.
-- `DragListener` 유지 / `StartPolicy` 함수 2종(threshold-drag, long-press) / `DraggableSession`이 `EventInterface` 상속 — 이웃 재정렬 로직은 드롭
-- `useDragGhost` 컴포저블 + `GhostArea.vue`·`ghost.store.ts` 포팅(`provideAppLayout.vue`에서 kick)
-- 구 `common/listener/draggable.listener.ts`·`draggable/draggableLogic.ts`는 미사용 → 삭제 후 신규 작성
+## ⏸ 보류: DraggableSession / useDragGhost 리팩터 (2026-10-12)
+설계는 확정돼 있으나 소비처(캔버스·트리 드래그)가 타일 전환으로 폐기돼 쓸 곳 없음 → 드래그 UX(열린 질문 1 분할 UX 등)를 넣을 때 재검토. 근거·설계 → `REF-util-drag.md`
 
 ---
 
@@ -51,8 +48,8 @@
 
 ### Node 모듈 — 남은 단계
 > 설계 `REF-node-label.md` / 이력 `history/node-label.md`
-4. **worker_instances roster**: `worker_instances`(PK main_key,sub_key + last_seen) → register에 DB upsert → `ListInstances(main_key)` → 활성/비활성 = roster ∩/− 레지스트리. ※subkey 위조검증 보류
-6. **label 모듈**: labels 자기참조 + node_labels M:N → query → router
+4. ~~worker_instances roster~~ — **마감**(2026-10-12, `REF-node-label.md` "roster 계획"). RS6(위조 검증)은 보류 유지
+6. ~~label 모듈~~ — **보류**(2026-10-12, 근거·다시 볼 조건 → `REF-node-label.md` "Label 모듈")
 - 핸들러 책임 미적용: parentId owner 일치 검증 / 자기 자손으로 Move 사이클 방지
 - ※ 마이그레이션 번호는 착수 때 실제 다음 번호로(`00005`는 `process_subscribers` 제거에 씀)
 
@@ -73,7 +70,7 @@
 - **input**: I3(PENDING 중 입력 버림) 확인만 남음(socat 재현 → `REF-process-reconnect.md` "재현 방법") → `REF-process-input.md`
 - **Hub 막힘**: ping/pong(`e395433`)으로 해결, 남은 한계 = 막힘 최대 약 25초 → `REF-realtime.md` "발견"
 - **파일 전송**: 구현 완료 / e2e 미검증. 잔여: e2e 스모크 / abort sentinel. `history/transfer.md`가 분할 기준 초과(17k자) — 다음에 고칠 때 분할
-- **서브키 충돌/위조**: key↔subkey 결속 검증 미구현(node roster에서 닫을지 보류)
+- **서브키 충돌/위조**: key↔subkey 결속 검증 미구현(명부는 인가에 안 쓰므로 계속 보류 — RS6(위조 검증))
 - **supervisor 영속성**: registry 메모리 → PG 미착수
 
 ## 잔여 (틈날 때)

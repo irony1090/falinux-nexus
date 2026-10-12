@@ -52,7 +52,36 @@ nodes( id, owner_user_id→users, parent_id→nodes NULL,
   - register 경로에 **DB 쓰기 배선 필요**(현재는 메모리 레지스트리만 만지는 WS 핸드셰이크)
   - **미정/보류**: row 수명·프루닝(수동삭제 or last_seen 정리) / **subkey 위조검증 보류**(roster를 authority로 승격하는 건 나중)
 
-## Label 모듈 (추후) — 직교하는 두 번째 트리
+### roster 계획 (2026-10-12 **확정** — RS1(기록 시점)~RS6(위조 검증) 제안대로 + UI 스토리 승인, 코드 없음)
+조사: worker는 받은 subkey를 SQLite `identity`에 저장해 재시작해도 같은 subkey로 접속(→ 명부가 쓰레기로 안 쌓임) / 등록 = `router/register.go`(`r.workers.Append`) / 끊김 = `supervisorRouter.go` `workers.Remove` / `GET /workers` = 레지스트리만, 프론트 10초 폴링(`useOnlineWorkers`) — 폴더 장비 칩·실행 인스턴스 고르기·장비 지정 다이얼로그가 씀 / 다음 마이그레이션 = `00009`
+
+| 결정 | 제안 |
+|---|---|
+| RS1(기록 시점) | 등록 때 upsert(`first_seen` 유지, `last_seen = now`) + 끊길 때 `last_seen = now`. DB 실패해도 등록은 진행(로그만 — roster ≠ authority) |
+| RS2(API 모양) | 기존 `GET /workers`(접속 중만, 실행 대상 고르기) 그대로 + 신규 `GET /workers/instances[?mainKey=]` = 명부 전체 `{mainKey, subKey, instanceKey, online, firstSeen, lastSeen}`(online = 레지스트리로 계산) |
+| RS3(보이는 범위) | 로그인한 계정 전부(지금 `GET /workers`와 같음 — 장비는 계정 소유가 아님) |
+| RS4(정리) | 끊긴 인스턴스만 수동 삭제 `DELETE /workers/instances/:mainKey/:subKey`(접속 중이면 409). 자동 정리 없음 |
+| RS5(표시 위치) | ① 실행 인스턴스 고르기: 끊긴 것도 흐리게 + "마지막 접속 n분 전"(누를 수 없음) ② 장비 지정 다이얼로그: main_key별 접속/전체 수 ③ 폴더 장비 칩 title: "접속 1 · 끊김 2" |
+| RS6(위조 검증) | 계속 보류(명부를 인가에 안 씀) |
+
+- UI 스토리 시안(2026-10-12): https://claude.ai/artifact/3M5jJDyHoFPGMPxdUnKsc2 — 1 폴더 장비 칩 `1/3` + hover 인스턴스 목록 / 2 인스턴스 고르기(접속 2개 이상일 때만, 끊긴 것 흐리게·못 누름) / 3 장비 지정 다이얼로그에 명부(main_key별 접속/전체, 펼치면 인스턴스, 끊긴 것만 삭제) / 4 삭제 확인 → 목록·칩 갱신
+
+작업 단위: 명부-1(기록) → 명부-2(API 조회·삭제) → 명부-3(프론트 표시 RS5) → 명부-4(확인) — **전부 구현·격리 확인·사용자 확인 → 마감 2026-10-12**
+
+구현 메모(2026-10-12):
+| 위치 | 내용 |
+|---|---|
+| `router/roster.go` `recordSeen` | 등록(`Append` 뒤)·끊김(`Remove` 뒤)에서 동기 + 2초 timeout. goroutine이면 끊김 기록이 등록보다 먼저 갈 수 있음 |
+| `workerApi.go` | `GET /workers/instances` / `DELETE .../:mainKey/:subKey`(409·404·200 `{}`). 삭제도 200 — 프론트 `throwThen`이 200 아니면 던짐. `pathParam` = RawPath일 때만 디코딩(이중 디코딩 방지) |
+| `worker.api.ts` `useWorkerRoster` | 명부 10초 폴링(키 `WORKER/ROSTER`), `useOnlineWorkers` 대체. 칩·다이얼로그의 접속 여부도 명부의 `online`(= 레지스트리) |
+| 실행 대상 | 여전히 `GET /workers?nodeId=`(레지스트리) — 명부는 표시만. 고르기 창의 끊긴 목록 = 명부(최대 10초 전) − 방금 받은 접속 목록 |
+
+- 한계: 등록 때 DB 기록이 실패한 인스턴스는 접속 중이어도 칩·다이얼로그에 안 보임(실행은 됨). 다음 등록 때 다시 기록됨
+
+## Label 모듈 — **보류(2026-10-12 사용자 결정)** · 직교하는 두 번째 트리
+> **보류 근거**: ① 원래 맡기려던 공유는 파트(5 공유)의 폴더·process 단위 공유로 해결(아래 "공유를 라벨이 떠안음"은 **폐기된 계획**) ② 위치가 다른 노드 모아 보기 = 보드가 이미 함 ③ 찾기가 어려워지면 검색이 먼저 ④ 나중에 더해도 테이블 2개 추가뿐(기존 스키마·코드 무변경) — 지금 만들면 붙이기·거르기 UI·공유 범위 결정만 늘어남
+> **다시 볼 조건**: 같은 기준으로 여러 장비 폴더에 흩어진 스크립트를 반복해서 찾아야 하는데 검색·보드로 안 될 때
+
 - **node 트리 = 구조/배치(부모 1개) vs label 트리 = 횡단 분류 + 공유(M:N)**. 서로 직교
 - `labels(id, owner_user_id, parent_id→labels NULL, name)` 중첩 카테고리(**Gmail 라벨 패턴**) + `node_labels(node_id, label_id)` M:N
 - **공유를 라벨이 떠안음** → 노드 단위 sharing 테이블 **지금 안 만듦**. "노드를 라벨에 담고 → 라벨 공유 → 그 노드 전부 접근". 라벨=순수 가산 join이라 나중에 무통증 추가(YAGNI). 소유는 노드별 `owner_user_id`, 공유는 라벨로

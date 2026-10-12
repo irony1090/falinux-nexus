@@ -2,7 +2,10 @@
 
 > `REF-util.md`(범용 유틸)에서 10k자 기준 분할(2026-08-07) — 드래그/고스트만 별도 하위주제로 분리. 나머지 범용 유틸(`EventInterface`/`Memoized`/`LifecycleRegistry`/`GroupedSet`/공유 리사이즈 관측 그룹)은 `REF-util.md`. 이력 → `history/util-drag.md`. 소비처(Node UI 배선) → `REF-node-ui.md`.
 
-## DraggableSession / useDragGhost / GhostArea (설계 확정, 2026-08-07, 구현 미착수)
+## DraggableSession / useDragGhost / GhostArea (설계 확정 2026-08-07 → **보류 2026-10-12, 사용자 결정**)
+> **보류 근거**: 첫 소비처였던 노드 캔버스 좌표 드래그·트리 드래그 이동이 2026-08-10 타일 레이아웃 전환으로 폐기됨(`position_x/y` 사용 중단). 타일 크기도 메뉴(0.5/1)라 리사이즈 드래그 없음 → 지금 쓸 곳이 없고, 소비처 없이 만들면 설계를 검증할 수 없음
+> **다시 볼 조건**: 드래그 UX를 넣기로 할 때 — 열린 질문 1(분할 UX, VSCode식 드래그 앤 드롭) / 타일 순서 드래그 변경. 그때 아래 설계를 그 소비처 요구에 맞춰 재검토(위임 처리·롱프레스가 실제로 필요한지 등)
+> 구 `draggable.listener.ts`·`draggableLogic.ts`는 nexus에서 여전히 미사용 상태로 남아 있음
 > Node 카탈로그 UI Phase2(캔버스 좌표 드래그)/Phase3(트리 드래그 이동) 착수 전 선행 리팩터. 논의 계기 → node UI 계획 중 "구 드래그 코드는 만든 사람도 재활용 못 할 만큼 복잡하다"는 자체 진단.
 
 ### 구코드(test-jig) 진단

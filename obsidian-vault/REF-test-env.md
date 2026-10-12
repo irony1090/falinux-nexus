@@ -35,9 +35,21 @@
 - 끌 때: supervisor·worker는 `/proc/<pid>/cwd`가 격리 폴더인 것만, vite는 명령줄에 `vite.iso.mts`가 든 것만
 - 60초 보관(`tabGrace`) 만료·`lastSeen` 시각 정확도는 기다려야 해서 아직 확인 안 함
 
+## 2026-10-12 확인 스크립트 (active 타일·원격 배지) — 재부팅으로 사라짐, 재작성 명세
+- playwright: 이전 세션 scratchpad의 `pw/node_modules`를 심볼릭 링크해서 썼음 → 재부팅 뒤엔 scratchpad `pw/`에서 `npm i playwright-core@1.56.1`. 브라우저는 `~/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome`(재부팅에도 남음)
+- `active.mjs`(로컬 active 14개): 사용자 5050·3000 위에서 새 계정 + `POST /nodes` 폴더 11개 → 루트 타일 "새 타일" 11번 → 상태 읽기 = `.TileFrame--active .pos` 글자·`.TileFrame--dim` 수·`document.activeElement`·strip 안에 보이는지. 키 = `Control+Alt+Digit<n>`, 두 자리는 `keyboard.down('Control')`·`down('Alt')` 후 `press('Digit1')` `press('Digit2')`. keydown 기록에서 `Alt`·`Control` 키 자체는 빼고 셀 것. 먼 Grid 스크롤은 1초 이상 기다림
+- `remote.mjs`(원격 배지 11개): 격리(임시 DB + 5051 + worker `NAME=active-dev` + 프론트 3001) / 계정 A·B·C(닉네임 첫 글자가 배지 글자) / A: 폴더(`deviceKey: active-dev`) + 스크립트 `#!/bin/sh\ncat` + `PUT /nodes/:id/shares/:bId {permission:10}` / UI로 A 실행 → `GET /processes`로 uid → B `POST /processes/:uid/tile` / 배지 읽기 = `.TileFrame__head .ActiveBadges .badge` 글자 / 공유 취소 `DELETE /nodes/:id/shares/:bId`
+- 끌 때 함정: `pgrep -f "vite.iso.mts"` 루프로 vite가 안 꺼졌음 → `ss -ltnp | grep :3001`로 pid 보고 `/proc/<pid>/cmdline` 확인 뒤 kill
+
 ## 테스트 클라이언트 함정
 - 테스트 클라이언트 함정 모음: `PATCH /nodes/:id` 본문은 필드마다 `{valid: true, value: x}`(`internal/patch`, 그냥 값이면 400) / Vuetify 다이얼로그 선택자는 `.v-dialog.v-overlay--active`(두 클래스가 같은 요소) / 소켓 프레임 binary / exec는 `X-Tab-Id` 필수 / STATUS `status` 숫자 / 브라우저 쿠키 도메인 `localhost` / `users.identification`은 해시 저장 / 화면 밖 Grid xterm은 `innerText`에 안 잡힘(`.xterm-rows` `textContent`) / API로 만든 노드는 열린 목록에 안 뜸(`[title="새로고침"]`) / Vite가 heredoc으로 막 만든 파일을 빈 내용으로 캐시할 수 있음(`touch`) / 세션 쿠키 값에 `=` 있을 수 있음(첫 `=`에서 자를 것) / exec 직후 크기 0x0이라 resize 먼저(소유 탭) / vim 테스트는 파일 이름을 매번 다르게(swap 파일)
 
 ## DB 상태 (2026-10-02 기준)
 - DB에 남은 테스트 데이터: 계정 `input-test-b`(타일 트리 행 있음, 루트만) · `tile-race-<시각>` 1개 · `tile-store-`/`tile-exec-`/`tile-restore-`/`tile-other-`/`dbg-`/`push-`/`push-other-`/`sync-`/`sync2-<시각>` 여러 개(3-c·3-d·4 확인용) + `snap-`/`snap-other-`/`snap-probe-`/`snapb-<이름>-<시각>`(4.5 확인용, 노드는 삭제). irony 타일 트리 = 루트만(version 12)
 - DB 노드 현황: 폴더 id 1(`HTOP_TEST_SH_MODI`, `device_key=irony-MAC-ADDress1`) 안에 스크립트 2~4 / 폴더 `test`(14) > `ttt1`(15) > 스크립트 23(사용자 테스트용)
+
+## 2026-10-12 확인 스크립트 (명부) — 재부팅으로 사라짐, 재작성 명세
+- 같은 장비 키 worker 여러 개 = 폴더마다 바이너리 + `env`(`NAME` 같게, `SQLITE`만 다르게). 하나 끄면 "접속 n / 끊김 1" 상태가 만들어짐
+- `roster_api.py`(API 10개): 비로그인 401 · 명부 개수·online 수 · 필드 6개 · `?mainKey=` 걸러짐 · 접속 중 삭제 409 · 없는 것 404 · 화면용 폴더(`deviceKey`)·스크립트 생성
+- `pw/roster.mjs`(화면 11개): 행 칩 `.dev .cnt` 글자·`title` 줄 수 → 폴더 열기 → 경로 줄 칩 → 장비 지정 다이얼로그(`.dev .cnt`·`.inst` 수·삭제 버튼 수) → 실행 → 고르기 창(`.v-list-item--disabled` 1개) → 삭제 확인 → 삭제 뒤 `.inst` 2개·칩 `2/2`
+- **vite 끄기 함정**: `/proc/<pid>/cmdline`은 NUL 구분이라 `grep -q` 루프가 안 잡혔음 → `pgrep -af vite`로 `vite.iso.mts`가 든 pid를 보고 직접 kill

@@ -20,7 +20,7 @@
 ## 확정 결정 (불변 — 장기 유지)
 - **계층: 2단계 고정** (supervisor → worker, 중간 노드 없음. 식별자/라우팅/구독 1홉 평면)
 - **worker 라우팅/신원 = 메모리 레지스트리**(`InstanceKey`=`메인키#서브키`) — 살아있는 연결로만 라우팅, **DB가 라우팅 authority 아님**. ※구 `agents` 테이블 제거(2026-06-26)는 "영속 금지 원칙"이 아니라 **이름·역할 불명** 때문이었음 — 영속 자체는 가능(2026-06-29 정정)
-  - **관측용 roster는 DB 허용**: `worker_instances(main_key, sub_key, last_seen)` = UI에 main_key별 인스턴스 활성/비활성 표시용. online은 저장 말고 레지스트리로 **파생**(roster ≠ authority). 착수 예정 (→ `REF-node-label.md`)
+  - **관측용 roster는 DB 허용**: `worker_instances(main_key, sub_key, last_seen)` = UI에 main_key별 인스턴스 활성/비활성 표시용(+`first_seen`). online은 저장 말고 레지스트리로 **파생**(roster ≠ authority). 구현 마감 2026-10-12 (→ `REF-node-label.md` "roster 계획")
   - node의 device 결속 = FK 아닌 `device_key TEXT`(**= main_key**, 폴더는 장비 클래스에 묶임 / subkey는 실행 시 런타임 선택) (→ `REF-node-label.md`)
 - **agent 식별자: 사전 지정 메인키 + supervisor가 접속 시 부여하는 서브키.** 저장/조회는 `메인키#서브키`(`InstanceKey()`). MAC 폐기
 - **process 영속성**: worker 휘발(메모리) / supervisor 영속(PG, 재시작 복구)
@@ -62,12 +62,12 @@ sqlc.yaml  README.md  .gitignore
 | 통신 인프라·파일 전송·supervisor web (마감) | 구현 완료(파일 전송 e2e 미검증) | → `INDEX-infra.md` |
 | process 실행 (execute/pty/manager/bind) | 배선 마감 → `INDEX-process-wiring.md` / 터미널 기능(입력·SNAPSHOT·EDIT) 마감 → `INDEX-process-terminal.md` / **동기화·공유(5 공유(P·R·T))·보드·presence 마감(2026-10-12)** → `INDEX-process-share.md`. 남은 것 = EXEC 실행 방식·kill 정책(CURRENT) | `REF-process.md` + 마감 INDEX 3개 |
 | DB/스토어 (sqlc·goose·store) | 구현 완료 | `REF-db.md` |
-| Node 카탈로그 | DB+CRUD+핸들러+PatchNode(`9c9d22e`) + `GET /workers`·exec 대상 장비 검증(`ba5b857`). UI 연동(연동 1차·타일 터미널·⑪(타일 트리 서버 저장)·4 O(계정 동기화) 화면) 마감 → `INDEX-node-ui-link.md`. roster/label 남음 | `REF-node-label.md`(+`REF-node-ui.md` UI 컨셉 / `REF-node-ui-overview.md` 전체보기·가상 키보드) |
+| Node 카탈로그 | DB+CRUD+핸들러+PatchNode(`9c9d22e`) + `GET /workers`·exec 대상 장비 검증(`ba5b857`). UI 연동(연동 1차·타일 터미널·⑪(타일 트리 서버 저장)·4 O(계정 동기화) 화면) 마감 → `INDEX-node-ui-link.md`. **roster(명부) 마감**(2026-10-12, `GET/DELETE /workers/instances` + 칩·고르기·장비 지정 다이얼로그, `REF-node-label.md` "roster 계획") · label 보류 | `REF-node-label.md`(+`REF-node-ui.md` UI 컨셉 / `REF-node-ui-overview.md` 전체보기·가상 키보드) |
 | 공용 PATCH 래퍼 (`internal/patch`) | `patch.Field[T]` 3-state(`{valid,value}`), worker도 재사용 예정 | `REF-node-label.md` |
 | 프론트엔드 (apps/frontend) | 스캐폴딩·socket hook·user/login WIP·전역 다이얼로그 + node 타일 UI(레이아웃 → `INDEX-node-ui-layout.md`, 연동 → `INDEX-node-ui-link.md`, 둘 다 마감) + 터미널 기능(→ `INDEX-process-terminal.md`). 남은 것 = ⑮(모바일 가상 키보드) iPhone 확인·user/login 마무리 / active 타일 표시·위치 번호 단축키·다른 계정 active 배지 = **마감(2026-10-12, `REF-node-ui-active.md`)** | `REF-frontend.md`(+`REF-node-ui.md` 컨셉 / `REF-node-ui-overview.md` 전체보기·가상 키보드) |
 | 실시간 push (socket) | 전송 토대·3모드 e2e 커밋(3a8e92e). **ping/pong(`transport.KeepAlive`, 10초/25초)로 응답 없는 소켓의 Hub 막힘 해소**(`e395433`, 2026-10-01). node Kind 어휘 확정 + process 동적구독 REST 완료 + **node CRUD 발행처 배선 완료**(`AfterCommit` 훅, 이동=2토픽, 2026-07-16, 빌드/vet 통과·e2e 미검증). 남은 것=NODE 동적구독 어휘·프론트 수신 | `REF-realtime.md` |
 | 위젯 (Skeleton/SkeletonGroup/StickyBox/TileLayout) | Skeleton/SkeletonGroup shimmer 로딩 위젯 신설 + StickyBox 컴포넌트 구현·스토어 리팩터(reportSelf/viewportClient, 2026-08-07) + TileLayout(CSS grid 타일 위젯, node UI Phase1 뼈대, 2026-08-19). 셋 다 실사용 미배선(TileLayout은 index.vue 데모만) | `REF-widget.md` |
-| 범용 유틸 (EventInterface/Memoized/LifecycleRegistry/GroupedSet) | 4종 + 공유 리사이즈 관측 그룹(`feature/common`, AppHead·StickyBox가 씀, 2026-08-07). 반복 주제(전역 규칙)라 전용 REF | `REF-util.md`(+`REF-util-drag.md` DraggableSession/useDragGhost/GhostArea, 설계 확정·구현전) |
+| 범용 유틸 (EventInterface/Memoized/LifecycleRegistry/GroupedSet) | 4종 + 공유 리사이즈 관측 그룹(`feature/common`, AppHead·StickyBox가 씀, 2026-08-07). 반복 주제(전역 규칙)라 전용 REF | `REF-util.md`(+`REF-util-drag.md` DraggableSession/useDragGhost/GhostArea, 설계 확정·**보류**(2026-10-12)) |
 
 ## reference 인덱스
 - 설계/재사용 지식: `REF-process.md` `REF-db.md` `REF-node-label.md` `REF-node-ui.md` `REF-node-ui-overview.md` `REF-node-ui-active.md`(active 타일·단축키 `Ctrl+Alt+숫자`·다른 계정 active 배지) `REF-frontend.md` `REF-realtime.md` `REF-widget.md` `REF-util.md` `REF-util-drag.md` `REF-test-env.md`(테스트 환경·함정)
