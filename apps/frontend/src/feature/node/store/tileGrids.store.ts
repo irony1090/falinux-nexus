@@ -2,7 +2,10 @@ import type { Area } from '@/feature/widget/util/tile.type'
 import { flatten, pack } from '@/feature/widget/util/tileOrder.util'
 import { capacity, effectiveSize, minSize, stripGeometry, stripView } from '@/feature/widget/util/tileSplit.util'
 import { readUserPref, writeUserPref } from '@/common/util/userPrefs.util'
-import { computed, inject, nextTick, provide, ref, shallowRef, watch } from 'vue'
+import { useProcessTerm } from '@/feature/process/store/processTerm.store'
+import { useTestSocket } from '@/common/websocket/websocket.hook'
+import { tabReady } from '@/common/util/tabId.util'
+import { computed, inject, nextTick, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue'
 import { useTileTree } from './tileTree.store'
 
 const TILE_GRIDS_STORE_KEY = Symbol('TileGridsStore')
@@ -25,7 +28,9 @@ const readOvPercent = () => {
 // 트리 + 측정한 Grid 영역 -> Grid 목록 + 가로 스크롤 위치 -> 헤더 내비 — REF-node-ui-impl.md "④ Grid 파생"
 // 측정·스크롤 기록은 TileStrip, 여기는 등록된 strip 요소에 scrollTo만 한다
 export const provideTileGrids = () => {
-    const { tiles, rootId, ready } = useTileTree()
+    const { tiles, rootId, ready, hash } = useTileTree()
+    const { focus: focusTerm } = useProcessTerm()
+    const { emit } = useTestSocket()
 
     const area = ref<Area | null>(null)
 
@@ -148,6 +153,63 @@ export const provideTileGrids = () => {
         if (gi != null) goGrid(gi)
     }
 
+    // ---- active 타일 = 키 입력 대상. 탭 메모리만, 보드 화면마다 1개 — REF-node-ui-active.md AT1(상태 위치) ----
+    const activeId = ref<string | null>(null)
+    // 닫힘·최소화·다른 보드로 이동 = 배치에서 빠짐 -> 해제(다시 나타나도 되살리지 않음)
+    watch(posOf, m => {
+        if (activeId.value && !m.has(activeId.value)) activeId.value = null
+    })
+    watch(hash, () => activeId.value = null)
+
+    // 타일 안 누르기 — 포커스는 브라우저 기본 동작에 맡긴다
+    const setActive = (tileId: string) => {
+        if (posOf.value.has(tileId)) activeId.value = tileId
+    }
+
+    // 터미널 = xterm / 그 밖(폴더·볼 수 없는 터미널) = 타일 요소(tabindex -1)
+    const focusTile = (tileId: string) => {
+        const t = tiles.value[tileId]
+        if (t?.type === 'terminal' && focusTerm(t.uid)) return
+        stripEl.value?.querySelector<HTMLElement>(`.TileFrame[data-tile-id="${CSS.escape(tileId)}"]`)?.focus({ preventScroll: true })
+    }
+
+    // 단축키·이 탭에서 연 타일 — active + 화면 밖이면 스크롤 + 포커스. 전체보기 중이면 나가며 그 Grid로 (AT2(active가 되는 때)·AT6(이동할 때 같이 할 일))
+    const activate = async (tileId: string) => {
+        await nextTick()    // 막 연 타일은 아직 배치(posOf)에 없을 수 있다
+        if (!posOf.value.has(tileId)) return
+        activeId.value = tileId
+        if (overview.value) {
+            await leaveOverview(grids.value.findIndex(g => g.items.some(it => it.tile.id === tileId)))
+        } else {
+            await reveal(tileId)
+        }
+        focusTile(tileId)
+    }
+
+    // 다른 계정에 알릴 active 대상 — 터미널 = uid / 폴더 = 보여 주는 nodeId(루트 = 계정마다 다른 목록이라 없음). REF-node-ui-active.md "원격 active 구조안"
+    const activeTarget = computed(() => {
+        const t = activeId.value ? tiles.value[activeId.value] : undefined
+        if (t?.type === 'terminal') return { uid: t.uid }
+        if (t?.type === 'folder' && t.nodeId !== null) return { nodeId: t.nodeId }
+        return {}
+    })
+    const targetKey = computed(() => JSON.stringify(activeTarget.value))
+    // 바뀔 때만. 서버는 탭이 끊기면 지우므로 다시 붙으면 처음부터
+    let sent = '{}'
+    watch([targetKey, tabReady], ([k, r]) => {
+        if (!r) {
+            sent = '{}'
+            return
+        }
+        if (k === sent) return
+        emit('TAB:ACTIVE', activeTarget.value)
+        sent = k
+    }, { immediate: true })
+    // 보드를 바꾸면 이 화면이 내려간다
+    onBeforeUnmount(() => {
+        if (sent !== '{}') emit('TAB:ACTIVE', {})
+    })
+
     const ctx = {
         area,
         cap,
@@ -174,6 +236,9 @@ export const provideTileGrids = () => {
         zoomOverview,
         enterOverview,
         leaveOverview,
+        activeId,
+        setActive,
+        activate,
     }
 
     provide(TILE_GRIDS_STORE_KEY, ctx)

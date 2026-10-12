@@ -6,13 +6,15 @@ import TileLayout from '@/feature/widget/component/TileLayout.vue';
 import type { Area, CellSpan } from '@/feature/widget/util/tile.type';
 import { columnStops } from '@/feature/widget/util/tileSplit.util';
 import { computed, onBeforeUnmount, onMounted, watch, type CSSProperties } from 'vue';
+import { useTileShortcut } from '../hook/tileShortcut.hook';
 import { TILE_FOOT as FOOT, TILE_GAP as GAP, useTileGrids } from '../store/tileGrids.store';
 import TileFrame from './tile/TileFrame.vue';
 
 const {
     grids, cap, area, stripEl, scrollX, viewW,
-    overview, ovScale, ovDir, scrollbar, leaveOverview,
+    overview, ovScale, ovDir, scrollbar, leaveOverview, activate,
 } = useTileGrids();
+useTileShortcut();
 
 // 칼럼 단위 스냅 앵커 위치(px). 전체 폭 Grid의 폭 = 측정한 area.w. 전체보기에선 앵커 없음(스냅 끔)
 const stopsOf = (cols: CellSpan) => overview.value ? [] : columnStops(area.value?.w ?? 0, cap.value, GAP, cols);
@@ -58,10 +60,11 @@ const onKey = (e: KeyboardEvent) => {
 onMounted(() => window.addEventListener('keydown', onKey));
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
-const onTileKey = (e: KeyboardEvent, gi: number) => {
+// 전체보기에서 고른 타일 = active, 나가며 그 Grid로
+const onTileKey = (e: KeyboardEvent, tileId: string) => {
     if (!overview.value || (e.key !== 'Enter' && e.key !== ' ')) return;
     e.preventDefault();
-    leaveOverview(gi);
+    activate(tileId);
 }
 
 // 전체보기: Grid를 실제 px(타일 영역만, 정보 줄 제외)로 그린 뒤 축소, 바깥 상자는 축소 크기만 차지
@@ -106,8 +109,8 @@ const stripClass = computed(() => overview.value ? ['overview', ovDir.value] : [
                 <tile v-for="it in g.items" :key="it.tile.id" :cell="it"
                     :tabindex="overview ? 0 : undefined"
                     :role="overview ? 'button' : undefined"
-                    @click="overview && leaveOverview(gi)"
-                    @keydown="onTileKey($event, gi)"
+                    @click="overview && activate(it.tile.id)"
+                    @keydown="onTileKey($event, it.tile.id)"
                 >
                     <tile-frame :tile-id="it.tile.id" />
                 </tile>

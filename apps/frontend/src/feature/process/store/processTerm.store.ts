@@ -304,6 +304,14 @@ export const provideProcessTerm = () => {
 
     const handleOf = (uid: string) => handles.get(uid)
 
+    // 화면에 붙은 xterm만 — 붙었으면 true
+    const focus = (uid: string) => {
+        const term = handles.get(uid)?.term
+        if (!term?.element?.isConnected) return false
+        term.focus()
+        return true
+    }
+
     // 첫 attach에서 open(한 번만 가능), 이후엔 xterm이 만든 element를 옮겨 붙인다
     const attach = (uid: string, el: HTMLElement) => {
         const h = handles.get(uid)
@@ -370,6 +378,7 @@ export const provideProcessTerm = () => {
         kill,
         syncSize,
         handleOf,
+        focus,
         attach,
         detach,
         dispose,

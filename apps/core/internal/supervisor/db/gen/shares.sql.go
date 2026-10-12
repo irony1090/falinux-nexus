@@ -348,6 +348,45 @@ func (q *Queries) ListMyProcessShares(ctx context.Context, ownerUserID int64) ([
 	return items, nil
 }
 
+const listNodePermissionMatrix = `-- name: ListNodePermissionMatrix :many
+SELECT u.user_id::bigint AS user_id, n.node_id::bigint AS node_id,
+       COALESCE(node_permission(u.user_id, n.node_id), 0)::smallint AS permission
+FROM unnest($1::bigint[]) AS u(user_id)
+CROSS JOIN unnest($2::bigint[]) AS n(node_id)
+`
+
+type ListNodePermissionMatrixParams struct {
+	UserIds []int64
+	NodeIds []int64
+}
+
+type ListNodePermissionMatrixRow struct {
+	UserID     int64
+	NodeID     int64
+	Permission int16
+}
+
+// 계정 배열 × 노드 배열의 단계(원격 active 배지 — REF-node-ui-active.md). 없는 노드 = 0.
+func (q *Queries) ListNodePermissionMatrix(ctx context.Context, arg ListNodePermissionMatrixParams) ([]ListNodePermissionMatrixRow, error) {
+	rows, err := q.db.Query(ctx, listNodePermissionMatrix, arg.UserIds, arg.NodeIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListNodePermissionMatrixRow
+	for rows.Next() {
+		var i ListNodePermissionMatrixRow
+		if err := rows.Scan(&i.UserID, &i.NodeID, &i.Permission); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listNodeShareEntries = `-- name: ListNodeShareEntries :many
 WITH RECURSIVE chain(id, parent_id, depth) AS (
     SELECT n.id, n.parent_id, 0

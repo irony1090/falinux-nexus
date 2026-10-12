@@ -293,6 +293,26 @@ type TabViewEvent struct {
 	Hash string `json:"hash"`
 }
 
+// 탭의 active 타일 대상 — 바뀔 때만·연결 직후 1번. 둘 다 없음 = 해제. 터미널 = UID / 폴더 = NodeID (REF-node-ui-active.md)
+const MsgTabActive MsgType = "TAB:ACTIVE" // browser→sup EVENT: TabActiveEvent
+
+type TabActiveEvent struct {
+	UID    string `json:"uid,omitempty"`
+	NodeID *int64 `json:"nodeId,omitempty"`
+}
+
+// 다른 계정 탭의 active 변경 — TILES:<userId> 토픽. 받는 계정이 볼 수 없는 대상이면 비워서(= 지움) 보낸다
+const MsgActiveUpdate MsgType = "ACTIVE:UPDATE" // sup→browser EVENT: ActiveUpdateEvent
+
+// ActiveUpdateEvent: Key = 탭 id 해시 앞 8자(탭 id 원문 = 크기 우선권 열쇠라 내보내지 않음). GET /tabs/active 응답 항목과 같은 모양
+type ActiveUpdateEvent struct {
+	Key      string `json:"key"`
+	UserID   int64  `json:"userId"`
+	Nickname string `json:"nickname"`
+	UID      string `json:"uid,omitempty"`
+	NodeID   *int64 `json:"nodeId,omitempty"`
+}
+
 // 계정의 타일 트리 저장 통지 — TILES:<userId> 토픽, 4 O(계정 동기화) 화면 (REF-node-ui-sync.md)
 const MsgTilesUpdate MsgType = "TILES:UPDATE" // sup→browser EVENT: TilesUpdateEvent
 

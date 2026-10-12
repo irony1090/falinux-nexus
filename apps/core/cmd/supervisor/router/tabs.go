@@ -20,6 +20,8 @@ type browserTab struct {
 	connectedAt time.Time // 처음 연결된 시각(같은 id로 다시 붙어도 유지) — 크기 우선권 다음 후보 순서
 	viewing     string    // 보는 작업 공간 hash, "" = 기본(TAB:VIEW 전 포함) — WS7(보는 작업 공간 전달)
 	userAgent   string    // 소켓 연결 때 User-Agent 원문 — SH7(브라우저 이름). 다시 붙으면 새 값
+	nickname    string    // 소켓 연결 때 세션의 닉네임 — 원격 active 배지
+	active      activeTarget
 }
 
 type releasedTab struct {
@@ -46,7 +48,7 @@ func newTabRegistry() *tabRegistry {
 
 // attach는 conn을 탭으로 등록한다. want가 같은 sid의 끊긴 탭 id면 재사용, 아니면 새로 발급한다
 // (탭 복제·세션 복원으로 sessionStorage가 복사돼 같은 id가 동시에 오는 경우 = 지금 쓰는 소켓이 있으니 새로 발급).
-func (t *tabRegistry) attach(conn *transport.Conn, sid string, userID int64, want, userAgent string) (browserTab, error) {
+func (t *tabRegistry) attach(conn *transport.Conn, sid string, userID int64, want, userAgent, nickname string) (browserTab, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -55,6 +57,8 @@ func (t *tabRegistry) attach(conn *transport.Conn, sid string, userID int64, wan
 		delete(t.released, want)
 		tab := rel.tab
 		tab.userAgent = userAgent
+		tab.nickname = nickname
+		tab.active = activeTarget{} // 끊길 때 해제를 발행했다 — 브라우저가 연결 직후 다시 보낸다
 		t.conns[conn] = &tab
 		t.byTab[want] = conn
 		return tab, nil
@@ -64,7 +68,7 @@ func (t *tabRegistry) attach(conn *transport.Conn, sid string, userID int64, wan
 	if err != nil {
 		return browserTab{}, err
 	}
-	tab := browserTab{sid: sid, userID: userID, tabID: id, connectedAt: time.Now(), userAgent: userAgent}
+	tab := browserTab{sid: sid, userID: userID, tabID: id, connectedAt: time.Now(), userAgent: userAgent, nickname: nickname}
 	t.conns[conn] = &tab
 	t.byTab[id] = conn
 	return tab, nil
@@ -188,6 +192,46 @@ func (t *tabRegistry) setView(conn *transport.Conn, hash string) (browserTab, bo
 	}
 	tab.viewing = hash
 	return *tab, true
+}
+
+// setActive는 conn 탭의 active 대상을 기록한다 — 원격 active 배지
+func (t *tabRegistry) setActive(conn *transport.Conn, target activeTarget) (browserTab, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	tab, ok := t.conns[conn]
+	if !ok {
+		return browserTab{}, false
+	}
+	tab.active = target
+	return *tab, true
+}
+
+// activeTabs는 연결된 탭 중 active 대상이 있는 것을 반환한다.
+func (t *tabRegistry) activeTabs() []browserTab {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	var tabs []browserTab
+	for _, tab := range t.conns {
+		if !tab.active.empty() {
+			tabs = append(tabs, *tab)
+		}
+	}
+	return tabs
+}
+
+// onlineUsers는 연결된 탭이 하나라도 있는 계정 id를 반환한다.
+func (t *tabRegistry) onlineUsers() []int64 {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	seen := map[int64]bool{}
+	var users []int64
+	for _, tab := range t.conns {
+		if !seen[tab.userID] {
+			seen[tab.userID] = true
+			users = append(users, tab.userID)
+		}
+	}
+	return users
 }
 
 func (t *tabRegistry) userConnectedLocked(userID int64) bool {

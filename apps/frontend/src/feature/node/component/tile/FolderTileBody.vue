@@ -29,7 +29,7 @@ const props = defineProps({
 })
 
 const { tiles, hash: boardHash, navigate, openFolder, applyServerTile } = useTileTree();
-const { newSize, reveal } = useTileGrids();
+const { newSize, activate } = useTileGrids();
 const { open: appDialogOpen, openDialog } = useAppDialog();
 
 const nodeId = computed(() => {
@@ -80,7 +80,7 @@ const onRefresh = () => {
 }
 
 // 새 타일 크기 = 누른 화면의 최소 단위
-const onOpen = (id: number) => reveal(openFolder(props.tileId, id, newSize.value));
+const onOpen = (id: number) => activate(openFolder(props.tileId, id, newSize.value));
 
 const saving = ref(false);
 const run = <T>(job: Promise<T>, done?: (res: T) => void) => {
@@ -102,7 +102,7 @@ const pickWorkers = ref<WorkerResponse[]>([]);
 // 터미널 타일은 서버가 exec 때 트리에 넣는다 — ⑪-4(타일 없는 실행 중 process)
 const start = (node: NodeResponse, instanceKey: string, type: ProcessType) => run(exec(node.id, instanceKey, { workspace: boardHash.value, parentTileId: props.tileId, size: newSize.value }, type), res => {
     pickOpen.value = false;
-    if (res.tile && res.tileVersion) reveal(applyServerTile(res.tile, res.tileVersion));
+    if (res.tile && res.tileVersion) activate(applyServerTile(res.tile, res.tileVersion));
 });
 
 const onExec = (node: NodeResponse, type: ProcessType = 'EXEC') => run(listWorkers(node.id), workers => {

@@ -18,6 +18,7 @@ import TileWorkspace from '@/feature/node/component/TileWorkspace.vue';
 import BoardMenu from '@/feature/node/component/BoardMenu.vue';
 import { provideTileTree } from '@/feature/node/store/tileTree.store';
 import { provideBoards } from '@/feature/node/store/boards.store';
+import { provideRemoteActive } from '@/feature/node/store/remoteActive.store';
 import { useTerminalRestore } from '@/feature/node/hook/terminalRestore.hook';
 import { useShareChange } from '@/feature/node/hook/shareChange.hook';
 import { provideProcessTerm } from '@/feature/process/store/processTerm.store';
@@ -41,6 +42,7 @@ const hash = computed(() => typeof route.params.hash === 'string' ? route.params
 const tileTree = provideTileTree();  // 로그인 뒤 서버 저장본(⑪)을 불러온다
 const processTerm = provideProcessTerm();
 const boards = provideBoards();
+provideRemoteActive();
 const { ready, loadError, load, reset } = tileTree;
 const { reset: resetTerms } = processTerm;
 useTerminalRestore(tileTree, processTerm);

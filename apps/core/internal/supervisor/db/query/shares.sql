@@ -71,6 +71,13 @@ SELECT u.user_id::bigint AS user_id, p.uid::text AS uid,
 FROM unnest(sqlc.arg(user_ids)::bigint[]) AS u(user_id)
 CROSS JOIN unnest(sqlc.arg(uids)::text[]) AS p(uid);
 
+-- name: ListNodePermissionMatrix :many
+-- 계정 배열 × 노드 배열의 단계(원격 active 배지 — REF-node-ui-active.md). 없는 노드 = 0.
+SELECT u.user_id::bigint AS user_id, n.node_id::bigint AS node_id,
+       COALESCE(node_permission(u.user_id, n.node_id), 0)::smallint AS permission
+FROM unnest(sqlc.arg(user_ids)::bigint[]) AS u(user_id)
+CROSS JOIN unnest(sqlc.arg(node_ids)::bigint[]) AS n(node_id);
+
 -- name: ListLiveProcessesUnder :many
 -- 노드 자신과 하위 스크립트에서 실행된 살아 있는(PENDING/PROCESS) process.
 WITH RECURSIVE sub(id, depth) AS (

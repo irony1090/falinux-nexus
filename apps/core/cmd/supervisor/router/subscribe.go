@@ -30,7 +30,7 @@ func (r *supervisorRouter) handleSubscribeWS(c echo.Context) error {
 	transport.KeepAlive(ws)
 	conn := transport.New(ws)
 
-	tab, err := r.tabs.attach(conn, sid, userID, c.QueryParam("tabId"), req.UserAgent())
+	tab, err := r.tabs.attach(conn, sid, userID, c.QueryParam("tabId"), req.UserAgent(), sess.Data.Nickname)
 	if err != nil {
 		log.Printf("supervisor: 탭 id 발급 실패 %v", err)
 		conn.Close(err)
@@ -45,12 +45,16 @@ func (r *supervisorRouter) handleSubscribeWS(c echo.Context) error {
 	r.subscribeHub.Subscribe(tilesTopic(userID), conn)
 	r.onProcessInput(conn, userID)
 	r.onTabView(conn, userID)
+	r.onTabActive(conn)
 
 	err = conn.Serve()
 	conn.Close(err)
 	// 모든 구독 해제
 	r.subscribeHub.UnsubscribeAll(conn)
-	r.tabs.detach(conn)
+	if gone, ok := r.tabs.detach(conn); ok && !gone.active.empty() {
+		gone.active = activeTarget{}
+		r.publishActive(gone)
+	}
 	r.sizeOwnerOnDisconnect(tab.tabID)
 
 	return nil

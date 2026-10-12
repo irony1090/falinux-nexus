@@ -15,6 +15,8 @@ import { useTileTree } from '../../store/tileTree.store';
 import { isReadOnly, permInfo } from '../../util/shareView.util';
 import NodeNameDialog from '../dialog/NodeNameDialog.vue';
 import PresenceDialog from '../dialog/PresenceDialog.vue';
+import { useRemoteActive } from '../../store/remoteActive.store';
+import ActiveBadges from './ActiveBadges.vue';
 import FolderTileBody from './FolderTileBody.vue';
 import RootTerminalList from './RootTerminalList.vue';
 import TerminalTileBody from './TerminalTileBody.vue';
@@ -29,7 +31,7 @@ const props = defineProps({
 const { tiles, hash: boardHash, resize, setMinimized, detachToBoard, moveToBoard, navigate } = useTileTree();
 const { list: boards, defaultBoard, add: addBoard } = useBoards();
 const router = useRouter();
-const { cap, posOf, instanceOf, reveal, overview, terminals, rootTab } = useTileGrids();
+const { cap, posOf, instanceOf, reveal, overview, terminals, rootTab, activeId, setActive } = useTileGrids();
 const { procs, restored, gone } = useProcessTerm();
 const { killing, closeTile, confirmKill } = useTerminalKill();
 const { openDialog } = useAppDialog();
@@ -146,6 +148,18 @@ const onMove = (to: string) => {
     if (t) boardRun(moveToBoard(t.id, to));
 }
 
+// 다른 계정 active — 터미널 = uid / 폴더 = 보여 주는 nodeId(루트 제외). RA1(맞추는 기준)
+const { byUid, byNodeId } = useRemoteActive();
+const remoteUsers = computed(() => {
+    const t = tile.value;
+    if (!t || unavailable.value) return [];
+    if (t.type === 'terminal') return byUid.value.get(t.uid) ?? [];
+    return t.nodeId === null ? [] : byNodeId.value.get(t.nodeId) ?? [];
+})
+
+// active 표시 — AT3(표시). active가 있을 때만 나머지를 흐린다
+const activeClass = computed(() => activeId.value ? (activeId.value === props.tileId ? 'TileFrame--active' : 'TileFrame--dim') : undefined);
+
 const onX = () => {
     const t = tile.value;
     if (!t) return;
@@ -155,7 +169,11 @@ const onX = () => {
 </script>
 
 <template>
-<div v-if="tile" ref="frameEl" class="TileFrame" :class="[`TileFrame--${tile.type}`, { 'TileFrame--overview': overview, 'TileFrame--shared': !!shareOwner }]">
+<div v-if="tile" ref="frameEl" class="TileFrame" tabindex="-1"
+    :data-tile-id="tile.id"
+    :class="[`TileFrame--${tile.type}`, activeClass, { 'TileFrame--overview': overview, 'TileFrame--shared': !!shareOwner }]"
+    @pointerdown.capture="setActive(tile.id)"
+>
     <!-- 전체보기 라벨: 축소 배율을 거꾸로 곱해 읽을 수 있는 크기 유지 -->
     <div v-if="overview" class="ov-name">
         <span class="pos">{{ posOf.get(tile.id) }}</span>
@@ -164,6 +182,7 @@ const onX = () => {
             :color="tile.type === 'folder' ? 'warning' : 'primary'"
         />
         <span class="name">{{ name }}</span>
+        <active-badges :users="remoteUsers" />
         <v-chip v-if="tile.type === 'terminal'" size="x-small" variant="tonal" class="pill" :color="pill.color">{{ pill.text }}</v-chip>
     </div>
     <div class="TileFrame__head" :inert="overview">
@@ -187,6 +206,7 @@ const onX = () => {
         <span v-if="shareInfo" class="perm" :title="`공유 단계: ${shareInfo.text}`">
             <v-icon size="14" :icon="shareInfo.icon" />{{ shareInfo.text }}
         </span>
+        <active-badges :users="remoteUsers" />
 
         <template v-if="tile.type === 'terminal' && !unavailable">
             <v-btn size="x-small" variant="text" icon="mdi-account-multiple-outline" title="접속 상태" @click="presenceOpen = true" />
@@ -308,10 +328,25 @@ const onX = () => {
     font-size: 12px;
     .sub { font-size: 11px; opacity: 0.7; }
 }
-// 전체보기: 안쪽 조작 막음(inert + 클릭은 Tile로), 폴더는 흐리게
+// 전체보기: 안쪽 조작 막음(inert + 클릭은 Tile로)
 .TileFrame--overview {
     > :not(.ov-name) { pointer-events: none; }
-    &.TileFrame--folder { opacity: 0.72; }
+}
+// active — 공유 테두리(border)와 겹쳐도 둘 다 보이게 outline. 포커스용 기본 outline은 끈다
+.TileFrame:focus { outline: none; }
+.TileFrame.TileFrame--active {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 1px;
+    > .TileFrame__head { border-bottom-color: rgb(var(--v-theme-primary)); }
+    // 전체보기 상자(overflow hidden)에 잘리지 않게 안쪽으로, 축소 배율을 거꾸로 곱해 화면에서 2px
+    &.TileFrame--overview {
+        outline-width: calc(2px / var(--s));
+        outline-offset: calc(-2px / var(--s));
+    }
+}
+.TileFrame--dim {
+    opacity: 0.7;
+    &:hover { opacity: 0.85; }
 }
 .ov-name {
     position: absolute;

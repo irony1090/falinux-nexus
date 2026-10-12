@@ -29,7 +29,7 @@ const PERM_OPERATE = 20  // 종료는 조작(20) 이상 — 서버 superdb.PermO
 
 const router = useRouter();
 const { tiles, hash: boardHash, setMinimized } = useTileTree();
-const { posOf, reveal } = useTileGrids();
+const { posOf, activate } = useTileGrids();
 const { list: boards } = useBoards();
 const { killing, confirmKill, confirmKillUid } = useTerminalKill();
 const queryClient = useQueryClient();
@@ -56,7 +56,7 @@ const rows = computed(() => props.runs.map(r => {
 const onOpen = (row: (typeof rows.value)[number]) => {
     if (row.local) {
         if (row.local.minimized) setMinimized(row.local.id, false);
-        reveal(row.local.id);
+        activate(row.local.id);
     } else if (row.board) {
         router.push(boardPath(row.board));
     }

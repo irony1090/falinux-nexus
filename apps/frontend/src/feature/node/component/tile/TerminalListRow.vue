@@ -15,7 +15,7 @@ const props = defineProps({
 })
 
 const { tiles, setMinimized } = useTileTree();
-const { posOf, instanceOf, reveal } = useTileGrids();
+const { posOf, instanceOf, activate } = useTileGrids();
 const { procs, restored } = useProcessTerm();
 const { killing, closeTile, confirmKill } = useTerminalKill();
 
@@ -44,7 +44,7 @@ const onOpen = () => {
     const t = tile.value;
     if (!t) return;
     if (t.minimized) setMinimized(t.id, false);
-    reveal(t.id);
+    activate(t.id);
 }
 </script>
 
