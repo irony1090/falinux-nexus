@@ -147,6 +147,7 @@ func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 	key := auth.InstanceKey()
 	if key != "" {
 		router.workers.Remove(key)
+		recordSeen(key, false)
 		router.reconcileDisconnect(key)
 		for _, fr := range router.readers.FindAll(func(_ string, v *sendJob) bool {
 			return v.authKey == key

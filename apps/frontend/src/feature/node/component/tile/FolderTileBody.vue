@@ -3,7 +3,7 @@ import { tabReady } from '@/common/util/tabId.util';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import type { ProcessType } from '@/feature/process/api/process.api';
 import { useProcessTerm } from '@/feature/process/store/processTerm.store';
-import { listWorkers, useOnlineWorkers, type WorkerResponse } from '@/feature/worker/api/worker.api';
+import { listWorkers, useWorkerRoster, type WorkerInstanceResponse, type WorkerResponse } from '@/feature/worker/api/worker.api';
 import WorkerPickDialog from '@/feature/worker/component/WorkerPickDialog.vue';
 import { computed, ref } from 'vue';
 import { VBtn, VIcon, VList, VListItem, VMenu, VProgressLinear } from 'vuetify/components';
@@ -13,6 +13,7 @@ import { useNodeRemove } from '../../hook/nodeRemove.hook';
 import { useScriptRuns } from '../../hook/scriptRuns.hook';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
+import { agoText } from '../../util/presenceView.util';
 import { PERM_OWNER } from '../../util/shareView.util';
 import NodeDeviceDialog from '../dialog/NodeDeviceDialog.vue';
 import NodeNameDialog from '../dialog/NodeNameDialog.vue';
@@ -39,7 +40,7 @@ const nodeId = computed(() => {
 
 const listQuery = useListChildren(computed(() => nodeId.value ?? undefined));
 const pathQuery = useNodePath(nodeId);
-const { counts: online, refetch: refetchWorkers } = useOnlineWorkers();
+const { devices, refetch: refetchWorkers } = useWorkerRoster();
 
 const path = computed(() => pathQuery.data.value ?? []);
 const children = computed(() => listQuery.data.value ?? []);
@@ -57,10 +58,19 @@ const shareOpen = ref(false);
 const shareCount = computed(() => sharesQuery.data.value?.length ?? 0);   // O1 숫자 = 이 폴더에 적용되는 사람 수(이어진 사람 포함)
 const sharesQuery = useNodeShares(computed(() => current.value?.id), canShare);
 
+// 장비 칩: 접속 수 / 명부 수 + title에 인스턴스 목록 — RS5(표시 위치) ③
+const isOnline = (key: string | null | undefined) => !!key && (devices.value.get(key)?.online ?? 0) > 0;
+const deviceCount = (key: string | null | undefined) => {
+    const d = key ? devices.value.get(key) : undefined;
+    return d ? `${d.online}/${d.instances.length}` : '';
+}
 const deviceTitle = (key: string | null | undefined, from?: string) => {
     if (!key) return '지정된 장비 없음';
-    const n = online.value.get(key);
-    return [key, from && `상위 폴더 '${from}'에서 상속`, n ? `접속 중 ${n}개` : '접속 안 됨'].filter(v => !!v).join(' — ');
+    const d = devices.value.get(key);
+    const head = [key, from && `상위 폴더 '${from}'에서 상속`].filter(v => !!v).join(' — ');
+    if (!d) return `${head}\n접속한 적 없음`;
+    const lines = d.instances.map(i => `${i.online ? '●' : '○'} #${i.subKey}  ${i.online ? '접속 중' : agoText(i.lastSeen)}`);
+    return [`${head}\n접속 ${d.online} · 끊김 ${d.instances.length - d.online}`, ...lines].join('\n');
 }
 
 // 스크립트 행 "실행 중 N · 최소화 n" — 눌러서 펼침(실시간-6a)
@@ -98,6 +108,7 @@ const pickOpen = ref(false);
 const pickNode = ref<NodeResponse>();
 const pickType = ref<ProcessType>('EXEC');
 const pickWorkers = ref<WorkerResponse[]>([]);
+const pickOffline = ref<WorkerInstanceResponse[]>([]);
 
 // 터미널 타일은 서버가 exec 때 트리에 넣는다 — ⑪-4(타일 없는 실행 중 process)
 const start = (node: NodeResponse, instanceKey: string, type: ProcessType) => run(exec(node.id, instanceKey, { workspace: boardHash.value, parentTileId: props.tileId, size: newSize.value }, type), res => {
@@ -117,6 +128,9 @@ const onExec = (node: NodeResponse, type: ProcessType = 'EXEC') => run(listWorke
     pickNode.value = node;
     pickType.value = type;
     pickWorkers.value = workers;
+    // 끊긴 것 = 명부(최대 10초 전) 중 방금 받은 접속 목록에 없는 것
+    const live = new Set(workers.map(w => w.instanceKey));
+    pickOffline.value = (devices.value.get(workers[0]!.mainKey)?.instances ?? []).filter(i => !live.has(i.instanceKey));
     pickOpen.value = true;
 });
 
@@ -205,12 +219,12 @@ const onRemove = (node: NodeResponse) => {
         <span v-if="nodeId !== null && !path.length">/ …</span>
         <span class="tools">
             <button v-if="current" class="dev"
-                :class="{ on: !!deviceOwner?.deviceKey && online.has(deviceOwner.deviceKey) }"
-                :title="`${deviceTitle(deviceOwner?.deviceKey, deviceInherited ? deviceOwner?.name : undefined)} (눌러서 이 폴더의 장비 지정)`"
+                :class="{ on: isOnline(deviceOwner?.deviceKey) }"
+                :title="`${deviceTitle(deviceOwner?.deviceKey, deviceInherited ? deviceOwner?.name : undefined)}\n(눌러서 장비 지정·명부 관리)`"
                 :disabled="saving"
                 @click="onDevice(current)"
             >
-                <i /><span class="key">{{ deviceOwner?.deviceKey ?? '장비 없음' }}</span><span v-if="deviceInherited">(상속)</span>
+                <i /><span class="key">{{ deviceOwner?.deviceKey ?? '장비 없음' }}</span><span v-if="deviceCount(deviceOwner?.deviceKey)" class="cnt">{{ deviceCount(deviceOwner?.deviceKey) }}</span><span v-if="deviceInherited">(상속)</span>
             </button>
             <button v-if="canShare" class="tool share" title="이 폴더 공유" @click="shareOpen = true">
                 <v-icon size="14" icon="mdi-account-multiple-plus" /><span v-if="shareCount" class="share-count">{{ shareCount }}</span>
@@ -252,8 +266,8 @@ const onRemove = (node: NodeResponse) => {
                 <span v-if="n.ownerNickname" class="by" :title="`${n.ownerNickname}님이 공유한 폴더`">← {{ n.ownerNickname }}</span>
                 <span v-if="n.shareCount" class="shared" :title="`${n.shareCount}명에게 공유 중`"><v-icon size="11" icon="mdi-account-multiple" />{{ n.shareCount }}</span>
                 <button v-if="n.kind === 'SCRIPT' && runsOf(n.id).length" class="runs" :class="{ on: runsOpen[n.id] }" title="이 스크립트의 실행 중 터미널" @click="runsOpen[n.id] = !runsOpen[n.id]">{{ runsText(n.id) }}</button>
-                <span v-if="n.deviceKey" class="dev" :class="{ on: online.has(n.deviceKey) }" :title="deviceTitle(n.deviceKey)">
-                    <i /><span class="key">{{ n.deviceKey }}</span>
+                <span v-if="n.deviceKey" class="dev" :class="{ on: isOnline(n.deviceKey) }" :title="deviceTitle(n.deviceKey)">
+                    <i /><span class="key">{{ n.deviceKey }}</span><span v-if="deviceCount(n.deviceKey)" class="cnt">{{ deviceCount(n.deviceKey) }}</span>
                 </span>
                 <v-btn v-if="n.kind === 'FOLDER'" size="x-small" variant="tonal" color="warning" @click="onOpen(n.id)">새 타일</v-btn>
                 <v-btn v-else size="x-small" variant="tonal" color="primary" :disabled="saving || !tabReady" @click="onExec(n)">실행</v-btn>
@@ -271,6 +285,7 @@ const onRemove = (node: NodeResponse) => {
     <worker-pick-dialog v-model="pickOpen"
         :title="`${typeLabel(pickType)}할 장비: ${pickNode?.name ?? ''}`"
         :workers="pickWorkers"
+        :offline="pickOffline"
         :loading="saving"
         @submit="key => pickNode && start(pickNode, key, pickType)"
     />
@@ -403,7 +418,9 @@ button.runs {
         border-radius: 50%;
         background: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
     }
+    .cnt { flex: none; font-family: monospace; }
     &.on i { background: rgb(var(--v-theme-success)); }
+    &.on .cnt { color: rgb(var(--v-theme-success)); }
 }
 .empty { margin: vars.$spacing-md; opacity: 0.6; }
 </style>

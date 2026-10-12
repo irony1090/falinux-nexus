@@ -82,3 +82,10 @@ type User struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 }
+
+type WorkerInstance struct {
+	MainKey   string
+	SubKey    string
+	FirstSeen pgtype.Timestamptz
+	LastSeen  pgtype.Timestamptz
+}

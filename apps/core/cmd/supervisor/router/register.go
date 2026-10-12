@@ -30,6 +30,7 @@ func (r *supervisorRouter) register(conn *transport.Conn, body *protocol.Registe
 			return "", fmt.Errorf("서브키 %q 는 이미 접속 중", key)
 		}
 		r.workers.Append(key, conn)
+		recordSeen(key, true)
 
 		// q := store.GetStorePool().Queries()
 		// ctx := context.Background()
