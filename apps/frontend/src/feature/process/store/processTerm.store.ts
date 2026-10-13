@@ -3,6 +3,7 @@ import {
     execProcess, getProcessSnapshot, killProcess, listProcesses, resizeProcess, toProcessResponse,
     type ProcessResponse, type ProcessResponseDto, type ProcessSnapshot, type ProcessStatus, type ProcessType,
 } from '@/feature/process/api/process.api'
+import { muteQueries } from '@/feature/process/util/xtermQuery.util'
 import type { TileSize } from '@/feature/widget/util/tile.type'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
@@ -132,6 +133,7 @@ export const provideProcessTerm = () => {
         const fit = new FitAddon()
         term.loadAddon(fit)
         term.attachCustomKeyEventHandler(clipboardKeys(term))
+        muteQueries(term, () => !!owners_.value[uid])   // 질의 응답은 크기 소유 탭만 — term.dispose()가 같이 해제
         term.onData(data => sendInput(uid, utf8.encode(data)))
         // onBinary = 문자 하나가 바이트 하나(마우스 보고 등) — UTF-8로 다시 인코딩하면 안 됨
         term.onBinary(data => sendInput(uid, Uint8Array.from(data, ch => ch.charCodeAt(0) & 0xff)))
