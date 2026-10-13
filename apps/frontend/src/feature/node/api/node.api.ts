@@ -3,7 +3,7 @@ import type { QueryOptions } from '@/common/api/query.util'
 import type { Replace } from '@/common/util/index.type'
 import type { QueryClient } from '@tanstack/query-core'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { computed, type Ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 
 // 백엔드: apps/core/cmd/supervisor/router/node.go (group "/nodes") + nodeDto.go
 // nodeResponse{id, parentId, kind, name, ord, position, deviceKey, content, createdAt(unix sec), updatedAt(*unix sec)}
@@ -93,6 +93,7 @@ export const listChildren = (parentId?: number) => BaseAxios.get(
 export type RunResponse = {
     uid: string
     nodeId: number
+    name: string           // 스크립트 이름 — 단독 공유 process는 노드를 못 봐도 이걸로
     status: string
     permission: number     // 요청 계정의 process 단계
     startedBy: string      // 실행한 계정 닉네임
@@ -104,9 +105,11 @@ export type RunResponse = {
     minimized?: boolean
 }
 
-// GET /nodes/:id/runs — id 0 = 루트 목록
-export const listRuns = (folderId: number) => BaseAxios.get(
-    `/nodes/${folderId}/runs`
+// GET /nodes/:id/runs — id 0 = 루트 목록. 살아 있는 것 + 내 보드에 타일이 있는 끝난 것(R2-a(끝난 process)).
+// deep = 하위 전체(터미널 탭, 개편-3(목록 API)) — id 0이면 볼 수 있는 process 전부(단독 공유 포함)
+export const listRuns = (folderId: number, deep = false) => BaseAxios.get(
+    `/nodes/${folderId}/runs`,
+    { params: deep ? { deep: 1 } : undefined },
 ).then(throwThen<RunResponse[]>)
 .catch(throwCatch)
 
@@ -265,9 +268,10 @@ export const useNodePath = (id: Ref<number | null>) => {
 }
 
 // 폴더(null = 루트 목록)의 자식 스크립트별 실행 중 목록. 갱신은 useScriptRuns가 소켓 이벤트로 무효화
-export const useNodeRuns = (folderId: Ref<number | null>) => useQuery({
-    queryKey: [...RUNS_KEY, folderId],
-    queryFn: () => listRuns(folderId.value ?? 0),
+export const useNodeRuns = (folderId: Ref<number | null>, deep = false, enabled: Ref<boolean> = ref(true)) => useQuery({
+    enabled,
+    queryKey: [...RUNS_KEY, folderId, deep],
+    queryFn: () => listRuns(folderId.value ?? 0, deep),
 })
 
 export const invalidateNodeRuns = (queryClient: QueryClient) => queryClient.invalidateQueries({ queryKey: RUNS_KEY })

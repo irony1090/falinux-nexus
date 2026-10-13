@@ -326,6 +326,46 @@ type TilesUpdateEvent struct {
 	TabID   string          `json:"tabId"`
 }
 
+// 폴더 타일 고정 지도 — TILES:<userId> 토픽, 트리 저장마다 계정 보드 전체로 다시 계산(개편-1(고정 지도), REF-tile-binding-rework.md)
+const MsgTilesPins MsgType = "TILES:PINS" // sup→browser EVENT: TilesPinsEvent
+
+// TilePin: 같은 폴더 노드의 타일이 내 보드를 통틀어 2개 이상일 때 그 노드의 고정 타일 — R4(고정 표시 남발)
+type TilePin struct {
+	NodeID int64  `json:"nodeId"`
+	Hash   string `json:"hash"`
+	TileID string `json:"tileId"`
+}
+
+type TilesPinsEvent struct {
+	Pins []TilePin `json:"pins"`
+}
+
+// 타일 위치 알림 — TILES:<userId> 토픽, 토스트·알림 내역용(개편-5(알림 이벤트), REF-tile-binding-rework.md "위치 알림")
+const MsgTilesNotice MsgType = "TILES:NOTICE" // sup→browser EVENT: TilesNoticeEvent
+
+const (
+	NoticeBind     = "BIND"      // 현재 타일에 바인딩 — M1(내가 바인딩)·M3(다른 곳으로 빠짐)은 프론트가 보는 보드로 가름
+	NoticeAttach   = "ATTACH"    // 다른 계정 실행으로 붙음 — M2(자동으로 붙음)
+	NoticeNoPlace  = "NO_PLACE"  // 다른 계정 실행, 안 붙음 — M4(위치 없음)
+	NoticePinMoved = "PIN_MOVED" // 타일 고정이 다른 타일로 — M5(고정 이동)
+)
+
+type TileSpot struct {
+	Hash   string `json:"hash"`
+	TileID string `json:"tileId"`
+}
+
+// TilesNoticeEvent: UID = 터미널(PIN_MOVED는 없음), NodeID·Name = 스크립트(PIN_MOVED는 폴더)
+type TilesNoticeEvent struct {
+	Kind   string    `json:"kind"`
+	UID    string    `json:"uid,omitempty"`
+	NodeID int64     `json:"nodeId"`
+	Name   string    `json:"name"`
+	From   *TileSpot `json:"from,omitempty"`
+	To     *TileSpot `json:"to,omitempty"`
+	At     int64     `json:"at"` // unix ms
+}
+
 // 공유 변경(걸기·풀기·단계 변경·노드 이동·삭제) — TILES:<userId> 토픽(SD4), 받은 쪽이 다시 조회한다(SD6). REF-process-share-reconcile.md
 const MsgShareChange MsgType = "SHARE:CHANGE" // sup→browser EVENT: ShareChangeEvent
 

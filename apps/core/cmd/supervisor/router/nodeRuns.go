@@ -8,11 +8,12 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// 스크립트 행 "실행 중 N · 최소화 n"(실시간-6a): 폴더의 자식 스크립트별 살아 있는 process + 내 보드에서의 위치.
+// 노드의 상태 리스트·터미널 탭(실시간-6a, 개편-3(목록 API)): 살아 있는 process + 내 보드에 타일이 있는 끝난 process, 내 보드에서의 위치.
 
 type runResponse struct {
 	Uid         string `json:"uid"`
 	NodeID      int64  `json:"nodeId"`
+	Name        string `json:"name"` // 스크립트 노드 이름 — 단독 공유 process는 노드를 못 봐도 이걸로 표시
 	Status      string `json:"status"`
 	Permission  int16  `json:"permission"`
 	StartedBy   string `json:"startedBy"`
@@ -30,7 +31,8 @@ type runLocation struct {
 	minimized    bool
 }
 
-// listNodeRuns는 폴더(보기 이상, id 0 = 루트 목록)의 직접 자식 스크립트에서 실행 중인 process를 평평하게 돌려준다(프론트가 nodeId로 묶음).
+// listNodeRuns: 폴더(보기 이상, id 0 = 루트 목록)의 직접 자식 스크립트 process를 평평하게 돌려준다(프론트가 nodeId로 묶음).
+// ?deep=1 = 그 폴더 하위 전체(터미널 탭), id 0이면 볼 수 있는 process 전부
 func (r *supervisorRouter) listNodeRuns(c echo.Context) error {
 	sess := r.requireSession(c)
 	folderID := paramID(c)
@@ -41,31 +43,44 @@ func (r *supervisorRouter) listNodeRuns(c echo.Context) error {
 	}
 	q, ctx := TxQueries(c), c.Request().Context()
 
-	rows, err := q.ListVisibleLiveProcessesInFolder(ctx, superdb.ListVisibleLiveProcessesInFolderParams{UserID: sess.Data.ID, FolderID: parent})
-	if err != nil {
-		panic(web.Err(500, "%v", err))
-	}
-	out := make([]runResponse, len(rows))
-	if len(rows) == 0 {
-		return c.JSON(200, out)
-	}
-
 	docs, err := q.ListTileTreeDocs(ctx, sess.Data.ID) // 잠그지 않는 읽기
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
 	where := map[string]runLocation{}
+	uids := []string{}
 	for _, rec := range docs {
 		doc := mustParseDoc(rec.Tree)
 		for _, t := range doc.Tiles {
 			if t.Type == "terminal" {
 				where[t.UID] = runLocation{hash: rec.Hash, tileID: t.ID, minimized: t.Minimized}
+				uids = append(uids, t.UID)
 			}
 		}
 	}
+
+	var rows []superdb.ListVisibleRunsInFolderRow
+	if c.QueryParam("deep") == "1" {
+		sub, err := q.ListVisibleRunsInSubtree(ctx, superdb.ListVisibleRunsInSubtreeParams{UserID: sess.Data.ID, FolderID: parent, TileUids: uids})
+		if err != nil {
+			panic(web.Err(500, "%v", err))
+		}
+		rows = make([]superdb.ListVisibleRunsInFolderRow, len(sub))
+		for i, row := range sub {
+			rows[i] = superdb.ListVisibleRunsInFolderRow(row)
+		}
+	} else {
+		rows, err = q.ListVisibleRunsInFolder(ctx, superdb.ListVisibleRunsInFolderParams{UserID: sess.Data.ID, FolderID: parent, TileUids: uids})
+		if err != nil {
+			panic(web.Err(500, "%v", err))
+		}
+	}
+
+	out := make([]runResponse, len(rows))
 	for i, row := range rows {
 		loc := where[row.Uid]
-		out[i] = runResponse{Uid: row.Uid, NodeID: row.NodeID.Int64, Status: row.Status, Permission: row.Permission, StartedBy: row.StartedByNickname, StartedByMe: row.StartedBy == sess.Data.ID,
+		out[i] = runResponse{Uid: row.Uid, NodeID: row.NodeID.Int64, Name: row.Name, Status: row.Status, Permission: row.Permission,
+			StartedBy: row.StartedByNickname, StartedByMe: row.StartedBy == sess.Data.ID,
 			Terminating: row.Terminating, Forced: row.KillForced,
 			Hash: loc.hash, TileID: loc.tileID, Minimized: loc.minimized}
 	}

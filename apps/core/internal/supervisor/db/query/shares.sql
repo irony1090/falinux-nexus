@@ -280,16 +280,37 @@ ORDER BY u.nickname, n.name, n.id;
 
 -- ===== 스크립트 행 "실행 중 N"(실시간-6a) =====
 
--- name: ListVisibleLiveProcessesInFolder :many
--- 폴더의 직접 자식 스크립트에서 실행된 살아 있는 process 중 내가 볼 수 있는 것. 단계 판정은 process_permission만.
+-- name: ListVisibleRunsInFolder :many
+-- 폴더의 직접 자식 스크립트에서 실행된 process 중 내가 볼 수 있는 것 = 살아 있는 것 + 내 보드에 터미널 타일이 있는 끝난 것(R2-a(끝난 process)).
+-- 단계 판정은 process_permission만.
 SELECT p.uid, p.node_id, p.status, process_permission(sqlc.arg(user_id), p.uid)::smallint AS permission,
        p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
-       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name
 FROM processes p
 JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by
 WHERE n.parent_id IS NOT DISTINCT FROM sqlc.narg(folder_id)::bigint -- NULL = 루트
   AND n.kind = 'SCRIPT'
-  AND p.status IN ('PENDING','PROCESS')
+  AND (p.status IN ('PENDING','PROCESS') OR p.uid = ANY(sqlc.arg(tile_uids)::text[]))
+  AND process_permission(sqlc.arg(user_id), p.uid) > 0
+ORDER BY p.created_at ASC;
+
+-- name: ListVisibleRunsInSubtree :many
+-- 터미널 탭(개편-3(목록 API)): 폴더와 그 하위 전체 스크립트의 process — 위와 같은 조건. folder_id NULL = 기본 루트 = 볼 수 있는 process 전부
+-- (단독 공유 process 포함, R3(경로 없는 process))
+WITH RECURSIVE sub AS (
+    SELECT id FROM nodes WHERE id = sqlc.narg(folder_id)::bigint
+    UNION ALL
+    SELECT c.id FROM nodes c JOIN sub ON c.parent_id = sub.id
+)
+SELECT p.uid, p.node_id, p.status, process_permission(sqlc.arg(user_id), p.uid)::smallint AS permission,
+       p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name
+FROM processes p
+JOIN nodes n ON n.id = p.node_id
+LEFT JOIN users u ON u.id = p.started_by
+WHERE (sqlc.narg(folder_id)::bigint IS NULL OR p.node_id IN (SELECT id FROM sub))
+  AND n.kind = 'SCRIPT'
+  AND (p.status IN ('PENDING','PROCESS') OR p.uid = ANY(sqlc.arg(tile_uids)::text[]))
   AND process_permission(sqlc.arg(user_id), p.uid) > 0
 ORDER BY p.created_at ASC;

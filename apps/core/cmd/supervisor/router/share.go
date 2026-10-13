@@ -5,9 +5,11 @@ import (
 	"strconv"
 
 	"nexus/internal/execute"
+	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/web"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 )
@@ -20,7 +22,7 @@ func (r *supervisorRouter) mountShares(e *echo.Echo) {
 	e.GET("/nodes/:id/shares", r.listNodeShares)
 	e.PUT("/nodes/:id/shares/:userId", r.putNodeShare)
 	e.DELETE("/nodes/:id/shares/:userId", r.deleteNodeShare)
-	e.POST("/processes/:processId/tile", r.openProcessTile)
+	e.POST("/processes/:processId/tile", r.bindProcessTile)
 	e.GET("/processes/:processId/shares", r.listProcessShares)
 	e.PUT("/processes/:processId/shares/:userId", r.putProcessShare)
 	e.DELETE("/processes/:processId/shares/:userId", r.deleteProcessShare)
@@ -180,7 +182,7 @@ func (r *supervisorRouter) putNodeShare(c echo.Context) error {
 	saved := savedTrees{}
 	if before <= superdb.PermBlock && mustNodePerm(c, userID, node.ID) > superdb.PermBlock {
 		saved.add(attachSharedFolder(c, userID, node.ID, sharedFromUID(c, sess.Data.ID, tileID, node.ID)))
-		attachSharedTerminals(c, userID, liveUnder(c, node.ID), saved) // 이미 실행 중인 터미널도 — 폴더 타일을 먼저 넣어야 그 아래로 감(placeTerminal)
+		r.attachSharedTerminals(c, userID, liveUnder(c, node.ID), saved) // 이미 실행 중인 터미널도 — 폴더 타일을 먼저 넣어야 받는 타일이 됨
 	}
 	r.afterShareChange(c, userID, liveUnder(c, node.ID), saved)
 	return c.JSON(200, shareChangeResponse{Entry: findShareEntry(r.nodeShareEntries(c, node.ID), userID), Previous: previous})
@@ -259,7 +261,7 @@ func (r *supervisorRouter) putProcessShare(c echo.Context) error {
 	// 못 보다가 보게 될 때만 받는 쪽에 터미널 타일 — SD7(받는 쪽 타일 추가 시점)
 	saved := savedTrees{}
 	if before <= superdb.PermBlock && mustProcessPerm(c, userID, rec.Uid) > superdb.PermBlock && rec.NodeID.Valid && !rec.KillRequestedAt.Valid {
-		saved.add(attachTerminal(c, userID, rec.NodeID.Int64, rec.Uid))
+		saved.add(attachTerminal(c, userID, rec.NodeID.Int64, rec.Uid, r.boundPlaceOf(userID)))
 	}
 	r.afterShareChange(c, userID, []string{rec.Uid}, saved)
 	return c.JSON(200, shareChangeResponse{Entry: findShareEntry(r.processShareEntries(c, rec.Uid), userID), Previous: previous})
@@ -281,26 +283,89 @@ func (r *supervisorRouter) deleteProcessShare(c echo.Context) error {
 	return c.JSON(200, shareChangeResponse{Entry: findShareEntry(r.processShareEntries(c, rec.Uid), userID)})
 }
 
-// openProcessTile은 볼 수 있는 살아 있는 process의 터미널 타일이 내 어느 보드에도 없으면 넣는다("위치 없음" 행의 열기, 위치 = placeTerminal).
-// 이미 있으면 아무것도 안 하고 added=false. 보기(10) 이상, 끝난 process는 400.
-func (r *supervisorRouter) openProcessTile(c echo.Context) error {
+// bindProcessTile: "현재 타일에 바인딩"(개편-4) — 그 터미널 타일을 내 어느 보드에 있든 빼서 본문 {hash} 보드의 {tileId} 폴더 타일 아래로 옮긴다
+// (최소화 풂). 내 보드에 타일이 없으면 새로 만든다(옛 "내 보드에 열기", 살아 있는 process만). {tileId}가 그 사이 닫혔으면 그 보드 루트.
+// 타일 고정은 건드리지 않음(R6(바인딩 단어 겹침)). 이미 그 타일 아래면 added=false. 보기(10) 이상
+func (r *supervisorRouter) bindProcessTile(c echo.Context) error {
 	sess := r.requireSession(c)
 	uid := c.Param("processId")
 	checkPerm(r.processPerm(uid, sess.Data.ID), superdb.PermView, "존재하지 않는 process입니다")
-	rec, err := TxQueries(c).GetProcess(c.Request().Context(), uid)
+	q, ctx := TxQueries(c), c.Request().Context()
+	rec, err := q.GetProcess(ctx, uid)
 	if err != nil {
 		panic(web.Err(404, "존재하지 않는 process입니다"))
-	}
-	if rec.Status != execute.CommandPending.String() && rec.Status != execute.CommandProcess.String() {
-		panic(web.Err(400, "끝난 process는 열 수 없습니다"))
 	}
 	if !rec.NodeID.Valid {
 		panic(web.Err(400, "타일을 만들 수 없는 process입니다"))
 	}
-	added := attachTerminal(c, sess.Data.ID, rec.NodeID.Int64, uid)
-	if added != nil {
-		userID, tree := sess.Data.ID, *added
-		AfterCommit(c, func() { r.publishTiles(userID, tree, "") })
+	var body struct {
+		Hash   string `json:"hash"` // "" = 기본 보드
+		TileID string `json:"tileId"`
 	}
-	return c.JSON(200, map[string]bool{"added": added != nil})
+	if err := c.Bind(&body); err != nil {
+		panic(web.Err(400, "%v", err))
+	}
+
+	userID := sess.Data.ID
+	def := ensureTileTree(c, userID)
+	locked := lockWorkspaces(c, userID)
+	hash := body.Hash
+	if hash == "" {
+		hash = def.Hash
+	}
+	mustWorkspace(locked, hash)
+	docs := make(map[string]*tileDoc, len(locked))
+	for h, wr := range locked {
+		d := mustParseDoc(wr.Tree)
+		docs[h] = &d
+	}
+	dst := docs[hash]
+	parentID := body.TileID
+	if p, ok := dst.Tiles[parentID]; !ok || p.Type != "folder" {
+		parentID = dst.RootID
+	}
+
+	var from *protocol.TileSpot
+	var tile tileItem
+	for h, d := range docs {
+		t, ok := d.terminalOf(uid)
+		if !ok {
+			continue
+		}
+		if h == hash && t.Parent != nil && *t.Parent == parentID {
+			return c.JSON(200, map[string]bool{"added": false})
+		}
+		from, tile = &protocol.TileSpot{Hash: h, TileID: t.ID}, t
+		d.removeLeaf(t.ID)
+		break
+	}
+	if from == nil {
+		if rec.Status != execute.CommandPending.String() && rec.Status != execute.CommandProcess.String() {
+			panic(web.Err(400, "끝난 process는 열 수 없습니다"))
+		}
+		nodeID := rec.NodeID.Int64
+		tile = tileItem{ID: uuid.NewString(), Type: "terminal", Kids: []string{}, Size: tileSize{W: 0.5, H: 0.5}, NodeID: &nodeID, UID: uid}
+	}
+	tile.Parent, tile.Minimized = &parentID, false
+	parent := dst.Tiles[parentID]
+	parent.Kids = append(parent.Kids, tile.ID)
+	dst.Tiles[parentID] = parent
+	dst.Tiles[tile.ID] = tile
+
+	saved := savedTrees{}
+	upd := saveLockedTree(c, locked[hash], dst)
+	saved.add(&upd)
+	if from != nil && from.Hash != hash {
+		src := saveLockedTree(c, locked[from.Hash], docs[from.Hash])
+		saved.add(&src)
+	}
+	ev := protocol.TilesNoticeEvent{Kind: protocol.NoticeBind, UID: uid, NodeID: rec.NodeID.Int64, Name: nodeName(ctx, q, rec.NodeID.Int64),
+		From: from, To: &protocol.TileSpot{Hash: hash, TileID: tile.ID}}
+	AfterCommit(c, func() {
+		for _, t := range saved {
+			r.publishTiles(userID, t, "")
+		}
+		r.publishNotice(userID, ev)
+	})
+	return c.JSON(200, map[string]bool{"added": true})
 }

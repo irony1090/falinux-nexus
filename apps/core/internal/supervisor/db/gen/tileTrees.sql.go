@@ -209,6 +209,7 @@ const listTileTreeDocs = `-- name: ListTileTreeDocs :many
 SELECT hash, is_default, tree
 FROM tile_trees
 WHERE user_id = $1
+ORDER BY id
 `
 
 type ListTileTreeDocsRow struct {
@@ -325,6 +326,7 @@ func (q *Queries) ListTileTreesForUpdate(ctx context.Context, userID int64) ([]T
 }
 
 const listTreesWithTerminal = `-- name: ListTreesWithTerminal :many
+
 SELECT user_id, hash, is_default
 FROM tile_trees
 WHERE jsonb_path_exists(tree, '$.tiles.* ? (@.type == "terminal" && @.uid == $uid)', jsonb_build_object('uid', $1::text))
@@ -336,6 +338,7 @@ type ListTreesWithTerminalRow struct {
 	IsDefault bool
 }
 
+// ListTileTreesForUpdate와 같은 순서 — 고정 지도가 bindingTile과 같은 동률 처리를 하게
 // 그 uid의 터미널 타일이 있는 작업 공간(계정 무관) — 크기 우선권 후보 좁힘(WS7)
 func (q *Queries) ListTreesWithTerminal(ctx context.Context, uid string) ([]ListTreesWithTerminalRow, error) {
 	rows, err := q.db.Query(ctx, listTreesWithTerminal, uid)

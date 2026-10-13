@@ -118,7 +118,7 @@ func sharedFromUID(c echo.Context, userID int64, tileID string, nodeID int64) st
 
 // attachSharedTerminals는 uids 중 userID가 볼 수 있는 살아 있는 process의 터미널 타일을 넣는다(이미 있으면 건너뜀) — 폴더 공유를 건 시점에
 // 이미 실행 중이던 터미널·노드 이동으로 새로 보게 된 터미널(exec 때는 그 시점의 볼 수 있는 계정에만 들어가므로 빈틈). 바뀐 보드는 saved에
-func attachSharedTerminals(c echo.Context, userID int64, uids []string, saved savedTrees) {
+func (r *supervisorRouter) attachSharedTerminals(c echo.Context, userID int64, uids []string, saved savedTrees) {
 	for _, uid := range uids {
 		if mustProcessPerm(c, userID, uid) <= superdb.PermBlock {
 			continue
@@ -127,13 +127,18 @@ func attachSharedTerminals(c echo.Context, userID int64, uids []string, saved sa
 		if err != nil || !rec.NodeID.Valid || rec.KillRequestedAt.Valid { // 종료 요청된 것은 자동으로 안 붙임 — KP3(자동으로 다시 붙이기)
 			continue
 		}
-		saved.add(attachTerminal(c, userID, rec.NodeID.Int64, uid))
+		saved.add(attachTerminal(c, userID, rec.NodeID.Int64, uid, r.boundPlaceOf(userID)))
 	}
 }
 
-// attachTerminal: insertTerminal(placeTerminal 위치)을 요청 트랜잭션으로 — 공유 시 터미널·내 보드에 열기·process 단독 공유·노드 이동
-func attachTerminal(c echo.Context, userID, nodeID int64, uid string) *superdb.TileTree {
-	t, err := insertTerminal(c.Request().Context(), TxQueries(c), userID, nodeID, uid)
+// boundPlaceOf: 다른 계정이 실행한 터미널을 userID 보드에 붙일 자리(받는 타일 + 지금 보는 보드) — 바인딩 타일
+func (r *supervisorRouter) boundPlaceOf(userID int64) placeFunc {
+	return boundPlace(r.tabs.viewedBoards(userID))
+}
+
+// attachTerminal: insertTerminal을 요청 트랜잭션으로 — 공유 시 터미널·내 보드에 열기·process 단독 공유·노드 이동
+func attachTerminal(c echo.Context, userID, nodeID int64, uid string, place placeFunc) *superdb.TileTree {
+	t, err := insertTerminal(c.Request().Context(), TxQueries(c), userID, nodeID, uid, place)
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
@@ -184,7 +189,7 @@ func permIndex(c echo.Context, users []int64, uids []string) map[accessKey]int16
 
 // attachNewlyVisible: 이동 전(before) 못 보다가 이동 뒤 보게 된 계정 × process에 터미널 타일 — SD7(받는 쪽 타일 추가 시점)과 같은 규칙.
 // 순서 의존: 계정 id 순으로 넣는다. 다른 계정 트리를 여럿 잠그므로, 두 이동이 서로 반대 순서로 잠가 교착되지 않게
-func attachNewlyVisible(c echo.Context, before map[accessKey]int16, users []int64, uids []string) map[int64]savedTrees {
+func (r *supervisorRouter) attachNewlyVisible(c echo.Context, before map[accessKey]int16, users []int64, uids []string) map[int64]savedTrees {
 	after := permIndex(c, users, uids)
 	sorted := slices.Sorted(slices.Values(users))
 	out := map[int64]savedTrees{}
@@ -198,7 +203,7 @@ func attachNewlyVisible(c echo.Context, before map[accessKey]int16, users []int6
 		}
 		if len(fresh) > 0 {
 			out[u] = savedTrees{}
-			attachSharedTerminals(c, u, fresh, out[u])
+			r.attachSharedTerminals(c, u, fresh, out[u])
 		}
 	}
 	return out

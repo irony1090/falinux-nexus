@@ -62,11 +62,11 @@ WHERE device_key = $1
   AND status IN ('PENDING','PROCESS');
 
 -- name: ListOwnLiveProcesses :many
--- 고아 안전망 대상 = 내가 소유하거나 실행한 살아 있는 process(공유받은 것 제외) — WS3(고아 안전망 위치).
+-- 고아 안전망 대상 = 내가 실행한 살아 있는 process — WS3(고아 안전망 위치). 내 소유라도 남이 실행한 것은 받는 타일 규칙을 따른다 — BD8(고아 안전망).
 -- 종료 요청된 것은 빼야 닫기가 유지된다 — KP3(자동으로 다시 붙이기)
 SELECT uid, node_id
 FROM processes
-WHERE (owner_user_id = $1 OR started_by = $1)
+WHERE started_by = $1
   AND status IN ('PENDING','PROCESS')
   AND node_id IS NOT NULL
   AND kill_requested_at IS NULL

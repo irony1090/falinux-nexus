@@ -182,6 +182,19 @@ func (t *tabRegistry) tabsOfUser(userID int64) []browserTab {
 	return tabs
 }
 
+// viewedBoards는 계정의 접속 중 탭이 보는 작업 공간 hash 모음이다("" = 기본) — BD9(보는 보드 판정)
+func (t *tabRegistry) viewedBoards(userID int64) map[string]bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	out := map[string]bool{}
+	for _, tab := range t.conns {
+		if tab.userID == userID {
+			out[tab.viewing] = true
+		}
+	}
+	return out
+}
+
 // setView는 conn 탭이 보는 작업 공간을 기록한다. 같은 id로 다시 붙은 탭은 이전 값을 이어받고 연결 직후 TAB:VIEW로 갱신된다
 func (t *tabRegistry) setView(conn *transport.Conn, hash string) (browserTab, bool) {
 	t.mu.Lock()

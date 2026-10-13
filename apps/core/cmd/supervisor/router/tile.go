@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"slices"
+	"time"
 
 	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
@@ -31,6 +32,7 @@ func (r *supervisorRouter) mountTiles(e *echo.Echo) {
 	g.PUT("", r.putTiles, middleware.BodyLimit("256K"))
 	g.GET("/:hash", r.getTiles)
 	g.PUT("/:hash", r.putTiles, middleware.BodyLimit("256K"))
+	g.POST("/bind", r.bindTile)
 }
 
 // 프론트 tileTree.store의 Tile 미러. 서버는 모양만 검사하고 순서·닫기 규칙은 프론트 몫
@@ -49,6 +51,8 @@ type tileItem struct {
 	UID       string   `json:"uid,omitempty"` // terminal: process uid / folder: 서버가 발급하는 타일 uid(FU1), 공유로 생긴 받는 쪽 타일은 공유한 타일과 같은 값(FU2)
 	Adopted   bool     `json:"adopted,omitempty"`
 	Minimized bool     `json:"minimized,omitempty"` // 배치에서만 빠짐(트리·uid 유지) — SD3(실행 중 터미널 치우기)
+	ShownAt   int64    `json:"shownAt,omitempty"`   // folder: 지금 노드를 보여 주기 시작한 시각(unix ms, 서버만 씀) — BD3(저장 위치)
+	Bound     bool     `json:"bound,omitempty"`     // folder: 터미널 받는 타일로 고정(서버만 씀) — BD4(설정 방법)
 }
 
 type tileDoc struct {
@@ -58,9 +62,10 @@ type tileDoc struct {
 
 // Hash = 그 트리의 보드 hash — 프론트가 TILES:UPDATE의 hash와 비교해 자기 보드 것만 받는다(WS6(TILES 이벤트 구분))
 type tileTreeResponse struct {
-	Hash    string          `json:"hash"`
-	Tree    json.RawMessage `json:"tree"`
-	Version int64           `json:"version"`
+	Hash    string              `json:"hash"`
+	Tree    json.RawMessage     `json:"tree"`
+	Version int64               `json:"version"`
+	Pins    *[]protocol.TilePin `json:"pins,omitempty"` // GET만 — 개편-1(고정 지도)
 }
 
 type tilePutRequest struct {
@@ -80,6 +85,55 @@ func (r *supervisorRouter) publishTiles(userID int64, rec superdb.TileTree, tabI
 	if err := r.subscribeHub.Publish(tilesTopic(userID), protocol.MsgTilesUpdate, ev); err != nil {
 		log.Printf("[tiles] 발행 실패 user=%d: %v", userID, err)
 	}
+	r.publishPins(userID)
+}
+
+// loadPins: 잠그지 않는 읽기(id 순)로 고정 지도 계산
+func loadPins(ctx context.Context, q *superdb.Queries, userID int64) ([]protocol.TilePin, error) {
+	recs, err := q.ListTileTreeDocs(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	hashes, docs := make([]string, len(recs)), make([]tileDoc, len(recs))
+	for i, rec := range recs {
+		hashes[i] = rec.Hash
+		if err := json.Unmarshal(rec.Tree, &docs[i]); err != nil {
+			return nil, err
+		}
+	}
+	return pinsOf(hashes, docs), nil
+}
+
+// pinsOf: 폴더 노드마다 받는 타일(bindingTile과 같은 비교)을 고르되, 그 노드 타일이 2개 이상인 것만 — R4(고정 표시 남발).
+// hashes·docs = 보드 id 순(bindingTile의 recs 순서와 같아야 동률일 때 같은 타일을 고름)
+func pinsOf(hashes []string, docs []tileDoc) []protocol.TilePin {
+	type cand struct {
+		at, n int
+		best  tileItem
+	}
+	cands := map[int64]*cand{}
+	var order []int64
+	for i := range docs {
+		for _, t := range docs[i].folderTiles() {
+			c, ok := cands[*t.NodeID]
+			if !ok {
+				cands[*t.NodeID] = &cand{at: i, n: 1, best: t}
+				order = append(order, *t.NodeID)
+				continue
+			}
+			c.n++
+			if betterBinding(t, c.best) {
+				c.at, c.best = i, t
+			}
+		}
+	}
+	out := []protocol.TilePin{}
+	for _, id := range order {
+		if c := cands[id]; c.n >= 2 {
+			out = append(out, protocol.TilePin{NodeID: id, Hash: hashes[c.at], TileID: c.best.ID})
+		}
+	}
+	return out
 }
 
 func newRootDoc() tileDoc {
@@ -157,8 +211,9 @@ func (d *tileDoc) validate() error {
 	return nil
 }
 
-// marshal: 모르는 필드는 버리고 서버 기준 모양으로 저장. kids는 null 대신 [], uid 없는 폴더 타일은 발급 — 모든 저장이 여기를 지난다
+// marshal: 모르는 필드는 버리고 서버 기준 모양으로 저장. kids는 null 대신 [], 폴더 타일의 빈 uid는 발급·빈 shownAt은 지금 — 모든 저장이 여기를 지난다
 func (d *tileDoc) marshal() ([]byte, error) {
+	now := time.Now().UnixMilli()
 	for key, t := range d.Tiles {
 		if t.Kids == nil {
 			t.Kids = []string{}
@@ -170,23 +225,34 @@ func (d *tileDoc) marshal() ([]byte, error) {
 			}
 			t.UID = uid
 		}
+		if t.Type == "folder" && t.ShownAt == 0 {
+			t.ShownAt = now
+		}
 		d.Tiles[key] = t
 	}
 	return json.Marshal(d)
 }
 
-// keepFolderUIDs: 프론트가 보낸 폴더 uid는 믿지 않는다 — 저장본에 같은 id의 폴더 타일이 있으면 그 uid, 없으면 비워서 marshal이 새로 발급(FU2·FU3)
-func (d *tileDoc) keepFolderUIDs(stored *tileDoc) {
+// keepFolderMeta: 프론트가 보낸 폴더 uid·shownAt·bound는 믿지 않는다 — 저장본의 같은 id 폴더 타일 값(없으면 비워서 marshal이 채움, FU2·FU3).
+// shownAt·bound는 보여 주는 노드가 그대로일 때만 이어받는다 — 타일 안에서 다른 폴더로 가면 그 노드를 "새로 연" 것(BD3(저장 위치))
+func (d *tileDoc) keepFolderMeta(stored *tileDoc) {
 	for key, t := range d.Tiles {
-		if t.Type != "folder" {
-			continue
-		}
-		t.UID = ""
-		if s, ok := stored.Tiles[key]; ok && s.Type == "folder" {
-			t.UID = s.UID
+		t.ShownAt, t.Bound = 0, false
+		if t.Type == "folder" {
+			t.UID = ""
+			if s, ok := stored.Tiles[key]; ok && s.Type == "folder" {
+				t.UID = s.UID
+				if sameNode(s.NodeID, t.NodeID) {
+					t.ShownAt, t.Bound = s.ShownAt, s.Bound
+				}
+			}
 		}
 		d.Tiles[key] = t
 	}
+}
+
+func sameNode(a, b *int64) bool {
+	return (a == nil && b == nil) || (a != nil && b != nil && *a == *b)
 }
 
 func (d *tileDoc) mustMarshal() []byte {
@@ -371,7 +437,7 @@ func appendTerminalTile(ctx context.Context, userID int64, hash, parentTileID st
 
 // attachViewerTerminal: exec 때 실행자가 아닌 계정의 트리에 터미널 타일을 넣는다 — SD2(실행 때 터미널 타일을 넣을 계정).
 // 계정마다 별도 트랜잭션(한 번에 한 계정 트리만 잠금 → 교착 없음)
-func attachViewerTerminal(ctx context.Context, userID, nodeID int64, uid string) (*superdb.TileTree, error) {
+func attachViewerTerminal(ctx context.Context, userID, nodeID int64, uid string, place placeFunc) (*superdb.TileTree, error) {
 	tx := store.GetStorePool().Transaction()
 	if err := tx.Begin(ctx); err != nil {
 		return nil, err
@@ -381,7 +447,7 @@ func attachViewerTerminal(ctx context.Context, userID, nodeID int64, uid string)
 		if err != nil {
 			return nil, err
 		}
-		return insertTerminal(ctx, q, userID, nodeID, uid)
+		return insertTerminal(ctx, q, userID, nodeID, uid, place)
 	}()
 	if err != nil {
 		_ = tx.Rollback(ctx, err)
@@ -393,9 +459,9 @@ func attachViewerTerminal(ctx context.Context, userID, nodeID int64, uid string)
 	return upd, nil
 }
 
-// insertTerminal: userID의 보드에 uid 터미널 타일을 placeTerminal 위치에 넣는다. 어느 보드에든 이미 있으면 nil.
+// insertTerminal: userID의 보드에 uid 터미널 타일을 place가 고른 자리에 넣는다. 어느 보드에든 이미 있거나 place가 자리를 못 고르면 nil(위치 없음).
 // q = 호출부 트랜잭션. 계정 트리 전부를 ListTileTreesForUpdate로 잠근다(잠금 순서)
-func insertTerminal(ctx context.Context, q *superdb.Queries, userID, nodeID int64, uid string) (*superdb.TileTree, error) {
+func insertTerminal(ctx context.Context, q *superdb.Queries, userID, nodeID int64, uid string, place placeFunc) (*superdb.TileTree, error) {
 	if _, err := loadOrCreateTileTree(ctx, q, userID); err != nil {
 		return nil, err
 	}
@@ -404,7 +470,6 @@ func insertTerminal(ctx context.Context, q *superdb.Queries, userID, nodeID int6
 		return nil, err
 	}
 	docs := make([]tileDoc, len(recs))
-	var def int
 	for i, rec := range recs {
 		if err := json.Unmarshal(rec.Tree, &docs[i]); err != nil {
 			return nil, err
@@ -412,19 +477,15 @@ func insertTerminal(ctx context.Context, q *superdb.Queries, userID, nodeID int6
 		if _, ok := docs[i].terminalOf(uid); ok {
 			return nil, nil
 		}
-		if rec.IsDefault {
-			def = i
-		}
 	}
 	ancestors, err := visibleAncestors(ctx, q, userID, nodeID)
 	if err != nil {
 		return nil, err
 	}
-	src, err := sourceFolderUID(ctx, q, uid)
-	if err != nil {
-		return nil, err
+	at, parentID, ok := place(recs, docs, ancestors)
+	if !ok {
+		return nil, nil
 	}
-	at, parentID := placeTerminal(docs, def, ancestors, src)
 	doc := &docs[at]
 	parent := doc.Tiles[parentID]
 	tile := tileItem{ID: uuid.NewString(), Type: "terminal", Parent: &parent.ID, Kids: []string{}, Size: tileSize{W: 0.5, H: 0.5}, NodeID: &nodeID, UID: uid}
@@ -464,60 +525,55 @@ func visibleAncestors(ctx context.Context, q *superdb.Queries, userID, nodeID in
 	return out, nil
 }
 
-// sourceFolderUID: 실행한 계정 트리에서 그 터미널이 붙은 폴더 타일의 uid(W1 = 실행 버튼을 누른 타일). 없으면 ""
-func sourceFolderUID(ctx context.Context, q *superdb.Queries, uid string) (string, error) {
-	rec, err := q.GetProcess(ctx, uid)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return "", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	docs, err := q.ListTileTreeDocs(ctx, rec.StartedBy)
-	if err != nil {
-		return "", err
-	}
-	for _, d := range docs {
-		var doc tileDoc
-		if err := json.Unmarshal(d.Tree, &doc); err != nil {
-			return "", err
+// placeFunc: 터미널 타일을 넣을 보드(recs·docs 같은 순서)와 부모 타일. ok=false = 넣지 않음(위치 없음)
+type placeFunc func(recs []superdb.TileTree, docs []tileDoc, ancestors []int64) (int, string, bool)
+
+// boundPlace: 다른 계정이 실행한 터미널 — 받는 타일이 있고 그 보드를 접속 중 탭이 보고 있을 때만(확정 "붙이는 조건"·BD9(보는 보드 판정)).
+// viewed = tabs.viewedBoards("" = 기본 보드)
+func boundPlace(viewed map[string]bool) placeFunc {
+	return func(recs []superdb.TileTree, docs []tileDoc, ancestors []int64) (int, string, bool) {
+		at, id, ok := bindingTile(docs, ancestors)
+		if !ok || !(viewed[recs[at].Hash] || recs[at].IsDefault && viewed[""]) {
+			return 0, "", false
 		}
-		if t, ok := doc.terminalOf(uid); ok && t.Parent != nil {
-			return doc.Tiles[*t.Parent].UID, nil
-		}
+		return at, id, true
 	}
-	return "", nil
 }
 
-// placeTerminal: 터미널 타일을 넣을 보드·부모. 순서: ① 실행한 타일과 같은 uid이고 지금도 조상 폴더를 보여 주는 폴더 타일(FU2)
-// ② 가장 가까운 조상 폴더를 보여 주는 폴더 타일(보드 id 순) ③ 기본 보드 루트.
-// ②의 열쇠 = nodeId — uid는 공유로 이어진 타일에만 같으므로 ②가 빠지면 못 찾는 경우가 남음(REF-process-share-terminal-place.md)
-func placeTerminal(docs []tileDoc, def int, ancestors []int64, srcUID string) (int, string) {
-	if srcUID != "" {
-		for i := range docs {
-			if id, ok := docs[i].linkedFolderTile(srcUID, ancestors); ok {
-				return i, id
-			}
-		}
-	}
+// bindingTile: 터미널을 받을 폴더 타일 — BD1(우선순위)·BD2(바인딩 단위). 가까운 조상부터 보고 그 노드의 폴더 타일이 있는 첫 조상에서 멈춘다
+// (더 먼 조상으로 넘어가지 않음). 그중 고정 > shownAt 가장 이른 것, 같으면 보드 순·너비 우선 순
+func bindingTile(docs []tileDoc, ancestors []int64) (int, string, bool) {
 	for _, anc := range ancestors {
+		at, best, found := 0, tileItem{}, false
 		for i := range docs {
-			if id, ok := docs[i].folderTileOf(anc); ok {
-				return i, id
+			for _, id := range docs[i].folderTilesOf(anc) {
+				t := docs[i].Tiles[id]
+				if !found || betterBinding(t, best) {
+					at, best, found = i, t, true
+				}
 			}
 		}
-	}
-	return def, docs[def].RootID
-}
-
-// linkedFolderTile: uid가 같고 지금 보여 주는 노드가 조상 중 하나인 폴더 타일(계정 안 폴더 uid는 하나라 순서 무관)
-func (d *tileDoc) linkedFolderTile(uid string, ancestors []int64) (string, bool) {
-	for _, t := range d.Tiles {
-		if t.Type == "folder" && t.UID == uid && t.NodeID != nil && slices.Contains(ancestors, *t.NodeID) {
-			return t.ID, true
+		if found {
+			return at, best.ID, true
 		}
 	}
-	return "", false
+	return 0, "", false
+}
+
+// removeLeaf: 자식 없는 타일(터미널)을 부모 kids와 트리에서 뺀다
+func (d *tileDoc) removeLeaf(id string) {
+	t := d.Tiles[id]
+	if t.Parent != nil {
+		p := d.Tiles[*t.Parent]
+		p.Kids = slices.DeleteFunc(slices.Clone(p.Kids), func(k string) bool { return k == id })
+		d.Tiles[p.ID] = p
+	}
+	delete(d.Tiles, id)
+}
+
+// betterBinding: 받는 타일 비교 — 고정 > shownAt 이른 것. 같으면 먼저 본 것 유지(보드 순·너비 우선 순). bindingTile·pinsOf 공용
+func betterBinding(t, best tileItem) bool {
+	return (t.Bound && !best.Bound) || (t.Bound == best.Bound && t.ShownAt < best.ShownAt)
 }
 
 func (d *tileDoc) hasFolderUID(uid string) bool {
@@ -531,16 +587,37 @@ func (d *tileDoc) hasFolderUID(uid string) bool {
 
 // folderTileOf: 그 노드를 보여 주는 폴더 타일 중 루트에서 너비 우선으로 처음 닿는 것(map 순서에 기대지 않게)
 func (d *tileDoc) folderTileOf(nodeID int64) (string, bool) {
+	ids := d.folderTilesOf(nodeID)
+	if len(ids) == 0 {
+		return "", false
+	}
+	return ids[0], true
+}
+
+// folderTilesOf: 그 노드를 보여 주는 폴더 타일 전부(너비 우선 순)
+func (d *tileDoc) folderTilesOf(nodeID int64) []string {
+	var out []string
+	for _, t := range d.folderTiles() {
+		if *t.NodeID == nodeID {
+			out = append(out, t.ID)
+		}
+	}
+	return out
+}
+
+// folderTiles: 노드를 보여 주는 폴더 타일 전부(루트 목록 제외, 루트에서 너비 우선 순)
+func (d *tileDoc) folderTiles() []tileItem {
+	var out []tileItem
 	queue := []string{d.RootID}
 	for len(queue) > 0 {
 		t := d.Tiles[queue[0]]
 		queue = queue[1:]
-		if t.Type == "folder" && t.NodeID != nil && *t.NodeID == nodeID {
-			return t.ID, true
+		if t.Type == "folder" && t.NodeID != nil {
+			out = append(out, t)
 		}
 		queue = append(queue, t.Kids...)
 	}
-	return "", false
+	return out
 }
 
 // terminalOf: uid의 터미널 타일
@@ -565,7 +642,7 @@ func (d *tileDoc) terminalUIDs() []string {
 }
 
 // adoptOrphans: 살아 있는데 계정의 어느 트리에도 타일이 없는 process를 기본 작업 공간 루트 끝에 붙인다 — WS3(고아 안전망 위치).
-// 대상 = 내가 소유하거나 실행한 것만(공유받은 것은 공유-d가 SH2(받는 쪽 화면 위치)로 넣음). 먼저 잠그지 않고 보고, 고아가 있을 때만 잠근 뒤 다시 본다
+// 대상 = 내가 실행한 것만(남이 실행한 것은 받는 타일 규칙 — BD8(고아 안전망)). 먼저 잠그지 않고 보고, 고아가 있을 때만 잠근 뒤 다시 본다
 func (r *supervisorRouter) adoptOrphans(c echo.Context, userID int64) {
 	ctx := c.Request().Context()
 	q := TxQueries(c)
@@ -643,7 +720,11 @@ func (r *supervisorRouter) getTiles(c echo.Context) error {
 	sess := r.requireSession(c)
 	r.adoptOrphans(c, sess.Data.ID)
 	rec := requestTileTree(c, sess.Data.ID)
-	return c.JSON(http.StatusOK, tileTreeResponse{Hash: rec.Hash, Tree: rec.Tree, Version: rec.Version})
+	pins, err := loadPins(c.Request().Context(), TxQueries(c), sess.Data.ID)
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	return c.JSON(http.StatusOK, tileTreeResponse{Hash: rec.Hash, Tree: rec.Tree, Version: rec.Version, Pins: &pins})
 }
 
 // putTiles: 읽은 version일 때만 저장. 다르면 409 + 서버 트리 — ⑪-2(충돌 처리), 프론트가 그 위에 자기 동작을 다시 적용
@@ -673,7 +754,7 @@ func (r *supervisorRouter) putTiles(c echo.Context) error {
 	if err := checkTerminalUIDs(&doc, &stored); err != nil {
 		panic(web.Err(400, "%v", err))
 	}
-	doc.keepFolderUIDs(&stored)
+	doc.keepFolderMeta(&stored)
 
 	// 읽은 뒤 다른 저장이 끼었으면 version 조건으로 걸린다 — 위 검사의 기준이 바뀐 경우도 여기서 409
 	rec, err := TxQueries(c).UpdateTileTreeByHash(c.Request().Context(), superdb.UpdateTileTreeByHashParams{
@@ -693,4 +774,59 @@ func (r *supervisorRouter) putTiles(c echo.Context) error {
 		r.forceAbandoned(closed)
 	})
 	return c.JSON(http.StatusOK, tilePutResponse{Version: rec.Version})
+}
+
+type tileBindRequest struct {
+	Hash   string `json:"hash"` // "" = 기본 보드
+	TileID string `json:"tileId" validate:"required"`
+}
+
+// bindTile: 폴더 타일을 "여기로 타일 고정"한다 — BD4(설정 방법), 해제는 없음(개편-2(여기로 고정), 고정 타일이 사라지면 먼저 연 타일로 넘어감).
+// 계정 트리 전부를 잠그고 같은 노드의 다른 고정을 푼다(노드마다 고정 하나).
+// 루트 목록 타일(nodeId null)은 받는 타일이 될 수 없어 400
+func (r *supervisorRouter) bindTile(c echo.Context) error {
+	sess := r.requireSession(c)
+	var body tileBindRequest
+	if err := c.Bind(&body); err != nil {
+		panic(web.Err(400, "%v", err))
+	}
+	if err := c.Validate(&body); err != nil {
+		panic(web.Err(400, "%v", err))
+	}
+	userID := sess.Data.ID
+	def := ensureTileTree(c, userID)
+	locked := lockWorkspaces(c, userID)
+	hash := body.Hash
+	if hash == "" {
+		hash = def.Hash
+	}
+	target := mustParseDoc(mustWorkspace(locked, hash).Tree).Tiles[body.TileID]
+	if target.Type != "folder" || target.NodeID == nil {
+		panic(web.Err(400, "타일 고정할 수 없는 타일입니다"))
+	}
+	saved := savedTrees{}
+	for h, rec := range locked {
+		doc := mustParseDoc(rec.Tree)
+		changed := false
+		for key, t := range doc.Tiles {
+			if t.Type != "folder" || !sameNode(t.NodeID, target.NodeID) {
+				continue
+			}
+			if want := h == hash && key == body.TileID; t.Bound != want {
+				t.Bound = want
+				doc.Tiles[key] = t
+				changed = true
+			}
+		}
+		if changed {
+			upd := saveLockedTree(c, rec, &doc)
+			saved.add(&upd)
+		}
+	}
+	AfterCommit(c, func() {
+		for _, t := range saved {
+			r.publishTiles(userID, t, "")
+		}
+	})
+	return c.JSON(http.StatusOK, map[string]any{})
 }

@@ -2,14 +2,14 @@ import type { TileNode, TileSize } from '@/feature/widget/util/tile.type'
 import { useAppDialog } from '@/feature/layout/store/appDialog.store'
 import { useTestSocket } from '@/common/websocket/websocket.hook'
 import { readTabId } from '@/common/util/tabId.util'
-import { inject, onBeforeUnmount, provide, readonly, ref, watch } from 'vue'
-import { getTiles, putTiles, type TileTree, type TileTreeResponse } from '../api/tile.api'
+import { computed, inject, onBeforeUnmount, provide, readonly, ref, watch } from 'vue'
+import { getTiles, putTiles, type TilePin, type TileTree, type TileTreeResponse } from '../api/tile.api'
 import { createBoard, moveBoardFolder, type BoardChangeResult } from '../api/board.api'
 
 const TILE_TREE_STORE_KEY = Symbol('TileTreeStore')
 
 type TileBase = TileNode & { parent: string | null }    // parent = 이 타일을 연 폴더 타일 (노드 트리의 부모 아님)
-export type FolderTile = TileBase & { type: 'folder'; nodeId: number | null; uid?: string }  // null = 루트 목록, uid = 서버 발급(새 타일은 저장 뒤 생김), 공유로 받은 타일은 공유한 타일과 같음
+export type FolderTile = TileBase & { type: 'folder'; nodeId: number | null; uid?: string; bound?: boolean }  // null = 루트 목록, uid = 서버 발급(새 타일은 저장 뒤 생김), 공유로 받은 타일은 공유한 타일과 같음, bound = 수동 타일 고정(서버만 씀, 표시는 pins)
 export type TerminalTile = TileBase & { type: 'terminal'; nodeId: number; uid: string }
 export type Tile = FolderTile | TerminalTile
 
@@ -48,7 +48,9 @@ const attachOp = (parentId: string, tile: Tile): Op => ({ tiles }) => {
 
 // 폴더 이름 클릭 = 타일 안에서 이동 (새 타일 아님)
 const navigateOp = (tileId: string, nodeId: number | null): Op => ({ tiles }) => {
-    folderIn(tiles, tileId).nodeId = nodeId
+    const t = folderIn(tiles, tileId)
+    if (t.nodeId !== nodeId) delete t.bound   // 다른 폴더로 가면 서버도 고정을 푼다 — BD3(저장 위치). 내 탭은 TILES:UPDATE를 거르므로 여기서 맞춤
+    t.nodeId = nodeId
 }
 
 // 폴더를 닫으면 그 폴더가 연 타일들이 부모 소속이 된다 (⑩ 타일 닫기 규칙):
@@ -117,6 +119,8 @@ export const provideTileTree = () => {
     let timer: ReturnType<typeof setTimeout> | undefined
     let gen = 0                             // load/reset마다 증가 — 그 전에 보낸 요청의 응답은 버린다
     const early = new Map<string, TileTreeResponse>()   // 불러오는 중 온 push(보드 hash별) — 받은 트리보다 새것이면 덮어씀
+    const pins_ = ref<TilePin[]>([])        // 계정 전체 고정 지도(보드와 무관, 개편-1(고정 지도)) — 보드를 바꿔도 비우지 않음
+    let pinsPushed = false                  // GET 도중 TILES:PINS가 왔으면 GET의 (더 옛) 지도로 덮지 않는다
 
     const tree = (): TileTree => ({ rootId: rootId_.value, tiles: tiles_.value })
 
@@ -218,10 +222,12 @@ export const provideTileTree = () => {
         reset()
         reqHash = hash
         early.clear()
+        pinsPushed = false
         const my = gen
         try {
             const res = await getTiles(hash)
             if (my !== gen) return
+            if (!pinsPushed && res.pins) pins_.value = res.pins
             const stashed = early.get(res.hash)     // await 사이 push 핸들러가 채움
             const latest = stashed && stashed.version > res.version ? stashed : res
             early.clear()
@@ -245,6 +251,9 @@ export const provideTileTree = () => {
             return
         }
         if (ev.hash === hash_.value && ev.version > version) rebase(ev)
+    }), on<{ pins: TilePin[] }>('TILES:PINS', ev => {
+        pins_.value = ev.pins
+        pinsPushed = true
     })]
 
     // 끊긴 동안 놓친 push는 다시 받아서 맞춘다
@@ -252,7 +261,11 @@ export const provideTileTree = () => {
         if (s !== 'CONNECTED' || !ready_.value) return
         const my = gen
         getTiles(reqHash)
-            .then(res => { if (my === gen && res.hash === hash_.value && res.version > version) rebase(res) })
+            .then(res => {
+                if (my !== gen) return
+                if (res.pins) pins_.value = res.pins
+                if (res.hash === hash_.value && res.version > version) rebase(res)
+            })
             .catch(err => console.log('[TILE_TREE] resync', err))
     })
 
@@ -342,8 +355,12 @@ export const provideTileTree = () => {
     // 폴더 타일을 하위째 다른 보드 루트 끝으로(W3(이동 범위))
     const moveToBoard = (folderTileId: string, to: string) => serverChange(v => moveBoardFolder(hash_.value, { folderTileId, to, version: v }))
 
+    // 노드별 고정 타일(타일 2개 이상인 노드만) — 핀 표시·"여기로 타일 고정" 메뉴(개편-7(고정 표시 UI))
+    const pinByNode = computed(() => new Map(pins_.value.map(p => [p.nodeId, p])))
+
     const ctx = {
         tiles: readonly(tiles_),
+        pinByNode,
         rootId: readonly(rootId_),
         ready: readonly(ready_),
         loadError: readonly(loadError_),

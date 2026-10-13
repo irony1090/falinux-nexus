@@ -7,7 +7,8 @@ import { computed, ref } from 'vue';
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
 import { useRouter } from 'vue-router';
 import { VBtn, VCard, VChip, VIcon, VList, VListItem, VListSubheader, VMenu } from 'vuetify/components';
-import { useGetNode, useNodePath } from '../../api/node.api';
+import { useGetNode, useNodePath, useNodeRuns } from '../../api/node.api';
+import { bindTile } from '../../api/tile.api';
 import { useTerminalKill } from '../../hook/terminalKill.hook';
 import { boardLabel, boardPath, useBoards } from '../../store/boards.store';
 import { useTileGrids } from '../../store/tileGrids.store';
@@ -28,10 +29,10 @@ const props = defineProps({
     },
 })
 
-const { tiles, hash: boardHash, resize, setMinimized, detachToBoard, moveToBoard, navigate } = useTileTree();
+const { tiles, hash: boardHash, pinByNode, resize, setMinimized, detachToBoard, moveToBoard, navigate } = useTileTree();
 const { list: boards, defaultBoard, add: addBoard } = useBoards();
 const router = useRouter();
-const { cap, posOf, instanceOf, reveal, overview, terminals, rootTab, activeId, setActive } = useTileGrids();
+const { cap, posOf, instanceOf, reveal, overview, rootTab, activeId, setActive } = useTileGrids();
 const { procs, restored, gone } = useProcessTerm();
 const { killing, closeTile, confirmKill } = useTerminalKill();
 const { openDialog } = useAppDialog();
@@ -114,7 +115,10 @@ const sizeTitle = computed(() => `크기 ${sizeText.value}` + (shownText.value ?
 
 // ---- 머리 줄 A안 `RUN▾ [최소화 | 크기 | ×]` — SD3(실행 중 터미널 치우기). X는 실행 중이면 kill 확인창(종료 요청 뒤엔 강제 종료·닫기) ----
 const isRoot = computed(() => !tile.value?.parent);
-const minCount = computed(() => terminals.value.filter(t => t.minimized).length);
+// 탭 숫자 = 터미널 탭 목록(루트 경로 하위, RootTerminalList와 같은 조회 — 개편-6(목록 UI)). 갱신은 폴더 타일의 useScriptRuns가 무효화
+const { data: rootRuns } = useNodeRuns(computed(() => tile.value?.type === 'folder' ? tile.value.nodeId : null), true, isRoot);
+const runCount = computed(() => rootRuns.value?.length ?? 0);
+const minCount = computed(() => rootRuns.value?.filter(r => r.minimized).length ?? 0);
 const setTab = (v: 'files' | 'terminals') => rootTab.value = v;
 
 // 최소화한 타일이 어디로 갔는지 보이게 루트 타일을 터미널 탭으로
@@ -147,6 +151,15 @@ const onDetach = (name: string) => {
 const onMove = (to: string) => {
     const t = tile.value;
     if (t) boardRun(moveToBoard(t.id, to));
+}
+
+// 타일 고정 — 같은 폴더 타일이 내 보드 통틀어 2개 이상일 때만 핀·메뉴(R4(고정 표시 남발)), 해제 없음(R5(해제의 의미)). 루트 목록(nodeId null)은 대상 아님
+const pin = computed(() => tile.value?.type === 'folder' && tile.value.nodeId !== null ? pinByNode.value.get(tile.value.nodeId) : undefined);
+const pinned = computed(() => !!pin.value && pin.value.hash === boardHash.value && pin.value.tileId === tile.value?.id);
+const canPin = computed(() => !!pin.value && !pinned.value && !unavailable.value);
+const onPin = () => {
+    const t = tile.value;
+    if (t) boardRun(bindTile(boardHash.value, t.id));
 }
 
 // 다른 계정 active — 터미널 = uid / 폴더 = 보여 주는 nodeId(루트 제외). RA1(맞추는 기준)
@@ -201,6 +214,7 @@ const onX = () => {
         </template>
         <template v-else>
             <span class="name">{{ name }}</span>
+            <v-icon v-if="pinned" size="14" icon="mdi-pin" color="warning" title="타일 고정 — 다른 계정이 실행한 터미널을 이 타일이 받음" />
             <v-chip v-if="shareRoot" size="x-small" variant="flat" color="share" prepend-icon="mdi-account" :title="`${shareOwner}님이 공유한 폴더`">{{ shareOwner }}</v-chip>
             <span v-if="opener" class="opener text-warning">← {{ opener }}</span>
         </template>
@@ -227,21 +241,24 @@ const onX = () => {
             <v-chip v-else size="x-small" variant="tonal" class="pill" :color="pill.color" :title="proc?.exitCode != null ? `exit ${proc.exitCode}` : undefined">{{ pill.text }}</v-chip>
         </template>
 
-        <v-menu v-if="boardMenu" location="bottom end">
+        <v-menu v-if="boardMenu || canPin" location="bottom end">
             <template #activator="{ props: act }">
                 <v-btn v-bind="act" size="x-small" variant="text" icon="mdi-dots-vertical" title="보드" :loading="boardBusy" />
             </template>
             <v-list density="compact" min-width="180">
-                <v-list-item v-if="isDefaultBoard" title="새 보드로 분리" prepend-icon="mdi-view-dashboard-outline" @click="detachOpen = true" />
-                <template v-if="otherBoards.length">
-                    <v-list-subheader>다른 보드로 이동</v-list-subheader>
-                    <v-list-item v-for="b in otherBoards" :key="b.hash"
-                        :title="boardLabel(b)"
-                        :prepend-icon="b.isDefault ? 'mdi-home-outline' : 'mdi-arrow-right'"
-                        @click="onMove(b.hash)"
-                    />
+                <v-list-item v-if="canPin" title="여기로 타일 고정" prepend-icon="mdi-pin-outline" @click="onPin" />
+                <template v-if="boardMenu">
+                    <v-list-item v-if="isDefaultBoard" title="새 보드로 분리" prepend-icon="mdi-view-dashboard-outline" @click="detachOpen = true" />
+                    <template v-if="otherBoards.length">
+                        <v-list-subheader>다른 보드로 이동</v-list-subheader>
+                        <v-list-item v-for="b in otherBoards" :key="b.hash"
+                            :title="boardLabel(b)"
+                            :prepend-icon="b.isDefault ? 'mdi-home-outline' : 'mdi-arrow-right'"
+                            @click="onMove(b.hash)"
+                        />
+                    </template>
+                    <v-list-item v-if="!isDefaultBoard && !otherBoards.length" subtitle="옮길 보드가 없습니다" disabled />
                 </template>
-                <v-list-item v-if="!isDefaultBoard && !otherBoards.length" subtitle="옮길 보드가 없습니다" disabled />
             </v-list>
         </v-menu>
 
@@ -284,7 +301,7 @@ const onX = () => {
     <div v-if="isRoot" class="root-tabs" :inert="overview">
         <button :class="{ on: rootTab === 'files' }" @click="setTab('files')">파일</button>
         <button :class="{ on: rootTab === 'terminals' }" @click="setTab('terminals')">
-            터미널 {{ terminals.length }}<template v-if="minCount"> · 최소화 {{ minCount }}</template>
+            터미널 {{ runCount }}<template v-if="minCount"> · 최소화 {{ minCount }}</template>
         </button>
     </div>
     <span v-if="readOnly && !unavailable" class="ro">보기 전용 · 입력 안 됨</span>

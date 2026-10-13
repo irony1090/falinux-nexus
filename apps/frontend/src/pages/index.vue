@@ -11,11 +11,14 @@
 <teleport v-if="auth" defer to="#app-head-title">
     <board-menu />
 </teleport>
+<notice-center v-if="auth" />
 </template>
 
 <script lang="ts" setup>
 import TileWorkspace from '@/feature/node/component/TileWorkspace.vue';
 import BoardMenu from '@/feature/node/component/BoardMenu.vue';
+import NoticeCenter from '@/feature/node/component/notice/NoticeCenter.vue';
+import { useTileNotices } from '@/feature/node/store/tileNotice.store';
 import { provideTileTree } from '@/feature/node/store/tileTree.store';
 import { provideBoards } from '@/feature/node/store/boards.store';
 import { provideRemoteActive } from '@/feature/node/store/remoteActive.store';
@@ -46,6 +49,7 @@ const boards = provideBoards();
 provideRemoteActive();
 const { ready, loadError, load, reset } = tileTree;
 const { reset: resetTerms } = processTerm;
+const { clear: clearNotices } = useTileNotices();
 useTerminalRestore(tileTree, processTerm);
 useShareChange();
 useNodeChange();
@@ -61,6 +65,7 @@ watch(auth, val => {
 // 계정이 바뀔 때만 xterm을 비운다 — 3-d④(계정 바뀜). 같은 계정의 세션 재확인(auth 객체 교체)에는 미확정 변경을 버리지 않도록 다시 불러오지 않는다
 watch(() => auth.value?.identification, id => {
     resetTerms();
+    clearNotices();     // 위치 알림 내역은 계정마다
     if (id) {
         load(hash.value);
         boards.load();

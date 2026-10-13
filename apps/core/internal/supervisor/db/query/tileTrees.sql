@@ -83,7 +83,8 @@ WHERE user_id = $1 AND hash = $2 AND NOT is_default;
 -- 잠그지 않는 전체 읽기 — 고아 안전망(WS3(고아 안전망 위치))의 먼저 보기, 고아가 있을 때만 ListTileTreesForUpdate로 잠근다
 SELECT hash, is_default, tree
 FROM tile_trees
-WHERE user_id = $1;
+WHERE user_id = $1
+ORDER BY id; -- ListTileTreesForUpdate와 같은 순서 — 고정 지도가 bindingTile과 같은 동률 처리를 하게
 
 -- name: ListTreesWithTerminal :many
 -- 그 uid의 터미널 타일이 있는 작업 공간(계정 무관) — 크기 우선권 후보 좁힘(WS7)

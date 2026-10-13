@@ -45,6 +45,7 @@ type supervisorRouter struct {
 	sizeOwners     *sizeOwners             // uid -> PTY 크기 소유 탭(sizeOwner.go)
 	screens        *screens                // uid -> 화면 복원 버퍼(screen.go)
 	accessMu       sync.Mutex              // 출력 구독 재계산·연결 구독을 한 줄로(shareAccess.go)
+	pins           *pinState               // 계정별 마지막 고정 지도(tileNotice.go)
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -76,6 +77,7 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 		processManager: process.NewProcessManager(),
 		sizeOwners:     newSizeOwners(),
 		screens:        newScreens(),
+		pins:           newPinState(),
 	}
 
 	e := echo.New()

@@ -93,9 +93,11 @@ export const useMyShares = (enabled: Ref<boolean>) => useQuery({
 
 export const invalidateMyShares = (queryClient: QueryClient) => queryClient.invalidateQueries({ queryKey: MINE_KEY })
 
-// 볼 수 있는 살아 있는 process의 터미널 타일이 내 어느 보드에도 없으면 기본 보드 끝에 넣는다("위치 없음" 행의 열기). 이미 있으면 added=false
-export const openProcessTile = (uid: string) => BaseAxios.post(
-    `/processes/${uid}/tile`
+// "현재 타일에 바인딩"(개편-4) — 그 터미널 타일을 어느 보드에 있든 hash 보드의 tileId 폴더 타일 아래로 옮긴다. 없으면 새로 만듦(살아 있는 것만).
+// 이미 그 타일 아래면 added=false. 결과는 TILES:UPDATE·TILES:NOTICE로 옴
+export const bindProcessTile = (uid: string, hash: string, tileId: string) => BaseAxios.post(
+    `/processes/${uid}/tile`,
+    { hash, tileId },
 ).then(throwThen<{ added: boolean }>)
 .catch(throwCatch)
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { tabReady } from '@/common/util/tabId.util';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
-import type { ProcessType } from '@/feature/process/api/process.api';
-import { useProcessTerm } from '@/feature/process/store/processTerm.store';
+import type { ProcessStatus, ProcessType } from '@/feature/process/api/process.api';
+import { isRunning, useProcessTerm } from '@/feature/process/store/processTerm.store';
 import { listWorkers, useWorkerRoster, type WorkerInstanceResponse, type WorkerResponse } from '@/feature/worker/api/worker.api';
 import WorkerPickDialog from '@/feature/worker/component/WorkerPickDialog.vue';
 import { computed, ref } from 'vue';
@@ -78,8 +78,9 @@ const { byNode: runsByNode } = useScriptRuns(nodeId);
 const runsOf = (id: number) => runsByNode.value.get(id) ?? [];
 const runsText = (id: number) => {
     const runs = runsOf(id);
+    const live = runs.filter(r => isRunning(r.status as ProcessStatus)).length;
     const min = runs.filter(r => r.minimized).length;
-    return `실행 중 ${runs.length}` + (min ? ` · 최소화 ${min}` : '');
+    return [live && `실행 중 ${live}`, runs.length > live && `끝남 ${runs.length - live}`, min && `최소화 ${min}`].filter(v => !!v).join(' · ');
 }
 const runsOpen = ref<Record<number, boolean>>({});
 
@@ -265,7 +266,7 @@ const onRemove = (node: NodeResponse) => {
             <span class="tail">
                 <span v-if="n.ownerNickname" class="by" :title="`${n.ownerNickname}님이 공유한 폴더`">← {{ n.ownerNickname }}</span>
                 <span v-if="n.shareCount" class="shared" :title="`${n.shareCount}명에게 공유 중`"><v-icon size="11" icon="mdi-account-multiple" />{{ n.shareCount }}</span>
-                <button v-if="n.kind === 'SCRIPT' && runsOf(n.id).length" class="runs" :class="{ on: runsOpen[n.id] }" title="이 스크립트의 실행 중 터미널" @click="runsOpen[n.id] = !runsOpen[n.id]">{{ runsText(n.id) }}</button>
+                <button v-if="n.kind === 'SCRIPT' && runsOf(n.id).length" class="runs" :class="{ on: runsOpen[n.id] }" title="이 스크립트의 터미널(실행 중 + 내 타일에 남은 끝난 것)" @click="runsOpen[n.id] = !runsOpen[n.id]">{{ runsText(n.id) }}</button>
                 <span v-if="n.deviceKey" class="dev" :class="{ on: isOnline(n.deviceKey) }" :title="deviceTitle(n.deviceKey)">
                     <i /><span class="key">{{ n.deviceKey }}</span><span v-if="deviceCount(n.deviceKey)" class="cnt">{{ deviceCount(n.deviceKey) }}</span>
                 </span>
@@ -274,7 +275,7 @@ const onRemove = (node: NodeResponse) => {
                 <node-row-menu :kind="n.kind" :vi-disabled="saving || !tabReady" @edit="onEdit(n)" @vi="onExec(n, 'EDIT')" @rename="onName({ node: n })" @device="onDevice(n)" @remove="onRemove(n)" />
             </span>
         </div>
-        <script-run-list v-if="n.kind === 'SCRIPT' && runsOpen[n.id] && runsOf(n.id).length" :runs="runsOf(n.id)" :name="n.name" />
+        <script-run-list v-if="n.kind === 'SCRIPT' && runsOpen[n.id] && runsOf(n.id).length" :runs="runsOf(n.id)" :tile-id="tileId" />
         </template>
         <p v-if="!listQuery.isPending.value && !children.length" class="empty">비어 있음</p>
     </template>

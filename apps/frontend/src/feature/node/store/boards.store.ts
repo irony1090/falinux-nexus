@@ -9,6 +9,9 @@ export const boardLabel = (b?: BoardItem) => !b ? '' : b.name || (b.isDefault ? 
 
 export const boardPath = (b: BoardItem) => b.isDefault ? '/' : `/w/${b.hash}`
 
+// 보드로 가서 그 타일을 active로 — 목록 "보드로 이동"·위치 알림(N3(누르면 이동)). TileWorkspace가 처리 후 query를 지운다
+export const focusPath = (b: BoardItem, tileId: string) => ({ path: boardPath(b), query: { focus: tileId } })
+
 // 계정의 보드 목록. 만들기·이름·삭제는 WORKSPACES:UPDATE로 모든 탭(내 탭 포함)에 온다 — REF-workspace-impl.md
 export const provideBoards = () => {
     const { on, status } = useTestSocket()

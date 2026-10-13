@@ -10,6 +10,8 @@
     </v-app-bar-title>
     <!-- 페이지가 Teleport로 자기 내비를 넣는 자리 (예: TileWorkspace) -->
     <div id="app-head-nav" class="AppHead__nav" />
+    <!-- 페이지가 Teleport로 넣는 도구 버튼 자리 (예: 보드 페이지의 위치 알림 종) -->
+    <div id="app-head-tools" class="AppHead__tools" />
     <template #append>
         <v-app-bar-nav-icon @click="toggleNaiv"/>
     </template>
@@ -85,6 +87,10 @@ const moveIndex = () => router.push('/')
     flex: 0 1 auto;     // 기본 flex:1 이면 내비 자리와 폭을 나눠 가짐
     font-weight: vars.$weight-lg;
     margin-inline-start: vars.$spacing-md;
+}
+.AppHead__tools {
+    display: flex;
+    align-items: center;
 }
 .AppHead__nav {
     flex: 1;

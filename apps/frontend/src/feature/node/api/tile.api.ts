@@ -14,6 +14,14 @@ export type TileTreeResponse = {
     hash: string        // 그 트리의 보드 hash(기본 보드도 실제 hash) — TILES:UPDATE를 자기 보드 것만 받는 데 씀
     tree: TileTree
     version: number
+    pins?: TilePin[]    // GET만 — 개편-1(고정 지도)
+}
+
+// 같은 폴더 노드의 타일이 내 보드를 통틀어 2개 이상일 때 그 노드의 고정 타일 — R4(고정 표시 남발). GET /tiles·TILES:PINS
+export type TilePin = {
+    nodeId: number
+    hash: string
+    tileId: string
 }
 
 // 409(버전 충돌)는 에러가 아니라 결과 — 서버 트리 위에 자기 동작을 다시 적용해야 하므로 ⑪-2(충돌 처리)
@@ -47,6 +55,13 @@ const putTilesKeepalive = (hash: string, body: string): Promise<PutTilesResult> 
     if (!res.ok) throw { message: `타일 저장 실패 (${res.status})` }
     return { ok: true, version: (await res.json()).version }
 })
+
+// POST /tiles/bind — "여기로 타일 고정"(같은 노드의 다른 고정은 서버가 풂, 해제 없음 — 개편-2(여기로 고정)). 결과는 TILES:UPDATE·TILES:PINS로 옴
+export const bindTile = (hash: string, tileId: string) => BaseAxios.post(
+    '/tiles/bind',
+    { hash, tileId },
+).then(throwThen<Record<string, never>>)
+.catch(throwCatch)
 
 // PUT /tiles[/:hash] — 읽은 version일 때만 저장. 200 {version} / 409 {hash, tree, version}.
 // 저장본에 없던 터미널 타일은 넣을 수 없다(400) — 터미널 타일은 서버만 넣음(WS5(터미널 타일 추가 주체))

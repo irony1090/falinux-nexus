@@ -240,7 +240,7 @@ func (router *supervisorRouter) patchNode(c echo.Context) error {
 	AfterCommit(c, func() { router.publishNode(protocol.MsgNodeUpdate, node, oldParent) })
 	if reparent {
 		users = mergeUsers(c, users, id)
-		added := attachNewlyVisible(c, before, users, uids)
+		added := router.attachNewlyVisible(c, before, users, uids)
 		AfterCommit(c, func() {
 			router.reconcileAccess(users, uids)
 			router.publishSaved(added)

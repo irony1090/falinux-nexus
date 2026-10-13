@@ -284,7 +284,7 @@ func (r *supervisorRouter) resizeProcess(c echo.Context) error {
 }
 
 // attachViewerTiles: 실행자 외에 볼 수 있는 계정 전부의 트리에 터미널 타일을 넣고 push한다(계정 id 순) — SD2.
-// 실패는 로그만: 그 계정이 못 볼 뿐 process는 정상이고, 소유자는 고아 안전망이 보완한다
+// 실패·자리 없음은 그 계정 보드에 안 붙을 뿐(위치 없음 — 스크립트 행 "내 보드에 열기"). 소유자도 고아 안전망 대상이 아님 — BD8(고아 안전망)
 func (r *supervisorRouter) attachViewerTiles(starter, nodeID int64, uid string) {
 	viewers, err := store.GetStorePool().Queries().ListProcessViewers(context.Background(), uid)
 	if err != nil {
@@ -298,16 +298,26 @@ func (r *supervisorRouter) attachViewerTiles(starter, nodeID int64, uid string) 
 		}
 	}
 	slices.Sort(users)
+	name := ""
+	if len(users) > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		name = nodeName(ctx, store.GetStorePool().Queries(), nodeID)
+		cancel()
+	}
 	for _, userID := range users {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		tree, err := attachViewerTerminal(ctx, userID, nodeID, uid)
+		tree, err := attachViewerTerminal(ctx, userID, nodeID, uid, r.boundPlaceOf(userID))
 		cancel()
 		if err != nil {
 			log.Printf("[process] 터미널 타일 추가 실패 user=%d uid=%s: %v", userID, uid, err)
 			continue
 		}
+		// M2(자동으로 붙음)·M4(위치 없음) — 새 실행이라 이미 타일이 있어 nil인 경우는 없음
+		ev := protocol.TilesNoticeEvent{Kind: protocol.NoticeNoPlace, UID: uid, NodeID: nodeID, Name: name}
 		if tree != nil {
 			r.publishTiles(userID, *tree, "")
+			ev.Kind, ev.To = protocol.NoticeAttach, terminalSpot(*tree, uid)
 		}
+		r.publishNotice(userID, ev)
 	}
 }

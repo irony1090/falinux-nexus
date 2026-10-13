@@ -791,68 +791,6 @@ func (q *Queries) ListVisibleLiveProcesses(ctx context.Context, userID int64) ([
 	return items, nil
 }
 
-const listVisibleLiveProcessesInFolder = `-- name: ListVisibleLiveProcessesInFolder :many
-
-SELECT p.uid, p.node_id, p.status, process_permission($1, p.uid)::smallint AS permission,
-       p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
-       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced
-FROM processes p
-JOIN nodes n ON n.id = p.node_id
-LEFT JOIN users u ON u.id = p.started_by
-WHERE n.parent_id IS NOT DISTINCT FROM $2::bigint -- NULL = 루트
-  AND n.kind = 'SCRIPT'
-  AND p.status IN ('PENDING','PROCESS')
-  AND process_permission($1, p.uid) > 0
-ORDER BY p.created_at ASC
-`
-
-type ListVisibleLiveProcessesInFolderParams struct {
-	UserID   int64
-	FolderID pgtype.Int8
-}
-
-type ListVisibleLiveProcessesInFolderRow struct {
-	Uid               string
-	NodeID            pgtype.Int8
-	Status            string
-	Permission        int16
-	StartedBy         int64
-	StartedByNickname string
-	Terminating       bool
-	KillForced        bool
-}
-
-// ===== 스크립트 행 "실행 중 N"(실시간-6a) =====
-// 폴더의 직접 자식 스크립트에서 실행된 살아 있는 process 중 내가 볼 수 있는 것. 단계 판정은 process_permission만.
-func (q *Queries) ListVisibleLiveProcessesInFolder(ctx context.Context, arg ListVisibleLiveProcessesInFolderParams) ([]ListVisibleLiveProcessesInFolderRow, error) {
-	rows, err := q.db.Query(ctx, listVisibleLiveProcessesInFolder, arg.UserID, arg.FolderID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListVisibleLiveProcessesInFolderRow
-	for rows.Next() {
-		var i ListVisibleLiveProcessesInFolderRow
-		if err := rows.Scan(
-			&i.Uid,
-			&i.NodeID,
-			&i.Status,
-			&i.Permission,
-			&i.StartedBy,
-			&i.StartedByNickname,
-			&i.Terminating,
-			&i.KillForced,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listVisibleProcessesByUids = `-- name: ListVisibleProcessesByUids :many
 SELECT p.uid, p.type, p.owner_user_id, p.node_id, p.device_key, p.cmd, p.args, p.env, p.cwd, p.rows, p.cols, p.status, p.pid, p.exit_code, p.created_at, p.started_at, p.finished_at, p.updated_at, p.started_by, p.kill_requested_at, p.kill_forced, process_permission($1, p.uid)::smallint AS permission
 FROM processes p
@@ -904,6 +842,141 @@ func (q *Queries) ListVisibleProcessesByUids(ctx context.Context, arg ListVisibl
 			&i.Process.KillRequestedAt,
 			&i.Process.KillForced,
 			&i.Permission,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleRunsInFolder = `-- name: ListVisibleRunsInFolder :many
+
+SELECT p.uid, p.node_id, p.status, process_permission($1, p.uid)::smallint AS permission,
+       p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name
+FROM processes p
+JOIN nodes n ON n.id = p.node_id
+LEFT JOIN users u ON u.id = p.started_by
+WHERE n.parent_id IS NOT DISTINCT FROM $2::bigint -- NULL = 루트
+  AND n.kind = 'SCRIPT'
+  AND (p.status IN ('PENDING','PROCESS') OR p.uid = ANY($3::text[]))
+  AND process_permission($1, p.uid) > 0
+ORDER BY p.created_at ASC
+`
+
+type ListVisibleRunsInFolderParams struct {
+	UserID   int64
+	FolderID pgtype.Int8
+	TileUids []string
+}
+
+type ListVisibleRunsInFolderRow struct {
+	Uid               string
+	NodeID            pgtype.Int8
+	Status            string
+	Permission        int16
+	StartedBy         int64
+	StartedByNickname string
+	Terminating       bool
+	KillForced        bool
+	Name              string
+}
+
+// ===== 스크립트 행 "실행 중 N"(실시간-6a) =====
+// 폴더의 직접 자식 스크립트에서 실행된 process 중 내가 볼 수 있는 것 = 살아 있는 것 + 내 보드에 터미널 타일이 있는 끝난 것(R2-a(끝난 process)).
+// 단계 판정은 process_permission만.
+func (q *Queries) ListVisibleRunsInFolder(ctx context.Context, arg ListVisibleRunsInFolderParams) ([]ListVisibleRunsInFolderRow, error) {
+	rows, err := q.db.Query(ctx, listVisibleRunsInFolder, arg.UserID, arg.FolderID, arg.TileUids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListVisibleRunsInFolderRow
+	for rows.Next() {
+		var i ListVisibleRunsInFolderRow
+		if err := rows.Scan(
+			&i.Uid,
+			&i.NodeID,
+			&i.Status,
+			&i.Permission,
+			&i.StartedBy,
+			&i.StartedByNickname,
+			&i.Terminating,
+			&i.KillForced,
+			&i.Name,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleRunsInSubtree = `-- name: ListVisibleRunsInSubtree :many
+WITH RECURSIVE sub AS (
+    SELECT id FROM nodes WHERE id = $2::bigint
+    UNION ALL
+    SELECT c.id FROM nodes c JOIN sub ON c.parent_id = sub.id
+)
+SELECT p.uid, p.node_id, p.status, process_permission($1, p.uid)::smallint AS permission,
+       p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name
+FROM processes p
+JOIN nodes n ON n.id = p.node_id
+LEFT JOIN users u ON u.id = p.started_by
+WHERE ($2::bigint IS NULL OR p.node_id IN (SELECT id FROM sub))
+  AND n.kind = 'SCRIPT'
+  AND (p.status IN ('PENDING','PROCESS') OR p.uid = ANY($3::text[]))
+  AND process_permission($1, p.uid) > 0
+ORDER BY p.created_at ASC
+`
+
+type ListVisibleRunsInSubtreeParams struct {
+	UserID   int64
+	FolderID pgtype.Int8
+	TileUids []string
+}
+
+type ListVisibleRunsInSubtreeRow struct {
+	Uid               string
+	NodeID            pgtype.Int8
+	Status            string
+	Permission        int16
+	StartedBy         int64
+	StartedByNickname string
+	Terminating       bool
+	KillForced        bool
+	Name              string
+}
+
+// 터미널 탭(개편-3(목록 API)): 폴더와 그 하위 전체 스크립트의 process — 위와 같은 조건. folder_id NULL = 기본 루트 = 볼 수 있는 process 전부
+// (단독 공유 process 포함, R3(경로 없는 process))
+func (q *Queries) ListVisibleRunsInSubtree(ctx context.Context, arg ListVisibleRunsInSubtreeParams) ([]ListVisibleRunsInSubtreeRow, error) {
+	rows, err := q.db.Query(ctx, listVisibleRunsInSubtree, arg.UserID, arg.FolderID, arg.TileUids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListVisibleRunsInSubtreeRow
+	for rows.Next() {
+		var i ListVisibleRunsInSubtreeRow
+		if err := rows.Scan(
+			&i.Uid,
+			&i.NodeID,
+			&i.Status,
+			&i.Permission,
+			&i.StartedBy,
+			&i.StartedByNickname,
+			&i.Terminating,
+			&i.KillForced,
+			&i.Name,
 		); err != nil {
 			return nil, err
 		}
