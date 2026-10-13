@@ -1,5 +1,8 @@
 # SUPERVISOR
-PORT=5050
+# 외부 접속(모바일 확인): https://test2.falinux.com -> nginx(TLS 종료) -> 이 장비 8012(평문). 로컬 전용으로 되돌리려면 PORT=5050 + IP 줄 주석
+#PORT=5050
+PORT=8012
+IP=0.0.0.0
 
 WORKER_PATH="/worker"
 DB_USER=irony

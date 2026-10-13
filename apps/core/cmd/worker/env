@@ -1,6 +1,8 @@
 # WORKER
+# worker는 같은 장비의 supervisor에 직접 붙는다(외부 도메인 거치지 않음) — supervisor PORT와 맞출 것
 WS_SCHEME="ws"
-WS_HOST="localhost:5050"
+#WS_HOST="localhost:5050"
+WS_HOST="localhost:8012"
 
 SQLITE="./worker-sqlite.db"
 

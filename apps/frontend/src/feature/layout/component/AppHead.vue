@@ -13,6 +13,7 @@
     <!-- 페이지가 Teleport로 넣는 도구 버튼 자리 (예: 보드 페이지의 위치 알림 종) -->
     <div id="app-head-tools" class="AppHead__tools" />
     <template #append>
+        <v-btn v-if="canFullscreen" :icon="fullscreen ? 'mdi-fullscreen-exit' : 'mdi-fullscreen'" :title="fullscreen ? '전체 화면 끝내기' : '전체 화면'" variant="text" @click="toggleFullscreen" />
         <v-btn :icon="auth ? 'mdi-logout' : 'mdi-login'" :title="auth ? '로그아웃' : '로그인'" variant="text" @click="toggleNaiv" />
     </template>
     <!-- <slot /> -->
@@ -25,7 +26,7 @@ import { useAppNav } from '../store/appNav.store';
 import { useAppDialog } from '../store/appDialog.store';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/feature/user/store/auth.store';
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
 import { computeResizeSize } from '@/common/hook/vue.hook';
 
@@ -61,6 +62,18 @@ const toggleNaiv = () => {
 }
 
 const moveIndex = () => router.push('/')
+
+// 전체 화면 — 모바일 주소창을 숨기는 용도(문서 스크롤이 없어 브라우저가 스스로 숨기지 않음). 지원 안 하는 브라우저(iPhone 등)는 버튼 숨김
+const canFullscreen = document.fullscreenEnabled;
+const fullscreen = ref(!!document.fullscreenElement);
+// 뒤로가기·Esc 등 브라우저가 풀어도 맞도록 이벤트로 읽는다
+const onFullscreenChange = () => fullscreen.value = !!document.fullscreenElement;
+onMounted(() => document.addEventListener('fullscreenchange', onFullscreenChange));
+onBeforeUnmount(() => document.removeEventListener('fullscreenchange', onFullscreenChange));
+const toggleFullscreen = () => {
+    const job = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+    job.catch(err => openDialog({ type: 'error', content: `전체 화면을 바꾸지 못했습니다: ${err?.message ?? err}` }));
+}
 
 
 

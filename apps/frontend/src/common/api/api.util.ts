@@ -52,7 +52,7 @@ export const throwCatch = (error: AxiosError | CommonResponse) => {
 };
 
 
-const getBaseURL = (): string => {
+export const getBaseURL = (): string => {
     const rst = !!import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : `${location.protocol}//${location.host}`
     return rst;
 }

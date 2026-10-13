@@ -1,5 +1,6 @@
 import { inject, onUnmounted, provide, ref, watch, type Ref } from 'vue';
 import type { Connect } from '../util/index.type';
+import { getBaseURL } from '../api/api.util';
 import { readTabId } from '../util/tabId.util';
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -327,6 +328,11 @@ export const createWebsocketHook = (url: string | (() => string), option: Websoc
 //   const s = useTestSocket(); s.connect();
 //   s.call('TEST', 'hello').then(console.log) // → 'RES'
 export const [provideTestSocket, useTestSocket] = createWebsocketHook(
-    () => `ws://localhost:5050/subscribe?tabId=${encodeURIComponent(readTabId())}`,
+    () => {
+        // API 주소에서 만든다(http -> ws, https -> wss) — https 화면에서 ws://는 혼합 콘텐츠로 막힘
+        const url = new URL(`/subscribe?tabId=${encodeURIComponent(readTabId())}`, getBaseURL());
+        url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        return url.toString();
+    },
     { maxRetries: 2 },
 );

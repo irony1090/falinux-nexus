@@ -1,7 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 import Vue from '@vitejs/plugin-vue'
 // import Fonts from 'unplugin-fonts/vite'
-import { defineConfig, UserConfig } from 'vite'
+import { defineConfig, loadEnv, type Plugin, UserConfig } from 'vite'
 import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
 
 
@@ -13,8 +13,23 @@ const css: UserConfig['css'] = {
 	}
 }
 
+// 재발 방지: TLS 프록시(nginx)가 30초 무통신 연결을 끊으면 vite 클라이언트가 "서버 재시작"으로 보고 페이지를 새로고침한다.
+// 프록시 뒤(HMR_CLIENT_PORT 있음)에서만 HMR 소켓에 주기적으로 빈 사용자 이벤트를 보내 연결을 유지 — REF-external-access.md
+const hmrKeepAlive = (ms: number): Plugin => ({
+  name: 'hmr-keepalive',
+  apply: 'serve',
+  configureServer(server) {
+    const timer = setInterval(() => server.ws.send('nexus:keepalive'), ms)
+    server.httpServer?.on('close', () => clearInterval(timer))
+  },
+})
+
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+// 개발 서버 설정은 .env의 DEV_PORT·DEV_HOST·HMR_CLIENT_PORT(접두사 없음 = 클라이언트로 안 나감). 없으면 3000·localhost
+// HMR_CLIENT_PORT = TLS 프록시 뒤(https://test1.falinux.com -> 8011)에서 브라우저가 붙을 포트(443)
+const env = loadEnv(mode, fileURLToPath(new URL('.', import.meta.url)), '')
+return {
   preview: { allowedHosts: true },
   plugins: [
     Vue({
@@ -27,6 +42,7 @@ export default defineConfig({
         configFile: 'src/styles/settings.scss',
       },
     }),
+    ...(env.HMR_CLIENT_PORT ? [hmrKeepAlive(20_000)] : []),
     // Fonts({
     //   fontsource: {
     //     families: [
@@ -56,7 +72,11 @@ export default defineConfig({
   },
   css,
   server: {
-    port: 3000,
+    port: Number(env.DEV_PORT) || 3000,
+    host: env.DEV_HOST || undefined,
+    strictPort: !!env.DEV_PORT,
     allowedHosts: true,
+    hmr: env.HMR_CLIENT_PORT ? { clientPort: Number(env.HMR_CLIENT_PORT) } : undefined,
   },
+} satisfies UserConfig
 })

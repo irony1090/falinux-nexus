@@ -29,7 +29,12 @@ func init() {
 }
 func main() {
 	env := constants.GetEnv()
-	addr := fmt.Sprintf("localhost:%d", env.Port)
+	// 바인드 주소 = env IP(없으면 localhost). 외부 프록시(test*.falinux.com)가 받으려면 0.0.0.0
+	host := env.Ip
+	if host == "" {
+		host = "localhost"
+	}
+	addr := fmt.Sprintf("%s:%d", host, env.Port)
 	e, _ := router.NewSupervisorRouter(env.WorkerPath, env.SessionKey)
 	log.Fatal(e.Start(addr))
 }
