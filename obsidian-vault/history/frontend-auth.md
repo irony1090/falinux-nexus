@@ -2,6 +2,9 @@
 
 > `history/frontend.md`에서 분리(2026-10-12). 요약 → `REF-frontend-auth.md` / 현재 진행 → `CURRENT.md`
 
+## 2026-10-13 — 로그아웃 버튼 아이콘
+- 사용자 요청: 헤더 햄버거(`VAppBarNavIcon`)를 로그아웃 아이콘 버튼으로 → `AppHead.vue` `v-btn` `mdi-logout`(title "로그아웃", 비로그인 `mdi-login`), 동작(확인 창)은 그대로. type-check 통과 → 사용자 화면 확인, 파트(서버 정리)와 같이 커밋
+
 ## 2026-10-12(3) — 사용자 확인 → 파트(user/login 마무리) 마감·커밋
 
 ## 2026-10-12(2) — 사용자 확인 중 발견: 보드(`/w/{hash}`)에서 로그아웃하면 "보던 보드가 삭제되어" 알림 + 기본 보드로 이동

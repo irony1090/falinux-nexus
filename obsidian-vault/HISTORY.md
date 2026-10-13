@@ -5,6 +5,7 @@
 
 ## 마감 파트 (INDEX — 세션 시작 시 안 읽음)
 - 통신 인프라(마감) → `INDEX-infra.md` (transport·transfer·supervisor-web·project)
+  - 2026-10-13 `history/supervisor-web.md`에 파트(서버 정리) 정리-2(세션 키 env)·정리-3(createdAt)·정리-4(확인) → 파트(서버 정리) 마감·커밋
 - process 배선(마감) → `INDEX-process-wiring.md` (process-wiring·trigger·resize·reconnect·subscription)
 - node UI 레이아웃 설계(마감) → `INDEX-node-ui-layout.md` (node-ui-layout·projection·impl·render)
 - node UI 연동(마감) → `INDEX-node-ui-link.md` (node-ui-link·terminal·save·save-impl·sync)
@@ -14,6 +15,8 @@
 ## history/ 파일 색인 (진행 중 파트)
 
 ### `history/node-label.md` — Node/Label 모듈
+- 2026-10-13(2) 정리-1(부모 종류 검증) `requireFolder` 구현·격리 확인 → 파트(서버 정리) 마감·커밋
+- 2026-10-13 핸들러 책임 재확인 — owner·사이클 검증은 이미 있음, 빈틈 = 부모 종류 검증(다음 파트(서버 정리))
 - 2026-10-12(4) 사용자 확인 → 파트(worker 명부(roster)) 마감·커밋
 - 2026-10-12(3) 명부-2(조회·삭제 API)~명부-4(확인) 구현, 격리 API 10/10 + 헤드리스 11/11(커밋 전, 사용자 확인 대기)
 - 2026-10-12(2) 명부-1(기록) 구현·격리 확인(커밋 전)
@@ -57,6 +60,7 @@
 - 2026-06-30 폰트 마무리 정리 (Roboto 제거, Noto 기본폰트 적용 확인)
 
 ### `history/frontend-auth.md` — 로그인 · 공용 API · 전역 다이얼로그 (2026-10-12 frontend에서 분리)
+- 2026-10-13 헤더 로그아웃 버튼 = 햄버거 → `mdi-logout` 아이콘 버튼
 - 2026-10-12(3) 사용자 확인 → 파트(user/login 마무리) 마감·커밋
 - 2026-10-12(2) 보드에서 로그아웃 시 "보드 삭제" 오인 알림 수정(`boards.loaded` 조건)
 - 2026-10-12 파트(user/login 마무리) 로그인-1(상태를 모듈로)~로그인-5(확인) 구현, 헤드리스 12/12

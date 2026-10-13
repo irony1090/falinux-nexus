@@ -55,7 +55,7 @@
 - **vite 끄기 함정**: `/proc/<pid>/cmdline`은 NUL 구분이라 `grep -q` 루프가 안 잡혔음 → `pgrep -af vite`로 `vite.iso.mts`가 든 pid를 보고 직접 kill
 
 ## 2026-10-12 확인 스크립트 (로그인) — 재부팅으로 사라짐, 재작성 명세
-- `pw/login.mjs`(12개): 새 컨텍스트 `/` → `/login`(query 없음) · 회원가입 버튼 없음 · `/w/<hash>` → `/login?redirect=/w/<hash>` → 폼 로그인(`input[name="idenfitication"]`·`input[name="password"]`, 버튼 "로그인") → 원래 주소 · 새로고침 유지 · 로그인 상태 `/login` → `/` · `?redirect=//evil` → `/` · `.v-app-bar-nav-icon` → 확인 창 "로그아웃" → `/login` + `localStorage nexus.user.*` 삭제 · `ctx.clearCookies()` 뒤 폴더 타일 새로고침(`button[title="새로고침"]`) → 401 → `/login` + 설정 삭제 · supervisor kill(pid 인자) 뒤 새로고침 → "서버에 연결할 수 없습니다" + 설정 유지
+- `pw/login.mjs`(12개): 새 컨텍스트 `/` → `/login`(query 없음) · 회원가입 버튼 없음 · `/w/<hash>` → `/login?redirect=/w/<hash>` → 폼 로그인(`input[name="idenfitication"]`·`input[name="password"]`, 버튼 "로그인") → 원래 주소 · 새로고침 유지 · 로그인 상태 `/login` → `/` · `?redirect=//evil` → `/` · 헤더 `button[title="로그아웃"]`(2026-10-13 햄버거 아이콘에서 바꿈, 옛 선택자 `.v-app-bar-nav-icon`) → 확인 창 "로그아웃" → `/login` + `localStorage nexus.user.*` 삭제 · `ctx.clearCookies()` 뒤 폴더 타일 새로고침(`button[title="새로고침"]`) → 401 → `/login` + 설정 삭제 · supervisor kill(pid 인자) 뒤 새로고침 → "서버에 연결할 수 없습니다" + 설정 유지
 - `pw/logout_board.mjs`: 보드 행을 DB에 직접 INSERT해 `/w/<hash>`에서 로그아웃 → 알림 없음·redirect 유지 / `pw/board_removed.mjs`: 다른 세션이 `DELETE /workspaces/:hash` → 알림 + `/`
 - **함정**: 보드 행을 만들 때 기본 보드 트리를 그대로 복사하면 타일 `id`·`uid`가 겹쳐 보드 삭제가 500 → 복사할 땐 새 id·uid로
 - **함정**: 격리 supervisor는 `TMPDIR=<scratchpad>/iso/tmp`(폴더가 있어야 함) — 없는 경로면 `initEnv`에서 panic
@@ -64,3 +64,5 @@
 
 ## 2026-10-12 확인 스크립트 (폴더 목록 동기화) → `REF-node-list-sync.md` "동기화-3(확인) 결과"(worker 없이 supervisor·프론트만, 재연결 = 격리 supervisor 재시작)
 - 함정: 같은 계정 두 브라우저는 타일 배치가 동기화돼 한쪽이 폴더로 들어가면 다른 쪽도 따라감
+
+## 2026-10-13 확인 스크립트 (서버 정리) → `history/supervisor-web.md` 2026-10-13(API 11개 + 세션 키 교체, worker 없음)

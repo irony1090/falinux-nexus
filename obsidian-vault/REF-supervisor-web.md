@@ -25,11 +25,11 @@
 
 ## user 가입/로그인 핸들러 (`cmd/supervisor/router/user.go`) — 구현+e2e 완료 (2026-06-26)
 - **echo 기본 핸들러**(func(c)error, panic-style + `TxQueries(c)`). 라우트: POST `/users`(가입)·POST `/users/session`(로그인)·GET(세션확인)·DELETE(로그아웃). `supervisorRouter.mountUsers(e)`
-- **★별도 User 타입 안 만듦**: 세션이 `superdb.User`의 export 기본형 필드 직접 직렬화 → `session.SessionManager[superdb.User]` 그대로(키 `"irony"/"sid"`). supervisorRouter에 `sessions` 필드. nameFn은 2026-07-14부터 `getSessionKey`(아래 절 + `REF-process-subscription.md` "세션→uid 원장" 참조) — 구 nil에서 변경
+- **★별도 User 타입 안 만듦**: 세션이 `superdb.User`의 export 기본형 필드 직접 직렬화 → `session.SessionManager[superdb.User]` 그대로(키 = `SESSION_KEY` env / 쿠키 이름 `"sid"`). supervisorRouter에 `sessions` 필드. nameFn은 2026-07-14부터 `getSessionKey`(아래 절 + `REF-process-subscription.md` "세션→uid 원장" 참조) — 구 nil에서 변경
 - `requireSession(c) (*SessionElement, error)`(구 getSessionOrPanic) = `sess==nil||IsNew||Data.ID==0` 단락 OR → `web.Err(401)`. `toHash`(sha256 hex)로 식별자·비번 저장/조회
-- **함정**: checkSession은 세션 복원값이라 `pgtype.Timestamptz`(CreatedAt/UpdatedAt) **0/누락**(gob 직렬화 대상 아님). 타임스탬프 필요하면 `sess.Data.ID`로 DB 재조회. 응답 identification=해시. Password 해시가 세션 쿠키에 적재됨
+- **함정**: 세션 복원값(`sess.Data`)은 `pgtype.Timestamptz`(CreatedAt/UpdatedAt) **0/누락**(gob 직렬화 대상 아님) → checkSession은 2026-10-13부터 `GetUser(sess.Data.ID)` 재조회로 응답. 응답 identification=해시. Password 해시가 세션 쿠키에 적재됨
 - e2e 8~9시나리오 통과(가입/중복/미로그인/로그인/세션확인/오답/로그아웃/로그아웃후)
-- **잔여**: 세션키 `"irony"` 하드코딩 → `SESSION_KEY` env화
+- ~~세션키 `"irony"` 하드코딩~~ → 2026-10-13 `SESSION_KEY` env(내장 `env` 기본 "irony", 배포는 옆 `env`로 덮어씀, → `history/supervisor-web.md`)
 
 ## 세션 매니저 (`internal/manager/session/sessionManager.go`)
 - 구 PortBridge 이식(`echo/v4`+`gorilla/sessions`). 제네릭 `SessionManager[T]`. 로직 버그 3건 수정(saveData 비공개필드 패닉 / T 비-struct 패닉 / GetSession 디코드실패 잠금) + `Name()`을 `NameFunc[T]` 주입 전략으로 전환

@@ -73,3 +73,13 @@
 #### 결정 스냅샷
 - `nodes`(단일 테이블, folder/script) / worker 귀속=폴더 device_key 상속 / 스크립트=인라인 전송 / Label(추후, 직교 M:N 트리)=분류+공유. 스키마·CHECK 제약은 `REF-node-label.md` 참조
 - ※ 이후 worker 메모리 전용 확정으로 `device_id→agents` FK는 `device_key TEXT`(InstanceKey 문자열, FK 아님)로 변경
+
+## 2026-10-13 — 핸들러 책임 재확인(코드 없음)
+- CURRENT의 "parentId owner 일치 검증 / Move 사이클 방지 미적용"은 옛 기록 — 5 공유 때 이미 구현됨: 생성 = 부모 편집(30)·소유자 = 부모 소유자 / 이동 = `checkMove`(목적지 편집·같은 소유자·`IsDescendant`, SB6(이동 사이클 검사)) / 복사 = 폴더만
+- 실제 빈틈 = 생성·이동이 부모 **종류(폴더)**를 안 봄 → 다음 플랜 파트(서버 정리) 정리-1(부모 종류 검증)
+
+## 2026-10-13(2) — 정리-1(부모 종류 검증) 구현·격리 확인 → 사용자 확인 → 파트(서버 정리) 마감·커밋
+- 구조안(헬퍼 하나로 세 곳 공유, DB 제약 없이 핸들러만) → 사용자 "승인"
+- `perm.go` `requireFolder`(= `requireNode` + `Kind != FOLDER`면 400 "폴더 아래에만 둘 수 있습니다") → `createNode`·`checkMove`·`copyNode`가 사용. 복사의 옛 메시지 "폴더 아래로만 복사할 수 있습니다"는 공통 메시지로 바뀜(프론트에 이 문구 의존 없음)
+- 판정 순서: 볼 수 없음 404 / 단계 미달 403이 종류 검사(400)보다 먼저 — 남의 노드 종류를 400으로 흘리지 않음
+- 확인 = `history/supervisor-web.md` 2026-10-13 항목(같은 스크립트)

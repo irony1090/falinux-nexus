@@ -76,3 +76,12 @@
 #### 로컬 DB 준비 + 검증
 - supervisor PG = docker `postgres15`(이미지 postgres:15). `docker start postgres15`(※ `docker start postgres`=그런 컨테이너 없음). user/pass/포트 일치, 기본 DB는 `workspace`라 **`nexus` DB 수동 생성**(`CREATE DATABASE nexus OWNER irony`)
 - `go run ./cmd/supervisor`로 검증: 로그 `OK 00001_users.sql`→`migrated to version: 1`→`DB 준비됨`. `\dt`로 users+goose_db_version 확인. (서버는 잔류 프로세스가 5050 점유해 bind 실패했으나 마이그레이션은 init서 완료 — 사용자가 본인 프로세스라 종료)
+
+### 2026-10-13 - 파트(서버 정리) 정리-2(세션 키 env)·정리-3(createdAt)·정리-4(확인) → 사용자 확인 → 파트 마감·커밋
+- 정리-2: `constants/env.go` `SessionKey`(`SESSION_KEY`, 다른 필수 env와 같은 방식 — 첫 로드에 없으면 에러) → `NewSupervisorRouter(workerPath, sessionKey)`. 내장 `cmd/supervisor/env`에 `SESSION_KEY="irony"`(기존 값 = 개발 쿠키 유지), 배포는 실행 파일 옆 `env`로 덮어씀
+  - 옆 `env`에서 키를 빼면 내장 값("irony")으로 떨어짐(`Overload`는 지우지 않음 — 다른 env와 같은 동작)
+- 정리-3: `checkSession`이 `GetUser(sess.Data.ID)`로 다시 읽어 응답(행 없음 = 401) → createdAt 정상
+- 정리-1(부모 종류 검증) → `history/node-label.md` 2026-10-13(2)
+- 정리-4 확인(격리: 임시 DB `nexus_cleanup_tmp` + 5051, worker 없음): build·vet 통과 / API 11/11 — 세션 createdAt > 0 · 스크립트 아래 생성(스크립트·폴더)·이동·복사 = 400 · 폴더 아래 생성·이동·복사 = 200 · 자기 아래 이동 = 400(기존 사이클) · 없는 목적지 = 404 / 키 교체: 옛 쿠키 200 → 키 바꿔 재시작 → 같은 쿠키 401 → 재로그인 200. 확인 뒤 격리 프로세스 종료·DB 삭제
+  - 스크립트 함정: PATCH 본문은 `patch.Field` 형식 `{"parentId": {"valid": true, "value": N}}` — 숫자만 보내면 바인딩 400
+- 사용자 확인(5050 재시작 후 평소대로 동작 + 헤더 로그아웃 버튼 화면) → 마감·커밋. 확인 중 질문: 로그인 폼의 `irony`/비밀번호는 `SESSION_KEY`와 무관 — `apps/frontend/.env.development.local`의 `VITE_DEV_LOGIN_ID/PW`(git 제외, dev 모드만)

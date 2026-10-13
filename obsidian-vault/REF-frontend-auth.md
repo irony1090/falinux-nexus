@@ -12,7 +12,7 @@
 | `common/api/api.util.ts` `onUnauthorized` | 응답 401이면 등록된 콜백 호출(`/users/session` 제외 — auth가 직접 처리). common → feature 역의존을 피한 등록 방식 — 로그인-3(401만 로그아웃) |
 | 사용자 설정 삭제 | `expire()`(401·로그아웃)에서만 `clearUserPrefs`. 서버 연결 실패는 `offline` 표시만(처음 확인이면 auth = null로 로그인 화면, 설정 유지) |
 | `pages/Login.vue` | 폼 기본값 = `VITE_DEV_LOGIN_ID/PW`(`.env.development.local`, git 제외, `env.d.ts`에 타입). `offline`이면 "서버에 연결할 수 없습니다". 회원가입 버튼 **제거**(회원가입 파트에서 다시) — 로그인-4(화면 정리) |
-| `AppHead.vue` | 로그아웃 = AppDialog 확인 뒤(Enter = 로그아웃, Esc = 취소) |
+| `AppHead.vue` | 로그아웃 = AppDialog 확인 뒤(Enter = 로그아웃, Esc = 취소). 버튼 = `mdi-logout` 아이콘(title "로그아웃", 비로그인이면 `mdi-login`) — 2026-10-13 햄버거(`VAppBarNavIcon`)에서 바꿈 |
 
 - 로그아웃 때 `boards.reset()`(목록 비움)은 보드 삭제가 아님 — `index.vue` "보던 보드가 사라짐" watch는 `boards.loaded`가 true일 때만 판정(2026-10-12 사용자 확인 중 발견)
 - 로그인 실패는 서버가 **400**(401 아님) → 401 알림과 겹치지 않음
