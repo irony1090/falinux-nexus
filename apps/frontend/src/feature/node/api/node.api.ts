@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, type Ref } from 'vue'
 
 // 백엔드: apps/core/cmd/supervisor/router/node.go (group "/nodes") + nodeDto.go
-// nodeResponse{id, parentId, kind, name, ord, position, deviceKey, content, createdAt(unix sec), updatedAt(*unix sec)}
+// nodeResponse{id, parentId, ownerUserId, kind, name, ord, position, deviceKey, content, createdAt(unix sec), updatedAt(*unix sec)}
 
 export type NodeKind = 'FOLDER' | 'SCRIPT'
 
@@ -18,6 +18,7 @@ export type NodePoint = {
 export type NodeResponse = {
     id: number
     parentId: number | null
+    ownerUserId: number        // 같은 소유자 판정(잘라내기 붙여넣기) — CP3(붙여넣기 제약)
     kind: NodeKind
     name: string
     ord: number
@@ -141,6 +142,14 @@ export const deleteNode = (id: number) => BaseAxios.delete(
 ).then(throwThen<Record<string, never>>)
 .catch(throwCatch)
 
+// POST /nodes/:id/copy — 노드(폴더면 하위 전체)를 parentId 아래에 복사(null = 내 루트), SH10(노드 복사)
+export const copyNode = (id: number, parentId: number | null) => BaseAxios.post(
+    `/nodes/${id}/copy`,
+    { parentId }
+).then(throwThen<{ nodes: NodeResponseDto[] }>)
+.then(res => res.nodes.map(toNodeResponse))
+.catch(throwCatch)
+
 const Q_KEY = {
     LIST: (parentId?: Ref<number | undefined> | number) =>
         parentId !== undefined
@@ -154,6 +163,9 @@ const Q_KEY = {
 }
 
 const RUNS_KEY = ['NODE', 'RUNS'] as const
+
+// queryFn은 ref가 아니라 queryKey에서 값을 읽는다 — 같은 키의 쿼리는 마지막으로 조회한 observer의 queryFn을 기억하므로,
+// ref를 읽으면 그 observer(타일)가 다른 폴더로 옮겨 간 뒤 무효화 재조회가 엉뚱한 폴더를 가져와 이 키에 넣는다
 
 const PATH_DEPTH_MAX = 64   // parentId 사이클 방어
 
@@ -240,7 +252,7 @@ export const useListChildren = (parentId?: Ref<number | undefined>, { enabled }:
     return useQuery({
         enabled,
         queryKey: Q_KEY.LIST(parentId),
-        queryFn: () => listChildren(parentId?.value)
+        queryFn: ({ queryKey }) => listChildren(queryKey[2] as number | undefined)
     })
 }
 
@@ -250,7 +262,7 @@ export const useGetNode = (id: Ref<number>, { enabled }: QueryOptions = {}) => {
     return useQuery({
         enabled: isReady,
         queryKey: Q_KEY.DETAIL(id),
-        queryFn: () => getNode(id.value),
+        queryFn: ({ queryKey }) => getNode(queryKey[2] as number),
         // 404 = 볼 수 없음(공유 취소·삭제) — 재시도하지 않고 바로 알린다(실시간-6b)
         retry: (count, err) => (err as CatchErrorResponse)?.status !== 404 && count < 3,
     })
@@ -263,7 +275,7 @@ export const useNodePath = (id: Ref<number | null>) => {
     return useQuery({
         enabled: computed(() => id.value !== null),
         queryKey: Q_KEY.PATH(id),
-        queryFn: () => id.value === null ? [] : fetchNodePath(queryClient, id.value)
+        queryFn: ({ queryKey }) => queryKey[2] === null ? [] : fetchNodePath(queryClient, queryKey[2] as number)
     })
 }
 
@@ -271,7 +283,7 @@ export const useNodePath = (id: Ref<number | null>) => {
 export const useNodeRuns = (folderId: Ref<number | null>, deep = false, enabled: Ref<boolean> = ref(true)) => useQuery({
     enabled,
     queryKey: [...RUNS_KEY, folderId, deep],
-    queryFn: () => listRuns(folderId.value ?? 0, deep),
+    queryFn: ({ queryKey }) => listRuns((queryKey[2] as number | null) ?? 0, deep),
 })
 
 export const invalidateNodeRuns = (queryClient: QueryClient) => queryClient.invalidateQueries({ queryKey: RUNS_KEY })

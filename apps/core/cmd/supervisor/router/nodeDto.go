@@ -89,6 +89,7 @@ func (body nodePatchRequest) toParams(id, ownerID int64) superdb.PatchNodeParams
 type nodeResponse struct {
 	ID        int64   `json:"id"`
 	ParentID  *int64  `json:"parentId"`
+	OwnerID   int64   `json:"ownerUserId"` // 같은 소유자 판정(잘라내기 붙여넣기) — CP3(붙여넣기 제약)
 	Kind      string  `json:"kind"`
 	Name      string  `json:"name"`
 	Ord       int64   `json:"ord"`
@@ -130,7 +131,7 @@ func fillShareCounts(c echo.Context, out []nodeResponse) {
 }
 
 func newNodeResponse(n superdb.Node) nodeResponse {
-	r := nodeResponse{ID: n.ID, Kind: n.Kind, Name: n.Name}
+	r := nodeResponse{ID: n.ID, OwnerID: n.OwnerUserID, Kind: n.Kind, Name: n.Name}
 	if n.ParentID.Valid {
 		v := n.ParentID.Int64
 		r.ParentID = &v

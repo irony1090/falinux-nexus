@@ -43,13 +43,13 @@ const REFRESH_MS = 5000
 export const useProcessPresence = (uid: Ref<string | undefined>, enabled: Ref<boolean>) => useQuery({
     enabled: computed(() => enabled.value && !!uid.value),
     queryKey: computed(() => ['PRESENCE', 'PROCESS', uid.value]),
-    queryFn: () => getProcessPresence(uid.value!),
+    queryFn: ({ queryKey }) => getProcessPresence(queryKey[2] as string),   // ref 말고 키에서 — node.api.ts RUNS_KEY 주석
     refetchInterval: REFRESH_MS,
 })
 
 export const useUsersPresence = (ids: Ref<number[]>, enabled: Ref<boolean>) => useQuery({
     enabled: computed(() => enabled.value && ids.value.length > 0),
     queryKey: computed(() => ['PRESENCE', 'USERS', ...ids.value]),
-    queryFn: () => getUsersPresence(ids.value),
+    queryFn: ({ queryKey }) => getUsersPresence(queryKey.slice(2) as number[]),
     refetchInterval: REFRESH_MS,
 })

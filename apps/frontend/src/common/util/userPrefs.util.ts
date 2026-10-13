@@ -3,6 +3,9 @@
 
 const PREFIX = 'nexus.user.';
 
+// localStorage에 실제로 쓰이는 키 — storage 이벤트로 다른 탭의 변경을 가려낼 때
+export const userPrefKey = (key: string) => PREFIX + key;
+
 export const readUserPref = <T>(key: string, fallback: T): T => {
 	try {
 		const raw = localStorage.getItem(PREFIX + key);

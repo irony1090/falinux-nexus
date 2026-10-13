@@ -52,7 +52,7 @@ const SHARES_KEY = ['SHARE', 'NODE'] as const
 export const useNodeShares = (nodeId: Ref<number | undefined>, enabled: Ref<boolean>) => useQuery({
     enabled: computed(() => enabled.value && nodeId.value !== undefined),
     queryKey: computed(() => [...SHARES_KEY, nodeId.value]),
-    queryFn: () => listNodeShares(nodeId.value!),
+    queryFn: ({ queryKey }) => listNodeShares(queryKey[2] as number),   // ref 말고 키에서 — node.api.ts RUNS_KEY 주석
 })
 
 // 폴더 목록 행의 shareCount(O3)도 같이 갱신

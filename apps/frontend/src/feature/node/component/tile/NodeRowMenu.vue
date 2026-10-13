@@ -1,30 +1,33 @@
 <script setup lang="ts">
 import type { PropType } from 'vue';
 import { VBtn, VList, VListItem, VMenu } from 'vuetify/components';
-import type { NodeKind } from '../../api/node.api';
+import type { NodeAct, NodeActItem } from '../../store/nodeOps.store';
 
-// 폴더 타일 목록 한 행의 조작 메뉴 — 동작은 부모가 처리
+// 폴더 타일 목록 한 행의 조작 메뉴 — 동작은 부모가 처리. at이 있으면 ⋮ 버튼 없이 그 좌표에 뜬다(우클릭, SM1(켜는 방법))
 defineProps({
-    kind: {
-        type: String as PropType<NodeKind>,
+    items: {
+        type: Array as PropType<NodeActItem[]>,
         required: true,
     },
-    viDisabled: Boolean,    // 실행 버튼과 같은 조건(저장 중 / 탭 id 준비 전)
+    at: Array as unknown as PropType<[number, number]>,
 })
-const emit = defineEmits<{ edit: []; vi: []; rename: []; device: []; remove: [] }>();
+const open = defineModel<boolean>({ default: false });
+const emit = defineEmits<{ act: [act: NodeAct] }>();
 </script>
 
 <template>
-<v-menu location="bottom end">
-    <template #activator="{ props: act }">
+<v-menu v-model="open" :location="at ? 'bottom start' : 'bottom end'" :target="at">
+    <template v-if="!at" #activator="{ props: act }">
         <v-btn v-bind="act" size="x-small" variant="text" icon="mdi-dots-vertical" title="메뉴" />
     </template>
     <v-list density="compact">
-        <v-list-item v-if="kind === 'SCRIPT'" prepend-icon="mdi-file-document-edit-outline" title="내용 편집" @click="emit('edit')" />
-        <v-list-item v-if="kind === 'SCRIPT'" prepend-icon="mdi-console-line" title="vi로 편집" :disabled="viDisabled" @click="emit('vi')" />
-        <v-list-item prepend-icon="mdi-pencil-outline" title="이름 변경" @click="emit('rename')" />
-        <v-list-item v-if="kind === 'FOLDER'" prepend-icon="mdi-lan-connect" title="장비 지정" @click="emit('device')" />
-        <v-list-item prepend-icon="mdi-trash-can-outline" title="삭제" base-color="error" @click="emit('remove')" />
+        <v-list-item v-for="it in items" :key="it.act"
+            :prepend-icon="it.icon"
+            :title="it.title"
+            :disabled="it.disabled"
+            :base-color="it.danger ? 'error' : undefined"
+            @click="emit('act', it.act)"
+        />
     </v-list>
 </v-menu>
 </template>

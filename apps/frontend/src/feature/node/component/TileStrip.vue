@@ -131,8 +131,9 @@ const stripClass = computed(() => overview.value ? ['overview', ovDir.value] : [
 
 <style scoped lang="scss">
 .TileStrip {
-    // ⑥ Grid 높이: VAppBar(fixed)만큼 VMain이 padding으로 비키므로 그만큼 뺀다
-    height: calc(100dvh - var(--v-layout-top, 0px));
+    // ⑥ Grid 높이: 남은 높이 전부(헤더를 뺀 높이는 TileWorkspace가 정함, 선택 막대가 있으면 그만큼 줄어듦)
+    flex: 1;
+    min-height: 0;
     display: flex;
     gap: var(--gap);
     padding: var(--gap);

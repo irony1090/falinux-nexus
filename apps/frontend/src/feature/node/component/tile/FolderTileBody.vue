@@ -1,24 +1,21 @@
 <script setup lang="ts">
 import { tabReady } from '@/common/util/tabId.util';
-import { useAppDialog } from '@/feature/layout/store/appDialog.store';
-import type { ProcessStatus, ProcessType } from '@/feature/process/api/process.api';
-import { isRunning, useProcessTerm } from '@/feature/process/store/processTerm.store';
-import { listWorkers, useWorkerRoster, type WorkerInstanceResponse, type WorkerResponse } from '@/feature/worker/api/worker.api';
-import WorkerPickDialog from '@/feature/worker/component/WorkerPickDialog.vue';
-import { computed, ref } from 'vue';
+import type { ProcessStatus } from '@/feature/process/api/process.api';
+import { isRunning } from '@/feature/process/store/processTerm.store';
+import { useWorkerRoster } from '@/feature/worker/api/worker.api';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { VBtn, VIcon, VList, VListItem, VMenu, VProgressLinear } from 'vuetify/components';
-import { useListChildren, useNodeActions, useNodePath, type NodeKind, type NodeResponse } from '../../api/node.api';
+import { useListChildren, useNodePath, type NodeResponse } from '../../api/node.api';
 import { useNodeShares } from '../../api/share.api';
-import { useNodeRemove } from '../../hook/nodeRemove.hook';
+import { dragging, pasteBlock, useNodePaste, type PasteDest } from '../../hook/nodePaste.hook';
 import { useScriptRuns } from '../../hook/scriptRuns.hook';
-import { useTileGrids } from '../../store/tileGrids.store';
+import { toClip, useNodeClipboard, type ClipMode, type ClipNode } from '../../store/nodeClipboard.store';
+import { nodeActItems, useNodeOps, type NodeAct, type NodeActItem } from '../../store/nodeOps.store';
+import { useNodeSelection } from '../../store/nodeSelection.store';
 import { useTileTree } from '../../store/tileTree.store';
 import { agoText } from '../../util/presenceView.util';
 import { PERM_OWNER } from '../../util/shareView.util';
-import NodeDeviceDialog from '../dialog/NodeDeviceDialog.vue';
-import NodeNameDialog from '../dialog/NodeNameDialog.vue';
 import ShareDialog from '../dialog/ShareDialog.vue';
-import ScriptEditDialog from '../dialog/ScriptEditDialog.vue';
 import NodeRowMenu from './NodeRowMenu.vue';
 import ScriptRunList from './ScriptRunList.vue';
 
@@ -29,9 +26,9 @@ const props = defineProps({
     },
 })
 
-const { tiles, hash: boardHash, navigate, openFolder, applyServerTile } = useTileTree();
-const { newSize, activate } = useTileGrids();
-const { open: appDialogOpen, openDialog } = useAppDialog();
+const { tiles, navigate } = useTileTree();
+const ops = useNodeOps();
+const { saving, busyTile } = ops;
 
 const nodeId = computed(() => {
     const t = tiles.value[props.tileId];
@@ -90,125 +87,169 @@ const onRefresh = () => {
     if (nodeId.value !== null) pathQuery.refetch();
 }
 
-// 새 타일 크기 = 누른 화면의 최소 단위
-const onOpen = (id: number) => activate(openFolder(props.tileId, id, newSize.value));
+// ---- 선택 모드 — REF-node-select.md ----
+const sel = useNodeSelection();
+const isSel = (n: NodeResponse) => sel.ids.value.has(n.id);
+const pick = (n: NodeResponse) => sel.toggle(n, props.tileId, nodeId.value);
 
-const saving = ref(false);
-const run = <T>(job: Promise<T>, done?: (res: T) => void) => {
-    saving.value = true;
-    job.then(res => done?.(res))
-    .catch(err => openDialog({ type: 'error', content: err?.message || '요청에 실패했습니다' }))
-    .finally(() => saving.value = false);
-}
-
-// ---- 실행·vi 편집: 접속 인스턴스 0개 = 안내 / 1개 = 바로 / 여러 개 = 고르기 (REF-node-ui-terminal.md L, E1(진입 위치)) ----
-const { exec } = useProcessTerm();
-const typeLabel = (type: ProcessType) => type === 'EDIT' ? 'vi로 편집' : '실행';
-
-const pickOpen = ref(false);
-const pickNode = ref<NodeResponse>();
-const pickType = ref<ProcessType>('EXEC');
-const pickWorkers = ref<WorkerResponse[]>([]);
-const pickOffline = ref<WorkerInstanceResponse[]>([]);
-
-// 터미널 타일은 서버가 exec 때 트리에 넣는다 — ⑪-4(타일 없는 실행 중 process)
-const start = (node: NodeResponse, instanceKey: string, type: ProcessType) => run(exec(node.id, instanceKey, { workspace: boardHash.value, parentTileId: props.tileId, size: newSize.value }, type), res => {
-    pickOpen.value = false;
-    if (res.tile && res.tileVersion) activate(applyServerTile(res.tile, res.tileVersion));
-});
-
-const onExec = (node: NodeResponse, type: ProcessType = 'EXEC') => run(listWorkers(node.id), workers => {
-    if (!workers.length) {
-        openDialog({ type: 'warning', title: `'${node.name}' ${typeLabel(type)}`, content: `이 스크립트를 ${typeLabel(type)}할 장비가 접속해 있지 않습니다.` });
-        return;
-    }
-    if (workers.length === 1) {
-        start(node, workers[0]!.instanceKey, type);
-        return;
-    }
-    pickNode.value = node;
-    pickType.value = type;
-    pickWorkers.value = workers;
-    // 끊긴 것 = 명부(최대 10초 전) 중 방금 받은 접속 목록에 없는 것
-    const live = new Set(workers.map(w => w.instanceKey));
-    pickOffline.value = (devices.value.get(workers[0]!.mainKey)?.instances ?? []).filter(i => !live.has(i.instanceKey));
-    pickOpen.value = true;
-});
-
-// ---- 노드 관리 (생성 / 이름 변경 / 장비 지정 / 삭제) ----
-const { create, patch } = useNodeActions();
-const { removeNode } = useNodeRemove();
-
-// 닫히는 동안 제목이 비지 않도록 열림 여부와 대상을 따로 둔다
-type NameTarget = { kind: NodeKind } | { node: NodeResponse };
-const nameOpen = ref(false);
-const nameTarget = ref<NameTarget>({ kind: 'FOLDER' });
-const nameTitle = computed(() => {
-    const t = nameTarget.value;
-    if ('node' in t) return '이름 변경';
-    return t.kind === 'FOLDER' ? '새 폴더' : '새 스크립트';
+// SM7(사라진 선택): 목록이 바뀌면 이 타일에서 고른 것을 맞춘다
+watch(() => listQuery.data.value, list => {
+    if (list) sel.syncTile(props.tileId, nodeId.value, list);
 })
-const nameInitial = computed(() => 'node' in nameTarget.value ? nameTarget.value.node.name : '');
 
-const onName = (target: NameTarget) => {
-    nameTarget.value = target;
-    nameOpen.value = true;
+// 행 메뉴(⋮·우클릭) 항목 = "선택" + 행 동작 — SM1(켜는 방법)
+const menuItems = (n: NodeResponse): NodeActItem[] => [
+    { act: 'select', icon: isSel(n) ? 'mdi-checkbox-blank-outline' : 'mdi-checkbox-marked-outline', title: isSel(n) ? '선택 해제' : '선택' },
+    ...nodeActItems(n, saving.value || !tabReady.value),
+];
+const onAct = (act: NodeAct, n: NodeResponse) => act === 'select' ? pick(n) : ops.act(act, props.tileId, [n]);
+
+const LONG_PRESS_MS = 500;
+const PRESS_MOVE_MAX = 10;     // px — 넘게 움직이면 스크롤로 보고 취소
+let press: { timer: ReturnType<typeof setTimeout>; x: number; y: number } | null = null;
+let skipClick = false;         // 길게 누르기 뒤따르는 click 무시
+let lastPointer = 'mouse';
+const dragOk = ref(false);     // 마우스로 누를 때만 draggable — SD3(터치 드래그 제외), 길게 누르기와 겹치지 않게
+
+const cancelPress = () => {
+    if (press) clearTimeout(press.timer);
+    press = null;
 }
-const onSubmitName = (name: string) => {
-    const t = nameTarget.value;
-    if ('node' in t) {
-        run(patch(t.node.id, { name }), () => nameOpen.value = false);
+onBeforeUnmount(cancelPress);
+
+const onPointerDown = (e: PointerEvent, n: NodeResponse) => {
+    lastPointer = e.pointerType;
+    dragOk.value = e.pointerType === 'mouse';
+    skipClick = false;
+    cancelPress();
+    if (e.pointerType === 'mouse') return;
+    press = {
+        x: e.clientX,
+        y: e.clientY,
+        timer: setTimeout(() => {
+            press = null;
+            skipClick = true;
+            pick(n);
+        }, LONG_PRESS_MS),
+    };
+}
+const onPointerMove = (e: PointerEvent) => {
+    if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > PRESS_MOVE_MAX) cancelPress();
+}
+
+// 행 누르기: 모드 중 = 토글, 평소 Ctrl(⌘)+클릭 = 모드 시작(SM1). 행 안의 버튼은 각자 처리
+const onRowClick = (e: MouseEvent, n: NodeResponse) => {
+    if (skipClick) {
+        skipClick = false;
         return;
     }
-    run(create({ kind: t.kind, name, parentId: nodeId.value }), node => {
-        nameOpen.value = false;
-        if (node.kind === 'SCRIPT') onEdit(node);   // 빈 스크립트는 바로 내용 편집으로 — 결정 I(새 스크립트 직후 동작)
-    });
+    if ((e.target as HTMLElement).closest('.v-btn, .runs')) return;
+    if (sel.on.value || e.ctrlKey || e.metaKey) pick(n);
+}
+// 폴더 이름: 평소엔 이 타일 안에서 열기, 선택 중·Ctrl이면 행 누르기로 넘긴다
+const onNameClick = (e: MouseEvent, n: NodeResponse) => {
+    if (!sel.on.value && !e.ctrlKey && !e.metaKey) navigate(props.tileId, n.id);
 }
 
-const editOpen = ref(false);
-const editTarget = ref<NodeResponse>();
-const onEdit = (node: NodeResponse) => {
-    editTarget.value = node;
-    editOpen.value = true;
+// 우클릭 = 행 메뉴를 포인터 위치에. 터치 길게 누르기가 일으키는 contextmenu는 선택으로 처리했으므로 막기만
+const ctxMenu = ref<{ node: NodeResponse; at: [number, number] }>();
+const ctxOpen = ref(false);
+const onContextMenu = (e: MouseEvent, n: NodeResponse) => {
+    e.preventDefault();
+    if (lastPointer !== 'mouse') return;
+    ctxMenu.value = { node: n, at: [e.clientX, e.clientY] };
+    ctxOpen.value = true;
 }
 
-const deviceOpen = ref(false);
-const deviceTarget = ref<NodeResponse>();
-const onDevice = (node: NodeResponse) => {
-    deviceTarget.value = node;
-    deviceOpen.value = true;
-}
-const onSubmitDevice = (deviceKey: string | null) => {
-    if (!deviceTarget.value) return;
-    run(patch(deviceTarget.value.id, { deviceKey }), () => deviceOpen.value = false);
-}
+// ---- 클립보드 붙여넣기 · 드롭 — REF-node-clipboard.md ----
+const { clip, cutIds, removeIds, clear: clearClip } = useNodeClipboard();
+const paste = useNodePaste();
+const pasting = ref(false);
+const tileBusy = computed(() => busy.value || pasting.value || busyTile.value === props.tileId);
+const clipLabel = computed(() => clip.value.mode === 'cut' ? '잘라냄' : '복사됨');
 
-// 이름은 title로만 넘긴다 — AppDialog의 content는 v-html로 그려진다
-const onRemove = (node: NodeResponse) => {
-    openDialog({
-        type: 'warning',
-        title: `'${node.name}' 삭제`,
-        content: node.kind === 'FOLDER'
-            ? ['폴더와 그 안의 모든 항목이 삭제됩니다.', '이 폴더나 하위 폴더를 보고 있는 타일은 닫힙니다.']
-            : '스크립트가 삭제됩니다.',
-        buttons: [
-            { view: '취소', type: 'info', bindButton: 'Escape', action: () => appDialogOpen.value = false },
-            {
-                // Enter를 묶지 않는다 — 묶지 않은 Enter·Space는 AppDialog가 닫기(취소)로 처리
-                view: '삭제', type: 'error',
-                action: () => {
-                    appDialogOpen.value = false;
-                    run(removeNode(node));
-                },
-            },
-        ],
-    })
+const here = computed<PasteDest>(() => ({ id: nodeId.value, node: current.value, path: path.value }));
+const pasteReason = computed(() => pasteBlock(clip.value.mode, clip.value.nodes, here.value));
+const pasteTitle = computed(() => {
+    const names = clip.value.nodes.map(n => n.name).join(', ');
+    return `${clipLabel.value} ${clip.value.nodes.length}개: ${names}\n${pasteReason.value || '눌러서 이 폴더에 붙여넣기'}`;
+})
+// 선택 모드 중엔 머리 줄 버튼에 글자로 — 막대에서 담은 뒤 목적지를 고르는 흐름
+const pasteText = computed(() => sel.on.value ? (clip.value.mode === 'cut' ? '여기로 이동' : '여기에 붙여넣기') : '');
+
+const doPaste = async (mode: ClipMode, nodes: ReadonlyArray<ClipNode>, destId: number | null, fromClip: boolean) => {
+    pasting.value = true;
+    try {
+        const done = await paste(mode, nodes, destId);
+        if (fromClip && mode === 'cut') removeIds(done);    // CP4(붙여넣은 뒤): 잘라내기만 비움, 실패한 건 남겨 다시 시도
+        if (mode === 'cut' && done.length && sel.on.value) sel.exit();   // SM5(끝낸 뒤): 이동 뒤 모드 종료
+    } finally {
+        pasting.value = false;
+    }
+}
+const onPaste = () => doPaste(clip.value.mode, clip.value.nodes, nodeId.value, true);
+
+// 드래그: 선택 중인 행을 끌면 고른 전체, 아니면 그 행. 클립보드는 건드리지 않는다 — SD4(드롭 = 이동, Ctrl = 복사)·SD6(HTML5 DnD)
+const dropAt = ref<number | 'tile' | null>(null);   // 놓을 자리 표시: 폴더 행 id / 타일 본문(지금 폴더)
+const rootEl = ref<HTMLElement>();
+
+const onDragStart = (e: DragEvent, n: NodeResponse) => {
+    const nodes = sel.on.value && isSel(n) ? sel.selected.value.map(it => it.node) : [n];
+    dragging.value = nodes.map(toClip);
+    e.dataTransfer?.setData('application/x-nexus-nodes', nodes.map(v => v.id).join(','));
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copyMove';
+}
+const onDragEnd = () => dragging.value = null;
+watch(dragging, v => {
+    if (!v) dropAt.value = null;
+})
+
+// SD7(드롭 위치): 폴더 행 위 = 그 폴더(끄는 노드 자신은 제외), 그 밖 = 지금 폴더
+const dropTarget = (e: DragEvent, nodes: ReadonlyArray<ClipNode>): { key: number | 'tile'; dest: PasteDest } => {
+    const row = (e.target as HTMLElement).closest<HTMLElement>('[data-folder-id]');
+    const n = row ? children.value.find(c => c.id === Number(row.dataset.folderId)) : undefined;
+    if (n && !nodes.some(d => d.id === n.id)) return { key: n.id, dest: { id: n.id, node: n, path: [...path.value, n] } };
+    return { key: 'tile', dest: here.value };
+}
+const dropMode = (e: DragEvent): ClipMode => e.ctrlKey ? 'copy' : 'cut';
+
+// 막힌 자리면 preventDefault를 안 한다 = 브라우저가 놓기 금지 커서
+const onDragOver = (e: DragEvent) => {
+    const nodes = dragging.value;
+    if (!nodes || error.value) return;
+    const t = dropTarget(e, nodes);
+    const mode = dropMode(e);
+    if (pasteBlock(mode, nodes, t.dest)) {
+        dropAt.value = null;
+        return;
+    }
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = mode === 'copy' ? 'copy' : 'move';
+    dropAt.value = t.key;
+}
+const onDragLeave = (e: DragEvent) => {
+    if (!rootEl.value?.contains(e.relatedTarget as Node | null)) dropAt.value = null;
+}
+const onDrop = (e: DragEvent) => {
+    const nodes = dragging.value;
+    dropAt.value = null;
+    if (!nodes) return;
+    const t = dropTarget(e, nodes);
+    const mode = dropMode(e);
+    if (pasteBlock(mode, nodes, t.dest)) return;
+    e.preventDefault();
+    dragging.value = null;
+    void doPaste(mode, nodes, t.dest.id, false);
 }
 </script>
 
 <template>
-<div class="FolderTileBody">
+<div ref="rootEl" class="FolderTileBody"
+    :class="{ drop: dropAt === 'tile' }"
+    @dragover="onDragOver"
+    @dragleave="onDragLeave"
+    @drop="onDrop"
+>
     <div class="crumbs">
         <button v-if="nodeId !== null" @click="navigate(tileId, null)">기본</button>
         <span v-else class="cur">기본</span>
@@ -223,7 +264,7 @@ const onRemove = (node: NodeResponse) => {
                 :class="{ on: isOnline(deviceOwner?.deviceKey) }"
                 :title="`${deviceTitle(deviceOwner?.deviceKey, deviceInherited ? deviceOwner?.name : undefined)}\n(눌러서 장비 지정·명부 관리)`"
                 :disabled="saving"
-                @click="onDevice(current)"
+                @click="ops.editDevice(tileId, current)"
             >
                 <i /><span class="key">{{ deviceOwner?.deviceKey ?? '장비 없음' }}</span><span v-if="deviceCount(deviceOwner?.deviceKey)" class="cnt">{{ deviceCount(deviceOwner?.deviceKey) }}</span><span v-if="deviceInherited">(상속)</span>
             </button>
@@ -237,17 +278,23 @@ const onRemove = (node: NodeResponse) => {
                     </button>
                 </template>
                 <v-list density="compact">
-                    <v-list-item prepend-icon="mdi-folder-plus-outline" title="새 폴더" @click="onName({ kind: 'FOLDER' })" />
-                    <v-list-item prepend-icon="mdi-file-plus-outline" title="새 스크립트" @click="onName({ kind: 'SCRIPT' })" />
+                    <v-list-item prepend-icon="mdi-folder-plus-outline" title="새 폴더" @click="ops.editName(tileId, { kind: 'FOLDER', parentId: nodeId })" />
+                    <v-list-item prepend-icon="mdi-file-plus-outline" title="새 스크립트" @click="ops.editName(tileId, { kind: 'SCRIPT', parentId: nodeId })" />
                 </v-list>
             </v-menu>
+            <span v-if="clip.nodes.length" class="paste" :class="{ wide: !!pasteText }" :title="pasteTitle">
+                <button class="tool" :disabled="saving || pasting || !!pasteReason" @click="onPaste">
+                    <v-icon size="14" :icon="clip.mode === 'cut' ? 'mdi-folder-move-outline' : 'mdi-content-paste'" /><span v-if="pasteText">{{ pasteText }}</span><span class="paste-count">{{ clip.nodes.length }}</span>
+                </button>
+                <button class="tool" title="클립보드 비우기" @click="clearClip"><v-icon size="12" icon="mdi-close" /></button>
+            </span>
             <button class="tool" title="새로고침" :disabled="busy" @click="onRefresh">
                 <v-icon size="14" icon="mdi-refresh" />
             </button>
         </span>
     </div>
     <div class="bar">
-        <v-progress-linear v-if="busy || saving" indeterminate height="2" color="primary" />
+        <v-progress-linear v-if="tileBusy" indeterminate height="2" color="primary" />
     </div>
     <div v-if="error" class="state">
         <span>{{ error.message || '목록을 불러오지 못했습니다' }}</span>
@@ -255,13 +302,26 @@ const onRemove = (node: NodeResponse) => {
     </div>
     <template v-else>
         <template v-for="(n, i) in children" :key="n.id">
-        <div class="row">
-            <span class="ord">{{ i + 1 }}</span>
+        <div class="row"
+            :class="{ cut: cutIds.has(n.id), sel: isSel(n), drop: dropAt === n.id, picking: sel.on.value }"
+            :data-folder-id="n.kind === 'FOLDER' ? n.id : undefined"
+            :draggable="dragOk"
+            @click="onRowClick($event, n)"
+            @pointerdown="onPointerDown($event, n)"
+            @pointermove="onPointerMove"
+            @pointerup="cancelPress"
+            @pointercancel="cancelPress"
+            @contextmenu="onContextMenu($event, n)"
+            @dragstart="onDragStart($event, n)"
+            @dragend="onDragEnd"
+        >
+            <v-icon v-if="sel.on.value" size="14" class="check" :icon="isSel(n) ? 'mdi-checkbox-marked' : 'mdi-checkbox-blank-outline'" />
+            <span v-else class="ord">{{ i + 1 }}</span>
             <v-icon size="14"
                 :icon="n.kind === 'FOLDER' ? (n.ownerNickname ? 'mdi-folder-account' : 'mdi-folder') : 'mdi-console'"
                 :class="n.kind === 'FOLDER' ? 'folder' : 'script'"
             />
-            <button v-if="n.kind === 'FOLDER'" class="nm" title="이 타일 안에서 열기" @click="navigate(tileId, n.id)">{{ n.name }}</button>
+            <button v-if="n.kind === 'FOLDER'" class="nm" :title="sel.on.value ? '' : '이 타일 안에서 열기'" @click="onNameClick($event, n)">{{ n.name }}</button>
             <span v-else class="nm">{{ n.name }}</span>
             <span class="tail">
                 <span v-if="n.ownerNickname" class="by" :title="`${n.ownerNickname}님이 공유한 폴더`">← {{ n.ownerNickname }}</span>
@@ -270,9 +330,12 @@ const onRemove = (node: NodeResponse) => {
                 <span v-if="n.deviceKey" class="dev" :class="{ on: isOnline(n.deviceKey) }" :title="deviceTitle(n.deviceKey)">
                     <i /><span class="key">{{ n.deviceKey }}</span><span v-if="deviceCount(n.deviceKey)" class="cnt">{{ deviceCount(n.deviceKey) }}</span>
                 </span>
-                <v-btn v-if="n.kind === 'FOLDER'" size="x-small" variant="tonal" color="warning" @click="onOpen(n.id)">새 타일</v-btn>
-                <v-btn v-else size="x-small" variant="tonal" color="primary" :disabled="saving || !tabReady" @click="onExec(n)">실행</v-btn>
-                <node-row-menu :kind="n.kind" :vi-disabled="saving || !tabReady" @edit="onEdit(n)" @vi="onExec(n, 'EDIT')" @rename="onName({ node: n })" @device="onDevice(n)" @remove="onRemove(n)" />
+                <!-- 선택 모드 중엔 숨김 — 행 누르기 = 선택과 겹치지 않게 -->
+                <template v-if="!sel.on.value">
+                    <v-btn v-if="n.kind === 'FOLDER'" size="x-small" variant="tonal" color="warning" @click="ops.open(tileId, n.id)">새 타일</v-btn>
+                    <v-btn v-else size="x-small" variant="tonal" color="primary" :disabled="saving || !tabReady" @click="ops.exec(tileId, n)">실행</v-btn>
+                    <node-row-menu :items="menuItems(n)" @act="a => onAct(a, n)" />
+                </template>
             </span>
         </div>
         <script-run-list v-if="n.kind === 'SCRIPT' && runsOpen[n.id] && runsOf(n.id).length" :runs="runsOf(n.id)" :tile-id="tileId" />
@@ -280,22 +343,8 @@ const onRemove = (node: NodeResponse) => {
         <p v-if="!listQuery.isPending.value && !children.length" class="empty">비어 있음</p>
     </template>
 
+    <node-row-menu v-if="ctxMenu" v-model="ctxOpen" :at="ctxMenu.at" :items="menuItems(ctxMenu.node)" @act="a => ctxMenu && onAct(a, ctxMenu.node)" />
     <share-dialog v-if="canShare && current" v-model="shareOpen" :node-id="current.id" :node-name="current.name" :tile-id="tileId" />
-    <node-name-dialog v-model="nameOpen" :title="nameTitle" :initial="nameInitial" :loading="saving" @submit="onSubmitName" />
-    <script-edit-dialog v-model="editOpen" :node="editTarget" />
-    <worker-pick-dialog v-model="pickOpen"
-        :title="`${typeLabel(pickType)}할 장비: ${pickNode?.name ?? ''}`"
-        :workers="pickWorkers"
-        :offline="pickOffline"
-        :loading="saving"
-        @submit="key => pickNode && start(pickNode, key, pickType)"
-    />
-    <node-device-dialog v-model="deviceOpen"
-        :title="`장비 지정: ${deviceTarget?.name ?? ''}`"
-        :initial="deviceTarget?.deviceKey ?? ''"
-        :loading="saving"
-        @submit="onSubmitDevice"
-    />
 </div>
 </template>
 
@@ -338,6 +387,14 @@ const onRemove = (node: NodeResponse) => {
         &.share { display: inline-flex; align-items: center; gap: 3px; color: rgb(var(--v-theme-share)); opacity: 1; }
         .share-count { font-size: 11px; }
     }
+    .paste {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        .tool:first-child { display: inline-flex; align-items: center; gap: 2px; opacity: 1; &:disabled { opacity: 0.3; } }
+        &.wide .tool:first-child { padding: 0 6px; border-radius: 8px; color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), 0.12); }
+        .paste-count { font-size: 11px; font-family: monospace; }
+    }
 }
 .bar { height: 2px; }
 .state {
@@ -355,7 +412,15 @@ const onRemove = (node: NodeResponse) => {
     min-height: 30px;
     padding: vars.$spacing-sm vars.$spacing-xs vars.$spacing-sm vars.$spacing-md;
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    user-select: none;
+    -webkit-touch-callout: none;    // 길게 누르기 = 선택(SM1) — iOS 기본 메뉴 끔
+    &.cut { opacity: 0.45; }    // CP2(표시 구분): 잘라낸 것만 흐리게
+    &.picking { cursor: pointer; }
+    &.sel { background: rgba(var(--v-theme-primary), 0.12); }
+    &.drop { outline: 1px dashed rgb(var(--v-theme-primary)); outline-offset: -1px; background: rgba(var(--v-theme-primary), 0.08); }
 }
+.FolderTileBody.drop { box-shadow: inset 0 0 0 1px rgb(var(--v-theme-primary)); }
+.check { color: rgb(var(--v-theme-primary)); }
 .ord { font-family: monospace; font-size: 10px; opacity: 0.6; }
 .folder { color: rgb(var(--v-theme-warning)); }
 .script { color: rgb(var(--v-theme-primary)); }
