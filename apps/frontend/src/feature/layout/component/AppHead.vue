@@ -13,13 +13,13 @@
     <!-- 페이지가 Teleport로 넣는 도구 버튼 자리 (예: 보드 페이지의 위치 알림 종) -->
     <div id="app-head-tools" class="AppHead__tools" />
     <template #append>
-        <v-app-bar-nav-icon @click="toggleNaiv"/>
+        <v-btn :icon="auth ? 'mdi-logout' : 'mdi-login'" :title="auth ? '로그아웃' : '로그인'" variant="text" @click="toggleNaiv" />
     </template>
     <!-- <slot /> -->
 </v-app-bar>
 </template>
 <script lang="ts" setup>
-import { VAppBar, VAppBarNavIcon, VAvatar } from 'vuetify/components'
+import { VAppBar, VAvatar, VBtn } from 'vuetify/components'
 import { useAppHead } from '../store/appHead.store';
 import { useAppNav } from '../store/appNav.store';
 import { useAppDialog } from '../store/appDialog.store';

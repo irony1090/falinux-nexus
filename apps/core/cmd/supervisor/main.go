@@ -30,7 +30,7 @@ func init() {
 func main() {
 	env := constants.GetEnv()
 	addr := fmt.Sprintf("localhost:%d", env.Port)
-	e, _ := router.NewSupervisorRouter(env.WorkerPath)
+	e, _ := router.NewSupervisorRouter(env.WorkerPath, env.SessionKey)
 	log.Fatal(e.Start(addr))
 }
 

@@ -58,6 +58,15 @@ func requireNode(c echo.Context, userID, nodeID int64, min int16) (superdb.Node,
 	return node, perm
 }
 
+// requireFolder는 requireNode + 폴더가 아니면 400이다(생성·이동·복사의 목적지 — 자식은 폴더 아래에만).
+func requireFolder(c echo.Context, userID, nodeID int64, min int16) (superdb.Node, int16) {
+	node, perm := requireNode(c, userID, nodeID, min)
+	if node.Kind != superdb.NodeKindFolder {
+		panic(web.Err(400, "폴더 아래에만 둘 수 있습니다"))
+	}
+	return node, perm
+}
+
 // processPerm은 process에 대한 계정의 단계를 반환한다. 소유자면 메모리로 끝, 아니면 DB — SB2(입력 권한 확인 방식)
 func (r *supervisorRouter) processPerm(uid string, userID int64) int16 {
 	if entry, ok := r.processManager.Get(uid); ok && entry.Record != nil && entry.Record.OwnerUserID == userID {

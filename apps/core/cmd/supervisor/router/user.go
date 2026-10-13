@@ -2,6 +2,7 @@ package router
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 
 	"nexus/internal/manager/session"
@@ -9,6 +10,7 @@ import (
 	"nexus/internal/util"
 	"nexus/internal/web"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 )
 
@@ -163,10 +165,18 @@ func (router *supervisorRouter) signIn(c echo.Context) error {
 	return c.JSON(200, newUserResponse(user))
 }
 
-// checkSession은 현재 로그인 세션의 user를 반환한다(미로그인=401).
+// checkSession은 현재 로그인 세션의 user를 DB에서 다시 읽어 반환한다(미로그인·지워진 계정=401).
+// 쿠키의 sess.Data는 gob이 pgtype.Timestamptz를 못 담아 createdAt이 0이라 쓰지 않는다.
 func (router *supervisorRouter) checkSession(c echo.Context) error {
 	sess := router.requireSession(c)
-	return c.JSON(200, newUserResponse(*sess.Data))
+	user, err := TxQueries(c).GetUser(c.Request().Context(), sess.Data.ID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		panic(web.Err(401, "로그인 절차가 필요합니다"))
+	}
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	return c.JSON(200, newUserResponse(user))
 }
 
 // signOut은 세션 쿠키를 만료시킨다. 로그인 상태였으면 그 세션 탭들의 크기 소유권을 먼저 넘긴다.

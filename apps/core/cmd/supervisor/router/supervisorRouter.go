@@ -51,7 +51,7 @@ type supervisorRouter struct {
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
 // REST(user/session 등)도 같은 echo 인스턴스에 붙여 WS와 단일 서버에서 공존시킨다.
 // 서버 기동(addr 바인딩)은 호출자가 e.Start(addr)로 한다.
-func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
+func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisorRouter) {
 
 	log.Printf("[supervisor] SERVER 실행")
 	subscribeHub := subscribe.New(
@@ -72,7 +72,7 @@ func NewSupervisorRouter(workerPath string) (*echo.Echo, *supervisorRouter) {
 		workers:        manager.NewKeyValManager[string, *transport.Conn](),
 		tabs:           newTabRegistry(),
 		readers:        manager.NewKeyValManager[string, *sendJob](),
-		sessions:       session.NewSessionManager("irony", "sid", getSessionKey),
+		sessions:       session.NewSessionManager(sessionKey, "sid", getSessionKey),
 		subscribeHub:   subscribeHub,
 		processManager: process.NewProcessManager(),
 		sizeOwners:     newSizeOwners(),

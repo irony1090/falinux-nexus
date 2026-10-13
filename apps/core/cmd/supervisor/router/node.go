@@ -99,7 +99,7 @@ func (router *supervisorRouter) createNode(c echo.Context) error {
 	owner, perm := sess.Data.ID, superdb.PermOwner
 	if body.ParentID != nil {
 		var parentNode superdb.Node
-		parentNode, perm = requireNode(c, sess.Data.ID, *body.ParentID, superdb.PermEdit)
+		parentNode, perm = requireFolder(c, sess.Data.ID, *body.ParentID, superdb.PermEdit)
 		owner = parentNode.OwnerUserID
 	}
 	parent := int8Ptr(body.ParentID)
@@ -264,7 +264,7 @@ func checkMove(c echo.Context, userID int64, target superdb.Node, perm int16, de
 		}
 		return
 	}
-	parent, _ := requireNode(c, userID, *dest, superdb.PermEdit)
+	parent, _ := requireFolder(c, userID, *dest, superdb.PermEdit)
 	if parent.OwnerUserID != target.OwnerUserID {
 		panic(web.Err(403, "소유자가 다른 폴더로 옮길 수 없습니다"))
 	}

@@ -42,10 +42,7 @@ func (router *supervisorRouter) copyNode(c echo.Context) error {
 	owner, perm := sess.Data.ID, superdb.PermOwner
 	if body.ParentID != nil {
 		var dest superdb.Node
-		dest, perm = requireNode(c, sess.Data.ID, *body.ParentID, superdb.PermEdit)
-		if dest.Kind != superdb.NodeKindFolder {
-			panic(web.Err(400, "폴더 아래로만 복사할 수 있습니다"))
-		}
+		dest, perm = requireFolder(c, sess.Data.ID, *body.ParentID, superdb.PermEdit)
 		owner = dest.OwnerUserID
 	}
 	q, ctx := TxQueries(c), c.Request().Context()

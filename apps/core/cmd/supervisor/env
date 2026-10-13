@@ -7,3 +7,4 @@ DB_PASS="!Fa1289"
 DB_NAME=nexus
 DB_HOST=localhost
 DB_PORT=5432
+SESSION_KEY="irony"

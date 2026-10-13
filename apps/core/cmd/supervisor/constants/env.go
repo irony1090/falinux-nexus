@@ -29,6 +29,7 @@ type EnvVars struct {
 	DBName      string
 	DBHost      string
 	DBPort      int
+	SessionKey  string // 세션 쿠키 서명 키
 	// UploadDir string `iniName:"UPLOAD_DIR"`
 	// AssetsDir string `iniName:"ASSETS_DIR"`
 }
@@ -114,6 +115,15 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		}
 	}
 
+	sessionKey := os.Getenv("SESSION_KEY")
+	if sessionKey == "" {
+		if isNil {
+			return nil, fmt.Errorf("환경변수 SESSION_KEY 값 필수")
+		} else {
+			sessionKey = env.SessionKey
+		}
+	}
+
 	if isNil {
 		// 환경 변수 값으로 구조체 초기화
 		env = &EnvVars{
@@ -131,6 +141,7 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 	env.DBName = dbName
 	env.DBHost = dbHost
 	env.DBPort = dbPort
+	env.SessionKey = sessionKey
 
 	log.Printf("root path %s", projectDir)
 	log.Printf("Loaded %v", env)
