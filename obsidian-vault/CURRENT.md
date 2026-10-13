@@ -1,13 +1,14 @@
 # CURRENT
 
 ## 현재 날짜
-2026-10-12
+2026-10-13
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`, 마감 파트는 `INDEX-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
 ---
 
 ## ⚠️ 다음 세션 시작 시
+- **2026-10-13 파트(바인딩 타일) 마감** — 2026-10-12 바인딩-1(타일 메타)~바인딩-6(확인) 위에 규칙 개편 개편-1(고정 지도)~개편-9(확인)(타일 고정 항상 하나·2개 이상일 때 핀 / 터미널 탭 = 루트 경로 하위 / 현재 타일에 바인딩 / 위치 알림 토스트·드로어), 격리 API 34/34 · 화면 23/23 + 사용자 확인 후 커밋 → `REF-tile-binding-rework.md`(결정) · `REF-tile-binding-rework-impl.md`(구현·확인) · `REF-tile-binding.md`(처음 설계)
 - **2026-10-12 파트(5 공유) 마감** — 동기화·공유·보드·presence 전부 `master`에 커밋(공유-g(확인) 통합 70/70 + 위치 21/21 + 헤드리스, ⑥ "나" 수정 포함). 상세·원문 색인 → `INDEX-process-share.md`(세션 시작 시 안 읽음, 필요하면 INDEX부터)
 - **2026-10-12 파트(active 타일 · 위치 번호 단축키 + 다른 계정 active 배지) 마감** — 로컬 active(`Ctrl+Alt+숫자`) + 원격 배지(터미널·폴더) 사용자 확인 후 커밋 → `REF-node-ui-active.md`. 뺀 것: "위치 없음" 행 열기(`openProcessTile`)는 active 안 됨(응답에 tile id 없음)
   - 개발 DB에 테스트 계정 `active-<시각>` 3개(폴더 11개씩) 남음
@@ -18,11 +19,10 @@
 - **2026-10-12 파트(process 종료 정책) 마감** — 종료-1(신호 구분)~종료-6(확인) + 실행 실패 정리, 사용자 확인 후 커밋 → `REF-process-kill.md`. 확인용 스크립트 → `user/kill-test-scripts.md`
   - 적용 주의: worker도 다시 빌드해야 함(옛 worker는 force를 몰라 늘 SIGKILL)
 - **2026-10-12 파트(폴더 목록 동기화) 마감** — node 변경을 볼 수 있는 접속 계정의 `TILES:<userId>`로 보냄(NB(계정 토픽으로 보내기)), 동기화-1(서버 발행 대상)~동기화-3(확인) 사용자 확인 후 커밋 → `REF-node-list-sync.md`. 열린 질문 4(NODE 동적 구독)·4⑤(폴더 목록 동기화) 해소
-- **다음 파트 = 바인딩 타일**(사용자 시작 신호 대기)(설계 확정, 코드 없음): 다른 계정이 실행한 터미널을 받는 폴더 타일 = 처음 연 타일(수동 고정 우선), 접속 중 + 지금 보는 보드에 있을 때만 붙임 → `REF-tile-binding.md`. 다음 = 구조안 작성·승인
-- 그 다음 후보: Node 핸들러 책임 미적용 2개(아래) / 회원가입
+- 다음 후보(지금 진행 중인 파트 없음): Node 핸들러 책임 미적용 2개(아래) / 회원가입 / **process 단독 공유 UI를 둘지 결정**(지금 서버 API만, 2026-10-13 — 두면 받는 쪽 진입점 = 기본 루트 터미널 탭, `REF-tile-binding-rework.md` R3(경로 없는 process))
 - 5 공유에서 뒤로 미룬 것: 숨기기(`node_shares.hidden_at`, 복원 UI "숨긴 공유 N") / 잘라내기(SH10(노드 복사) 확장) / 보드 미리보기(`/` 루트 타일 안 다른 보드 카드, `REF-workspace.md` "희망안") / 단축키 키 조합 / `tabGrace` 60초 만료·크기 우선권 넘김 실측
-- 커밋 상태: 2026-10-12 파트(폴더 목록 동기화) 마감까지 전부 커밋(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`). **push는 한 번도 안 함**(태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
-- 재부팅으로 사라지는 것: 2026-10-12 세션들의 scratchpad 확인 스크립트·격리 설정 전부(`vite.iso.mts`·`pw/`(node_modules 포함)·`iso/`(supervisor·worker 바이너리·env)·`roster_api.py`·`pw/roster.mjs`·`pw/login.mjs`·`pw/logout_board.mjs`·`pw/board_removed.mjs` · 종료 파트 `kill_test.py`·`fail_test.py`·`pw/kill.mjs` · 동기화 파트 `sync_test.py`·`pw/sync.mjs` 등). 다시 쓸 땐 `REF-test-env.md` "격리 실행"·"2026-10-12 확인 스크립트"(active·명부·로그인 항목이 곧 재작성 명세)·`REF-process-share-verify.md` "방법"·`REF-process-kill.md` "종료-6(확인) 결과"·"실행 실패 정리". 임시 DB(`nexus_roster_tmp`·`nexus_login_tmp`·`nexus_kill_tmp`·`nexus_sync_tmp`)는 삭제함, 5050·3000은 사용자 것
+- 커밋 상태: 2026-10-13 파트(바인딩 타일) 마감까지 전부 커밋. **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
+- 재부팅으로 사라지는 것: 2026-10-13 개편 확인 스크립트(`rework_test.py`·`client.py`·`aexec.py`·`pw/rework.mjs`·`vite.iso.mts`, 명세 → `REF-tile-binding-rework-impl.md` "개편-9(확인) 결과", 임시 DB `nexus_rework_tmp` 삭제함) + 2026-10-12 세션들의 scratchpad 확인 스크립트·격리 설정 전부(`vite.iso.mts`·`pw/`(node_modules 포함)·`iso/`(supervisor·worker 바이너리·env)·`roster_api.py`·`pw/roster.mjs`·`pw/login.mjs`·`pw/logout_board.mjs`·`pw/board_removed.mjs` · 종료 파트 `kill_test.py`·`fail_test.py`·`pw/kill.mjs` · 동기화 파트 `sync_test.py`·`pw/sync.mjs` · 바인딩 파트 `bind_test.py`·`pw/bind.mjs` 등). 다시 쓸 땐 `REF-test-env.md` "격리 실행"·"2026-10-12 확인 스크립트"(active·명부·로그인 항목이 곧 재작성 명세)·`REF-process-share-verify.md` "방법"·`REF-process-kill.md` "종료-6(확인) 결과"·"실행 실패 정리". 임시 DB(`nexus_roster_tmp`·`nexus_login_tmp`·`nexus_kill_tmp`·`nexus_sync_tmp`·`nexus_bind_tmp`)는 삭제함, 5050·3000은 사용자 것
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
 - 역할 분담(2026-09-29 개정): node 타일 UI·process 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다
 
