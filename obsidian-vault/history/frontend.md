@@ -2,6 +2,12 @@
 
 > 요약·재사용 지식 → `REF-frontend.md` / 로그인·API·다이얼로그 이력 → `history/frontend-auth.md` / 현재 진행 → `CURRENT.md`
 
+## 2026-10-13(2) — 헤더 전체 화면 버튼
+- 사용자(안드로이드 Edge): 스크롤로 주소창이 숨겨지지 않음 → A(PWA 설치)·B(전체 화면 버튼)·C(문서 스크롤) 제시 → B 선택. 구현 후 헤드리스(390px, https://test1) 진입·브라우저 해제 반영·재토글 확인 → 사용자 안드로이드 Edge 실기기에서 주소창 숨김 확인 완료
+
+## 2026-10-13 — vue-query queryFn이 ref를 읽던 버그 수정
+- 파트(노드 클립보드) 선택-7(확인) 중 발견: 루트를 거쳐 간 타일이 있으면 루트 타일에 다른 폴더 목록이 뜸. `node.api`·`share.api`·`presence.api` 7곳을 queryKey 읽기로(규칙 → `REF-frontend.md` "vue-query", 상세 → `history/node-select.md` 2026-10-13(4))
+
 ## 2026-10-08 — TileFrame 크기 팝업이 타일을 따라오게
 - 사용자 "크기 조절 툴팁이 타일을 따라오지 않는 것 같아" → 원인: 크기 변경으로 버튼이 움직이는데 `v-menu`가 위치를 다시 계산하지 않음. B안 확정(A안 닫기·C안 직접 그리기 기각): `useResizeCallback(frameEl)` + `setSize` 직후 `VMenu.updateLocation()`. vue-tsc 통과, 사용자 화면 확인 완료(팝업이 크기 조절에 따라 따라옴)
 

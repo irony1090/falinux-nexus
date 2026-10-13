@@ -18,6 +18,7 @@
 - 소켓 확인은 `websockets.sync.client.connect`(17.1)가 편함: 스레드에서 프레임 읽기 + `ws.send(json.dumps({"k":2,"t":"TAB:VIEW","d":{...}}).encode())`(브라우저 → 서버 EVENT, binary)
 - **DB 쿼리만 확인할 때 저장소에 파일을 두지 않는 법**: scratchpad의 `main.go`를 `go build -overlay overlay.json`으로 `cmd/<임의>/main.go` 자리에 가상으로 끼워 빌드(내부 패키지 import 가능) + goose CLI는 migrations의 `.sql`만 scratchpad로 복사해서 실행(`embed.go`가 있는 폴더를 그대로 넘기면 `.go`를 Go 마이그레이션으로 볼 수 있어 피함 — 직접 확인은 안 함)
 
+- **(2026-10-13 바뀜)** 소켓 주소가 `VITE_API_URL`에서 만들어지고 `vite.config.mts`가 함수형이 됨 → 아래 transform 플러그인 불필요, iso 설정은 `base({mode:'development', command:'serve'})`를 펼치고 `.env`의 `DEV_*`를 덮을 것(→ `REF-external-access.md`)
 - **격리 프론트(헤드리스용, 2026-10-07)**: 소켓 주소가 `websocket.hook.ts`에 `localhost:5050`으로 박혀 있어 env로 못 바꿈 → scratchpad에 `vite.iso.mts`(저장소 `vite.config.mts`를 절대 경로로 import해 펼치고 `root` = `apps/frontend`, `cacheDir` = scratchpad, `server.port` 3001 + `strictPort`, `transform` 플러그인으로 `websocket.hook.ts`의 `localhost:5050` → `5051`)를 두고 `apps/frontend`에서 `VITE_API_URL=http://localhost:5051 npx vite --config <경로>`(이미 있는 env가 `.env`보다 우선). 쿠키는 포트를 안 가리므로 `context.request`로 5051에 로그인하면 3001 페이지에서 그대로 쓰임. 저장소에 파일 안 생김
 - **끌 때 함정**: `pgrep -f '<패턴>'`의 패턴이 지금 돌리는 bash 명령줄에도 들어 있으면 자기 셸까지 죽인다(exit 144). vite는 `pgrep -af vite`로 pid를 먼저 보고 끈다
 - **supervisor 바이너리는 어떤 인자로 실행해도 서버가 뜬다**(`--help` 없음) + `init()`이 마이그레이션을 적용한다 → 확인 중에 `go run ./cmd/supervisor`를 실행하지 말 것. 빌드 확인은 `go build`만(2026-10-07 사고: 개발 DB에 00007·00008 적용됨)
@@ -68,3 +69,5 @@
 ## 2026-10-13 확인 스크립트 (서버 정리) → `history/supervisor-web.md` 2026-10-13(API 11개 + 세션 키 교체, worker 없음)
 
 ## 2026-10-13 확인 스크립트 (질의 응답 중복) → `history/term-query.md` 응답-3(확인)(bash 시험 스크립트·대조 실행 방법 포함)
+## 2026-10-13 확인 스크립트 (노드 클립보드) → `history/node-clipboard.md` 2026-10-13(2)(선택자 포함, worker 없음)
+## 2026-10-13 확인 스크립트 (선택 모드) → `history/node-select.md` 2026-10-13(4)(선택자·드래그 방법 포함, worker 없음)

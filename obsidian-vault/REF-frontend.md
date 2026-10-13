@@ -83,9 +83,15 @@
   - `execProcess` 반환 타입은 사용자가 직접 `{uid}`→`ProcessResponse`로 바꿈(백엔드가 `newProcessResponse` 전체를 돌려주도록 바뀐 것과 짝) — 단 `toProcessResponse`(dto→response 날짜 변환) 경유는 아직 안 함, `resizeProcess`는 정상적으로 경유. 후속 정리 여지.
 - node은 아직 UI 미연결. **process는 `ProcessDialog` 하나가 실제로 호출하는 첫 컴포넌트**(exec/kill/resize) — provide/inject 스토어(`processDialog.store.ts`)+xterm 연동 상세는 `REF-process-resize.md` "ProcessDialog" 절(백엔드 resize 배선과 한 문서에 묶임 — 이력도 `history/process-resize.md` 하나).
 
+## vue-query — queryFn은 queryKey에서 값을 읽는다 (2026-10-13, 불변)
+- `queryFn: ({ queryKey }) => api(queryKey[2])` 형태로. **ref(`id.value`)를 읽지 말 것** — 같은 키의 쿼리는 마지막으로 조회한 observer의 `queryFn`을 기억하므로, 그 observer(타일)가 다른 폴더로 옮겨 간 뒤 무효화 재조회가 엉뚱한 값을 그 키에 넣는다(루트 타일에 다른 폴더 목록이 뜸). 경위 → `REF-node-select.md` "함께 고친 것"
+
 ## 앱 레이아웃 루트 — `App.vue` → `ProvideAppLayout.vue`
 - `App.vue`의 최상위가 `<v-app>` 직접 사용 → **`<provide-app-layout>`**(`feature/layout/component/provideAppLayout.vue`)로 감싸는 형태로 변경. 이 컴포넌트가 내부에서 `<v-app><slot/></v-app>`을 렌더하면서 동시에 `provideResizeGroupStore()` 호출 + `flag.value = true`로 **앱 전체 공유 리사이즈 관측 그룹을 1회 킥**(→ `REF-util.md` "공유 리사이즈 관측 그룹").
 - `AppHead.vue`/`appHead.store.ts`도 이 공유 그룹으로 이전: 기존 `useResize(elRef)`(자체 옵저버) → `useResizeCallback(elRef, cb)` + `computeResizeSize()`로 `size`를 직접 갱신. `vElRef` 타입도 `any` → `InstanceType<typeof VAppBar>`로 정정.
+
+## 전체 화면 버튼 (2026-10-13)
+- `AppHead.vue` 로그아웃 왼쪽. 목적 = 모바일 주소창 숨기기(문서 스크롤이 없어 브라우저가 스스로 안 숨김). `document.fullscreenEnabled`가 false(iPhone 등)면 숨김, 상태는 `fullscreenchange`로 읽음(뒤로가기·Esc 해제 반영). 검토한 대안: PWA 설치(주소창 없음, 나중 후보) / 문서 스크롤 만들기(높이 변동으로 타일·터미널 재계산, 기각)
 
 ## 미착수/다음
 - 회원가입 파트(보류) → `REF-frontend-auth.md` "회원가입"
