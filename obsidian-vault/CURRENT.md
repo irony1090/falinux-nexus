@@ -8,14 +8,13 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **다음 할 일 = 파트(질의 응답 중복) 착수**(아래 "다음 플랜" 1, 응답-1(구조안)부터). 지금 진행 중인 파트 없음
-- **최근 마감 파트**(상세는 HISTORY 색인·각 REF): 2026-10-13 서버 정리(→ `history/supervisor-web.md`·`history/node-label.md` 2026-10-13(2)) · 바인딩 타일(→ `REF-tile-binding-rework.md`·`-impl.md`) / 2026-10-12 5 공유(→ `INDEX-process-share.md`) · active 타일·원격 배지(→ `REF-node-ui-active.md`) · worker 명부(→ `REF-node-label.md` "roster 계획") · user/login 마무리(→ `REF-frontend-auth.md`) · process 종료 정책(→ `REF-process-kill.md`) · 폴더 목록 동기화(→ `REF-node-list-sync.md`)
+- **다음 할 일 = 정해진 파트 없음** — 사용자와 다음 파트를 정한다(후보: 아래 "나중으로 미룸"·"5 공유에서 뒤로 미룬 것"·열린 질문·미해결 이슈). 지금 진행 중인 파트 없음
+- **최근 마감 파트**(상세는 HISTORY 색인·각 REF): 2026-10-13 질의 응답 중복(→ `REF-term-query.md`) · 서버 정리(→ `history/supervisor-web.md`·`history/node-label.md` 2026-10-13(2)) · 바인딩 타일(→ `REF-tile-binding-rework.md`·`-impl.md`) / 2026-10-12 5 공유(→ `INDEX-process-share.md`) · active 타일·원격 배지(→ `REF-node-ui-active.md`) · worker 명부(→ `REF-node-label.md` "roster 계획") · user/login 마무리(→ `REF-frontend-auth.md`) · process 종료 정책(→ `REF-process-kill.md`) · 폴더 목록 동기화(→ `REF-node-list-sync.md`)
   - 남은 주의: 개발 DB에 테스트 계정 `active-<시각>` 3개(폴더 11개씩) / 개발용 로그인 기본값 = `apps/frontend/.env.development.local`(git 제외) / worker는 종료 정책 이후 빌드여야 force를 앎
-- **다음 플랜(2026-10-13 사용자와 정함, 코드 없음)**:
-  1. 파트(질의 응답 중복) — 응답-1(구조안)·응답-2(구현)·응답-3(확인, 탭 두 개로 vim·htop). **방향 = (가) 확정**(2026-10-13): 프론트에서 크기 소유 탭이 아닌 탭은 xterm 자동 응답 모양(`ESC[n;nR`·`ESC[?…c`·`ESC[>…c` 등)을 보내지 않음, 사용자 입력은 그대로(붙여 넣은 같은 모양 텍스트가 걸러지는 건 감수). 기각 = (나) 서버 중복 제거(응답·입력 구분 불가)
+- **다음 플랜**: 2026-10-13에 정한 두 파트(서버 정리·질의 응답 중복) 모두 마감
   - 나중으로 미룸: process 단독 공유 UI를 둘지 결정(지금 서버 API만, 두면 받는 쪽 진입점 = 기본 루트 터미널 탭, `REF-tile-binding-rework.md` R3(경로 없는 process)) / 회원가입
 - 5 공유에서 뒤로 미룬 것: 숨기기(`node_shares.hidden_at`, 복원 UI "숨긴 공유 N") / 잘라내기(SH10(노드 복사) 확장) / 보드 미리보기(`/` 루트 타일 안 다른 보드 카드, `REF-workspace.md` "희망안") / 단축키 키 조합 / `tabGrace` 60초 만료·크기 우선권 넘김 실측
-- 커밋 상태: 2026-10-13 파트(서버 정리) 마감까지 전부 커밋. **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
+- 커밋 상태: 2026-10-13 파트(질의 응답 중복) 마감까지 전부 커밋. **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
 - 재부팅(2026-10-13)으로 사라짐: 2026-10-13 개편 확인 스크립트(`rework_test.py`·`client.py`·`aexec.py`·`pw/rework.mjs`·`vite.iso.mts`, 명세 → `REF-tile-binding-rework-impl.md` "개편-9(확인) 결과", 임시 DB `nexus_rework_tmp` 삭제함) + 2026-10-12 세션들의 scratchpad 확인 스크립트·격리 설정 전부(`vite.iso.mts`·`pw/`(node_modules 포함)·`iso/`(supervisor·worker 바이너리·env)·`roster_api.py`·`pw/roster.mjs`·`pw/login.mjs`·`pw/logout_board.mjs`·`pw/board_removed.mjs` · 종료 파트 `kill_test.py`·`fail_test.py`·`pw/kill.mjs` · 동기화 파트 `sync_test.py`·`pw/sync.mjs` · 바인딩 파트 `bind_test.py`·`pw/bind.mjs` 등). 다시 쓸 땐 `REF-test-env.md` "격리 실행"·"2026-10-12 확인 스크립트"(active·명부·로그인 항목이 곧 재작성 명세)·`REF-process-share-verify.md` "방법"·`REF-process-kill.md` "종료-6(확인) 결과"·"실행 실패 정리". 임시 DB(`nexus_roster_tmp`·`nexus_login_tmp`·`nexus_kill_tmp`·`nexus_sync_tmp`·`nexus_bind_tmp`)는 삭제함, 5050·3000은 사용자 것
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
 - 역할 분담(2026-09-29 개정): node 타일 UI·process 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다
@@ -69,7 +68,7 @@
 
 ## 미해결 이슈 (이월)
 - ~~`NODE:` 동적 구독~~ → 2026-10-12 파트(폴더 목록 동기화)로 해소(계정 토픽, → `REF-node-list-sync.md`)
-- **같은 터미널을 연 탭이 여러 개면 질의 시퀀스(`ESC[6n` 등)에 탭마다 xterm이 응답** → process가 응답을 탭 수만큼 받음. 방향 (가)(프론트에서 크기 소유 탭 아닌 탭은 응답 안 보냄) 확정 → 파트(질의 응답 중복), 발견 기록 `REF-process-snapshot-impl.md` "스냅샷-d"
+- ~~같은 터미널을 연 탭이 여러 개면 질의에 탭마다 응답~~ → 파트(질의 응답 중복)로 해결(2026-10-13 마감, → `REF-term-query.md`)
 - **input**: I3(PENDING 중 입력 버림) 확인만 남음(socat 재현 → `REF-process-reconnect.md` "재현 방법") → `REF-process-input.md`
 - **Hub 막힘**: ping/pong(`e395433`)으로 해결, 남은 한계 = 막힘 최대 약 25초 → `REF-realtime.md` "발견"
 - **파일 전송**: 구현 완료 / e2e 미검증. 잔여: e2e 스모크 / abort sentinel. `history/transfer.md`가 분할 기준 초과(17k자) — 다음에 고칠 때 분할
