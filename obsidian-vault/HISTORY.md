@@ -10,7 +10,9 @@
 - node UI 레이아웃 설계(마감) → `INDEX-node-ui-layout.md` (node-ui-layout·projection·impl·render)
 - node UI 연동(마감) → `INDEX-node-ui-link.md` (node-ui-link·terminal·save·save-impl·sync)
 - process 터미널 기능(마감) → `INDEX-process-terminal.md` (process-input·snapshot·snapshot-impl·exec-edit)
+  - 2026-10-14 `history/process-input.md`에 실측-1(PENDING 입력 버림) 격리 확인 7/7 — I3 확인 끝
 - process 동기화·공유·보드(마감) → `INDEX-process-share.md` (process-sync(+impl)·process-share 13개·workspace 4개)
+  - 2026-10-14 `history/process-sync-impl.md`에 실측-2(탭 보관 60초) 격리 확인 9/9(presence 빠짐 60.1초)
 
 ## history/ 파일 색인 (진행 중 파트)
 
@@ -87,12 +89,18 @@
 - 2026-08-07(3) 포팅 설계 확정(코드 없음) — 구 test-jig 드래그 코드 문제진단(단일슬롯 콜백/synthetic dispatch/이웃정렬 혼입/ghost 손코딩 중복)+재설계 방향 확정
 
 ### `history/size-take.md` — 크기 우선권 즉시 가져오기 (2026-10-13 신설)
+- 2026-10-14(4) 사용자 확인 → 파트(확인·실측) 마감·커밋
+- 2026-10-14(3) 밀림-가(먼저 발행)·밀림-나(즉시 반영) 구현 + 격리 재확인 3/3
+- 2026-10-14(2) 실측-3(htop 줄 밀림) 발견: 잃은 탭이 키우는 방향에서 밀린 채 남음(서버 UPDATE 늦음 + 프론트 150ms 묶음), 고칠 방향 밀림-가·밀림-나 제시
 - 2026-10-14 사용자 확인 → 파트(크기 가져오기) 마감·커밋 (htop 줄 밀림 관찰은 미해결로 이월)
 - 2026-10-13(5) 사용자 환경 헤드리스 확인: 통제 실행 정상(넘김 15초·칩), 사용자 Chrome 열린 상태의 넘김 지연 = 탭 연쇄 끊김 대기 누적으로 추정·종결
 - 2026-10-13(4) K5(빼앗긴 탭 안내) = (ㄴ) 확정 → K4·K5 구현, 격리 헤드리스 19/19(커밋 전)
 - 2026-10-13(3) K4(소유 계정 우선) 확정 · K5(빼앗긴 탭 안내) 미정(코드 없음)
 - 2026-10-13(2) 크기-0(여유 시간)~크기-3(버튼) 구현 + 크기-4(확인) 격리 헤드리스 12/12(커밋 전, 사용자 확인 대기)
 - 2026-10-13 구조안(크기-0~4) + K1(다른 계정 소유)·K2(버튼 모양)·K3(여유 시간 = 크기 넘김만 15초) 확정(코드 없음)
+
+### `history/test-scripts.md` — 확인 스크립트 재작성 명세 (2026-10-14, test-env에서 분할)
+- 2026-10-14 분할 + 파트(확인·실측) 스크립트(`chk/client.py`·`i3.py`·`grace.py`·`order.py`, `pw/htop*.mjs`)
 
 ### `history/external-access.md` — 외부 접속(모바일 확인) · HTTPS 프록시 (2026-10-13 신설)
 - 2026-10-13(3) 마감·커밋(노드 클립보드와 나눠서)
@@ -138,6 +146,7 @@
 - 2026-10-13(2) 구조안 개편-1(고정 지도)~개편-9(확인) 승인 → 구현 + 격리 API 34/34 · 화면 23/23 → 사용자 확인 → 파트(바인딩 타일) 마감·커밋
 
 ### `history/test-env.md` — 테스트 환경 · 확인용 클라이언트 (2026-10-06 신설)
+- 2026-10-14 함정 3줄(socat fork 자식·pkill 자기 셸·`/users/presence` 범위) + 날짜별 확인 스크립트 절을 `REF-test-scripts.md`로 분할
 - 2026-10-08(2) 공유-f·터미널 빈틈 확인 스크립트 요령
 - 2026-10-08 공유-e 격리 확인 함정 3개(격리 프론트 설정·계정 동기화·헤드리스 계정)
 - 2026-10-07 작업공간-e: 격리 프론트 3001(scratchpad vite 설정) + 함정 2개(PATCH `{valid, value}`·`pgrep -f` 자기 셸)

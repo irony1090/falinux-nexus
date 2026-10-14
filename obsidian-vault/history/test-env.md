@@ -2,8 +2,11 @@
 
 > 재사용 지식 → `REF-test-env.md` / 현재 진행 → `CURRENT.md`
 
+## 2026-10-14 — 함정 3줄 추가 + 날짜별 확인 스크립트 절 분할
+- socat fork 자식·pkill 자기 셸·`/users/presence` 범위 함정 → `REF-test-env.md` "격리 실행" / 날짜별 절 → `REF-test-scripts.md`(`history/test-scripts.md`)
+
 ## 2026-10-08(2) 공유-f·터미널 빈틈 확인 스크립트 요령
-- Python `Client`(REST + 소켓) 재사용, 헤드리스 탭 id, "위치 없음" 만드는 법, 격리 끄기 기준 → `REF-test-env.md` "2026-10-08 확인 스크립트 요령"
+- Python `Client`(REST + 소켓) 재사용, 헤드리스 탭 id, "위치 없음" 만드는 법, 격리 끄기 기준 → `REF-test-scripts.md` "2026-10-08 확인 스크립트 요령"(2026-10-14 분할)
 
 ## 2026-10-08 공유-e 격리 확인 함정
 - 격리 프론트 설정은 `vite`를 import하지 않고 기존 설정 객체를 펼쳐 쓴다 / 계정 동기화로 소유자 보드에 타일이 이미 열려 있어 "새 타일"을 다시 누르면 선택자가 2개로 잡힘 / 헤드리스 계정은 `POST /users` + `/users/session` + `storageState`. → `REF-test-env.md`

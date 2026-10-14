@@ -2,7 +2,7 @@
 
 > 2026-10-01 신설. 진행 순서상 **⑪(타일 트리 서버 저장) 앞**에 넣음(`REF-process-sync.md` "진행 순서"). 이력 → `history/process-input.md` / 출력·상태 배선 → `REF-process-wiring.md` / 타일 터미널 → `REF-node-ui-terminal.md` / 모바일 가상 키보드(⑮, 이 작업 뒤) → `REF-node-ui-overview.md` / 현재 진행 → `CURRENT.md`.
 
-**상태: 결정 확정(2026-10-01). 입력-a(서버)·입력-b(프론트) 코드 + 입력-c(확인) 서버 4항목·브라우저 7항목 통과(2026-10-02, 미커밋).** 남은 확인 = PENDING 중 입력 버림(socat 프록시)뿐.
+**상태: 결정 확정(2026-10-01). 입력-a(서버)·입력-b(프론트) 코드 + 입력-c(확인) 서버 4항목·브라우저 7항목 통과(2026-10-02, 미커밋).** ~~남은 확인 = PENDING 중 입력 버림(socat 프록시)뿐~~ → **실측-1(PENDING 입력 버림)로 확인 끝(2026-10-14, 7/7)** — 아래 "실측-1 결과".
 
 ## 지금 있는 것 / 없는 것
 | 구간 | 상태 |
@@ -91,3 +91,9 @@ playwright-core(세션 scratchpad) + `~/.cache/ms-playwright/chromium-1234`. 로
 - 참고: Ctrl+C로 끝난 process는 상태 칩이 FAIL(exit 130 = 시그널 종료, 기존 동작)
 - 스크립트 = 세션 scratchpad `input/ui.mjs`(재부팅하면 사라짐)
 - 사용자 PC 직접 사용 확인(2026-10-02): "PC 기준으론 딱히 이상 없음" — 한글(IME) 입력을 따로 확인했다는 언급은 없음
+
+## 실측-1(PENDING 입력 버림) 결과 (2026-10-14, 격리, 7/7)
+- 환경: 임시 DB `nexus_check_tmp` + supervisor 5051 + worker `NAME=check-dev`를 socat 5152 -> 5051 경유 / Python 소켓 클라이언트(`chk/i3.py`, scratchpad) / 스크립트 `#!/bin/sh\ncat`
+- 순서·결과: ① 실행 -> PROCESS ② 입력 전달(PTY 에코 + cat 출력 2번) ③ socat 끊음 -> 0.2초에 PENDING ④ PENDING 중 `pending-0`~`4` 입력 ⑤ socat 재기동 -> 3.9초에 PROCESS ⑥ 재접속 뒤 입력 전달 ⑦ 재접속 뒤 출력·스냅샷 어디에도 `pending-*` 없음
+- 버리는 곳 = `router/input.go` `input()`: worker 끊김이면 Detach로 memory에서 빠져 `Get` 실패, 아니면 `Status != PROCESS`. 실행 직후 RUNNING 전 PENDING은 시간 창이 짧아 따로 재현 안 함(같은 `Status` 조건)
+- 함정: socat 리스너만 끄면 연결을 맡은 fork 자식이 살아 있어 **끊기지 않는다** -> 명령줄이 socat인 프로세스 전부(자식 포함)를 끈다(`REF-test-env.md` "끌 때 함정")

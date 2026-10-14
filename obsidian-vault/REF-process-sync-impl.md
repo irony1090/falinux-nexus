@@ -85,3 +85,19 @@
 
   재현 방법 → `REF-process-reconnect.md` "재현 방법 — worker 연결만 끊기".
 - **[실행 확인 2026-10-01] 끊김 때 브라우저에 FAILED 502가 감**: process는 PENDING(살아 있음, DB도 PENDING)인데 `Remove`의 `Inter.Done(502)` 안전망이 relay로 종료 STATUS를 발행 → 브라우저는 종료로 보고 이후 상태가 갱신되지 않음. 결정 "frontend 끊김 ≠ 종료"와 같은 계열의 모순(worker 끊김 ≠ 종료). → 1단계 X·Y로 해결, 2단계 실행 확인 통과. 구조 잡다가 같은 계열 공백 하나 더 발견: 재접속 때 worker에 없던 process는 DB만 FAILED가 되고 브라우저엔 알림이 없음 → 표 Y로 함께 처리.
+
+## 실측-2(탭 보관 60초) 결과 (2026-10-14, 격리, 9/9)
+> `tabGrace`(60초, `router/tabs.go`) 만료 경계 실측. 크기 넘김 대기는 따로 15초(`sizeHandoffGrace`, `REF-size-take.md` K3(여유 시간))
+
+| 항목 | 결과 |
+|---|---|
+| 두 탭을 끊은 직후 process presence | 두 탭 모두 `connected:false`(보관 중) |
+| `lastSeen`(process presence의 계정 항목) | 끊은 시각과 같은 초 |
+| 보관 중 탭 id로 REST(`resize`) | `belongsTo` 통과(403 "크기를 바꿀 수 있는 탭이 아닙니다" = 다음 검사에서 막힘) |
+| 30초에 같은 id로 다시 연결 | 같은 탭 id(보관 타이머 정지, 60초 뒤에도 연결 유지) |
+| 다시 안 붙은 탭이 presence에서 빠지는 시각 | **60.1초** |
+| 만료 뒤 같은 id로 REST | 400 "탭 id가 없거나 이 세션의 탭이 아닙니다" |
+| 만료 뒤 같은 id로 연결 | 새 탭 id 발급 |
+
+- `GET /users/presence`는 **공유 대상 계정만 `?ids=`로** 조회한다(자기 계정 안 나옴) — 처음 시험 항목을 잘못 짠 것, 같은 `accountPresence`라 process presence로 대신 확인
+- 스크립트 `chk/grace.py`(scratchpad, 재부팅 시 사라짐): 위 표 순서 그대로, 탭 = `websockets.sync` 소켓
