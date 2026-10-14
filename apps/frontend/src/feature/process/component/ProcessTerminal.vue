@@ -63,7 +63,7 @@ watch(() => [proc.value?.cols, proc.value?.rows], schedule);
 </script>
 
 <template>
-<div ref="el" class="ProcessTerminal" :class="{ 'ProcessTerminal--fixed': !owner }" />
+<div ref="el" class="ProcessTerminal" :class="{ 'ProcessTerminal--fixed': !owner }" :data-term-uid="uid" />
 </template>
 
 <style scoped lang="scss">

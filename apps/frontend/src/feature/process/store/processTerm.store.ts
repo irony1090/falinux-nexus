@@ -4,6 +4,7 @@ import {
     type ProcessResponse, type ProcessResponseDto, type ProcessSnapshot, type ProcessStatus, type ProcessType,
 } from '@/feature/process/api/process.api'
 import { muteQueries } from '@/feature/process/util/xtermQuery.util'
+import { applyMods } from '@/feature/process/store/keyModifier.store'
 import type { TileSize } from '@/feature/widget/util/tile.type'
 import { FitAddon } from '@xterm/addon-fit'
 import { Terminal } from '@xterm/xterm'
@@ -137,7 +138,7 @@ export const provideProcessTerm = () => {
         term.loadAddon(fit)
         term.attachCustomKeyEventHandler(clipboardKeys(term))
         muteQueries(term, () => !!owners_.value[uid])   // 질의 응답은 크기 소유 탭만 — term.dispose()가 같이 해제
-        term.onData(data => sendInput(uid, utf8.encode(data)))
+        term.onData(data => sendInput(uid, utf8.encode(applyMods(data))))   // 특수 키 줄 Ctrl·Alt — VK3(Ctrl 동작)
         // onBinary = 문자 하나가 바이트 하나(마우스 보고 등) — UTF-8로 다시 인코딩하면 안 됨
         term.onBinary(data => sendInput(uid, Uint8Array.from(data, ch => ch.charCodeAt(0) & 0xff)))
         return { term, fit }
@@ -334,6 +335,10 @@ export const provideProcessTerm = () => {
 
     const handleOf = (uid: string) => handles.get(uid)
 
+    // 특수 키 줄 전송 — 키보드-3(특수 키 줄). 방향키 코드는 앱이 켠 커서 키 모드를 따른다
+    const sendText = (uid: string, text: string) => sendInput(uid, utf8.encode(text))
+    const appCursor = (uid: string) => !!handles.get(uid)?.term.modes.applicationCursorKeysMode
+
     // 화면에 붙은 xterm만 — 붙었으면 true
     const focus = (uid: string) => {
         const term = handles.get(uid)?.term
@@ -411,6 +416,8 @@ export const provideProcessTerm = () => {
         syncSize,
         takeSize,
         handleOf,
+        sendText,
+        appCursor,
         focus,
         attach,
         detach,

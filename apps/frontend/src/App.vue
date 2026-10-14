@@ -33,3 +33,8 @@ provideAppDialog();
 bindTabId(provideTestSocket());
 
 </script>
+
+<style>
+/* 문서 당김·튕김 막기(iOS는 가상 키보드가 뜰 때 문서를 밀어 올림) — REF-mobile-keyboard.md 키보드-4 */
+html, body { overscroll-behavior: none; }
+</style>
