@@ -215,6 +215,12 @@ export const provideProcessTerm = () => {
         if (!isRunning(old.status) && isRunning(dto.status)) return   // 종료 STATUS보다 늦게 온 UPDATE로 실행 중에 되돌리지 않는다
         const { permission, ownerNickname, startedBy, startedByMe } = old // 계정 기준 값은 REST 응답에만 있어 이벤트로 덮지 않는다
         procs_.value[dto.uid] = { ...toProcessResponse(dto), permission, ownerNickname, startedBy, startedByMe }
+        // 재발 방지 — 밀림-나(즉시 반영): 고정 탭은 뒤이어 오는 다시 그리기 출력보다 먼저 크기를 맞춘다.
+        // ProcessTerminal의 150ms 묶음을 기다리면 새 크기용 출력이 옛 크기에 그려져 밀린 화면이 남는다(REF-size-take.md "실측-3 결과")
+        const h = handles.get(dto.uid)
+        if (h && !owners_.value[dto.uid] && dto.cols > 0 && dto.rows > 0 && (h.term.cols !== dto.cols || h.term.rows !== dto.rows)) {
+            h.term.resize(dto.cols, dto.rows)
+        }
     }))
 
     // 등록 전(복원 중)에 와도 기록한다 — register가 이 값을 유지. lost = 다른 탭이 가져감(크기-2(잃음 알림))

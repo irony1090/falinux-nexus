@@ -245,9 +245,10 @@ type resizeRequest struct {
 // MsgResize(REQ)를 전달하고(process/manager.go newWorkerInteractive의 onLayout) 그 응답을
 // 그대로 기다린다 — 이미 종료된 uid는 404, worker가 거부/끊김이면
 // 500이라 DB/memory엔 손대지 않는다. worker가 실제로 확인해 준 값만 "진짜 결과"로 취급해
-// DB(UpdateProcessLayout)+memory(entry.SetRecord)를 갱신하고, 커밋 성공 후에만
+// DB(UpdateProcessLayout)+memory(entry.SetRecord)를 갱신하고, 커밋 성공 후
 // PROCESS:<uid> 토픽에 MsgProcessUpdate로 알린다(kill/exec와 달리 뒤이어 오는 STATUS 이벤트가
 // 없어 이 REST 안에서 동기로 확정 짓는다 — REF-process-trigger.md 참조).
+// 단 새 크기는 worker에 보내기 전에 한 번 먼저 알린다(아래 밀림-가(먼저 발행)).
 func (r *supervisorRouter) resizeProcess(c echo.Context) error {
 	sess := r.requireSession(c)
 	uid := c.Param("processId")
@@ -265,7 +266,15 @@ func (r *supervisorRouter) resizeProcess(c echo.Context) error {
 	if !r.claimSizeOwner(uid, tabID) {
 		panic(web.Err(403, "크기를 바꿀 수 있는 탭이 아닙니다"))
 	}
+	// 재발 방지 — 밀림-가(먼저 발행): 새 크기를 worker에 보내기 전에 고정 탭들에 먼저 알린다.
+	// Publish는 구독 소켓에 동기로 쓰므로, 이 뒤 SIGWINCH로 앱이 다시 그린 출력(DATA)보다 반드시 앞선다.
+	// 응답·커밋 뒤에만 알리면 고정 탭이 새 크기용 출력을 옛 크기 xterm에 그려 밀린 화면이 남는다(REF-size-take.md "실측-3 결과").
+	prev := *entry.Record
+	next := prev
+	next.Rows, next.Cols = int16(body.Rows), int16(body.Cols)
+	r.publishProcess(next)
 	if err := entry.Inter.Layout(body.Cols, body.Rows); err != nil {
+		r.publishProcess(prev) // 고정 탭을 옛 크기로 되돌린다
 		panic(web.Err(500, "resize 실패: %v", err))
 	}
 
