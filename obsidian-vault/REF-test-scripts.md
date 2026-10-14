@@ -48,3 +48,6 @@
 ## 2026-10-14 확인 스크립트 (파트(확인·실측))
 - 공용 `chk/client.py`: `Client`(쿠키 REST, `X-Tab-Id`) + `Tab`(소켓 하나 = 탭, 읽기 스레드가 `TAB:ID`·`DATA`를 모음, `view`·`input`·`emit`)
 - 실측-1(PENDING 입력 버림) `chk/i3.py` → `REF-process-input.md` "실측-1 결과" / 실측-2(탭 보관 60초) `chk/grace.py` → `REF-process-sync-impl.md` "실측-2 결과" / 실측-3(htop 줄 밀림) `pw/htop*.mjs`·`chk/order.py` → `REF-size-take.md` "실측-3 결과"
+- 파트(모바일 가상 키보드) `pw/kb.mjs`(22개) → `REF-mobile-keyboard.md` "키보드-5(확인) 헤드리스 결과"(가짜 visualViewport 방법 포함)
+- 같은 파트 `pw/kb3.mjs`(12개, 라(resizes-content 전환): `setViewportSize`로 창 높이를 줄여 흉내, 다이얼로그는 폴더 `button.nm` -> `.row` `button[title="메뉴"]`) → `REF-mobile-keyboard.md` "라(resizes-content 전환)"
+- 같은 파트 `pw/kb2.mjs`(10개, 고침-나(커서 기준 이동)) → `REF-mobile-keyboard.md` "고침-나(커서 기준 이동) 헤드리스 결과"(칼럼 이동·소문자 명령 키 함정)

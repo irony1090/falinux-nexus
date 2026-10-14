@@ -10,20 +10,20 @@
 ## ⚠️ 다음 세션 시작 시
 - **다음 순서(2026-10-14 사용자 결정)**: ① 파트(확인·실측) → ② 파트(모바일 가상 키보드) → ③ 파트(보드 미리보기 = 루트 보드에서 다른 보드들의 미리보기 타일)
   - ~~① 파트(확인·실측)~~ **마감(2026-10-14)**: 실측-1(PENDING 입력 버림) 7/7 → `REF-process-input.md` / 실측-2(탭 보관 60초) 9/9 → `REF-process-sync-impl.md` / 실측-3(htop 줄 밀림) 원인 확인·밀림-가(먼저 발행)·밀림-나(즉시 반영) 수정 → `REF-size-take.md` "실측-3 결과". 스크립트 명세 → `REF-test-scripts.md` "2026-10-14"
-  - **진행 중 = ② 파트(모바일 가상 키보드)** — 다음 세션/다음 작업에서 `REF-node-ui-overview.md` "모바일 가상 키보드"부터
-  - ② 파트(모바일 가상 키보드) 현황: A+B 반영돼 있고 iPhone 실기기 확인만 남음(→ `REF-node-ui-overview.md` "모바일 가상 키보드") — 실기기는 사용자 확인
-  - ③ 파트(보드 미리보기): `REF-workspace.md` "희망안"에서 설계부터
+  - ~~② 파트(모바일 가상 키보드)~~ **마감(2026-10-14) → `INDEX-mobile-keyboard.md`**(★ 반복 주제 `REF-mobile-viewport.md`). 특수 키 줄 + 커서 기준 이동 + `resizes-content` 전환(키보드 열린 동안 타일 영역 높이 고정). Fold 8 크롬 정확 / Edge 폰 크기 기본 화면 빈틈 약 34(브라우저 오류, 기록만). iPhone 확인은 나중
+    - 폰 사진 올리기 도구는 `vite.config.mts`에서 주석 처리(→ `REF-test-env.md` "폰 사진 올리기")
+    - 미룬 별건: 전체 화면을 켜면 같은 칼럼이 `single` -> `row`(빈 칸 추가)로 바뀜(사진 `user/photo_2026-10-14_14-21-37.jpg`·`..._14-21-38.jpg`)
+  - **다음 = ③ 파트(보드 미리보기)**: `REF-workspace.md` "희망안"에서 설계부터(출력 구독 범위 결정 필요)
+  - **색인 2단화 대기**: MEMORY 9.98k·HISTORY 9.9k자로 10k 직전 → 마감 파트(HISTORY "진행 중 파트" 절에 남은 node-label·frontend-auth·node-ui-active·size-take·node-clipboard/select·term-query·process-kill·node-list-sync·tile-binding 등)를 어떤 묶음으로 `INDEX-*`에 접을지 사용자에게 물어볼 것
 - **외부 접속 설정 사용 중**: 프론트 https://test1.falinux.com(8011) · supervisor https://test2.falinux.com(8012) · worker -> localhost:8012 → `REF-external-access.md`. 로컬 전용(5050·3000)으로 되돌리는 법도 거기
 - **최근 마감 파트**(상세는 HISTORY 색인·각 REF): 2026-10-14 크기 가져오기(→ `REF-size-take.md`) · 확인·실측(→ `REF-size-take.md` "실측-3 결과" 외) / 2026-10-13 노드 클립보드(→ `REF-node-clipboard.md`·`REF-node-select.md`) · 외부 접속·전체 화면 버튼(→ `REF-external-access.md`·`REF-frontend.md`) · 질의 응답 중복(→ `REF-term-query.md`) · 서버 정리(→ `history/supervisor-web.md`·`history/node-label.md` 2026-10-13(2)) · 바인딩 타일(→ `REF-tile-binding-rework.md`·`-impl.md`) / 2026-10-12 5 공유(→ `INDEX-process-share.md`) · active 타일·원격 배지(→ `REF-node-ui-active.md`) · worker 명부(→ `REF-node-label.md` "roster 계획") · user/login 마무리(→ `REF-frontend-auth.md`) · process 종료 정책(→ `REF-process-kill.md`) · 폴더 목록 동기화(→ `REF-node-list-sync.md`)
   - 남은 주의: 개발 DB에 테스트 계정 `active-<시각>` 3개(폴더 11개씩) / 개발용 로그인 기본값 = `apps/frontend/.env.development.local`(git 제외) / worker는 종료 정책 이후 빌드여야 force를 앎
 - **다음 플랜**: 위 "다음 순서" ①~③
   - 나중으로 미룸: process 단독 공유 UI를 둘지 결정(지금 서버 API만, 두면 받는 쪽 진입점 = 기본 루트 터미널 탭, `REF-tile-binding-rework.md` R3(경로 없는 process)) / 회원가입
 - 5 공유에서 뒤로 미룬 것: ~~숨기기~~(2026-10-13 철회 — 타일 닫기로 충분, → `REF-process-share.md`) / ~~잘라내기~~ → 파트(노드 클립보드)로 마감(2026-10-13) / 보드 미리보기(`/` 루트 타일 안 다른 보드 카드, `REF-workspace.md` "희망안") / 단축키 키 조합 / ~~크기 우선권 넘김 실측~~(파트(크기 가져오기)에서 15초로 바꾸고 실측 15.0~15.5초) / ~~`tabGrace` 60초 만료 실측~~(실측-2(탭 보관 60초), 60.1초)
-- 커밋 상태: 2026-10-14 파트(확인·실측) 마감까지 전부 커밋. **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
-- 재부팅(2026-10-13 네 번째 세션 끝)으로 사라질 것: scratchpad `pw/size.mjs`(격리 19개)·`pw/live.mjs`·`pw/live2.mjs`·`pw/repro.mjs`(사용자 환경)·`pw/shot*.mjs`·`vite.iso.mts`·`iso/`(바이너리·env)·`ck_*`(curl 쿠키)·`pw/node_modules` — 명세 → `REF-size-take.md` "크기-4(확인) 결과"·`history/size-take.md` 2026-10-13(5). 임시 DB `nexus_size_tmp`는 삭제함. 사용자 DB에 헤드리스 로그인 세션 여러 개 생김(irony·test1, 데이터 변경 없음)
-- 재부팅(2026-10-13 세 번째 세션 끝)으로 사라짐: scratchpad `pw/sel.mjs`(선택 모드 44개)·`pw/https.mjs`(외부 접속)·`pw/reload.mjs`(새로고침 관찰)·`pw/fs.mjs`(전체 화면)·`vite.iso.mts`·`iso/`·`iso2/`·`probe/`·`pw/node_modules` — 명세 → `history/node-select.md` 2026-10-13(4)·`history/external-access.md`. 임시 DB `nexus_sel_tmp`·`nexus_https_tmp`는 삭제함
-- 재부팅(2026-10-13 두 번째, 세션 끝)으로 사라짐: scratchpad `pw/clip.mjs`·`pw/clipshot.mjs`·`pw/query.mjs`·`vite.iso.mts`·`iso/`(바이너리·env)·`pw/node_modules` — 명세 → `history/node-clipboard.md` 2026-10-13(2)·`history/term-query.md` 응답-3. 임시 DB(`nexus_cleanup_tmp`·`nexus_query_tmp`·`nexus_clip_tmp`)는 삭제함
-- 재부팅(2026-10-13)으로 사라짐: 2026-10-13 개편 확인 스크립트(`rework_test.py`·`client.py`·`aexec.py`·`pw/rework.mjs`·`vite.iso.mts`, 명세 → `REF-tile-binding-rework-impl.md` "개편-9(확인) 결과", 임시 DB `nexus_rework_tmp` 삭제함) + 2026-10-12 세션들의 scratchpad 확인 스크립트·격리 설정 전부(`vite.iso.mts`·`pw/`(node_modules 포함)·`iso/`(supervisor·worker 바이너리·env)·`roster_api.py`·`pw/roster.mjs`·`pw/login.mjs`·`pw/logout_board.mjs`·`pw/board_removed.mjs` · 종료 파트 `kill_test.py`·`fail_test.py`·`pw/kill.mjs` · 동기화 파트 `sync_test.py`·`pw/sync.mjs` · 바인딩 파트 `bind_test.py`·`pw/bind.mjs` 등). 다시 쓸 땐 `REF-test-env.md` "격리 실행"·`REF-test-scripts.md` "2026-10-12 확인 스크립트"(active·명부·로그인 항목이 곧 재작성 명세)·`REF-process-share-verify.md` "방법"·`REF-process-kill.md` "종료-6(확인) 결과"·"실행 실패 정리". 임시 DB(`nexus_roster_tmp`·`nexus_login_tmp`·`nexus_kill_tmp`·`nexus_sync_tmp`·`nexus_bind_tmp`)는 삭제함, 5050·3000은 사용자 것
+- 커밋 상태: 2026-10-14 파트(모바일 가상 키보드) 마감까지 전부 커밋(사진 `user/photo_2026-10-14_*` 약 35장은 용량 때문에 커밋 안 함). **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
+- 재부팅(2026-10-14 세션 끝)으로 사라짐: scratchpad `pw/kb.mjs`·`kb2.mjs`·`kb3.mjs`·`vkchk.mjs`·`unitchk.mjs`·`up.mjs`·`vite.iso.mts`·`iso/`(바이너리·env)·`chk/`·`pw/node_modules` — 명세 → `REF-test-scripts.md`(2026-10-14 확인·실측 + 모바일 가상 키보드 줄). 임시 DB `nexus_kb_tmp` 삭제함. 사용자 DB에 헤드리스 로그인 세션 몇 개(irony, 데이터 변경 없음)
+- 이전 재부팅들(2026-10-12~13)로 사라진 스크립트 명세는 `REF-test-scripts.md`·각 파트 REF 확인 절에
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
 - 역할 분담(2026-09-29 개정): node 타일 UI·process 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다
 
@@ -41,7 +41,7 @@
 3. 라우팅 스킴 재검토(옛 `/nodes/:parentId?`가 이 모델에 맞는지)
 4. ~~`NODE:<parentId>` 동적 구독/해지~~ — **해소**(2026-10-12 파트(폴더 목록 동기화): 동적 구독 대신 계정 토픽 + 발행 시점 판정, → `REF-node-list-sync.md`)
 5. **네이밍**: 전체 개념 "그리드" vs "타일링", `Band`(가칭) — 작업 공간 화면 이름은 **"보드"로 확정**(2026-10-07)
-15. **모바일 가상 키보드**: A+B 확정·반영, **iPhone 실기기 확인만 남음** → `REF-node-ui-overview.md` "모바일 가상 키보드". **주의**: `appWindown.store.ts`의 `size.inner`(visualViewport)에 판정을 연결하면 안 됨
+15. **모바일 가상 키보드**: A+B 확정, **② 파트(모바일 가상 키보드) 마감(2026-10-14) → `INDEX-mobile-keyboard.md`**, iPhone 실기기 확인은 나중 → `REF-node-ui-overview.md` "모바일 가상 키보드". **주의**: `appWindown.store.ts`의 `size.inner`(visualViewport)에 판정을 연결하면 안 됨
 
 - ② `ProcessDialog` 다중 인스턴스 리팩터는 6 타일 임베드(J~N)에서 `ProcessDialog` 삭제로 해소(2026-10-06 정리 때 확인)
 

@@ -38,3 +38,8 @@
 - DB에 남은 테스트 데이터: 계정 `input-test-b`(타일 트리 행 있음, 루트만) · `tile-race-<시각>` 1개 · `tile-store-`/`tile-exec-`/`tile-restore-`/`tile-other-`/`dbg-`/`push-`/`push-other-`/`sync-`/`sync2-<시각>` 여러 개(3-c·3-d·4 확인용) + `snap-`/`snap-other-`/`snap-probe-`/`snapb-<이름>-<시각>`(4.5 확인용, 노드는 삭제). irony 타일 트리 = 루트만(version 12)
 - DB 노드 현황: 폴더 id 1(`HTOP_TEST_SH_MODI`, `device_key=irony-MAC-ADDress1`) 안에 스크립트 2~4 / 폴더 `test`(14) > `ttt1`(15) > 스크립트 23(사용자 테스트용)
 
+
+## 폰 사진 올리기 (2026-10-14, 실기기 확인용)
+- `apps/frontend/dev-upload.plugin.mts`(vite 플러그인): `https://test1.falinux.com/__upload?t=<토큰>` 페이지에서 고른 사진을 user vault `obsidian-vault/user/photo_<날짜_시각>.jpg`로 저장. 900KB 넘으면 폰 브라우저에서 JPEG로 줄임(프록시 본문 한도 회피). 토큰이 없거나 틀리면 404(test1은 외부에 열려 있음)
+- 평소엔 꺼 둠: `vite.config.mts`의 `// import { devUpload }`·`// devUpload(...)` 두 줄 주석을 풀면 켜짐(설정 변경 = vite 자동 재시작). 토큰 = `.env.development.local` `DEV_UPLOAD_TOKEN`
+- 사진이 많으면 읽기 전에 ImageMagick `montage`로 묶거나 PIL로 필요한 부분만 잘라 보기(이미지 1장 = 컨텍스트 많이 씀)

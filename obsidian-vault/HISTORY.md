@@ -13,6 +13,7 @@
   - 2026-10-14 `history/process-input.md`에 실측-1(PENDING 입력 버림) 격리 확인 7/7 — I3 확인 끝
 - process 동기화·공유·보드(마감) → `INDEX-process-share.md` (process-sync(+impl)·process-share 13개·workspace 4개)
   - 2026-10-14 `history/process-sync-impl.md`에 실측-2(탭 보관 60초) 격리 확인 9/9(presence 빠짐 60.1초)
+- **★ 모바일 가상 키보드(마감, 중요 — 다른 프로젝트에서도 생김) → `INDEX-mobile-keyboard.md`** (mobile-keyboard·반복 주제 mobile-viewport)
 
 ## history/ 파일 색인 (진행 중 파트)
 
