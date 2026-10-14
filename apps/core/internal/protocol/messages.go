@@ -275,9 +275,12 @@ const (
 	MsgProcessInput MsgType = "PROCESS:INPUT"
 )
 
-// SizeOwnerEvent: 받는 탭이 uid의 PTY 크기 소유자가 됐다는 통지.
+// SizeOwnerEvent: 받는 탭이 uid의 PTY 크기 소유자가 됐다는 통지. Lost = 잃음(연결된 채 다른 탭에 넘어감) — 크기-2(잃음 알림)
+// By = 잃음일 때 가져간 다른 계정의 닉네임(같은 계정·자동 넘김이면 비움) — K5(빼앗긴 탭 안내)
 type SizeOwnerEvent struct {
-	UID string `json:"uid"`
+	UID  string `json:"uid"`
+	Lost bool   `json:"lost,omitempty"`
+	By   string `json:"by,omitempty"`
 }
 
 // 소켓 연결 직후 서버가 그 소켓에 가장 먼저 보내는 탭 id (REF-process-sync.md V(탭 id 전달))

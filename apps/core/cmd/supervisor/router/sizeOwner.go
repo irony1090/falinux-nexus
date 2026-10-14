@@ -2,7 +2,9 @@ package router
 
 import (
 	"context"
+	"errors"
 	"log"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -75,13 +77,65 @@ func (r *supervisorRouter) releaseSizeOwner(uid string) {
 
 // notifySizeOwner는 그 탭의 소켓에만 보낸다(끊겨 있으면 재연결 후 GET /processes로 안다).
 func (r *supervisorRouter) notifySizeOwner(uid, tabID string) {
+	r.emitSizeOwner(uid, tabID, protocol.SizeOwnerEvent{UID: uid})
+}
+
+// notifySizeOwnerLost: 연결된 채 소유권을 잃은 탭에 알린다 — 크기-2(잃음 알림). 안 알리면 그 탭이 계속 질의에 응답한다(REF-term-query.md)
+// by = 가져간 다른 계정의 닉네임(K5(빼앗긴 탭 안내)), 같은 계정이거나 가져간 사람이 없으면 ""
+func (r *supervisorRouter) notifySizeOwnerLost(uid, tabID, by string) {
+	r.emitSizeOwner(uid, tabID, protocol.SizeOwnerEvent{UID: uid, Lost: true, By: by})
+}
+
+func (r *supervisorRouter) emitSizeOwner(uid, tabID string, ev protocol.SizeOwnerEvent) {
 	conn := r.tabs.connOf(tabID)
 	if conn == nil {
 		return
 	}
-	if err := conn.Emit(protocol.MsgProcessSizeOwner, protocol.SizeOwnerEvent{UID: uid}); err != nil {
-		log.Printf("[sizeOwner] 알림 실패 uid=%s: %v", uid, err)
+	if err := conn.Emit(protocol.MsgProcessSizeOwner, ev); err != nil {
+		log.Printf("[sizeOwner] 알림 실패 uid=%s lost=%v: %v", uid, ev.Lost, err)
 	}
+}
+
+var (
+	errSizeNotCandidate = errors.New("not a size owner candidate")
+	errSizeOtherAccount = errors.New("size owned by another account")
+)
+
+// takeSizeOwner는 tabID가 크기 우선권을 바로 가져온다 — 크기-1(가져오기 API).
+// tabID는 후보(sizeOwnerCandidates)여야 하고, 다른 계정의 연결된 탭이 가진 것은 스크립트 소유 계정(processOwner)만 가져온다 — K4(소유 계정 우선)
+func (r *supervisorRouter) takeSizeOwner(uid, tabID string, userID int64, processOwner bool) error {
+	if !slices.ContainsFunc(r.sizeOwnerCandidates(uid), func(t browserTab) bool { return t.tabID == tabID }) {
+		return errSizeNotCandidate
+	}
+
+	o := r.sizeOwners
+	o.mu.Lock()
+	cur := o.owner[uid]
+	if cur == tabID {
+		o.mu.Unlock()
+		return nil
+	}
+	curConn := cur != "" && r.tabs.connOf(cur) != nil
+	by := ""
+	if curConn {
+		if curTab, _ := r.tabs.tabOf(cur); curTab.userID != userID {
+			if !processOwner {
+				o.mu.Unlock()
+				return errSizeOtherAccount
+			}
+			me, _ := r.tabs.tabOf(tabID)
+			by = me.nickname
+		}
+	}
+	o.stopTimerLocked(uid)
+	o.owner[uid] = tabID
+	o.mu.Unlock()
+
+	if curConn {
+		r.notifySizeOwnerLost(uid, cur, by)
+	}
+	r.notifySizeOwner(uid, tabID)
+	return nil
 }
 
 // sizeOwnerOnConnect는 탭이 붙은 직후(tabs.attach 뒤) 부른다: 대기 중인 넘김 취소 + 빈 소유권은 보는 탭이 가져감(resync).
@@ -131,7 +185,7 @@ func (r *supervisorRouter) resyncSizeOwners(uids []string) {
 
 // resyncSizeOwner는 소유자가 그 터미널을 화면에 둔 탭인지 맞춘다 — WS7(보는 작업 공간 전달):
 // 비어 있으면 첫 후보가 가져가고, 연결된 소유자가 후보가 아니면(다른 작업 공간을 봄·터미널이 옮겨짐) 첫 후보로 넘긴다(없으면 비움).
-// 끊긴 소유자(tabGrace 대기)는 sizeOwnerOnDisconnect 규칙에 맡긴다. 끝난 process(소유 기록 없음 + memory에 없음)는 건드리지 않는다
+// 끊긴 소유자(sizeHandoffGrace 대기)는 sizeOwnerOnDisconnect 규칙에 맡긴다. 끝난 process(소유 기록 없음 + memory에 없음)는 건드리지 않는다
 func (r *supervisorRouter) resyncSizeOwner(uid string) {
 	cands := r.sizeOwnerCandidates(uid)
 	_, running := r.processManager.Get(uid)
@@ -164,12 +218,15 @@ func (r *supervisorRouter) resyncSizeOwner(uid string) {
 	o.owner[uid] = next
 	o.mu.Unlock()
 
+	if cur != "" {
+		r.notifySizeOwnerLost(uid, cur, "") // 위에서 걸렀으므로 cur는 연결된 탭
+	}
 	if next != "" {
 		r.notifySizeOwner(uid, next)
 	}
 }
 
-// sizeOwnerOnDisconnect는 탭이 빠진 직후(tabs.detach 뒤) 부른다. tabGrace 안에 같은 탭 id로 돌아오면 유지.
+// sizeOwnerOnDisconnect는 탭이 빠진 직후(tabs.detach 뒤) 부른다. sizeHandoffGrace 안에 같은 탭 id로 돌아오면 유지.
 func (r *supervisorRouter) sizeOwnerOnDisconnect(tabID string) {
 	o := r.sizeOwners
 	o.mu.Lock()
@@ -178,7 +235,7 @@ func (r *supervisorRouter) sizeOwnerOnDisconnect(tabID string) {
 		if cur != tabID || o.timers[uid] != nil {
 			continue
 		}
-		o.timers[uid] = time.AfterFunc(tabGrace, func() { r.handoffSizeOwner(uid, tabID, "", false) })
+		o.timers[uid] = time.AfterFunc(sizeHandoffGrace, func() { r.handoffSizeOwner(uid, tabID, "", false) })
 	}
 }
 

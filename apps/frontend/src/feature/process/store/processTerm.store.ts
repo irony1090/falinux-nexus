@@ -1,6 +1,6 @@
 import { useTestSocket } from '@/common/websocket/websocket.hook'
 import {
-    execProcess, getProcessSnapshot, killProcess, listProcesses, resizeProcess, toProcessResponse,
+    execProcess, getProcessSnapshot, killProcess, listProcesses, resizeProcess, takeSizeOwner, toProcessResponse,
     type ProcessResponse, type ProcessResponseDto, type ProcessSnapshot, type ProcessStatus, type ProcessType,
 } from '@/feature/process/api/process.api'
 import { muteQueries } from '@/feature/process/util/xtermQuery.util'
@@ -15,9 +15,10 @@ const PROCESS_TERM_STORE_KEY = Symbol('ProcessTermStore')
 // 백엔드 미러: protocol.DataEvent(data = base64, off = 이 묶음까지의 누적 바이트) / protocol.StatusEvent(status = execute.CommandStatus 숫자) / protocol.SizeOwnerEvent
 type DataEvent = { uid: string; data: string; off?: number }
 type StatusEvent = { uid: string; status: number; pid?: number; exitCode: number }
-type SizeOwnerEvent = { uid: string }
+type SizeOwnerEvent = { uid: string; lost?: boolean; by?: string }
 
 const ALT_SCREEN_ENTER = '\x1b[?1049h'
+const TAKEN_MS = 4000
 
 const STATUS_BY_CODE: ProcessStatus[] = ['PENDING', 'PROCESS', 'COMPLETED', 'FAILED']
 
@@ -63,6 +64,8 @@ export const provideProcessTerm = () => {
 
     const procs_ = ref<Record<string, ProcessResponse>>({})
     const owners_ = ref<Record<string, boolean>>({})
+    const takenBy_ = ref<Record<string, string>>({})   // 다른 계정이 크기를 가져감(잠깐 표시) — K5(빼앗긴 탭 안내)
+    const takenTimers = new Map<string, ReturnType<typeof setTimeout>>()
     const gone_ = ref<Record<string, true>>({})     // 볼 수 없게 된 터미널(공유 취소·삭제) — 실시간-6b. 타일은 남고 비활성화
     const restored_ = ref(false)        // 복원 전엔 모르는 uid의 터미널 타일을 닫지 못하게 — 3-d②(복원 전 닫기)
     const handles = new Map<string, TermHandle>()   // 반응형에 넣지 않는다(xterm 객체를 proxy로 감싸면 안 됨)
@@ -214,9 +217,14 @@ export const provideProcessTerm = () => {
         procs_.value[dto.uid] = { ...toProcessResponse(dto), permission, ownerNickname, startedBy, startedByMe }
     }))
 
-    // 등록 전(복원 중)에 와도 기록한다 — register가 이 값을 유지
+    // 등록 전(복원 중)에 와도 기록한다 — register가 이 값을 유지. lost = 다른 탭이 가져감(크기-2(잃음 알림))
     offs.push(on<SizeOwnerEvent>('PROCESS:SIZE_OWNER', ev => {
-        owners_.value[ev.uid] = true
+        owners_.value[ev.uid] = !ev.lost
+        clearTimeout(takenTimers.get(ev.uid))
+        if (ev.lost && ev.by) {
+            takenBy_.value[ev.uid] = ev.by
+            takenTimers.set(ev.uid, setTimeout(() => delete takenBy_.value[ev.uid], TAKEN_MS))
+        } else delete takenBy_.value[ev.uid]
     }))
 
     // 연결이 끊긴 사이 소유권이 넘어갔을 수 있다(원래 소유자는 되찾지 않음) — 다시 붙으면 서버 기준으로 맞춘다
@@ -290,6 +298,7 @@ export const provideProcessTerm = () => {
         expired.clear()
         procs_.value = {}
         owners_.value = {}
+        takenBy_.value = {}
         gone_.value = {}
         restored_.value = false
     }
@@ -313,6 +322,9 @@ export const provideProcessTerm = () => {
                 syncOwners()
             })
     }
+
+    // 소유자 표시는 응답이 아니라 이벤트로 바꾼다 — 응답보다 늦게 다른 탭이 가져갔을 수 있어서
+    const takeSize = (uid: string) => takeSizeOwner(uid)
 
     const handleOf = (uid: string) => handles.get(uid)
 
@@ -369,6 +381,7 @@ export const provideProcessTerm = () => {
 
     onBeforeUnmount(() => {
         clearInterval(purge)
+        takenTimers.forEach(t => clearTimeout(t))
         offs.forEach(off => off())
         handles.forEach(h => h.term.dispose())
         handles.clear()
@@ -377,6 +390,7 @@ export const provideProcessTerm = () => {
     const ctx = {
         procs: readonly(procs_),
         owners: readonly(owners_),
+        takenBy: readonly(takenBy_),
         restored: readonly(restored_),
         gone: readonly(gone_),
         markGone,
@@ -389,6 +403,7 @@ export const provideProcessTerm = () => {
         prune,
         kill,
         syncSize,
+        takeSize,
         handleOf,
         focus,
         attach,

@@ -127,6 +127,12 @@ export const resizeProcess = (processId: string, param: ResizeProcessRequest) =>
 .then(toProcessResponse)
 .catch(throwCatch)
 
+// 크기 우선권을 이 탭으로 바로 가져온다 — 크기-1(가져오기 API). 결과는 PROCESS:SIZE_OWNER 이벤트로 온다
+export const takeSizeOwner = (processId: string) => BaseAxios.post(
+    `/processes/size-owner/${processId}`
+).then(throwThen<{}>)
+.catch(throwCatch)
+
 // 화면 복원 스냅샷 — data = base64(최근 출력, 최대 256KB), off = data 끝의 누적 바이트(off > data 길이면 앞이 밀려남).
 // redraw = 서버가 alt screen 다시 그리기를 시킴(그 출력은 off 뒤 DATA로 옴). cols·rows = 0이면 아직 resize 전
 export type ProcessSnapshot = {

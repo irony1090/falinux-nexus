@@ -11,7 +11,13 @@ import (
 
 // 탭 등록부: 브라우저 소켓 연결 하나 = 탭 하나. 탭 id는 서버가 발급한다 — REF-process-sync.md "탭 id 수명"
 
-const tabGrace = 60 * time.Second // 끊긴 탭 id(와 그 탭의 크기 우선권)를 보관하는 시간
+// 두 시간은 sizeHandoffGrace <= tabGrace 를 지켜야 한다 — K3(여유 시간).
+// 반대면 탭 id는 폐기됐는데 크기 우선권은 그 탭에 묶여, 넘김 대기가 끝날 때까지 아무 탭도 resize 못 한다.
+// 넘김 타이머(sizeOwnerOnDisconnect)와 탭 id 보관 타이머(detach)는 별개로 돈다.
+const (
+	tabGrace         = 60 * time.Second // 끊긴 탭 id를 보관하는 시간(새로고침·재연결 때 같은 id 재사용, presence "보관 중", REST belongsTo)
+	sizeHandoffGrace = 15 * time.Second // 끊긴 소유 탭의 크기 우선권을 다음 후보로 넘기기 전 대기
+)
 
 type browserTab struct {
 	sid         string
@@ -115,6 +121,19 @@ func (t *tabRegistry) detach(conn *transport.Conn) (browserTab, bool) {
 	})
 	t.released[tab.tabID] = rel
 	return *tab, true
+}
+
+// tabOf는 탭 id의 탭을 반환한다(연결된 것·보관 중인 것).
+func (t *tabRegistry) tabOf(tabID string) (browserTab, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if conn, ok := t.byTab[tabID]; ok {
+		return *t.conns[conn], true
+	}
+	if rel, ok := t.released[tabID]; ok {
+		return rel.tab, true
+	}
+	return browserTab{}, false
 }
 
 // connOf는 탭 id의 연결된 소켓을 반환한다(끊겨 있으면 nil).

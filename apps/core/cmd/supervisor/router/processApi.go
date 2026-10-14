@@ -25,6 +25,7 @@ func (r *supervisorRouter) mountProcesses(e *echo.Echo) {
 	g.POST("/exec", r.execProcess)
 	g.POST("/kill/:processId", r.killProcess)
 	g.POST("/resize/:processId", r.resizeProcess)
+	g.POST("/size-owner/:processId", r.takeProcessSizeOwner)
 	g.GET("/snapshot/:processId", r.snapshotProcess)
 }
 
@@ -281,6 +282,23 @@ func (r *supervisorRouter) resizeProcess(c echo.Context) error {
 
 	res := withPermission(withSizeOwner(newProcessResponse(row), true), r.processPerm(uid, sess.Data.ID))
 	return c.JSON(200, withProcessNames(c, sess.Data.ID, []processResponse{res}, []superdb.Process{row})[0])
+}
+
+// takeProcessSizeOwner: 요청 탭이 크기 우선권을 바로 가져온다 — 크기-1(가져오기 API). PTY 크기는 가져온 탭이 resize로 맞춘다
+func (r *supervisorRouter) takeProcessSizeOwner(c echo.Context) error {
+	sess := r.requireSession(c)
+	uid := c.Param("processId")
+	tabID := r.requireTab(c, sess.Name())
+	r.requireProcess(uid, sess.Data.ID, superdb.PermOperate)
+	owner := r.processPerm(uid, sess.Data.ID) == superdb.PermOwner // 스크립트 소유 계정(SH9) — K4(소유 계정 우선)
+
+	switch err := r.takeSizeOwner(uid, tabID, sess.Data.ID, owner); {
+	case errors.Is(err, errSizeOtherAccount):
+		panic(web.Err(403, "다른 계정이 이 터미널의 크기를 쓰는 중입니다"))
+	case errors.Is(err, errSizeNotCandidate):
+		panic(web.Err(403, "이 화면에 없는 터미널입니다"))
+	}
+	return c.JSON(200, map[string]any{})
 }
 
 // attachViewerTiles: 실행자 외에 볼 수 있는 계정 전부의 트리에 터미널 타일을 넣고 push한다(계정 id 순) — SD2.

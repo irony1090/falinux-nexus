@@ -33,7 +33,7 @@ const { tiles, hash: boardHash, pinByNode, resize, setMinimized, detachToBoard, 
 const { list: boards, defaultBoard, add: addBoard } = useBoards();
 const router = useRouter();
 const { cap, posOf, instanceOf, reveal, overview, rootTab, activeId, setActive } = useTileGrids();
-const { procs, restored, gone } = useProcessTerm();
+const { procs, owners, restored, gone, takeSize } = useProcessTerm();
 const { killing, closeTile, confirmKill } = useTerminalKill();
 const { openDialog } = useAppDialog();
 
@@ -84,6 +84,18 @@ const unavailable = computed(() => {
 const running = computed(() => isRunning(proc.value?.status));
 const terminating = computed(() => running.value && !!proc.value?.terminating);
 const presenceOpen = ref(false);   // 접속 상태 패널(공유-f)
+
+// 크기-3(버튼): 이 탭이 크기 소유자가 아닌 실행 중 터미널만. PENDING은 서버 memory에 없어 가져올 수 없다
+const canTakeSize = computed(() => tile.value?.type === 'terminal' && proc.value?.status === 'PROCESS' && !readOnly.value && !owners.value[tile.value.uid]);
+const taking = ref(false);
+const onTakeSize = () => {
+    const t = tile.value;
+    if (t?.type !== 'terminal') return;
+    taking.value = true;
+    takeSize(t.uid)
+    .catch(err => openDialog({ type: 'error', content: err?.message || '크기를 가져오지 못했습니다' }))
+    .finally(() => taking.value = false);
+}
 
 const pill = computed(() => pillOf(proc.value?.status, proc.value?.terminating));
 // 복원 전엔 상태를 몰라 X를 막는다 — 3-d②(복원 전 닫기)
@@ -225,6 +237,7 @@ const onX = () => {
         <active-badges :users="remoteUsers" />
 
         <template v-if="tile.type === 'terminal' && !unavailable">
+            <v-btn v-if="canTakeSize" size="x-small" variant="text" icon="mdi-arrow-expand-all" title="이 화면 크기로 가져오기" :loading="taking" @click="onTakeSize" />
             <v-btn size="x-small" variant="text" icon="mdi-account-multiple-outline" title="접속 상태" @click="presenceOpen = true" />
             <v-menu v-if="running && !readOnly" location="bottom end">
                 <template #activator="{ props: act }">
