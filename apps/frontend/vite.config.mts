@@ -3,6 +3,8 @@ import Vue from '@vitejs/plugin-vue'
 // import Fonts from 'unplugin-fonts/vite'
 import { defineConfig, loadEnv, type Plugin, UserConfig } from 'vite'
 import Vuetify, { transformAssetUrls } from 'vite-plugin-vuetify'
+// 폰 사진 -> user vault 올리기(/__upload?t=DEV_UPLOAD_TOKEN). 쓸 때 이 줄과 plugins의 devUpload 줄 주석을 푼다 — REF-test-env.md "폰 사진 올리기"
+// import { devUpload } from './dev-upload.plugin.mts'
 
 
 const css: UserConfig['css'] = {
@@ -43,6 +45,7 @@ return {
       },
     }),
     ...(env.HMR_CLIENT_PORT ? [hmrKeepAlive(20_000)] : []),
+    // devUpload(fileURLToPath(new URL('../../obsidian-vault/user', import.meta.url)), env.DEV_UPLOAD_TOKEN),
     // Fonts({
     //   fontsource: {
     //     families: [
