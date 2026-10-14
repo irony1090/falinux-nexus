@@ -1,22 +1,23 @@
 # CURRENT
 
 ## 현재 날짜
-2026-10-13
+2026-10-14
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`, 마감 파트는 `INDEX-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **진행 중 파트 없음** — 다음 파트는 사용자와 정할 것(아래 "다음 플랜"의 미룬 것 참고)
+- **진행 중 파트 없음** — 파트(크기 가져오기) 2026-10-14 마감·커밋(→ `REF-size-take.md`)
 - **외부 접속 설정 사용 중**: 프론트 https://test1.falinux.com(8011) · supervisor https://test2.falinux.com(8012) · worker -> localhost:8012 → `REF-external-access.md`. 로컬 전용(5050·3000)으로 되돌리는 법도 거기
-- **최근 마감 파트**(상세는 HISTORY 색인·각 REF): 2026-10-13 노드 클립보드(→ `REF-node-clipboard.md`·`REF-node-select.md`) · 외부 접속·전체 화면 버튼(→ `REF-external-access.md`·`REF-frontend.md`) · 질의 응답 중복(→ `REF-term-query.md`) · 서버 정리(→ `history/supervisor-web.md`·`history/node-label.md` 2026-10-13(2)) · 바인딩 타일(→ `REF-tile-binding-rework.md`·`-impl.md`) / 2026-10-12 5 공유(→ `INDEX-process-share.md`) · active 타일·원격 배지(→ `REF-node-ui-active.md`) · worker 명부(→ `REF-node-label.md` "roster 계획") · user/login 마무리(→ `REF-frontend-auth.md`) · process 종료 정책(→ `REF-process-kill.md`) · 폴더 목록 동기화(→ `REF-node-list-sync.md`)
+- **최근 마감 파트**(상세는 HISTORY 색인·각 REF): 2026-10-14 크기 가져오기(→ `REF-size-take.md`) / 2026-10-13 노드 클립보드(→ `REF-node-clipboard.md`·`REF-node-select.md`) · 외부 접속·전체 화면 버튼(→ `REF-external-access.md`·`REF-frontend.md`) · 질의 응답 중복(→ `REF-term-query.md`) · 서버 정리(→ `history/supervisor-web.md`·`history/node-label.md` 2026-10-13(2)) · 바인딩 타일(→ `REF-tile-binding-rework.md`·`-impl.md`) / 2026-10-12 5 공유(→ `INDEX-process-share.md`) · active 타일·원격 배지(→ `REF-node-ui-active.md`) · worker 명부(→ `REF-node-label.md` "roster 계획") · user/login 마무리(→ `REF-frontend-auth.md`) · process 종료 정책(→ `REF-process-kill.md`) · 폴더 목록 동기화(→ `REF-node-list-sync.md`)
   - 남은 주의: 개발 DB에 테스트 계정 `active-<시각>` 3개(폴더 11개씩) / 개발용 로그인 기본값 = `apps/frontend/.env.development.local`(git 제외) / worker는 종료 정책 이후 빌드여야 force를 앎
-- **다음 플랜**: 2026-10-13에 정한 파트(서버 정리·질의 응답 중복·노드 클립보드) 모두 마감
+- **다음 플랜**: 미정 — 2026-10-13에 정한 파트(서버 정리·질의 응답 중복·노드 클립보드)와 크기 가져오기 모두 마감
   - 나중으로 미룸: process 단독 공유 UI를 둘지 결정(지금 서버 API만, 두면 받는 쪽 진입점 = 기본 루트 터미널 탭, `REF-tile-binding-rework.md` R3(경로 없는 process)) / 회원가입
-- 5 공유에서 뒤로 미룬 것: ~~숨기기~~(2026-10-13 철회 — 타일 닫기로 충분, → `REF-process-share.md`) / ~~잘라내기~~ → 파트(노드 클립보드)로 마감(2026-10-13) / 보드 미리보기(`/` 루트 타일 안 다른 보드 카드, `REF-workspace.md` "희망안") / 단축키 키 조합 / `tabGrace` 60초 만료·크기 우선권 넘김 실측
-- 커밋 상태: 2026-10-13 파트(노드 클립보드) + 외부 접속·전체 화면 마감까지 전부 커밋. **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
-- 재부팅으로 사라질 것(2026-10-13 세 번째 세션): scratchpad `pw/sel.mjs`·`vite.iso.mts`·`iso/`·`pw/node_modules` — 명세 → `history/node-select.md` 2026-10-13(4). 임시 DB `nexus_sel_tmp`는 삭제함
+- 5 공유에서 뒤로 미룬 것: ~~숨기기~~(2026-10-13 철회 — 타일 닫기로 충분, → `REF-process-share.md`) / ~~잘라내기~~ → 파트(노드 클립보드)로 마감(2026-10-13) / 보드 미리보기(`/` 루트 타일 안 다른 보드 카드, `REF-workspace.md` "희망안") / 단축키 키 조합 / ~~크기 우선권 넘김 실측~~(파트(크기 가져오기)에서 15초로 바꾸고 실측 15.0~15.5초) / `tabGrace` 60초 만료 실측
+- 커밋 상태: 2026-10-14 파트(크기 가져오기) 마감까지 전부 커밋. **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
+- 재부팅(2026-10-13 네 번째 세션 끝)으로 사라질 것: scratchpad `pw/size.mjs`(격리 19개)·`pw/live.mjs`·`pw/live2.mjs`·`pw/repro.mjs`(사용자 환경)·`pw/shot*.mjs`·`vite.iso.mts`·`iso/`(바이너리·env)·`ck_*`(curl 쿠키)·`pw/node_modules` — 명세 → `REF-size-take.md` "크기-4(확인) 결과"·`history/size-take.md` 2026-10-13(5). 임시 DB `nexus_size_tmp`는 삭제함. 사용자 DB에 헤드리스 로그인 세션 여러 개 생김(irony·test1, 데이터 변경 없음)
+- 재부팅(2026-10-13 세 번째 세션 끝)으로 사라짐: scratchpad `pw/sel.mjs`(선택 모드 44개)·`pw/https.mjs`(외부 접속)·`pw/reload.mjs`(새로고침 관찰)·`pw/fs.mjs`(전체 화면)·`vite.iso.mts`·`iso/`·`iso2/`·`probe/`·`pw/node_modules` — 명세 → `history/node-select.md` 2026-10-13(4)·`history/external-access.md`. 임시 DB `nexus_sel_tmp`·`nexus_https_tmp`는 삭제함
 - 재부팅(2026-10-13 두 번째, 세션 끝)으로 사라짐: scratchpad `pw/clip.mjs`·`pw/clipshot.mjs`·`pw/query.mjs`·`vite.iso.mts`·`iso/`(바이너리·env)·`pw/node_modules` — 명세 → `history/node-clipboard.md` 2026-10-13(2)·`history/term-query.md` 응답-3. 임시 DB(`nexus_cleanup_tmp`·`nexus_query_tmp`·`nexus_clip_tmp`)는 삭제함
 - 재부팅(2026-10-13)으로 사라짐: 2026-10-13 개편 확인 스크립트(`rework_test.py`·`client.py`·`aexec.py`·`pw/rework.mjs`·`vite.iso.mts`, 명세 → `REF-tile-binding-rework-impl.md` "개편-9(확인) 결과", 임시 DB `nexus_rework_tmp` 삭제함) + 2026-10-12 세션들의 scratchpad 확인 스크립트·격리 설정 전부(`vite.iso.mts`·`pw/`(node_modules 포함)·`iso/`(supervisor·worker 바이너리·env)·`roster_api.py`·`pw/roster.mjs`·`pw/login.mjs`·`pw/logout_board.mjs`·`pw/board_removed.mjs` · 종료 파트 `kill_test.py`·`fail_test.py`·`pw/kill.mjs` · 동기화 파트 `sync_test.py`·`pw/sync.mjs` · 바인딩 파트 `bind_test.py`·`pw/bind.mjs` 등). 다시 쓸 땐 `REF-test-env.md` "격리 실행"·"2026-10-12 확인 스크립트"(active·명부·로그인 항목이 곧 재작성 명세)·`REF-process-share-verify.md` "방법"·`REF-process-kill.md` "종료-6(확인) 결과"·"실행 실패 정리". 임시 DB(`nexus_roster_tmp`·`nexus_login_tmp`·`nexus_kill_tmp`·`nexus_sync_tmp`·`nexus_bind_tmp`)는 삭제함, 5050·3000은 사용자 것
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
@@ -73,6 +74,7 @@
 - ~~`NODE:` 동적 구독~~ → 2026-10-12 파트(폴더 목록 동기화)로 해소(계정 토픽, → `REF-node-list-sync.md`)
 - ~~같은 터미널을 연 탭이 여러 개면 질의에 탭마다 응답~~ → 파트(질의 응답 중복)로 해결(2026-10-13 마감, → `REF-term-query.md`)
 - **input**: I3(PENDING 중 입력 버림) 확인만 남음(socat 재현 → `REF-process-reconnect.md` "재현 방법") → `REF-process-input.md`
+- **크기 바뀐 직후 htop 줄 밀림**: 다시 그리기 전 순간으로 추정, 스크린샷 1장뿐·확인 안 함(→ `history/size-take.md` 2026-10-13(5))
 - **Hub 막힘**: ping/pong(`e395433`)으로 해결, 남은 한계 = 막힘 최대 약 25초 → `REF-realtime.md` "발견"
 - **파일 전송**: 구현 완료 / e2e 미검증. 잔여: e2e 스모크 / abort sentinel. `history/transfer.md`가 분할 기준 초과(17k자) — 다음에 고칠 때 분할
 - **서브키 충돌/위조**: key↔subkey 결속 검증 미구현(명부는 인가에 안 쓰므로 계속 보류 — RS6(위조 검증))
