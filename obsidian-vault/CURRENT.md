@@ -12,7 +12,7 @@
   - ~~① 파트(확인·실측)~~ **마감(2026-10-14)**: 실측-1(PENDING 입력 버림) 7/7 → `REF-process-input.md` / 실측-2(탭 보관 60초) 9/9 → `REF-process-sync-impl.md` / 실측-3(htop 줄 밀림) 원인 확인·밀림-가(먼저 발행)·밀림-나(즉시 반영) 수정 → `REF-size-take.md` "실측-3 결과". 스크립트 명세 → `REF-test-scripts.md` "2026-10-14"
   - ~~② 파트(모바일 가상 키보드)~~ **마감(2026-10-14) → `INDEX-mobile-keyboard.md`**(★ 반복 주제 `REF-mobile-viewport.md`). 특수 키 줄 + 커서 기준 이동 + `resizes-content` 전환(키보드 열린 동안 타일 영역 높이 고정). Fold 8 크롬 정확 / Edge 폰 크기 기본 화면 빈틈 약 34(브라우저 오류, 기록만). iPhone 확인은 나중
     - 폰 사진 올리기 도구는 `vite.config.mts`에서 주석 처리(→ `REF-test-env.md` "폰 사진 올리기")
-    - 미룬 별건: 전체 화면을 켜면 같은 칼럼이 `single` -> `row`(빈 칸 추가)로 바뀜(사진 `user/photo_2026-10-14_14-21-37.jpg`·`..._14-21-38.jpg`)
+    - 미룬 별건: 전체 화면을 켜면 같은 칼럼이 `single` -> `row`(빈 칸 추가)로 바뀜(사진 `user/vrKeyboad/photo_2026-10-14_14-21-37.jpg`·`..._14-21-38.jpg`)
   - **다음 = ③ 파트(보드 미리보기)**: `REF-workspace.md` "희망안"에서 설계부터(출력 구독 범위 결정 필요)
   - **색인 2단화 대기**: MEMORY 9.98k·HISTORY 9.9k자로 10k 직전 → 마감 파트(HISTORY "진행 중 파트" 절에 남은 node-label·frontend-auth·node-ui-active·size-take·node-clipboard/select·term-query·process-kill·node-list-sync·tile-binding 등)를 어떤 묶음으로 `INDEX-*`에 접을지 사용자에게 물어볼 것
 - **외부 접속 설정 사용 중**: 프론트 https://test1.falinux.com(8011) · supervisor https://test2.falinux.com(8012) · worker -> localhost:8012 → `REF-external-access.md`. 로컬 전용(5050·3000)으로 되돌리는 법도 거기
@@ -21,7 +21,7 @@
 - **다음 플랜**: 위 "다음 순서" ①~③
   - 나중으로 미룸: process 단독 공유 UI를 둘지 결정(지금 서버 API만, 두면 받는 쪽 진입점 = 기본 루트 터미널 탭, `REF-tile-binding-rework.md` R3(경로 없는 process)) / 회원가입
 - 5 공유에서 뒤로 미룬 것: ~~숨기기~~(2026-10-13 철회 — 타일 닫기로 충분, → `REF-process-share.md`) / ~~잘라내기~~ → 파트(노드 클립보드)로 마감(2026-10-13) / 보드 미리보기(`/` 루트 타일 안 다른 보드 카드, `REF-workspace.md` "희망안") / 단축키 키 조합 / ~~크기 우선권 넘김 실측~~(파트(크기 가져오기)에서 15초로 바꾸고 실측 15.0~15.5초) / ~~`tabGrace` 60초 만료 실측~~(실측-2(탭 보관 60초), 60.1초)
-- 커밋 상태: 2026-10-14 파트(모바일 가상 키보드) 마감까지 전부 커밋(사진 `user/photo_2026-10-14_*` 약 35장은 용량 때문에 커밋 안 함). **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
+- 커밋 상태: 2026-10-14 파트(모바일 가상 키보드) 마감까지 전부 커밋(사진 44장은 user vault `user/vrKeyboad/`로 옮김, **user vault 전체 git 제외** 2026-10-14). **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함)
 - 재부팅(2026-10-14 세션 끝)으로 사라짐: scratchpad `pw/kb.mjs`·`kb2.mjs`·`kb3.mjs`·`vkchk.mjs`·`unitchk.mjs`·`up.mjs`·`vite.iso.mts`·`iso/`(바이너리·env)·`chk/`·`pw/node_modules` — 명세 → `REF-test-scripts.md`(2026-10-14 확인·실측 + 모바일 가상 키보드 줄). 임시 DB `nexus_kb_tmp` 삭제함. 사용자 DB에 헤드리스 로그인 세션 몇 개(irony, 데이터 변경 없음)
 - 이전 재부팅들(2026-10-12~13)로 사라진 스크립트 명세는 `REF-test-scripts.md`·각 파트 REF 확인 절에
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`

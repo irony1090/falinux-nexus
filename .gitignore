@@ -1,1 +1,4 @@
 .claude/
+
+# user vault(사용자 필기·사진) — git 제외
+obsidian-vault/user/
