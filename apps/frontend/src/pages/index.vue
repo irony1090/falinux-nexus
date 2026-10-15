@@ -21,6 +21,7 @@ import NoticeCenter from '@/feature/node/component/notice/NoticeCenter.vue';
 import { useTileNotices } from '@/feature/node/store/tileNotice.store';
 import { provideTileTree } from '@/feature/node/store/tileTree.store';
 import { provideBoards } from '@/feature/node/store/boards.store';
+import { provideBoardTrees } from '@/feature/node/store/boardTrees.store';
 import { provideRemoteActive } from '@/feature/node/store/remoteActive.store';
 import { useTerminalRestore } from '@/feature/node/hook/terminalRestore.hook';
 import { useShareChange } from '@/feature/node/hook/shareChange.hook';
@@ -46,11 +47,12 @@ const hash = computed(() => typeof route.params.hash === 'string' ? route.params
 const tileTree = provideTileTree();  // 로그인 뒤 서버 저장본(⑪)을 불러온다
 const processTerm = provideProcessTerm();
 const boards = provideBoards();
+const boardTrees = provideBoardTrees(tileTree.hash, boards);
 provideRemoteActive();
 const { ready, loadError, load, reset } = tileTree;
 const { reset: resetTerms } = processTerm;
 const { clear: clearNotices } = useTileNotices();
-useTerminalRestore(tileTree, processTerm);
+useTerminalRestore(tileTree, processTerm, boardTrees.uids);
 useShareChange();
 useNodeChange();
 

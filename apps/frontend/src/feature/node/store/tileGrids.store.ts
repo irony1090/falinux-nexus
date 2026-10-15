@@ -1,4 +1,4 @@
-import type { Area } from '@/feature/widget/util/tile.type'
+import type { Area, Capacity, GridPlan } from '@/feature/widget/util/tile.type'
 import { flatten, pack } from '@/feature/widget/util/tileOrder.util'
 import { capacity, effectiveSize, minSize, stripGeometry, stripView } from '@/feature/widget/util/tileSplit.util'
 import { readUserPref, writeUserPref } from '@/common/util/userPrefs.util'
@@ -6,7 +6,9 @@ import { useProcessTerm } from '@/feature/process/store/processTerm.store'
 import { useTestSocket } from '@/common/websocket/websocket.hook'
 import { tabReady } from '@/common/util/tabId.util'
 import { computed, inject, nextTick, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue'
-import { useTileTree } from './tileTree.store'
+import type { BoardItem } from '../api/board.api'
+import { useBoardTrees } from './boardTrees.store'
+import { useTileTree, type Tile } from './tileTree.store'
 
 const TILE_GRIDS_STORE_KEY = Symbol('TileGridsStore')
 
@@ -25,10 +27,19 @@ const readOvPercent = () => {
     return typeof v === 'number' && v >= min && v <= max && (v - min) % step === 0 ? v : init
 }
 
+// 배치 = 최소화 제외(최소화한 터미널은 위치 번호가 없다) -> 같은 Grid 규칙으로 채움. 지금 보드·전체보기의 다른 보드가 같이 씀(미리보기-3(Grid 파생))
+const layoutOf = (tiles: Readonly<Record<string, Tile>>, rootId: string, cap: Capacity) => {
+    const order = flatten(tiles, rootId).filter(o => !o.tile.minimized)
+    return { order, grids: pack(order.map(o => o.tile), t => effectiveSize(t.size, cap)) }
+}
+
+export type BoardGrids = { board: BoardItem; grids: Array<GridPlan<Tile>>; posOf: Map<string, number>; loading: boolean; error?: string }
+
 // 트리 + 측정한 Grid 영역 -> Grid 목록 + 가로 스크롤 위치 -> 헤더 내비 — REF-node-ui-impl.md "④ Grid 파생"
 // 측정·스크롤 기록은 TileStrip, 여기는 등록된 strip 요소에 scrollTo만 한다
 export const provideTileGrids = () => {
     const { tiles, rootId, ready, hash } = useTileTree()
+    const boardTrees = useBoardTrees()
     const { focus: focusTerm } = useProcessTerm()
     const { emit } = useTestSocket()
 
@@ -36,12 +47,10 @@ export const provideTileGrids = () => {
 
     const cap = computed(() => capacity(area.value ?? { w: 0, h: 0 }))
     const flat = computed(() => flatten(tiles.value, rootId.value))
-    // 배치 = 최소화 제외 — 최소화한 터미널은 위치 번호가 없다
-    const order = computed(() => flat.value.filter(o => !o.tile.minimized))
+    const layout = computed(() => layoutOf(tiles.value, rootId.value, cap.value))
+    const order = computed(() => layout.value.order)
     // 측정 전엔 그리지 않는다 — 기본 cap을 가정해 그리면 측정 직후 배치가 튄다
-    const grids = computed(() => area.value
-        ? pack(order.value.map(o => o.tile), t => effectiveSize(t.size, cap.value))
-        : [])
+    const grids = computed(() => area.value ? layout.value.grids : [])
     const newSize = computed(() => minSize(cap.value))
 
     // 타일 순번(1부터)
@@ -122,6 +131,18 @@ export const provideTileGrids = () => {
     const scrollbar = ref({ w: 0, h: 0 })
     let normScroll = 0
 
+    // 전체보기의 다른 보드 줄 — 같은 cap으로 채워 "배치 그대로"(EV3(다른 보드 크기) = 같은 축소 비율)
+    const otherBoards = computed<BoardGrids[]>(() => !overview.value || !area.value ? [] : boardTrees.list.value.map(({ board, tree, error }) => {
+        const l = tree ? layoutOf(tree.tiles, tree.rootId, cap.value) : undefined
+        return {
+            board,
+            grids: l?.grids ?? [],
+            posOf: new Map((l?.order ?? []).map((o, i) => [o.tile.id, i + 1])),
+            loading: !tree && !error,
+            error,
+        }
+    }))
+
     const zoomOverview = (delta: -1 | 1) => {
         const { min, max, step } = OV_PERCENT
         ovPercent.value = Math.min(max, Math.max(min, ovPercent.value + delta * step))
@@ -134,10 +155,13 @@ export const provideTileGrids = () => {
         normScroll = el.scrollLeft
         const gi = view.value.grid
         overview.value = true
+        boardTrees.open()
         await nextTick()
-        const cell = el.children[gi] as HTMLElement | undefined
-        el.scrollLeft = cell && ovDir.value === 'row' ? cell.offsetLeft - TILE_GAP : 0
-        el.scrollTop = cell && ovDir.value === 'col' ? cell.offsetTop - TILE_GAP : 0
+        // 첫 Grid 기준 — 앞에 보드 이름 칸이 있어도 첫 Grid면 스크롤 0
+        const cells = el.querySelectorAll<HTMLElement>('.cell')
+        const cell = cells[gi], first = cells[0]
+        el.scrollLeft = cell && first && ovDir.value === 'row' ? cell.offsetLeft - first.offsetLeft : 0
+        el.scrollTop = cell && first && ovDir.value === 'col' ? cell.offsetTop - first.offsetTop : 0
     }
 
     // gi 없음(Esc·돌아가기) = 원래 위치 / gi = 누른 타일의 Grid로 이동
@@ -145,6 +169,7 @@ export const provideTileGrids = () => {
         const el = stripEl.value
         if (!el || !overview.value) return
         overview.value = false
+        boardTrees.close()
         await nextTick()
         el.scrollTop = 0
         el.scrollLeft = normScroll
@@ -208,6 +233,7 @@ export const provideTileGrids = () => {
     // 보드를 바꾸면 이 화면이 내려간다
     onBeforeUnmount(() => {
         if (sent !== '{}') emit('TAB:ACTIVE', {})
+        boardTrees.close()
     })
 
     const ctx = {
@@ -232,6 +258,7 @@ export const provideTileGrids = () => {
         ovPercent,
         ovScale,
         ovDir,
+        otherBoards,
         scrollbar,
         zoomOverview,
         enterOverview,

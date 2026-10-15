@@ -1,20 +1,30 @@
 <script setup lang="ts">
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
+import { isRunning, useProcessTerm } from '@/feature/process/store/processTerm.store';
 import { removeUnit } from '@/common/util/index.util';
 import Tile from '@/feature/widget/component/Tile.vue';
 import TileLayout from '@/feature/widget/component/TileLayout.vue';
 import type { Area, CellSpan } from '@/feature/widget/util/tile.type';
 import { columnStops } from '@/feature/widget/util/tileSplit.util';
 import { computed, onBeforeUnmount, onMounted, watch, type CSSProperties } from 'vue';
+import { useRouter } from 'vue-router';
+import type { BoardItem } from '../api/board.api';
 import { useTileShortcut } from '../hook/tileShortcut.hook';
-import { TILE_FOOT as FOOT, TILE_GAP as GAP, useTileGrids } from '../store/tileGrids.store';
+import { boardLabel, focusPath, useBoards } from '../store/boards.store';
+import { TILE_FOOT as FOOT, TILE_GAP as GAP, useTileGrids, type BoardGrids } from '../store/tileGrids.store';
+import { useTileTree } from '../store/tileTree.store';
+import OverviewTile from './tile/OverviewTile.vue';
 import TileFrame from './tile/TileFrame.vue';
 
 const {
     grids, cap, area, stripEl, scrollX, viewW,
-    overview, ovScale, ovDir, scrollbar, leaveOverview, activate,
+    overview, ovScale, ovDir, otherBoards, scrollbar, leaveOverview, activate,
 } = useTileGrids();
 useTileShortcut();
+const { hash } = useTileTree();
+const { byHash } = useBoards();
+const { procs } = useProcessTerm();
+const router = useRouter();
 
 // 칼럼 단위 스냅 앵커 위치(px). 전체 폭 Grid의 폭 = 측정한 area.w. 전체보기에선 앵커 없음(스냅 끔)
 const stopsOf = (cols: CellSpan) => overview.value ? [] : columnStops(area.value?.w ?? 0, cap.value, GAP, cols);
@@ -46,10 +56,13 @@ const onScroll = () => {
     if (stripEl.value) scrollX.value = stripEl.value.scrollLeft;
 }
 
-// 가로 한 줄 전체보기에선 세로 휠도 가로로
+// 전체보기에 다른 보드 줄이 있음 — EV2(보드 쌓는 방향)
+const multi = computed(() => overview.value && otherBoards.value.length > 0);
+
+// 가로 한 줄 전체보기에선 세로 휠도 가로로. 보드 줄이 여럿이면 세로 휠 = 보드 사이 이동
 const onWheel = (e: WheelEvent) => {
     const el = stripEl.value;
-    if (!el || !overview.value || ovDir.value !== 'row' || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    if (!el || !overview.value || multi.value || ovDir.value !== 'row' || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
     e.preventDefault();
     el.scrollLeft += e.deltaY;
 }
@@ -83,7 +96,24 @@ const layoutStyle = (cols: CellSpan): CSSProperties | undefined => {
     return { width: `${w}px`, height: `${h}px`, transform: `scale(${ovScale.value})` };
 }
 
-const stripClass = computed(() => overview.value ? ['overview', ovDir.value] : []);
+const stripClass = computed(() => overview.value ? ['overview', ovDir.value, { multi: multi.value }] : []);
+
+const currentName = computed(() => boardLabel(byHash(hash.value)) || '기본 보드');
+
+// 보드 줄 요약 — 배치된 터미널 수 + 실행 중 수
+const summaryOf = (b: BoardGrids) => {
+    const uids = b.grids.flatMap(g => g.items.flatMap(it => it.tile.type === 'terminal' ? [it.tile.uid] : []));
+    const running = uids.filter(u => isRunning(procs.value[u]?.status)).length;
+    return uids.length ? `터미널 ${uids.length} · 실행 중 ${running}` : '터미널 없음';
+}
+
+// 다른 보드 타일 누름 = 그 보드로 가서 그 타일 active(기존 ?focus 처리) — 미리보기-5(이동), EV5(누르면)
+const goOther = (board: BoardItem, tileId: string) => router.push(focusPath(board, tileId));
+const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    void goOther(board, tileId);
+}
 </script>
 
 <template>
@@ -97,6 +127,13 @@ const stripClass = computed(() => overview.value ? ['overview', ovDir.value] : [
     @scroll.passive="onScroll"
     @wheel="onWheel"
 >
+<!-- .board·.board-cells는 평소 display: contents — 전체보기에서만 상자가 된다(위 재마운트 금지와 같은 이유로 두 모드 모두 둔다) -->
+<div class="board" :class="{ current: multi }">
+    <div v-if="multi" class="board-cap">
+        <b>{{ currentName }}</b>
+        <span class="now">지금 보드</span>
+    </div>
+    <div class="board-cells">
     <div v-for="(g, gi) in grids" :key="gi" class="cell" :class="{ narrow: g.cols === 1 }">
         <div v-if="overview" class="cap"><b>G{{ gi + 1 }}</b> · {{ g.items.length }}타일</div>
         <div class="box" :style="boxStyle(g.cols)">
@@ -126,6 +163,35 @@ const stripClass = computed(() => overview.value ? ['overview', ovDir.value] : [
             </tile-layout>
         </div>
     </div>
+    </div>
+</div>
+
+<!-- 다른 보드 줄 — 미리보기-4(그리기). 같은 cap·축소 비율로 배치 그대로 -->
+<div v-for="b in otherBoards" :key="b.board.hash" class="board">
+    <div class="board-cap">
+        <b>{{ boardLabel(b.board) }}</b>
+        <span>{{ b.loading ? '불러오는 중…' : b.error ?? summaryOf(b) }}</span>
+    </div>
+    <div class="board-cells">
+        <div v-for="(g, gi) in b.grids" :key="gi" class="cell" :class="{ narrow: g.cols === 1 }">
+            <div class="cap"><b>G{{ gi + 1 }}</b> · {{ g.items.length }}타일</div>
+            <div class="box" :style="boxStyle(g.cols)">
+                <tile-layout :cols="g.cols" :gap="GAP" :foot-height="FOOT" :style="layoutStyle(g.cols)">
+                    <tile v-for="it in g.items" :key="it.tile.id" :cell="it"
+                        tabindex="0"
+                        role="button"
+                        :aria-label="`${boardLabel(b.board)} 보드로 이동`"
+                        @click="goOther(b.board, it.tile.id)"
+                        @keydown="onOtherKey($event, b.board, it.tile.id)"
+                    >
+                        <overview-tile :tile="it.tile" :pos="b.posOf.get(it.tile.id)" />
+                    </tile>
+                    <tile v-for="(e, ei) in g.empty" :key="`empty-${ei}`" :cell="e" empty />
+                </tile-layout>
+            </div>
+        </div>
+    </div>
+</div>
 </div>
 </template>
 
@@ -174,16 +240,65 @@ const stripClass = computed(() => overview.value ? ['overview', ovDir.value] : [
     border-radius: 4px;
 }
 
-// 전체보기: 긴 축 한 줄 + 짧은 축 가운데, 자유 스크롤
+// 평소엔 상자 없음 — cell이 strip의 flex 항목
+.board, .board-cells { display: contents; }
+
+// 전체보기: 긴 축 한 줄 + 짧은 축 가운데, 자유 스크롤. strip = 보드 줄을 세로로 쌓음(보드가 하나면 지금 보드 한 줄)
 .TileStrip.overview {
+    flex-direction: column;
     gap: 14px;
+    overflow: auto;
     scroll-snap-type: none;
-    align-items: center;
     background: rgb(var(--v-theme-surface-light));
+    .board {
+        display: flex;
+        flex: none;
+        gap: 4px;
+    }
+    .board-cells {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+    }
+    // PC 가로: Grid 가로 한 줄 + 세로 가운데
+    &.row {
+        justify-content: safe center;
+        align-items: flex-start;
+    }
+    // 폰 세로: 보드 안 Grid도 세로 + 가로 가운데, 보드 사이엔 이름표 — EV2(보드 쌓는 방향) 나
     &.col {
-        flex-direction: column;
+        align-items: safe center;
         overflow-x: hidden;
-        overflow-y: auto;
+        .board { flex-direction: column; }
+        .board-cells { flex-direction: column; }
+    }
+    // PC 가로 + 보드 여럿: 보드마다 가로 한 줄(이름 왼쪽), 위에서부터 — EV2(보드 쌓는 방향) 가
+    &.row.multi {
+        justify-content: flex-start;
+        align-items: flex-start;
+        .board {
+            gap: 12px;
+            padding: 8px 10px;
+            border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+            border-radius: 8px;
+            background: rgba(var(--v-theme-surface), 0.6);
+        }
+        .board-cap {
+            width: 140px;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+        }
+    }
+    // 지금 보드 강조 — EV4(지금 보드 위치)
+    &.multi .board.current {
+        border: 2px solid rgb(var(--v-theme-primary));
+        border-radius: 8px;
+        background: rgb(var(--v-theme-surface));
+    }
+    &.col.multi .board {
+        padding: 6px;
+        border-radius: 8px;
     }
     .cell {
         flex: none;
@@ -212,6 +327,16 @@ const stripClass = computed(() => overview.value ? ['overview', ovDir.value] : [
             outline-offset: calc(-3px / var(--s));
         }
     }
+}
+.board-cap {
+    flex: none;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 12px;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    b { font-size: 13px; color: rgb(var(--v-theme-on-surface)); }
+    .now { color: rgb(var(--v-theme-primary)); }
 }
 .cap {
     font-size: 11px;
