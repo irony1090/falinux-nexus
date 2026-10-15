@@ -18,8 +18,15 @@
 - 노드 조작(마감) → `INDEX-node-ops.md` (node-label·node-list-sync·node-clipboard·node-select)
 - 프론트 마무리(마감) → `INDEX-frontend-polish.md` (node-ui-active·frontend-auth)
 - 보드 미리보기(마감) → `INDEX-board-preview.md` (board-preview)
+- 고아 스크립트(마감) → `INDEX-worker-orphan.md` (worker-orphan)
 
 ## history/ 파일 색인 (진행 중 파트)
+
+### `history/worker-screen.md` — worker 화면 송출 (2026-10-15 신설, 아이디어)
+- 2026-10-15 방식 가·나·다 비교, 조작 필요 → 나(VNC 터널 + noVNC) 추천, 기록만
+
+### `history/windows-worker.md` — Windows worker (2026-10-15 신설, 후보)
+- 2026-10-15 Windows 빌드 실패 원인 = `pty` 패키지뿐 확인 + 계획 윈도-0~6·결정 WW1~WW5(코드 없음)
 
 ### `history/node-ui.md` — node 카탈로그 UI 컨셉
 - 2026-08-10(4) 그리드 UI 구현 방식: 직접 제작 확정(조사+설계) — Splitpanes/Golden Layout/Dockview 조사 후 기각, 리사이즈만 DraggableSession 재사용 (2026-08-12 재확인, 결론 불변)
@@ -74,6 +81,7 @@
 - 2026-10-13 test1~3.falinux.com(8011~8013) 설정 + 소켓 wss·HMR 443·0.0.0.0 바인드, 모바일 헤드리스 확인(커밋 전)
 
 ### `history/test-env.md` — 테스트 환경 · 확인용 클라이언트 (2026-10-06 신설)
+- 2026-10-15 worker를 꺼도 스크립트가 고아로 남음 — 격리 정리 절차 추가
 - 2026-10-14 함정 3줄(socat fork 자식·pkill 자기 셸·`/users/presence` 범위) + 날짜별 확인 스크립트 절을 `REF-test-scripts.md`로 분할
 - 2026-10-08(2) 공유-f·터미널 빈틈 확인 스크립트 요령
 - 2026-10-08 공유-e 격리 확인 함정 3개(격리 프론트 설정·계정 동기화·헤드리스 계정)

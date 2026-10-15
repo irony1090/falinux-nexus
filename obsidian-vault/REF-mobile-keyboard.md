@@ -8,7 +8,7 @@
 - **Edge 제약**: 폰 크기 기본 화면(하단 막대)에서 키 줄 아래 빈틈 약 34(브라우저 값이 틀림, `REF-mobile-viewport.md` 3). 전체 화면이면 정확
 - VK4(사용자 키 추가) = **안 함**(탭·누른 채·한글 자모 모두 동작해서 불필요)
 - 측정용 `KbDebug.vue` 삭제. 폰 사진 업로드 도구는 `vite.config.mts`에서 주석 처리해 남김(→ `REF-test-env.md` "폰 사진 올리기")
-- 남은 것: iPhone 실기기 확인(나중) / 별건 = 전체 화면을 켜면 같은 칼럼이 `single` -> `row`로 바뀜(CURRENT 미룬 항목)
+- 남은 것: iPhone 실기기 확인(나중) / ~~별건 = 전체 화면을 켜면 같은 칼럼이 `single` -> `row`로 바뀜~~ 버그 아님(2026-10-15 확인): 전체 화면으로 Grid 영역 높이가 `TILE_THRESHOLD.h` 560 이상 -> `capacity` y 1 -> 2 -> `effectiveSize`가 저장값 h 0.5를 그대로 써서 `single` -> `row`(1칸 축의 0.5를 1로 보는 규칙, `tileSplit.util.ts`)
 
 ## 시작 시점 코드 상태 (2026-10-14 확인)
 - 결정만 있고 **코드 없음**: `index.html` viewport 메타에 `interactive-widget` 없음 / 특수 키 줄 없음 / visualViewport를 듣는 곳은 `appWindown.store.ts`(`size.inner`)뿐(`window` `resize`만 들음)

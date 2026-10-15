@@ -64,3 +64,8 @@
 - `pw/mid.mjs`(15개): API로 계정·폴더 F1·F2(`bp-dev`)·스크립트 `tick-A`(1초)·`tick-B`(0.5초) → 기본 보드에 폴더 타일 `f1`·`f2` PUT → `POST /workspaces {folderTileId:'f2'}`로 보드2 → 페이지에서 `fetch` exec(A = 기본 보드 `f1`, B = 보드2 `f2`) → **새로고침**(이 탭 등록을 비움)
 - 판정 = `page.on('request')`로 `/processes/snapshot/<uidB>` 횟수(등록될 때만 요청). 조회 중 닫기 = `page.route`로 스냅샷 응답을 붙잡고 닫은 뒤 놓기
 - 함정: 실행이 길어지면 `tick-B 0`이 화면 위로 지나감 → 줄 번호가 연속인지로 판정 / `page.unroute`가 붙잡은 요청을 먼저 처리해 `route.continue` 오류 → 놓고 기다린 뒤 `unroute` / 보드 전환 등록은 `page.goto`(새로고침)가 아니라 `history.pushState` + `popstate`로
+
+## 2026-10-15 확인 스크립트 (고아 스크립트) — 재부팅으로 사라짐 → 결과 `REF-worker-orphan.md` "고아-3(확인) 결과"
+- `chk/client.py`(REST 쿠키 + `/subscribe` 소켓에서 `TAB:ID`) · `chk/orphan.py`(시나리오 E·B·A·C·D, 인자로 골라 실행): 계정·폴더(`deviceKey: orphan-dev`)·스크립트 3개 → worker를 `subprocess.Popen`(`nohup` 선택, `TMPDIR=iso/tmp`)으로 띄우고 `GET /workers?nodeId=`의 `instanceKey`로 exec → 스크립트 찾기 = `/proc/*/cmdline`이 `/bin/sh <iso/tmp>/`로 시작 → 그 sid에 속한 프로세스 수로 잔존 판정
+- `GET /processes`는 끝난 process를 안 돌려줌 → 최종 상태는 임시 DB `processes`(status·exit_code·finished_at)로 확인
+- 수정 전 비교 바이너리 = `git archive HEAD apps/core | tar -x -C <scratchpad>/old` 후 빌드

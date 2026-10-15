@@ -24,3 +24,6 @@
 ## 2026-10-07(작업공간-e) — 격리 프론트 3001 방법 + 함정 2개
 - 소켓 주소가 코드에 박혀 있어 scratchpad `vite.iso.mts`(transform 플러그인)로 5051을 보게 함 → `REF-test-env.md` "격리 실행"
 - 함정: `PATCH /nodes` 본문 `{valid, value}` / `pgrep -f` 패턴이 자기 셸 명령줄에 걸려 셸이 죽음(exit 144)
+
+## 2026-10-15 — worker를 꺼도 스크립트가 고아로 남음
+- 재부팅 준비 중 보드 미리보기 중간안 확인(`pw/mid.mjs`)의 `tick-A`·`tick-B` 4개가 worker 종료 뒤에도 돌고 있음 발견(부모 = systemd user) → 정리. 격리 정리 절차에 추가(`REF-test-env.md` "끌 때 함정 — worker 자식"). 제품 쪽 문제 여부는 CURRENT 미해결로

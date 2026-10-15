@@ -25,6 +25,7 @@
 - **agent 식별자: 사전 지정 메인키 + supervisor가 접속 시 부여하는 서브키.** 저장/조회는 `메인키#서브키`(`InstanceKey()`). MAC 폐기
 - **process 영속성**: worker 휘발(메모리) / supervisor 영속(PG, 재시작 복구)
 - **재연결 reconciliation (2026-07-01 개정 — 구 `Done(502)` 비관 폐기)**: worker 끊김→관련 process **PENDING**(죽이지 않음) / 재접속→worker가 자기 live 상태 보고로 재동기화(낙관적). **모든 상태전이=process 라우터 `status` 단일 깔때기**(worker 보고 or 끊김 시 supervisor 합성). **frontend 끊김≠종료**(명시적 kill 전까진 실행 유지, 브라우저 종료 무시), **같은 세션 재접속=보던 화면 복원**(ring+세션원장) (→ "종료/재접속 모델")
+  - **worker 자체 종료 ≠ 끊김**(2026-10-15): worker가 종료 신호를 받으면 스크립트를 정리(TERM -> 5초 -> KILL)하고 끝난 상태를 보고 — PTY는 worker 메모리에만 있어 다시 붙을 수 없으므로 남기지 않는다. 새 플랫폼 worker(Windows 등)도 같은 원칙 (→ `INDEX-worker-orphan.md`)
 - **에러 처리 = panic-style**(2026-06-26 재확정): 핸들러 `panic(web.Err(...))` → `PanicMiddleware` 렌더 (→)
 - **process 동기화 범위 = 계정**(2026-10-01, 1단계 코드·실행 확인·커밋 완료): 같은 계정이면 탭·브라우저·기기 무관 동기화. 인가 = 계정(DB) / 출력 라우팅 = 탭 소켓(메모리) / PTY 크기 우선권 = 서버 발급 탭 id(메모리) → `process_subscribers` 제거(`00005`). 공유는 계정 단위·소유자만 신청 (→ `REF-process-sync.md`, 구현·확인 → `REF-process-sync-impl.md`)
 - **공유 판정 = DB 함수 한 곳**(2026-10-06, 공유-a): 가까운 공유 단계 계산은 `node_permission`/`process_permission`(`00007_shares.sql`)에만 두고 쿼리·Go는 호출만. 단계 = 0 차단·10 보기·20 조작·30 편집·40 소유자(함수 반환만), 비교는 `>=`. 볼 수 없음 = 404 / 단계 미달 = 403. **공유 단위 = 폴더 + process 단독**(스크립트 노드 공유 금지, 2026-10-07 SH1 개정) (→ `REF-process-share-db.md`, `REF-process-share-authz.md`, `REF-process-share.md`)
@@ -63,7 +64,7 @@ sqlc.yaml  README.md  .gitignore
 | 모듈 | 상태 | 문서 |
 |------|------|------|
 | 통신 인프라·파일 전송·supervisor web (마감) | 구현 완료(파일 전송 e2e 미검증) | → `INDEX-infra.md` |
-| process 실행 (execute/pty/manager/bind) | 배선 마감 → `INDEX-process-wiring.md` / 터미널 기능(입력·SNAPSHOT·EDIT) 마감 → `INDEX-process-terminal.md` / 동기화·공유(5 공유(P·R·T))·보드·presence 마감 → `INDEX-process-share.md` / 종료 정책·바인딩 타일·질의 응답 중복·크기 가져오기 마감(2026-10-12~14) → `INDEX-terminal-ops.md`. EXEC 실행 방식 = 현상 유지 확정 | `REF-process.md` + 마감 INDEX 4개 |
+| process 실행 (execute/pty/manager/bind) | 배선 마감 → `INDEX-process-wiring.md` / 터미널 기능(입력·SNAPSHOT·EDIT) 마감 → `INDEX-process-terminal.md` / 동기화·공유(5 공유(P·R·T))·보드·presence 마감 → `INDEX-process-share.md` / 종료 정책·바인딩 타일·질의 응답 중복·크기 가져오기 마감(2026-10-12~14) → `INDEX-terminal-ops.md` / worker 종료 시 스크립트 정리 마감(2026-10-15) → `INDEX-worker-orphan.md`. EXEC 실행 방식 = 현상 유지 확정 | `REF-process.md` + 마감 INDEX 4개 |
 | DB/스토어 (sqlc·goose·store) | 구현 완료 | `REF-db.md` |
 | Node 카탈로그 | Node 모듈·roster(명부)·서버 정리·폴더 목록 동기화·노드 클립보드 마감 → `INDEX-node-ops.md` / UI 연동 마감 → `INDEX-node-ui-link.md`. label 보류 | `REF-node-label.md`(+`REF-node-ui.md` UI 컨셉 / `REF-node-ui-overview.md` 전체보기·가상 키보드) |
 | 공용 PATCH 래퍼 (`internal/patch`) | `patch.Field[T]` 3-state(`{valid,value}`), worker도 재사용 예정 | `REF-node-label.md` |
@@ -74,8 +75,8 @@ sqlc.yaml  README.md  .gitignore
 
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
-- 설계/재사용 지식: `REF-process.md` `REF-db.md` `REF-node-ui.md` `REF-node-ui-overview.md` `REF-frontend.md` `REF-realtime.md` `REF-widget.md` `REF-util.md` `REF-util-drag.md` `REF-test-env.md`(테스트 환경·함정) `REF-test-scripts.md`(날짜별 확인 스크립트 재작성 명세) `REF-external-access.md`(외부 접속 test1~3.falinux.com = 8011~8013, HTTPS 프록시)
-- 작업 이력(주제별): `history/node-ui.md` `history/node-ui-overview.md` `history/frontend.md` `history/realtime.md` `history/widget.md` `history/util.md` `history/util-drag.md` `history/test-env.md` `history/test-scripts.md` `history/external-access.md`
-- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: ★ 모바일 가상 키보드(마감, 중요) → `INDEX-mobile-keyboard.md` / 통신 인프라(마감) → `INDEX-infra.md` / process 배선(마감) → `INDEX-process-wiring.md` / node UI 레이아웃 설계(마감) → `INDEX-node-ui-layout.md` / node UI 연동(마감) → `INDEX-node-ui-link.md` / process 터미널 기능(마감) → `INDEX-process-terminal.md` / process 동기화·공유·보드(마감) → `INDEX-process-share.md` / 터미널 동작 보강(마감) → `INDEX-terminal-ops.md` / 노드 조작(마감) → `INDEX-node-ops.md` / 프론트 마무리(마감) → `INDEX-frontend-polish.md` / 보드 미리보기(마감) → `INDEX-board-preview.md`
+- 설계/재사용 지식: `REF-process.md` `REF-db.md` `REF-node-ui.md` `REF-node-ui-overview.md` `REF-frontend.md` `REF-realtime.md` `REF-widget.md` `REF-util.md` `REF-util-drag.md` `REF-test-env.md`(테스트 환경·함정) `REF-test-scripts.md`(날짜별 확인 스크립트 재작성 명세) `REF-external-access.md`(외부 접속 test1~3.falinux.com = 8011~8013, HTTPS 프록시) `REF-windows-worker.md`(Windows worker 계획 — ConPTY·실행 규칙, 보류) `REF-worker-screen.md`(worker 화면 송출 + 조작 — 아이디어, VNC 터널 + noVNC 추천)
+- 작업 이력(주제별): `history/node-ui.md` `history/node-ui-overview.md` `history/frontend.md` `history/realtime.md` `history/widget.md` `history/util.md` `history/util-drag.md` `history/test-env.md` `history/test-scripts.md` `history/external-access.md` `history/windows-worker.md` `history/worker-screen.md`
+- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: ★ 모바일 가상 키보드(마감, 중요) → `INDEX-mobile-keyboard.md` / 통신 인프라(마감) → `INDEX-infra.md` / process 배선(마감) → `INDEX-process-wiring.md` / node UI 레이아웃 설계(마감) → `INDEX-node-ui-layout.md` / node UI 연동(마감) → `INDEX-node-ui-link.md` / process 터미널 기능(마감) → `INDEX-process-terminal.md` / process 동기화·공유·보드(마감) → `INDEX-process-share.md` / 터미널 동작 보강(마감) → `INDEX-terminal-ops.md` / 노드 조작(마감) → `INDEX-node-ops.md` / 프론트 마무리(마감) → `INDEX-frontend-polish.md` / 보드 미리보기(마감) → `INDEX-board-preview.md` / 고아 스크립트(마감) → `INDEX-worker-orphan.md`
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md`

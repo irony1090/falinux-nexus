@@ -21,6 +21,8 @@
 
 - **(2026-10-13 바뀜)** 소켓 주소가 `VITE_API_URL`에서 만들어지고 `vite.config.mts`가 함수형이 됨 → 아래 transform 플러그인 불필요, iso 설정은 `base({mode:'development', command:'serve'})`를 펼치고 `.env`의 `DEV_*`를 덮을 것(→ `REF-external-access.md`)
 - **격리 프론트(헤드리스용, 2026-10-07)**: 소켓 주소가 `websocket.hook.ts`에 `localhost:5050`으로 박혀 있어 env로 못 바꿈 → scratchpad에 `vite.iso.mts`(저장소 `vite.config.mts`를 절대 경로로 import해 펼치고 `root` = `apps/frontend`, `cacheDir` = scratchpad, `server.port` 3001 + `strictPort`, `transform` 플러그인으로 `websocket.hook.ts`의 `localhost:5050` → `5051`)를 두고 `apps/frontend`에서 `VITE_API_URL=http://localhost:5051 npx vite --config <경로>`(이미 있는 env가 `.env`보다 우선). 쿠키는 포트를 안 가리므로 `context.request`로 5051에 로그인하면 3001 페이지에서 그대로 쓰임. 저장소에 파일 안 생김
+- **끌 때 함정 — worker 자식(2026-10-15, 원인 정정 2026-10-15(2))**: 격리 worker를 끈 뒤에도 실행 중 스크립트(무한 루프 `tick-*`)가 몇 시간 돎. 원인은 `Setsid`가 아니라 **worker를 SIGHUP 무시 상태(`nohup` 등)로 띄운 것**이 자식에게 상속된 것(→ `REF-worker-orphan.md`). 격리 worker는 `nohup` 없이 띄우고, 그래도 정리 때 명령줄에 `<scratchpad>/iso/tmp/`가 든 `/bin/sh`가 남았는지 볼 것(worker `ProcessRoot` = `TMPDIR` 아래 `<nodeId>/<uid>`)
+- **`pgrep -f` 오판 함정(2026-10-15)**: 찾는 문자열이 지금 돌리는 bash 명령줄에도 있으면 `pgrep -f`가 자기 셸을 잡아 "살아 있음"으로 오판한다 -> `pgrep -x sh` 후 `/proc/<pid>/cmdline`을 `'orph''tick'`처럼 끊어 쓴 문자열로 grep
 - **끌 때 함정**: `pgrep -f '<패턴>'`의 패턴이 지금 돌리는 bash 명령줄에도 들어 있으면 자기 셸까지 죽인다(exit 144). vite는 `pgrep -af vite`로 pid를 먼저 보고 끈다
 - **supervisor 바이너리는 어떤 인자로 실행해도 서버가 뜬다**(`--help` 없음) + `init()`이 마이그레이션을 적용한다 → 확인 중에 `go run ./cmd/supervisor`를 실행하지 말 것. 빌드 확인은 `go build`만(2026-10-07 사고: 개발 DB에 00007·00008 적용됨)
 
