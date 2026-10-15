@@ -85,9 +85,9 @@ func (r *workerRouter) exec(req protocol.Frame) (any, error) {
 	}
 
 	entry := &procEntry{uid: body.UID, kind: kind, editPath: editPath, inter: inter}
-	if !r.procs.Append(body.UID, entry) {
+	if ok, reason := r.state.admit(body.UID, entry); !ok {
 		_ = inter.Kill(true)
-		return protocol.ExecResponse{Accept: false, Reason: "중복되는 uid"}, nil
+		return protocol.ExecResponse{Accept: false, Reason: reason}, nil
 	}
 
 	go r.pump(body.UID, entry)

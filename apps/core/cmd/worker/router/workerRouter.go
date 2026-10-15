@@ -22,6 +22,9 @@ import (
 type WorkerState struct {
 	procs *manager.KeyValManager[string, *procEntry]
 	conn  atomic.Pointer[transport.Conn]
+
+	mu      sync.Mutex // closing 보호 + admit과 Shutdown 직렬화(shutdown.go)
+	closing bool
 }
 
 func NewWorkerState() *WorkerState {
