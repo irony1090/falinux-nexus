@@ -65,3 +65,4 @@
 ## 시안 (2026-10-06 — 각 페이지 상단 "결론 반영" 상자가 기준. 목록 → user vault `user/links.md`)
 - W1(분리 범위) 설명: https://claude.ai/artifact/5azxJ7gU21BcKe4BaK7E9Z
 - 터미널 머리 줄 표시(+ 공유 구분 표시): https://claude.ai/artifact/5jPfaU9APi4m8PuSr71woM
+- 보드 미리보기 시안 A~E(2026-10-14, 아이디어용 — A 카드 줄 · B 보드 타일 · C 출력 축소본 · D 헤더 메뉴 확장 · E 전체보기 보드 줄): https://claude.ai/artifact/KSBX7CyuzQP3soj9tWnQd9

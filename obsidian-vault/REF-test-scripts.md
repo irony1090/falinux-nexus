@@ -51,3 +51,16 @@
 - 파트(모바일 가상 키보드) `pw/kb.mjs`(22개) → `REF-mobile-keyboard.md` "키보드-5(확인) 헤드리스 결과"(가짜 visualViewport 방법 포함)
 - 같은 파트 `pw/kb3.mjs`(12개, 라(resizes-content 전환): `setViewportSize`로 창 높이를 줄여 흉내, 다이얼로그는 폴더 `button.nm` -> `.row` `button[title="메뉴"]`) → `REF-mobile-keyboard.md` "라(resizes-content 전환)"
 - 같은 파트 `pw/kb2.mjs`(10개, 고침-나(커서 기준 이동)) → `REF-mobile-keyboard.md` "고침-나(커서 기준 이동) 헤드리스 결과"(칼럼 이동·소문자 명령 키 함정)
+
+## 2026-10-14 확인 스크립트 (보드 미리보기) — 재부팅으로 사라짐, 재작성 명세 → 결과는 `REF-board-preview.md` "확인 결과"
+- 격리: `go build` supervisor·worker → `iso/sup`·`iso/wrk` + `env`(5051, `nexus_bp_tmp`, worker `NAME=bp-dev`), `TMPDIR=<scratchpad>/iso/tmp`. 프론트 = `vite.iso.mts`: `import base from '<repo>/apps/frontend/vite.config.mts'` → `base({mode:'development',command:'serve'})`를 펼치고 `root`·`cacheDir`·`server: {port:3001, strictPort, host:'localhost'}`만 덮음, 실행은 `apps/frontend`에서 `VITE_API_URL=http://localhost:5051 npx vite --config <경로>`
+- `pw/bp.mjs`(31개): API로 계정·폴더 F1·F2(`deviceKey: bp-dev`)·F3(장비 없음)·스크립트(`tick-A` 1초 / `tick-B` 0.5초 / `done.sh` 한 줄) → 기본 보드 트리에 폴더 타일 3개 PUT → 페이지에서 `fetch`로 exec(`X-Tab-Id` = `sessionStorage['nexus.tabId']`) → `POST /workspaces`로 F2·F3 분리 → 보드2에서 exec. 선택자: `.OverviewButton` · `.TileStrip.overview.multi` · `.TileStrip .board`(n번째 = `:nth-of-type`) · `.board-cap b` · `.OverviewTile--terminal .xterm-rows` · `.OverviewTile .pill`. 다시 연 직후엔 1초쯤 기다렸다 읽을 것
+- 함정: Playwright `:text-is()`를 `:has()` 안에 쓰면 안 잡힘 → `locator(...).filter({ has: locator('.pill', { hasText: /^RUN$/ }) })`
+- `pw/bp2.mjs`: 4초마다 출력하는 터미널로 닫힌 동안 쌓인 줄이 다시 열 때 바로 그려지는지(100·400·1000ms)
+- 끌 때: supervisor·worker = `/proc/<pid>/cwd`가 `iso/` 아래인 것 / vite = **`ss -ltnp | grep :3001`의 pid**(`pgrep -af vite`는 자기 셸을 잡음, 2026-10-14 또 겪음)
+
+## 2026-10-15 확인 스크립트 (보드 미리보기 중간안) — 재부팅으로 사라짐, 결과는 `REF-board-preview.md` "확인 결과 (중간-3(확인)"
+- 격리는 위 "2026-10-14 보드 미리보기"와 같음(`iso/sup`·`iso/wrk` env, `vite.iso.mts` = `base({mode:'development',command:'serve'})` 펼치고 `server.hmr: undefined`)
+- `pw/mid.mjs`(15개): API로 계정·폴더 F1·F2(`bp-dev`)·스크립트 `tick-A`(1초)·`tick-B`(0.5초) → 기본 보드에 폴더 타일 `f1`·`f2` PUT → `POST /workspaces {folderTileId:'f2'}`로 보드2 → 페이지에서 `fetch` exec(A = 기본 보드 `f1`, B = 보드2 `f2`) → **새로고침**(이 탭 등록을 비움)
+- 판정 = `page.on('request')`로 `/processes/snapshot/<uidB>` 횟수(등록될 때만 요청). 조회 중 닫기 = `page.route`로 스냅샷 응답을 붙잡고 닫은 뒤 놓기
+- 함정: 실행이 길어지면 `tick-B 0`이 화면 위로 지나감 → 줄 번호가 연속인지로 판정 / `page.unroute`가 붙잡은 요청을 먼저 처리해 `route.continue` 오류 → 놓고 기다린 뒤 `unroute` / 보드 전환 등록은 `page.goto`(새로고침)가 아니라 `history.pushState` + `popstate`로
