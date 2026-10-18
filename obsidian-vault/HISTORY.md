@@ -19,8 +19,12 @@
 - 프론트 마무리(마감) → `INDEX-frontend-polish.md` (node-ui-active·frontend-auth)
 - 보드 미리보기(마감) → `INDEX-board-preview.md` (board-preview)
 - 고아 스크립트(마감) → `INDEX-worker-orphan.md` (worker-orphan)
+- PgUp·PgDn 버튼(마감) → `INDEX-term-page-keys.md` (term-page-keys)
 
 ## history/ 파일 색인 (진행 중 파트)
+
+### `history/demo.md` — 시연 데이터 (2026-10-16 신설)
+- 2026-10-16 플랜 안 A·B·C 제시 → 안 C(생산 지그 시나리오) 선택, 스크립트 6개 + test1~3 공유 등록(REST), 브라우저 경유 실행 미확인
 
 ### `history/worker-screen.md` — worker 화면 송출 (2026-10-15 신설, 아이디어)
 - 2026-10-15 방식 가·나·다 비교, 조작 필요 → 나(VNC 터널 + noVNC) 추천, 기록만
