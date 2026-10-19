@@ -8,7 +8,7 @@
 ## REF / history 목록 (MEMORY 인덱스에서 옮김)
 - `REF-board-preview.md`(시안 E 채택 · EV1~EV6 · 구조안 미리보기-1~6 · 구현표 · 중간안 · 확인 결과 · 사용자 확인 목록) / `history/board-preview.md`
 - 보드 개념·시안 A~E 캔버스: `REF-workspace.md` "시안" / 전체보기 규칙: `REF-node-ui-overview.md` "전체보기 모드"·"다른 보드 줄"
-- 확인 스크립트 명세: `REF-test-scripts.md` "2026-10-14 보드 미리보기"(`bp.mjs` 31 · `bp2.mjs`) · "2026-10-15"(`mid.mjs` 15)
+- 확인 스크립트 명세: `REF-test-scripts-1014.md` "2026-10-14 보드 미리보기"(`bp.mjs` 31 · `bp2.mjs`) · "2026-10-15"(`mid.mjs` 15)
 
 ## HISTORY 색인 행 (원문)
 ### `history/board-preview.md` — 보드 미리보기 (2026-10-14 신설)

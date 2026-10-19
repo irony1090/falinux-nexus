@@ -2,6 +2,7 @@
 import '@xterm/xterm/css/xterm.css';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useProcessTerm } from '../store/processTerm.store';
+import { bindTouchScroll } from '../util/touchScroll.util';
 
 // 크기 소유 탭 = 이 영역에 맞춰 PTY 크기를 보냄 / 아니면 소유자의 rows·cols로 고정하고 넘치면 스크롤 (REF-node-ui-terminal.md M)
 const props = defineProps({
@@ -39,16 +40,19 @@ const schedule = () => {
 }
 
 let ro: ResizeObserver | undefined;
+let unbindTouch: (() => void) | undefined;
 onMounted(() => {
     if (!el.value) return;
     attach(props.uid, el.value);
     ro = new ResizeObserver(schedule);
     ro.observe(el.value);
+    unbindTouch = bindTouchScroll(el.value, () => handleOf(props.uid)?.term, () => !owner.value);
     schedule();
 })
 onBeforeUnmount(() => {
     clearTimeout(timer);
     ro?.disconnect();
+    unbindTouch?.();
     if (el.value) detach(props.uid, el.value);
 })
 
@@ -71,7 +75,10 @@ watch(() => [proc.value?.cols, proc.value?.rows], schedule);
     width: 100%;
     height: 100%;
     overflow: hidden;
+    touch-action: pan-x;    // 세로 쓸기는 bindTouchScroll이 맡는다
 }
 // 소유자 크기로 고정된 화면은 타일보다 클 수 있다
 .ProcessTerminal--fixed { overflow: auto; }
+// 스크롤바 위 터치를 브라우저가 팬으로 가져가면 pointercancel로 드래그가 끊긴다
+.ProcessTerminal :deep(.xterm-scrollable-element > .scrollbar) { touch-action: none; }
 </style>

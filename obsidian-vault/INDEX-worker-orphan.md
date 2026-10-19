@@ -8,7 +8,7 @@ worker를 꺼도 실행 중 스크립트가 남던 문제. 재현해 보니 원�
 ## REF / history 목록 (MEMORY 인덱스에서 옮김)
 - `REF-worker-orphan.md`(재현표 · 메커니즘 · 정리안 안 가~안 마 · 결정 · 구현 · 고아-3(확인) 결과 · systemd unit 예시) / `history/worker-orphan.md`
 - 격리 함정: `REF-test-env.md` "끌 때 함정 — worker 자식"(원인 정정) · "`pgrep -f` 오판 함정"
-- 확인 스크립트 명세: `REF-test-scripts.md` "2026-10-15 확인 스크립트 (고아 스크립트)"
+- 확인 스크립트 명세: `REF-test-scripts-1014.md` "2026-10-15 확인 스크립트 (고아 스크립트)"
 - Windows 대응 메모(Job Object): `REF-windows-worker.md` "메모 — worker 종료 시 자식 정리"
 
 ## HISTORY 색인 행 (원문)

@@ -9,7 +9,7 @@ worker가 Windows에서 빌드조차 안 되던 문제(막히는 곳 = `internal
 - `REF-windows-worker.md`(계획·결정 WW1(실행 규칙)~WW5(OS 표시)·작업 단위 윈도-0~윈도-6·VM 실행/준비·위험·마감 때 미확인 목록) / `history/windows-worker.md`
 - `REF-windows-conpty.md`(윈도-0(빌드 분리) 결과 · ConPTY 시작/끝날 때 순서 · 윈도-6 ConPTY·종료 결과 · Ctrl+C 상속 수정) / `history/windows-conpty.md`
 - `REF-windows-exec.md`(스크립트 형식 손질 · 윈도-4(에디터) 메모 · 윈도-5(OS 표시) · 윈도-6 실행 규칙 결과) / `history/windows-exec.md`
-- 확인 스크립트 명세: `REF-test-scripts.md` "2026-10-19 확인 스크립트 (Windows worker 윈도-6(확인), VM)" · 윈도-5 격리 `iso5/os_test.py` 줄
+- 확인 스크립트 명세: `REF-test-scripts-1014.md` "2026-10-19 확인 스크립트 (Windows worker 윈도-6(확인), VM)" · 윈도-5 격리 `iso5/os_test.py` 줄
 - EDIT 에디터 정정: `REF-process-exec-edit.md`
 
 ## HISTORY 색인 행 (원문)

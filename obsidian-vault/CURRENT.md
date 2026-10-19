@@ -8,7 +8,10 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **파트(Windows worker) 마감(2026-10-19) → `INDEX-windows-worker.md`**: `pty` OS별 분리 + ConPTY·Job Object, `.ps1` = powershell / 그 외 `cmd /c` + `SCRIPT_FORMAT`, 에디터 `$VISUAL` > `EDITOR` > PATH 탐색, OS L/W 표시(`00011`). VM 17/17 + Ctrl+C 상속 수정 + 사용자 재접속 확인. 미확인 = `.py`·EDIT 저장 CRLF·TEMP 공백. **진행 중 파트 없음 → 다음 파트는 아래 후보에서 사용자가 고름**
+- **다음 파트 = 아래 후보에서 사용자가 고름** (진행 중 파트 없음)
+- **파트(터미널 터치 스크롤) 마감(2026-10-19) → `INDEX-term-touch.md`**: 안 가(스크롤바 `touch-action: none`) + 안 나(쓸어서 스크롤, `touchScroll.util.ts`: 상자 먼저·관성·정상 화면 `scrollLines`·alt 화면 휠). 헤드리스 11/11 + 사용자 실기기 확인. 확인용 노드 irony `scroll-test`(215)·`scroll-test.ps1`(216)은 남겨 둠(지울지 사용자 확인 전)
+  - 곁가지 해소: 셸 노드 종료 10초 = 설계대로(대화형 셸이 종료 요청 무시 -> 10초 뒤 SIGKILL), 사용자 "그대로 둬" → `REF-process-kill.md` 메모
+- **파트(Windows worker) 마감(2026-10-19) → `INDEX-windows-worker.md`**: `pty` OS별 분리 + ConPTY·Job Object, `.ps1` = powershell / 그 외 `cmd /c` + `SCRIPT_FORMAT`, 에디터 `$VISUAL` > `EDITOR` > PATH 탐색, OS L/W 표시(`00011`). VM 17/17 + Ctrl+C 상속 수정 + 사용자 재접속 확인. 미확인 = `.py`·EDIT 저장 CRLF·TEMP 공백.
   - VM `nexus-win`은 남겨 둠(`docker start/stop nexus-win`, 화면 `127.0.0.1:8006`). VM worker `win-dev`는 사용자 supervisor 8012에 연결된 채(`nexus` 명부에 `win-dev os=windows`) → `REF-windows-worker.md` "VM 실행". 격리 5051 종료·`nexus_win_tmp` 삭제함
 - **파트(PgUp·PgDn 버튼) 마감(2026-10-19) → `INDEX-term-page-keys.md`**: active 터미널 타일 오른쪽 아래 버튼 2개, 키 전송, 키보드 열림·전체보기 중 숨김. 사용자 브라우저 확인
 - 파트(고아 스크립트) 마감(2026-10-15) → `INDEX-worker-orphan.md`: worker가 SIGHUP·SIGTERM·SIGINT로 스크립트 정리(TERM -> 5초 -> KILL) 후 종료, `nohup`이면 SIGHUP만 무시. 사용자 재실행 확인. 
@@ -24,12 +27,8 @@
 - **다음 플랜**: 위 "다음 파트" 후보에서 사용자가 고름
   - 나중으로 미룸: process 단독 공유 UI를 둘지 결정(지금 서버 API만, 두면 받는 쪽 진입점 = 기본 루트 터미널 탭, `REF-tile-binding-rework.md` R3(경로 없는 process)) / 회원가입
 - 5 공유에서 뒤로 미룬 것: ~~숨기기~~(2026-10-13 철회 — 타일 닫기로 충분, → `REF-process-share.md`) / ~~잘라내기~~ → 파트(노드 클립보드)로 마감(2026-10-13) / ~~보드 미리보기~~ → ③ 파트(보드 미리보기)로 마감(2026-10-15, 시안 E = 전체보기 줄) / 단축키 키 조합 / ~~크기 우선권 넘김 실측~~(파트(크기 가져오기)에서 15초로 바꾸고 실측 15.0~15.5초) / ~~`tabGrace` 60초 만료 실측~~(실측-2(탭 보관 60초), 60.1초)
-- 커밋 상태: 2026-10-19 파트(Windows worker) 마감까지 전부 커밋(코드+vault 한 커밋). **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함). user vault 전체 git 제외
-- **2026-10-15(2) 세션**: 격리(5051·`nexus_orphan_tmp`) 종료·임시 DB 삭제. scratchpad `chk/client.py`·`chk/orphan.py`·`orphan/`·`old/`는 재부팅 시 사라짐 → 명세 `REF-test-scripts.md` "2026-10-15 확인 스크립트 (고아 스크립트)". worker는 사용자가 새 빌드로 재실행함
-- **2026-10-15 세션 재시작(Claude만, PC 재부팅 아님)**: 사용자가 띄운 supervisor(8012)·worker·프론트(8011)·postgres15는 켜진 채. 격리 테스트 프로세스·고아 스크립트 정리 끝, 임시 DB 없음. 이 세션 scratchpad(`pw/mid.mjs` 등)는 새 세션에서 경로가 달라 안 보임 — 명세 → `REF-test-scripts.md` "2026-10-15". PC 재부팅 뒤라면 `docker start postgres15` -> supervisor -> worker -> `npm run dev`(→ MEMORY "로컬 개발 환경")
-- 재부팅으로 사라질 것(2026-10-15): scratchpad `pw/mid.mjs`·`iso/`·`vite.iso.mts` — 명세 → `REF-test-scripts.md` "2026-10-15". 격리 종료·`nexus_bp_tmp` 삭제함
-- 재부팅으로 사라질 것(2026-10-14 보드 미리보기 세션): scratchpad `pw/bp.mjs`·`pw/bp2.mjs`·`pw/node_modules`·`vite.iso.mts`·`iso/`(바이너리·env)·`bp/`(시안 캔버스 원본, 캔버스 자체는 claude.ai에 남음) — 명세 → `REF-test-scripts.md` "2026-10-14 보드 미리보기". 격리 프로세스 종료·임시 DB `nexus_bp_tmp` 삭제함. 테스트 계정은 임시 DB에만 있었음(개발 DB 무변경)
-- 이전 재부팅들(2026-10-12~13)로 사라진 스크립트 명세는 `REF-test-scripts.md`·각 파트 REF 확인 절에
+- 커밋 상태: 2026-10-19 파트(Windows worker) 마감까지 커밋(`41ff14a`, 코드+vault 한 커밋). 2026-10-19 파트(터미널 터치 스크롤) 마감도 커밋(코드+vault 한 커밋). **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함). user vault 전체 git 제외
+- 이전 세션(2026-10-12~15)의 scratchpad 스크립트는 이미 사라짐 — 명세는 `REF-test-scripts.md`(~10-13)·`REF-test-scripts-1014.md`(10-14~) 날짜별 절. 그때 격리 프로세스·임시 DB는 전부 정리됨. PC 재부팅 뒤라면 `docker start postgres15` -> supervisor -> worker -> `npm run dev`(→ MEMORY "로컬 개발 환경")
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
 - 역할 분담(2026-09-29 개정): node 타일 UI·process 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다
 

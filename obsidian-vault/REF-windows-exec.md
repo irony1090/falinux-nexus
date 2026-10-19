@@ -33,7 +33,7 @@
 | 실행 검사 | `processApi.go` 장비 일치 검사 다음: 대상 windows + EXEC + `process.NodeExt(이름) == ""` -> 400 "Windows에서는 노드 이름에 확장자(...)가 필요합니다". EDIT는 검사 안 함 |
 | 프론트 | `feature/worker/util/workerOs.util.ts`(`osBadge` = L/W 한 글자, `osTitle` = 툴팁 "OS: Windows", `osName`) → `WorkerPickDialog`(subtitle 앞) · `NodeDeviceDialog`(인스턴스 줄 점 다음) · `FolderTileBody`(장비 칩 툴팁 줄에 `(Windows)`). **모든 인스턴스에 표시**(2026-10-19 사용자 결정: L/W + 툴팁). 세 곳 다 기본 화면에선 가려짐(칩 툴팁 · 장비 창 펼침 · 인스턴스 2개 이상일 때 고르기 창) — 사용자 브라우저 확인 후 "이대로"(장비 칩 자체 표시는 안 넣음) |
 
-- 확인(2026-10-19, 격리 = 임시 DB `nexus_os_tmp` + 5051, 끝나고 프로세스 종료·DB 삭제): `00011` 적용 / 실제 Linux worker 등록 = 명부 `os=linux` / 가짜 worker(Python 소켓 `REGISTER`) `os=windows`·`os` 없음 -> API `windows`·`linux` / windows EXEC 확장자 없음·`v1.2 정리` = 400 / windows EDIT·`run.ps1` = 확장자 검사 통과(경로 `{WORKER_BASE}/28/<uid>.ps1`) / Linux EXEC 확장자 없는 경로 COMPLETED 0 / `EDITOR="cat -n"` EDIT COMPLETED 0(인자 분리 실동작) + read-back 내용 유지 → 14/14(끝난 process는 `GET /processes`에 안 나와 DB로 확인). `vue-tsc` 통과. 스크립트 명세 → `REF-test-scripts.md` "2026-10-19"
+- 확인(2026-10-19, 격리 = 임시 DB `nexus_os_tmp` + 5051, 끝나고 프로세스 종료·DB 삭제): `00011` 적용 / 실제 Linux worker 등록 = 명부 `os=linux` / 가짜 worker(Python 소켓 `REGISTER`) `os=windows`·`os` 없음 -> API `windows`·`linux` / windows EXEC 확장자 없음·`v1.2 정리` = 400 / windows EDIT·`run.ps1` = 확장자 검사 통과(경로 `{WORKER_BASE}/28/<uid>.ps1`) / Linux EXEC 확장자 없는 경로 COMPLETED 0 / `EDITOR="cat -n"` EDIT COMPLETED 0(인자 분리 실동작) + read-back 내용 유지 → 14/14(끝난 process는 `GET /processes`에 안 나와 DB로 확인). `vue-tsc` 통과. 스크립트 명세 → `REF-test-scripts-1014.md` "2026-10-19"
 - 적용 주의: 사용자가 띄운 supervisor는 재시작 때 `00011`이 자동 적용(추가 칸이라 무해). worker는 새 빌드여야 OS를 보냄(옛 빌드도 linux로 표시돼 문제없음)
 
 ## 윈도-6(확인) 결과 — 실행 규칙·에디터·OS 표시 (2026-10-19)

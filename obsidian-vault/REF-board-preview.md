@@ -81,7 +81,7 @@ flowchart LR
 - 서버 변경 없음. 전체보기를 닫을 때 처리는 아래 "확정 — 전체보기를 닫을 때"(중간안, 2026-10-15). 처음 구현(2026-10-14)은 닫아도 실행 중 xterm을 남겼음
 
 ## 확인 결과 (미리보기-6(확인), 2026-10-14)
-격리(임시 DB `nexus_bp_tmp` + supervisor 5051 + worker `bp-dev` + 프론트 3001, 끝난 뒤 종료·삭제). 스크립트 = scratchpad `pw/bp.mjs`·`pw/bp2.mjs`(재부팅 시 사라짐, 명세 → `REF-test-scripts.md` "2026-10-14 보드 미리보기"). **31/31 통과** + 따로 1개.
+격리(임시 DB `nexus_bp_tmp` + supervisor 5051 + worker `bp-dev` + 프론트 3001, 끝난 뒤 종료·삭제). 스크립트 = scratchpad `pw/bp.mjs`·`pw/bp2.mjs`(재부팅 시 사라짐, 명세 → `REF-test-scripts-1014.md` "2026-10-14 보드 미리보기"). **31/31 통과** + 따로 1개.
 
 | 묶음 | 항목(전부 통과) |
 |---|---|
@@ -130,7 +130,7 @@ flowchart LR
 - **조회 중 닫기**: 스냅샷 응답이 닫은 뒤 오면 그때 등록됨 → 조회 끝 `.then`에서 기록 + `finally -> next -> release`로 지움
 
 ## 확인 결과 (중간-3(확인), 2026-10-15)
-격리(임시 DB `nexus_bp_tmp` + 5051 + worker `bp-dev` + 프론트 3001, 끝난 뒤 종료·삭제). 스크립트 = scratchpad `pw/mid.mjs`(명세 → `REF-test-scripts.md` "2026-10-15"). 판정 = 다른 보드 터미널 B의 `GET /processes/snapshot/<uid>` 요청 횟수(등록될 때만 요청함). **15/15 통과**, 콘솔 오류 없음.
+격리(임시 DB `nexus_bp_tmp` + 5051 + worker `bp-dev` + 프론트 3001, 끝난 뒤 종료·삭제). 스크립트 = scratchpad `pw/mid.mjs`(명세 → `REF-test-scripts-1014.md` "2026-10-15"). 판정 = 다른 보드 터미널 B의 `GET /processes/snapshot/<uid>` 요청 횟수(등록될 때만 요청함). **15/15 통과**, 콘솔 오류 없음.
 
 | 묶음 | 항목(전부 통과) |
 |---|---|

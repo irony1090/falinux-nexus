@@ -76,3 +76,8 @@
 - 뺀 것: 실패 알림에 "shebang 필요" 안내 — 거부 사유가 shebang만은 아니라서(사용자 결정)
 - 격리 확인 6/6(`fail_test.py`): 실행 실패 500 · DB FAILED 126 · 소켓 STATUS FAILED(126) · runs 빈 목록 / 소켓 연결 뒤 넣은 유령 PENDING 행 → worker 재시작 → DB 502 + 새로고침 없이 소켓에 STATUS FAILED
 - 사용자 테스트 중 생긴 개발 DB 유령 4건(node 181)은 worker 재시작으로 FAILED 502 정리됨(사용자 확인)
+
+## 메모 — 대화형 셸은 "종료하고 닫기"에 10초 (2026-10-19, 사용자 "문제없으면 그대로")
+- 대화형 셸은 종료 요청을 무시: bash는 SIGTERM 무시 / PowerShell 프롬프트는 Ctrl+C로 안 끝남 -> 10초 대기 뒤 SIGKILL·137(설계대로). DB 실측: `scroll-test`(215)·`scroll-test.ps1`(216) 요청 -> 약 10.4초 137 / 일반 스크립트 0.015초 143
+- `exec bash`로 끝나는 스크립트만 해당(스크립트 프로세스 자체가 대화형 bash가 됨). `exec` 없이 `bash`면 바깥 스크립트가 SIGTERM으로 끝나 바로 닫힘
+- 바꾸지 않음. 바꾸게 되면 후보 = Linux 종료 요청에 SIGHUP 추가 / Windows `ClosePseudoConsole`(CTRL_CLOSE_EVENT)

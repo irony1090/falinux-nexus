@@ -21,6 +21,7 @@
 - 고아 스크립트(마감) → `INDEX-worker-orphan.md` (worker-orphan)
 - PgUp·PgDn 버튼(마감) → `INDEX-term-page-keys.md` (term-page-keys)
 - Windows worker(마감) → `INDEX-windows-worker.md` (windows-worker·windows-conpty·windows-exec)
+- 터미널 터치 스크롤(마감) → `INDEX-term-touch.md` (term-touch)
 
 ## history/ 파일 색인 (진행 중 파트)
 
@@ -73,6 +74,9 @@
 ### `history/util-drag.md` — 드래그 인프라 (DraggableSession/useDragGhost/GhostArea)
 - 2026-10-12 보류 결정(소비처였던 캔버스·트리 드래그 폐기, 드래그 UX 넣을 때 재검토)
 - 2026-08-07(3) 포팅 설계 확정(코드 없음) — 구 test-jig 드래그 코드 문제진단(단일슬롯 콜백/synthetic dispatch/이웃정렬 혼입/ghost 손코딩 중복)+재설계 방향 확정
+
+### `history/test-scripts-1014.md` — 확인 스크립트 명세 2026-10-14~ (2026-10-19 분할)
+- 2026-10-19 분할 + Windows worker(윈도-5·윈도-6)·터치 스크롤 스크립트
 
 ### `history/test-scripts.md` — 확인 스크립트 재작성 명세 (2026-10-14, test-env에서 분할)
 - 2026-10-14 분할 + 파트(확인·실측) 스크립트(`chk/client.py`·`i3.py`·`grace.py`·`order.py`, `pw/htop*.mjs`)
