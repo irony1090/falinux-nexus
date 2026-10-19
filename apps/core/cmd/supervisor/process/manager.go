@@ -112,7 +112,7 @@ func (p *ProcessManager) execScript(
 	// 선배치(WorkerNodePath)하므로 여기선 그 경로만 가리킨다. 초기 Rows/Cols는 요청시점
 	// 정보라 0으로 두고 attach 후 MsgResize로 맞춘다(resize-on-attach).
 	//   EXEC: 파일을 직접 실행 → Cmd=WorkerNodePath, Args=[].
-	//   EDIT: 에디터로 그 파일을 연다 → Cmd={WORKER_EDITOR}(worker가 $VISUAL>$EDITOR>vi 치환),
+	//   EDIT: 에디터로 그 파일을 연다 → Cmd={WORKER_EDITOR}(worker가 $VISUAL>$EDITOR>OS 기본값 치환),
 	//         Args=[WorkerNodePath]. 종료 시 read-back은 router가 처리.
 	// 경로는 node+process로 조립한다. Record는 아직 없으나 uid는 발급됐으므로 그걸로 만든다
 	// (persist 후 entry.Record.Uid와 동일 → router의 선배치 DestPath와 정확히 일치).

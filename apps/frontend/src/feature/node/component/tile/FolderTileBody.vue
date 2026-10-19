@@ -3,6 +3,7 @@ import { tabReady } from '@/common/util/tabId.util';
 import type { ProcessStatus } from '@/feature/process/api/process.api';
 import { isRunning } from '@/feature/process/store/processTerm.store';
 import { useWorkerRoster } from '@/feature/worker/api/worker.api';
+import { osName } from '@/feature/worker/util/workerOs.util';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { VBtn, VIcon, VList, VListItem, VMenu, VProgressLinear } from 'vuetify/components';
 import { useListChildren, useNodePath, type NodeResponse } from '../../api/node.api';
@@ -66,7 +67,7 @@ const deviceTitle = (key: string | null | undefined, from?: string) => {
     const d = devices.value.get(key);
     const head = [key, from && `상위 폴더 '${from}'에서 상속`].filter(v => !!v).join(' — ');
     if (!d) return `${head}\n접속한 적 없음`;
-    const lines = d.instances.map(i => `${i.online ? '●' : '○'} #${i.subKey}  ${i.online ? '접속 중' : agoText(i.lastSeen)}`);
+    const lines = d.instances.map(i => `${i.online ? '●' : '○'} #${i.subKey} (${osName(i.os)})  ${i.online ? '접속 중' : agoText(i.lastSeen)}`);
     return [`${head}\n접속 ${d.online} · 끊김 ${d.instances.length - d.online}`, ...lines].join('\n');
 }
 

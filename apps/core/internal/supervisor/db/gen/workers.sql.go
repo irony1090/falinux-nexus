@@ -28,7 +28,7 @@ func (q *Queries) DeleteWorkerInstance(ctx context.Context, arg DeleteWorkerInst
 }
 
 const listWorkerInstances = `-- name: ListWorkerInstances :many
-SELECT main_key, sub_key, first_seen, last_seen FROM worker_instances
+SELECT main_key, sub_key, first_seen, last_seen, os FROM worker_instances
 WHERE $1::text = '' OR main_key = $1::text
 ORDER BY main_key, sub_key
 `
@@ -48,6 +48,7 @@ func (q *Queries) ListWorkerInstances(ctx context.Context, mainKey string) ([]Wo
 			&i.SubKey,
 			&i.FirstSeen,
 			&i.LastSeen,
+			&i.Os,
 		); err != nil {
 			return nil, err
 		}
@@ -77,19 +78,20 @@ func (q *Queries) TouchWorkerInstance(ctx context.Context, arg TouchWorkerInstan
 
 const upsertWorkerInstance = `-- name: UpsertWorkerInstance :exec
 
-INSERT INTO worker_instances (main_key, sub_key)
-VALUES ($1, $2)
-ON CONFLICT (main_key, sub_key) DO UPDATE SET last_seen = NOW()
+INSERT INTO worker_instances (main_key, sub_key, os)
+VALUES ($1, $2, $3)
+ON CONFLICT (main_key, sub_key) DO UPDATE SET last_seen = NOW(), os = EXCLUDED.os
 `
 
 type UpsertWorkerInstanceParams struct {
 	MainKey string
 	SubKey  string
+	Os      string
 }
 
 // worker_instances 명부 쿼리. 설계 → REF-node-label.md "roster 계획"
-// 등록 때 — 처음이면 추가, 있으면 last_seen만 갱신(first_seen 유지)
+// 등록 때 — 처음이면 추가, 있으면 last_seen·os만 갱신(first_seen 유지)
 func (q *Queries) UpsertWorkerInstance(ctx context.Context, arg UpsertWorkerInstanceParams) error {
-	_, err := q.db.Exec(ctx, upsertWorkerInstance, arg.MainKey, arg.SubKey)
+	_, err := q.db.Exec(ctx, upsertWorkerInstance, arg.MainKey, arg.SubKey, arg.Os)
 	return err
 }

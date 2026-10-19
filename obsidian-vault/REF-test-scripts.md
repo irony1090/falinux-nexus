@@ -69,3 +69,11 @@
 - `chk/client.py`(REST 쿠키 + `/subscribe` 소켓에서 `TAB:ID`) · `chk/orphan.py`(시나리오 E·B·A·C·D, 인자로 골라 실행): 계정·폴더(`deviceKey: orphan-dev`)·스크립트 3개 → worker를 `subprocess.Popen`(`nohup` 선택, `TMPDIR=iso/tmp`)으로 띄우고 `GET /workers?nodeId=`의 `instanceKey`로 exec → 스크립트 찾기 = `/proc/*/cmdline`이 `/bin/sh <iso/tmp>/`로 시작 → 그 sid에 속한 프로세스 수로 잔존 판정
 - `GET /processes`는 끝난 process를 안 돌려줌 → 최종 상태는 임시 DB `processes`(status·exit_code·finished_at)로 확인
 - 수정 전 비교 바이너리 = `git archive HEAD apps/core | tar -x -C <scratchpad>/old` 후 빌드
+
+## 2026-10-19 확인 스크립트 (Windows worker 윈도-5(OS 표시)) → `REF-windows-exec.md`
+- `iso5/os_test.py`(14개, scratchpad, 재부팅 시 사라짐): 격리 supervisor(5051, `nexus_os_tmp`) + 실제 worker(`NAME=os-dev`, `EDITOR="cat -n"`) / 계정 생성·로그인 → `/subscribe` 소켓에서 `TAB:ID`(`d.tabId`) 받아 REST에 `X-Tab-Id`(exec 필수, 없으면 400 "탭 id가 없거나") / 가짜 worker = `websockets.sync.client.connect("/worker")`로 `{"k":0,"id":1,"t":"REGISTER","d":{"key":"os-win","os":"windows"}}` 보내고 응답 `d.subKey`로 authKey / 폴더 `deviceKey`로 장비 지정 / exec = `POST /processes/exec {nodeId, authKey, type}` / 가짜 worker 대상 exec는 파일 전송(FileInit)에 응답이 없어 요청이 멈춤 → 타임아웃 3초 = 검사 통과로 판정 / 끝난 process 상태는 DB `processes.status`로
+
+## 2026-10-19 확인 스크립트 (Windows worker 윈도-6(확인), VM) → `REF-windows-conpty.md`·`REF-windows-exec.md`
+- `win/vssh`(scratchpad): `SSH_ASKPASS` + `SSH_ASKPASS_REQUIRE=force`로 비밀번호(`admin`) 넣는 ssh 래퍼(sshpass·paramiko 없음), `-p 2222`, known_hosts는 scratchpad 전용. 출력은 CP949(`iconv -f cp949`), worker 로그는 UTF-8
+- worker 띄우기 = shared의 `start.ps1 [exe]`(`\\host.lan\Data` -> `C:\nexus` 복사 + `Invoke-CimMethod Win32_Process Create`로 ssh 세션 밖에서 실행, 출력 `C:\nexus\worker.log`). ssh 세션에서 직접 띄우면 세션 종료 때 같이 꺼짐 / 따옴표 섞인 긴 명령은 멈출 수 있어 `.ps1` 파일로
+- `iso6/win_test.py [ps bat py noext ctrlc force edit]`(18개, `py` 빼고 돌리면 17개 — VM에 Python 없으면 `py`는 멈춤): 격리 supervisor `IP=172.17.0.1`(VM에서 보이는 docker0 주소) / 출력 확인 = 실행 중에 `GET /processes/snapshot/:uid`(`data` base64) — 스크립트 끝에 `Start-Sleep`을 둬서 끝나기 전에 읽음 / 상태·exit code = DB / 입력 = 구독 소켓 `PROCESS:INPUT` / 손자 확인 = `tasklist /fi "imagename eq PING.EXE"`

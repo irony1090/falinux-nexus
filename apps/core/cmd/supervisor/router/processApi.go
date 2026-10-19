@@ -7,6 +7,7 @@ import (
 	"slices"
 	"time"
 
+	"nexus/cmd/supervisor/process"
 	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/supervisor/store"
@@ -148,6 +149,10 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 	// 다른 장비로 잘못 실행되는 것 방지: authKey의 main_key = 스크립트의 상속 device_key (서브키 위조 검증은 별도)
 	if main, _ := splitInstanceKey(body.AuthKey); main != resolveMainKey(c.Request().Context(), TxQueries(c), body.NodeID, node.OwnerUserID) {
 		panic(web.Err(400, "이 스크립트의 실행 대상 장비가 아닙니다"))
+	}
+	// Windows는 확장자로 실행기를 고른다(worker prepareExec와 같은 NodeExt 판정) — WW1(실행 규칙)·WW5(OS 표시)
+	if os, _ := r.workerOS.Get(body.AuthKey); os == "windows" && protocol.ExecType(body.Type) != protocol.ExecTypeEdit && process.NodeExt(node.Name) == "" {
+		panic(web.Err(400, "Windows에서는 노드 이름에 확장자(.ps1·.bat·.py 등)가 필요합니다"))
 	}
 
 	uid, err := r.Exec(sess.Data.ID, body.AuthKey, protocol.ExecType(body.Type), node, tabID)

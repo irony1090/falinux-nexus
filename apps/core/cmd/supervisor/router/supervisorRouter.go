@@ -37,7 +37,8 @@ var upgrader = websocket.Upgrader{
 
 type supervisorRouter struct {
 	workers        *manager.KeyValManager[string, *transport.Conn]
-	tabs           *tabRegistry // 브라우저 소켓 = 탭(tabs.go)
+	workerOS       *manager.KeyValManager[string, string] // InstanceKey -> OS(정규화), workers와 같은 수명 — WW5(OS 표시)
+	tabs           *tabRegistry                           // 브라우저 소켓 = 탭(tabs.go)
 	readers        *manager.KeyValManager[string, *sendJob]
 	sessions       *session.SessionManager[superdb.User]
 	subscribeHub   *subscribe.Hub[*transport.Conn, protocol.MsgType]
@@ -70,6 +71,7 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 	}
 	router := &supervisorRouter{
 		workers:        manager.NewKeyValManager[string, *transport.Conn](),
+		workerOS:       manager.NewKeyValManager[string, string](),
 		tabs:           newTabRegistry(),
 		readers:        manager.NewKeyValManager[string, *sendJob](),
 		sessions:       session.NewSessionManager(sessionKey, "sid", getSessionKey),
@@ -149,7 +151,8 @@ func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 	key := auth.InstanceKey()
 	if key != "" {
 		router.workers.Remove(key)
-		recordSeen(key, false)
+		router.workerOS.Remove(key)
+		recordSeen(key, false, "")
 		router.reconcileDisconnect(key)
 		for _, fr := range router.readers.FindAll(func(_ string, v *sendJob) bool {
 			return v.authKey == key

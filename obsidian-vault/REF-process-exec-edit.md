@@ -17,7 +17,7 @@
 - **저장판별 = read-back & diff**: vi는 `:wq`·`:q!` 모두 exit 0 → 종료코드로 저장여부 못 가림. **종료 후 tmp 무조건 재읽기→원본과 비교→바뀌면 UPDATE/같으면 no-op**(`:w` 안 했으면 파일 불변→자연히 "저장 안 함"). `:cq`(non-zero)=명시 취소는 선택적
 - **구조체**: base `ProcessSpec`(UID/Cmd/Env/…) 공유 + **type별 addendum**(EDIT만 seedContent/tmp 정책). 3개 평행 구조체 금지
 - **editor 선택 = worker 책임**($EDITOR/OS 기본). 1차 **Linux worker 한정**(Windows PTY=ConPTY 별도 이슈)
-  - 2026-10-15 코드 점검: 실제 순서 = OS 환경변수 `EDITOR` > worker `env` 파일 `EDITOR` > `vi`(`constants/env.go`·`router/process.go` `resolveEditor`). **`$VISUAL`은 안 읽음**(주석 `$VISUAL>$EDITOR>vi`와 불일치) / 값에 인자가 붙으면(`nano -w`) 실행 파일 이름 하나로 넘겨 실패 / Windows는 worker 자체가 빌드 안 됨(`pty`가 `/dev/ptmx`·ioctl·`Mkfifo` 사용). 미수정
+  - 2026-10-15 코드 점검: 실제 순서 = OS 환경변수 `EDITOR` > worker `env` 파일 `EDITOR` > `vi`(`constants/env.go`·`router/process.go` `resolveEditor`). **`$VISUAL`은 안 읽음**(주석 `$VISUAL>$EDITOR>vi`와 불일치) / 값에 인자가 붙으면(`nano -w`) 실행 파일 이름 하나로 넘겨 실패 / Windows는 worker 자체가 빌드 안 됨(`pty`가 `/dev/ptmx`·ioctl·`Mkfifo` 사용). → **2026-10-19 윈도-4(에디터)로 수정**: `$VISUAL` > `EDITOR` > OS 기본값(Linux `vi` / Windows PATH `edit`·`nvim`·`vim`·`nano`), 공백으로 인자 분리(`prepareEdit`). 정정: `godotenv.Overload`라 env 파일 `EDITOR`가 OS `EDITOR`를 덮음(위 '실제 순서'의 앞 둘은 반대) → `REF-windows-worker.md`
 - **이름**: `EXEC`/`EDIT` 둘 다 **동사로 일관**. `EDITOR`(도구명—레이어 샘) 기각, `RETURN`(모호—exit code도 return) 기각. RETURN은 EDIT의 후보명이었을 뿐 동의어
 - **의존성**: process 도메인 배선 선행 필수(현재 Step1만). frontend xterm.js 필요(apps/web 미착수) — e2e는 테스트 클라 conn으로 PTY 왕복 검증 가능
 - **YAGNI**: "인터랙티브 세션이 아티팩트 반환" 거창한 프레임워크 금지. **EDIT 한 동작만**. 비인터랙티브 출력 캡처(CAPTURE류)는 실수요 나올 때 별 type으로

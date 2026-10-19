@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"runtime"
 	"time"
 
 	"nexus/internal/execute"
@@ -29,6 +30,7 @@ func (r *workerRouter) register() error {
 	}
 
 	req := protocol.NewRegisterRequest(r.uniqueKey, subKey)
+	req.OS = runtime.GOOS
 
 	// REGISTER 요청 → 응답이 이 한 줄에 묶여 돌아온다.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

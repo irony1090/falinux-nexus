@@ -90,4 +90,5 @@ type WorkerInstance struct {
 	SubKey    string
 	FirstSeen pgtype.Timestamptz
 	LastSeen  pgtype.Timestamptz
+	Os        string
 }

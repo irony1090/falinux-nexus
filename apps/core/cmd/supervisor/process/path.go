@@ -2,6 +2,8 @@ package process
 
 import (
 	"fmt"
+	"path"
+	"regexp"
 
 	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
@@ -12,12 +14,24 @@ import (
 // 실행/저장 직전 자기 ProcessRoot로 치환한다(cmd/worker 핸들러). 경로 조립 책임은
 // supervisor(여기), 지역화(placeholder 치환) 책임은 worker로 분리한다.
 //
-// 형식: {WORKER_BASE}/<node.ID>/<proc.Uid>
+// 형식: {WORKER_BASE}/<node.ID>/<proc.Uid><노드 이름 확장자>
 //   - node.ID  : 어떤 스크립트인지(같은 노드 재실행 시 같은 폴더).
 //   - proc.Uid : 실행 인스턴스별 격리(동시 실행·재실행 충돌 방지).
+//   - 확장자   : Windows worker가 실행기를 고르는 근거(WW1(실행 규칙)). Linux는 shebang이라 무해.
 //
 // 이 문자열은 content 선배치 전송 DestPath와 실행 명세(EXEC Cmd / EDIT Args)가 함께
 // 쓴다 — 반드시 같은 파일을 가리켜야 하므로 단일 출처로 둔다(불일치=버그).
 func WorkerNodePath(node superdb.Node, proc superdb.Process) string {
-	return fmt.Sprintf("%s/%d/%s", protocol.PlaceholderWorkerBase, node.ID, proc.Uid)
+	return fmt.Sprintf("%s/%d/%s%s", protocol.PlaceholderWorkerBase, node.ID, proc.Uid, NodeExt(node.Name))
+}
+
+var nodeExtPattern = regexp.MustCompile(`^\.[A-Za-z0-9]{1,8}$`)
+
+// NodeExt는 노드 이름의 확장자를 돌려준다(영문·숫자 1~8자만, "v1.2 정리" 같은 이름은 "").
+func NodeExt(name string) string {
+	ext := path.Ext(name)
+	if !nodeExtPattern.MatchString(ext) {
+		return ""
+	}
+	return ext
 }

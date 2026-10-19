@@ -4,6 +4,7 @@ import { deleteWorkerInstance, invalidateWorkerRoster, useWorkerRoster, type Wor
 import { useQueryClient } from '@tanstack/vue-query';
 import { computed, ref, watch } from 'vue';
 import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VForm, VIcon, VTextField } from 'vuetify/components';
+import { osBadge, osTitle } from '@/feature/worker/util/workerOs.util';
 import { agoText } from '../../util/presenceView.util';
 
 // 폴더의 장비(main_key) 지정 — 직접 입력 + 명부에서 고르기 + 끊긴 인스턴스 정리. worker 접속 전에도 미리 지정할 수 있다 — RS5(표시 위치) ②
@@ -106,6 +107,7 @@ const onSubmit = () => emit('submit', trimmed.value || null);
                             <template v-if="expanded[d.mainKey]">
                                 <div v-for="inst in d.instances" :key="inst.subKey" class="inst" :class="{ off: !inst.online }">
                                     <i class="dot" :class="{ on: inst.online }" />
+                                    <span class="mono inst__os" :title="osTitle(inst.os)">{{ osBadge(inst.os) }}</span>
                                     <span class="mono inst__key">#{{ inst.subKey }}</span>
                                     <span v-if="inst.online" class="inst__seen on">접속 중 · 처음 {{ new Date(inst.firstSeen * 1000).toLocaleDateString() }}</span>
                                     <template v-else>
@@ -196,6 +198,7 @@ const onSubmit = () => emit('submit', trimmed.value || null);
     &.off .inst__key { opacity: 0.7; }
 }
 .inst__key { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.inst__os { font-weight: 600; }
 .inst__seen {
     opacity: 0.7;
     white-space: nowrap;

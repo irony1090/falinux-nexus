@@ -25,6 +25,15 @@ const (
 type RegisterRequest struct {
 	Key    string `json:"key"`              // 사전 지정 고유키 (여러 worker가 같을 수 있음)
 	SubKey string `json:"subKey,omitempty"` // 재접속 시에만 채워짐
+	OS     string `json:"os,omitempty"`     // worker runtime.GOOS(빈 값 = 옛 worker = linux) — WW5(OS 표시)
+}
+
+// NormalizeOS는 빈 OS(옛 worker·이전 명부 행)를 linux로 본다.
+func NormalizeOS(os string) string {
+	if os == "" {
+		return "linux"
+	}
+	return os
 }
 
 func (r RegisterRequest) InstanceKey() string {
@@ -153,7 +162,7 @@ const (
 // process/node 구조체로 하고(→ process.WorkerNodePath), worker는 placeholder만 지역화한다.
 const (
 	PlaceholderWorkerBase   = "{WORKER_BASE}"   // worker 베이스 디렉토리(ProcessRoot)
-	PlaceholderWorkerEditor = "{WORKER_EDITOR}" // worker 기본 텍스트 에디터($VISUAL>$EDITOR>vi)
+	PlaceholderWorkerEditor = "{WORKER_EDITOR}" // worker 기본 텍스트 에디터($VISUAL>$EDITOR>OS 기본값)
 )
 
 // ProcessSpec: 실행 명세. (MsgExec REQ)

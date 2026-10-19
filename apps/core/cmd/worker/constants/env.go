@@ -17,15 +17,16 @@ var (
 
 // EnvVars는 자주 사용하는 환경 변수 값들을 저장하는 구조체
 type EnvVars struct {
-	IsDev       bool
-	Name        string `iniName:"NAME"`
-	WsHost      string `iniName:"WS_HOST"`
-	WsScheme    string `iniName:"WS_SCHEME"`
-	Sqlite      string `iniName:"SQLITE"`
-	Editor      string `iniName:"EDITOR"`
-	ProcessRoot string
-	ProjectDir  string
-	Ip          string
+	IsDev        bool
+	Name         string `iniName:"NAME"`
+	WsHost       string `iniName:"WS_HOST"`
+	WsScheme     string `iniName:"WS_SCHEME"`
+	Sqlite       string `iniName:"SQLITE"`
+	Editor       string `iniName:"EDITOR"`
+	ScriptFormat string `iniName:"SCRIPT_FORMAT"` // 확장자별 인코딩·줄 끝 덮어쓰기 → router/script.go
+	ProcessRoot  string
+	ProjectDir   string
+	Ip           string
 	// UploadDir string `iniName:"UPLOAD_DIR"`
 	// AssetsDir string `iniName:"ASSETS_DIR"`
 }
@@ -84,10 +85,15 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		}
 	}
 
-	// EDITOR는 선택값 — 비면 worker의 resolveEditor가 $VISUAL>$EDITOR>vi로 폴백한다.
+	// EDITOR는 선택값 — resolveEditor가 $VISUAL > EDITOR > OS 기본값(vi / Windows는 PATH 탐색) 순으로 정한다.
 	editor := os.Getenv(("EDITOR"))
 	if editor == "" && !isNil {
 		editor = env.Editor
+	}
+
+	scriptFormat := os.Getenv(("SCRIPT_FORMAT"))
+	if scriptFormat == "" && !isNil {
+		scriptFormat = env.ScriptFormat
 	}
 
 	if isNil {
@@ -105,6 +111,7 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 	env.ProjectDir = projectDir
 	env.Ip = ip
 	env.Editor = editor
+	env.ScriptFormat = scriptFormat
 
 	log.Printf("root path %s", projectDir)
 	log.Printf("Loaded %v", env)

@@ -8,12 +8,13 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **다음 파트 = Windows worker(2026-10-19 사용자 결정)** → 계획 `REF-windows-worker.md`. 착수 첫 일 = 결정 WW1(실행 규칙)·WW2(종료 방식)·WW3(에디터 기본값)·WW5(OS 표시) 사용자 답 받기(WW4(확인 환경) = VM 방향), 그다음 윈도-0(빌드 분리)부터. 같이 할 것: EDIT 에디터 소소한 수정(`$VISUAL`·`EDITOR` 인자 분리 = 윈도-4(에디터))
+- **파트(Windows worker) 마감(2026-10-19) → `INDEX-windows-worker.md`**: `pty` OS별 분리 + ConPTY·Job Object, `.ps1` = powershell / 그 외 `cmd /c` + `SCRIPT_FORMAT`, 에디터 `$VISUAL` > `EDITOR` > PATH 탐색, OS L/W 표시(`00011`). VM 17/17 + Ctrl+C 상속 수정 + 사용자 재접속 확인. 미확인 = `.py`·EDIT 저장 CRLF·TEMP 공백. **진행 중 파트 없음 → 다음 파트는 아래 후보에서 사용자가 고름**
+  - VM `nexus-win`은 남겨 둠(`docker start/stop nexus-win`, 화면 `127.0.0.1:8006`). VM worker `win-dev`는 사용자 supervisor 8012에 연결된 채(`nexus` 명부에 `win-dev os=windows`) → `REF-windows-worker.md` "VM 실행". 격리 5051 종료·`nexus_win_tmp` 삭제함
 - **파트(PgUp·PgDn 버튼) 마감(2026-10-19) → `INDEX-term-page-keys.md`**: active 터미널 타일 오른쪽 아래 버튼 2개, 키 전송, 키보드 열림·전체보기 중 숨김. 사용자 브라우저 확인
 - 파트(고아 스크립트) 마감(2026-10-15) → `INDEX-worker-orphan.md`: worker가 SIGHUP·SIGTERM·SIGINT로 스크립트 정리(TERM -> 5초 -> KILL) 후 종료, `nohup`이면 SIGHUP만 무시. 사용자 재실행 확인. 
 - (이전 순서) 2026-10-14에 정한 순서 ① 파트(확인·실측) → ② 파트(모바일 가상 키보드) → ③ 파트(보드 미리보기)는 전부 마감
   - ③ 파트(보드 미리보기) **마감(2026-10-15) → `INDEX-board-preview.md`**: 전체보기에 다른 보드 줄 + 다른 보드 터미널 실시간 + 닫을 때 전체보기가 만든 xterm만 정리(중간안). 코드 `52ae8b9`
-  - 후보(아래 "다음 플랜"·미해결에서): ~~전체 화면을 켜면 칼럼이 `single` -> `row`~~ 버그 아님(2026-10-15 확인): 전체 화면으로 Grid 영역 높이가 `TILE_THRESHOLD.h` 560 이상 -> `capacity` y 1 -> 2 -> `effectiveSize`가 저장값 h 0.5를 그대로 써서 `single` -> `row`(1칸 축의 0.5를 1로 보는 규칙, `tileSplit.util.ts`) / process 단독 공유 UI 여부 / 회원가입 / 파일 전송 e2e(실사용 경로 EDIT `SendBuffer`는 동작 중 — 큰 파일·이어받기·abort를 쓰는 기능을 만들 때 같이 확인 추천) / iPhone 실기기 확인 / **Windows worker**(2026-10-15 추가, 별도 파트 규모: worker가 Windows 빌드 안 됨 -> ConPTY PTY 구현 + EXEC 실행 규칙(shebang 대신 `.ps1`·`.bat` 해석기) + 에디터 기본값, → **계획 `REF-windows-worker.md`**(윈도-0(빌드 분리)~윈도-6(확인), 결정 WW1(실행 규칙)~WW5(OS 표시) 사용자 답 대기, 확인 환경 = VM `dockurr/windows` 추천 — 2026-10-15 기록 후 보류 -> **2026-10-19 다음 파트로 결정**)) / **worker 화면 송출 + 조작**(2026-10-15 아이디어, VNC 터널 + noVNC, SC1(VNC 서버 준비) = 장비 설치 전제 · SC2(못 쓰는 장비) = 가능 여부 보고 + 버튼 비활성화 결정, → `REF-worker-screen.md`) / EDIT 에디터 소소한 수정(`$VISUAL` 미사용·`EDITOR` 인자 분리, 같은 줄)
+  - 후보(아래 "다음 플랜"·미해결에서): ~~전체 화면을 켜면 칼럼이 `single` -> `row`~~ 버그 아님(2026-10-15 확인): 전체 화면으로 Grid 영역 높이가 `TILE_THRESHOLD.h` 560 이상 -> `capacity` y 1 -> 2 -> `effectiveSize`가 저장값 h 0.5를 그대로 써서 `single` -> `row`(1칸 축의 0.5를 1로 보는 규칙, `tileSplit.util.ts`) / process 단독 공유 UI 여부 / 회원가입 / 파일 전송 e2e(실사용 경로 EDIT `SendBuffer`는 동작 중 — 큰 파일·이어받기·abort를 쓰는 기능을 만들 때 같이 확인 추천) / iPhone 실기기 확인 / ~~Windows worker~~(2026-10-19 마감 → `INDEX-windows-worker.md`) / **worker 화면 송출 + 조작**(2026-10-15 아이디어, VNC 터널 + noVNC, SC1(VNC 서버 준비) = 장비 설치 전제 · SC2(못 쓰는 장비) = 가능 여부 보고 + 버튼 비활성화 결정, → `REF-worker-screen.md`) / ~~EDIT 에디터 소소한 수정~~(윈도-4로 해결)
 - **시연 데이터(2026-10-16) 등록 → `REF-demo.md`**: irony 계정 폴더 `시연-생산지그`(id 200, 안 C(생산 지그 시나리오)) + test1 편집·test2 조작·test3 보기 공유. 코드 변경 없음(REST로 데이터만, 커밋할 코드 없음)
   - **다음 할 것**: 브라우저로 시연 순서 점검(irony + test3 동시) — Nexus 경유 실행은 아직 미확인(xterm.js 한글 정렬·24bit 색 사진, worker 환경 카메라). 시연 순서 → `REF-demo.md` "시연 순서"
   - 사용자가 하려던 기능 추가는 내용이 기억나지 않아 보류(2026-10-16)
@@ -23,7 +24,7 @@
 - **다음 플랜**: 위 "다음 파트" 후보에서 사용자가 고름
   - 나중으로 미룸: process 단독 공유 UI를 둘지 결정(지금 서버 API만, 두면 받는 쪽 진입점 = 기본 루트 터미널 탭, `REF-tile-binding-rework.md` R3(경로 없는 process)) / 회원가입
 - 5 공유에서 뒤로 미룬 것: ~~숨기기~~(2026-10-13 철회 — 타일 닫기로 충분, → `REF-process-share.md`) / ~~잘라내기~~ → 파트(노드 클립보드)로 마감(2026-10-13) / ~~보드 미리보기~~ → ③ 파트(보드 미리보기)로 마감(2026-10-15, 시안 E = 전체보기 줄) / 단축키 키 조합 / ~~크기 우선권 넘김 실측~~(파트(크기 가져오기)에서 15초로 바꾸고 실측 15.0~15.5초) / ~~`tabGrace` 60초 만료 실측~~(실측-2(탭 보관 60초), 60.1초)
-- 커밋 상태: 2026-10-19 파트(PgUp·PgDn 버튼) 마감까지 전부 커밋(코드+vault 한 커밋, 시연 데이터 `REF-demo.md` 포함). **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함). user vault 전체 git 제외
+- 커밋 상태: 2026-10-19 파트(Windows worker) 마감까지 전부 커밋(코드+vault 한 커밋). **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함). user vault 전체 git 제외
 - **2026-10-15(2) 세션**: 격리(5051·`nexus_orphan_tmp`) 종료·임시 DB 삭제. scratchpad `chk/client.py`·`chk/orphan.py`·`orphan/`·`old/`는 재부팅 시 사라짐 → 명세 `REF-test-scripts.md` "2026-10-15 확인 스크립트 (고아 스크립트)". worker는 사용자가 새 빌드로 재실행함
 - **2026-10-15 세션 재시작(Claude만, PC 재부팅 아님)**: 사용자가 띄운 supervisor(8012)·worker·프론트(8011)·postgres15는 켜진 채. 격리 테스트 프로세스·고아 스크립트 정리 끝, 임시 DB 없음. 이 세션 scratchpad(`pw/mid.mjs` 등)는 새 세션에서 경로가 달라 안 보임 — 명세 → `REF-test-scripts.md` "2026-10-15". PC 재부팅 뒤라면 `docker start postgres15` -> supervisor -> worker -> `npm run dev`(→ MEMORY "로컬 개발 환경")
 - 재부팅으로 사라질 것(2026-10-15): scratchpad `pw/mid.mjs`·`iso/`·`vite.iso.mts` — 명세 → `REF-test-scripts.md` "2026-10-15". 격리 종료·`nexus_bp_tmp` 삭제함

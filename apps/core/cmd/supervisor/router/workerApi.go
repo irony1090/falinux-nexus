@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/transport"
 	"nexus/internal/web"
@@ -28,6 +29,7 @@ type workerResponse struct {
 	MainKey     string `json:"mainKey"`
 	SubKey      string `json:"subKey"`
 	InstanceKey string `json:"instanceKey"`
+	OS          string `json:"os"` // linux | windows ... — WW5(OS 표시)
 }
 
 type workerInstanceResponse struct {
@@ -80,7 +82,8 @@ func (r *supervisorRouter) listWorkers(c echo.Context) error {
 	rst := make([]workerResponse, 0, len(found))
 	for _, f := range found {
 		main, sub := splitInstanceKey(f.Key)
-		rst = append(rst, workerResponse{MainKey: main, SubKey: sub, InstanceKey: f.Key})
+		os, _ := r.workerOS.Get(f.Key)
+		rst = append(rst, workerResponse{MainKey: main, SubKey: sub, InstanceKey: f.Key, OS: protocol.NormalizeOS(os)})
 	}
 	sort.Slice(rst, func(i, j int) bool { return rst[i].InstanceKey < rst[j].InstanceKey })
 	return c.JSON(200, rst)
@@ -98,7 +101,7 @@ func (r *supervisorRouter) listWorkerInstances(c echo.Context) error {
 		key := row.MainKey + "#" + row.SubKey
 		_, online := r.workers.Get(key)
 		rst = append(rst, workerInstanceResponse{
-			workerResponse: workerResponse{MainKey: row.MainKey, SubKey: row.SubKey, InstanceKey: key},
+			workerResponse: workerResponse{MainKey: row.MainKey, SubKey: row.SubKey, InstanceKey: key, OS: protocol.NormalizeOS(row.Os)},
 			Online:         online,
 			FirstSeen:      row.FirstSeen.Time.Unix(),
 			LastSeen:       row.LastSeen.Time.Unix(),

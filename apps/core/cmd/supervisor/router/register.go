@@ -29,8 +29,11 @@ func (r *supervisorRouter) register(conn *transport.Conn, body *protocol.Registe
 			body.SubKey = ""
 			return "", fmt.Errorf("서브키 %q 는 이미 접속 중", key)
 		}
+		os := protocol.NormalizeOS(body.OS)
+		r.workerOS.Remove(key)
+		r.workerOS.Append(key, os) // workers보다 먼저 — 보이는 worker는 OS도 있게
 		r.workers.Append(key, conn)
-		recordSeen(key, true)
+		recordSeen(key, true, os)
 
 		// q := store.GetStorePool().Queries()
 		// ctx := context.Background()

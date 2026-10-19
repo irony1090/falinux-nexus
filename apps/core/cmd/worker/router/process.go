@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"nexus/cmd/worker/constants"
@@ -9,6 +10,7 @@ import (
 	"nexus/internal/execute/pty"
 	"nexus/internal/protocol"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -28,13 +30,33 @@ type procEntry struct {
 // 같은 값을 써야 선배치 위치와 실행 대상 경로가 일치한다.
 func workerBase() string { return constants.GetEnv().ProcessRoot }
 
-// resolveEditor는 {WORKER_EDITOR} 치환 값을 정한다: $VISUAL > $EDITOR > env(EDITOR) > "vi" 폴백.
-// (편집기 선택은 worker 책임 — supervisor는 토큰만 보낸다.)
+// resolveEditor는 {WORKER_EDITOR} 치환 값을 정한다: $VISUAL > EDITOR(env) > OS 기본값(defaultEditor).
+// (편집기 선택은 worker 책임 — supervisor는 토큰만 보낸다.) 인자 분리는 prepareEdit에서.
 func resolveEditor() string {
+	if v := os.Getenv("VISUAL"); v != "" {
+		return v
+	}
 	if v := constants.GetEnv().Editor; v != "" {
 		return v
 	}
-	return "vi"
+	return defaultEditor()
+}
+
+// prepareEdit는 에디터 값을 공백으로 나눠 Cmd·Args로 펼친다("code --wait" -> code, [--wait, 파일]).
+// 공백이 든 에디터 경로는 지원하지 않는다(PATH에 넣도록 안내) → REF-windows-worker.md WW3(에디터 기본값)
+func prepareEdit(body protocol.ProcessSpec) (protocol.ProcessSpec, string, error) {
+	fields := strings.Fields(body.Cmd)
+	if len(fields) == 0 {
+		return body, "", errors.New("에디터를 찾을 수 없습니다 — worker env에 EDITOR를 설정하세요")
+	}
+	var editPath string
+	if len(body.Args) > 0 {
+		body.Args[0] = filepath.Clean(body.Args[0])
+		editPath = body.Args[0]
+	}
+	body.Cmd = fields[0]
+	body.Args = append(fields[1:], body.Args...)
+	return body, editPath, nil
 }
 
 // localize는 supervisor가 박아 보낸 치환 토큰을 이 worker의 실제 값으로 바꾼다.
@@ -67,6 +89,17 @@ func (r *workerRouter) exec(req protocol.Frame) (any, error) {
 	// placeholder 지역화: Cmd/Args/Cwd/Env 전부. Cmd는 {WORKER_EDITOR}(EDIT)도 치환된다.
 	body = allLocalize(body)
 	// log.Printf("[WORKER-EXEC] %v", body)
+	kind := body.Kind()
+	var editPath string
+	var err error
+	if kind == protocol.ExecTypeEdit {
+		body, editPath, err = prepareEdit(body)
+	} else {
+		body, err = prepareExec(body)
+	}
+	if err != nil {
+		return protocol.ExecResponse{Accept: false, Reason: err.Error()}, nil
+	}
 
 	// env는 완전 대체 정책(ExecInteractive nil=상속) → 베이스(os.Environ())를 여기서 조립해 넘긴다.
 	// TERM은 TUI 에디터(vi 등)에 사실상 필수라 강제한다.
@@ -76,12 +109,6 @@ func (r *workerRouter) exec(req protocol.Frame) (any, error) {
 	inter, err := pty.ExecInteractive(context.Background(), body.Cmd, env, body.Cwd, body.Args...)
 	if err != nil {
 		return protocol.ExecResponse{Accept: false, Reason: err.Error()}, nil
-	}
-
-	kind := body.Kind()
-	var editPath string
-	if kind == protocol.ExecTypeEdit && len(body.Args) > 0 {
-		editPath = body.Args[0]
 	}
 
 	entry := &procEntry{uid: body.UID, kind: kind, editPath: editPath, inter: inter}

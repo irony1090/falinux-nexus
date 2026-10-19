@@ -20,6 +20,7 @@
 - 보드 미리보기(마감) → `INDEX-board-preview.md` (board-preview)
 - 고아 스크립트(마감) → `INDEX-worker-orphan.md` (worker-orphan)
 - PgUp·PgDn 버튼(마감) → `INDEX-term-page-keys.md` (term-page-keys)
+- Windows worker(마감) → `INDEX-windows-worker.md` (windows-worker·windows-conpty·windows-exec)
 
 ## history/ 파일 색인 (진행 중 파트)
 
@@ -28,9 +29,6 @@
 
 ### `history/worker-screen.md` — worker 화면 송출 (2026-10-15 신설, 아이디어)
 - 2026-10-15 방식 가·나·다 비교, 조작 필요 → 나(VNC 터널 + noVNC) 추천, 기록만
-
-### `history/windows-worker.md` — Windows worker (2026-10-15 신설, 후보)
-- 2026-10-15 Windows 빌드 실패 원인 = `pty` 패키지뿐 확인 + 계획 윈도-0~6·결정 WW1~WW5(코드 없음)
 
 ### `history/node-ui.md` — node 카탈로그 UI 컨셉
 - 2026-08-10(4) 그리드 UI 구현 방식: 직접 제작 확정(조사+설계) — Splitpanes/Golden Layout/Dockview 조사 후 기각, 리사이즈만 DraggableSession 재사용 (2026-08-12 재확인, 결론 불변)

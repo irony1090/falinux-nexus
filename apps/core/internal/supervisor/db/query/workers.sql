@@ -1,10 +1,10 @@
 -- worker_instances 명부 쿼리. 설계 → REF-node-label.md "roster 계획"
 
 -- name: UpsertWorkerInstance :exec
--- 등록 때 — 처음이면 추가, 있으면 last_seen만 갱신(first_seen 유지)
-INSERT INTO worker_instances (main_key, sub_key)
-VALUES ($1, $2)
-ON CONFLICT (main_key, sub_key) DO UPDATE SET last_seen = NOW();
+-- 등록 때 — 처음이면 추가, 있으면 last_seen·os만 갱신(first_seen 유지)
+INSERT INTO worker_instances (main_key, sub_key, os)
+VALUES ($1, $2, $3)
+ON CONFLICT (main_key, sub_key) DO UPDATE SET last_seen = NOW(), os = EXCLUDED.os;
 
 -- name: TouchWorkerInstance :exec
 -- 끊길 때
