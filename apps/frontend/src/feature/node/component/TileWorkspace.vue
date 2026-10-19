@@ -3,10 +3,9 @@ import { useVirtualKeyboard } from '@/common/hook/virtualKeyboard.hook';
 import TerminalKeyBar, { KEY_BAR_HEIGHT } from '@/feature/process/component/TerminalKeyBar.vue';
 import { useProcessTerm } from '@/feature/process/store/processTerm.store';
 import { computed, nextTick, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useTileUrl } from '../hook/tileUrl.hook';
 import { provideNodeOps } from '../store/nodeOps.store';
 import { provideTileGrids } from '../store/tileGrids.store';
-import { useTileTree } from '../store/tileTree.store';
 import NodeOpsHost from './NodeOpsHost.vue';
 import NodeSelectionBar from './NodeSelectionBar.vue';
 import OverviewButton from './OverviewButton.vue';
@@ -15,29 +14,9 @@ import TileStrip from './TileStrip.vue';
 
 // strip과 헤더 내비가 같은 Grid 상태를 쓰도록 공통 부모에서 provide. 내비는 Teleport로 AppHead 자리에 — F(헤더 전달 방식)
 const grids = provideTileGrids();
-const { activate, rootTab } = grids;
 provideNodeOps(grids);     // 같은 컴포넌트에선 inject가 안 되므로 grids를 넘긴다
-const { tiles, setMinimized } = useTileTree();
-const route = useRoute();
-const router = useRouter();
-
-// ?focus=<tileId> = 그 타일을 active로(목록 "보드로 이동"·위치 알림, N3(누르면 이동)) / ?tab=terminals = 루트 터미널 탭(M4(위치 없음)).
-// 타일이 트리에 들어올 때까지 기다렸다가 처리하고 query를 지운다
-watch(() => {
-    const focus = route.query.focus;
-    return [focus, route.query.tab, typeof focus === 'string' ? tiles.value[focus] : undefined] as const;
-}, ([focus, tab, tile]) => {
-    if (typeof focus === 'string') {
-        if (!tile) return;
-        if (tile.type === 'terminal' && tile.minimized) setMinimized(tile.id, false);
-        void activate(tile.id);
-    } else if (tab === 'terminals') {
-        rootTab.value = 'terminals';
-    } else {
-        return;
-    }
-    void router.replace({ query: {} });
-}, { immediate: true })
+// ?focus=(목록 "보드로 이동"·위치 알림 N3(누르면 이동) + active) · ?view=(보던 칼럼) · ?tab=terminals(M4(위치 없음)) — 새로고침 복원
+useTileUrl(grids);
 
 // 키보드-2(가려짐 이동): 포커스된 터미널이 가상 키보드·키 줄에 가려지면 타일 영역 전체를 올린다(배치·PTY 크기 불변)
 // 고침-나(커서 기준 이동): 타일이 화면보다 커도 커서 줄은 키 줄 위에 오게, 이때 타일 머리가 헤더 밑으로 들어가도 된다 — REF-mobile-keyboard.md

@@ -39,3 +39,14 @@
 ## 2026-10-19 터치 스크롤 → `REF-term-touch.md`
 - scratchpad `touch/`(재부팅 시 사라짐): `npm i playwright-core@1.56` + 캐시 Chromium(`~/.cache/ms-playwright/chromium-1234`) / `page.html` = node_modules의 `xterm.js`·`xterm.css` 복사 + 300줄, `?fix=1`(rule 적용)·`?tall=1`(페이지 길게) / `run.mjs` = `hasTouch`·`isMobile` 컨텍스트, `TAP=1`이면 `touchscreen.tap`으로 스크롤바 먼저 띄움 -> CDP `Input.dispatchTouchEvent` slider 중심에서 10px씩 20번 위로 -> `term.buffer.active.viewportY`·`pointercancel` 여부·`scrollY` 비교
 - `touch/swipe.html`·`swipe.mjs`(11개): `touchScroll.util.ts`를 `npx esbuild --format=iife --global-name=TS`로 묶어 씀, `?fixed=1`(상자 overflow auto·40줄)·`?alt=1`(alt 화면) / 상자 400px(16줄 터미널이 상자보다 크면 slider가 잘림)
+
+## 2026-10-19 파일 전송 → `REF-transfer-e2e.md`
+- scratchpad `xfer/`(재부팅 시 사라짐): `ov/main.go`(= `cmd/supervisor/main.go` 복사 + `mountXfer(e, r)`) · `ov/xfer_main.go`(`/xfer/file?key=&path=` `SendFile` / `/xfer/buf?key=&name=&size=&seed=` `SendBuffer` / `/xfer/abort?id=` / `/xfer/jobs` / `/xfer/workers`, 라우터는 인터페이스로 받음 — 반환 타입이 비공개라) · `ov/xfer_debug.go`(router 패키지, `XferWorkers`·`XferJobs` = `FindAll`) → `overlay.json` `Replace`로 3파일 끼워 `go build -overlay`
+- 격리: `sup/env`(PORT 5051, `IP=localhost`, `DB_NAME=nexus_xfer_tmp`) · `wrk/env`(`WS_HOST="localhost:5152"`, `NAME="xfer-dev"`) · 둘 다 `TMPDIR=xfer/tmp`(worker 수신 루트 = `os.TempDir()`)
+- `proxy.py 5152 5051`: asyncio TCP 프록시, `DELAY`(편도 초) 지연, SIGUSR1 = 지금 연결 전부 `transport.abort()`
+- `test.py t1 ... t9`: 시나리오 이름 = REF 표. 키는 `#`가 있어 `urllib.parse.quote(safe='')` 필수 / `.part` 크기 폴링으로 끊는 시점·이어받기(최소 크기 >= 끊긴 크기) 판정 / worker 끄기는 `pgrep -x worker` 중 `/proc/<pid>/cwd` = `xfer/wrk`만
+
+## 2026-10-19 보드 URL 바인딩 → `REF-tile-url.md`
+- scratchpad `url/`: `playwright-core@1.56` + `vite.iso.mts`(`base({mode:'development',command:'serve'})` 펼치고 `root`·`cacheDir`(env `ISO_CACHE`)·`server: {port:3001, strictPort, host:'localhost', hmr: undefined}`), 실행은 `apps/frontend`에서 `VITE_API_URL=http://localhost:5051 npx vite --config ...`
+- `url.mjs`(20개): `request` 컨텍스트로 계정(`POST /users`·`/users/session`) + 폴더 7개 + `GET /tiles` 트리에 폴더 타일 `f1`~`f7`(size `{w:0.5,h:1}`, 루트도 같은 크기) `PUT /tiles {tree, version}` -> `storageState`를 브라우저에 / 판정 = `location.search`, `.TileFrame--active`, `document.activeElement.dataset.tileId`, `.TileStrip.scrollLeft`, "화면 왼쪽 칼럼 타일" = strip 안에 보이는 `.TileFrame` 중 left·top 최소
+- 함정: URL 쓰기는 300ms 지연 + smooth 스크롤 뒤라 `waitForFunction(location.search...)`로 기다릴 것

@@ -91,7 +91,7 @@ export const provideTileGrids = () => {
     const view = computed(() => stripView(geometry.value, scrollX.value, viewW.value, TILE_GAP))
 
     // x = 칼럼/Grid 시작. 스냅 위치와 맞추려고 scroll-padding(gap)만큼 뺀다
-    const scrollTo = (x: number) => stripEl.value?.scrollTo({ left: x - TILE_GAP, behavior: 'smooth' })
+    const scrollTo = (x: number, behavior: ScrollBehavior = 'smooth') => stripEl.value?.scrollTo({ left: x - TILE_GAP, behavior })
 
     const goGrid = (index: number) => {
         const s = geometry.value.grids[index]
@@ -109,16 +109,33 @@ export const provideTileGrids = () => {
         await nextTick()
         if (overview.value) return
         const el = stripEl.value
-        const gi = grids.value.findIndex(g => g.items.some(it => it.tile.id === tileId))
-        const it = grids.value[gi]?.items.find(it => it.tile.id === tileId)
-        if (!el || !it) return
-        const cols = geometry.value.columns.filter(c => c.grid === gi)
-        const first = cols[Math.min(it.c, cols.length - 1)]!
-        const last = cols[Math.min(it.c + it.cw - 1, cols.length - 1)]!
+        const span = columnsOf(tileId)
+        if (!el || !span) return
+        const { gi, first, last } = span
         // 1px = 소수 폭 오차 허용
         const shown = first.x >= el.scrollLeft - 1 && last.x + last.w <= el.scrollLeft + el.clientWidth + 1
         if (!shown) goGrid(gi)
     }
+
+    // 타일이 차지하는 칼럼 — gi = Grid 번호
+    const columnsOf = (tileId: string) => {
+        const gi = grids.value.findIndex(g => g.items.some(it => it.tile.id === tileId))
+        const it = grids.value[gi]?.items.find(it => it.tile.id === tileId)
+        if (!it) return undefined
+        const cols = geometry.value.columns.filter(c => c.grid === gi)
+        return { gi, first: cols[Math.min(it.c, cols.length - 1)]!, last: cols[Math.min(it.c + it.cw - 1, cols.length - 1)]! }
+    }
+
+    // 보던 자리 = 스냅 기준 왼쪽 칼럼을 차지하는 타일(위쪽 먼저). URL ?view= — REF-tile-url.md U1(넣을 것)
+    const anchorId = computed(() => {
+        if (overview.value) return undefined
+        const cols = geometry.value.columns
+        const col = cols[view.value.col]
+        if (!col) return undefined
+        const local = view.value.col - cols.findIndex(c => c.grid === col.grid)
+        const items = grids.value[col.grid]?.items.filter(it => it.c <= local && local < it.c + it.cw) ?? []
+        return [...items].sort((a, b) => a.r - b.r)[0]?.tile.id
+    })
 
     // 전체보기 — 현재 배치를 축소해 한 번에 보기 (REF-node-ui-overview.md "전체보기 모드")
     const overview = ref(false)
@@ -211,6 +228,18 @@ export const provideTileGrids = () => {
         focusTile(tileId)
     }
 
+    // URL 복원(새로고침) — view 타일 칼럼으로 바로 스크롤(없으면 active가 보이게) + active.
+    // 포커스는 PC에서만: 폰에서 새로고침마다 가상 키보드가 뜨지 않게 — U3(복원 때 포커스)
+    const restore = async (focusId?: string, viewId?: string) => {
+        await nextTick()
+        const fid = focusId && posOf.value.has(focusId) ? focusId : null
+        if (fid) activeId.value = fid
+        const span = viewId ? columnsOf(viewId) : undefined
+        if (span) scrollTo(span.first.x, 'instant')
+        else if (fid) await reveal(fid)
+        if (fid && matchMedia('(pointer: fine)').matches) focusTile(fid)
+    }
+
     // 다른 계정에 알릴 active 대상 — 터미널 = uid / 폴더 = 보여 주는 nodeId(루트 = 계정마다 다른 목록이라 없음). REF-node-ui-active.md "원격 active 구조안"
     const activeTarget = computed(() => {
         const t = activeId.value ? tiles.value[activeId.value] : undefined
@@ -266,6 +295,8 @@ export const provideTileGrids = () => {
         activeId,
         setActive,
         activate,
+        anchorId,
+        restore,
     }
 
     provide(TILE_GRIDS_STORE_KEY, ctx)

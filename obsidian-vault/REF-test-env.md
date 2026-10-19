@@ -8,12 +8,14 @@
 - 스크립트는 직접 실행이라 `#!/bin/sh` 등 shebang 필수(없으면 `exec format error`)
 - 재부팅으로 사라지는 것: 세션 scratchpad의 playwright-core + 테스트 스크립트(4.5 `snap/server.mjs`·`browser.mjs`·`probe.mjs`, 이전 `tiles/*.mjs`·`input/*.mjs`). 다시 쓸 땐 `REF-process-snapshot-impl.md` "스냅샷-b/-d"·`REF-node-ui-save-impl.md`·`REF-node-ui-sync.md` 각 확인 절(항목·함정), `REF-process-input.md` "입력-a/입력-c" 보고 재작성. 테스트는 계정을 새로 만들고 폴더 `deviceKey=irony-MAC-ADDress1`로 하면 irony 타일 트리를 안 건드림
 
+- **로그인 기본값(2026-10-19)**: `.env.development.local`의 `VITE_DEV_LOGIN_ID/PW` 줄이 주석 처리돼 있어 폼이 빔 -> 헤드리스 확인은 격리 supervisor에 계정을 만들어 씀(→ `REF-test-scripts-1014.md` "2026-10-19 보드 URL 바인딩")
+
 ## 격리 실행(2026-10-07, 개발 DB·5050을 건드리지 않음)
 - supervisor·worker 바이너리는 **dev 판정(`IsDev` = 실행 파일 경로에 `os.TempDir()`·`go-build` 포함)이 아니면 실행 파일 옆 `env`로 설정을 덮어씀**(`godotenv.Overload`). scratchpad는 `/tmp` 아래라 dev로 판정됨 → 실행할 때 `TMPDIR=<scratchpad>/tmp`로 바꿔서 dev 판정을 피함
 - 절차: `go build -o <dir>/sup/supervisor ./cmd/supervisor` + 옆에 `env`(`PORT=5051`, `DB_NAME=nexus_authz_tmp`, 나머지 기존 값) / worker도 같은 방식(`WS_HOST="localhost:5051"`, `SQLITE=<dir>/wrk/worker.db`, `NAME="authz-dev"`) / `CREATE DATABASE nexus_authz_tmp OWNER irony;`(기본 DB `workspace`로 접속해서) → 실행 → 확인 뒤 프로세스 종료 + `DROP DATABASE`
 - 소켓 클라이언트: Python `websockets`(user site에 있음 → `python3 -I`로 돌리면 못 찾음). 프레임 = JSON `{k,id,t,d}`, k: 0 REQ / 1 RES / 2 EVENT, 입력 `PROCESS:INPUT` `{uid, data(base64)}`. 입력 확인용 스크립트 = `#!/bin/sh\ncat`(받은 입력이 출력으로 돌아옴)
 - 크기 우선권 넘김 확인은 `tabGrace` 60초를 기다려야 함
-- 끌 때는 **실행 위치(`/proc/<pid>/cwd`)가 격리 폴더인 프로세스만** 끈다(`pgrep -f '^\./supervisor$'`만으로 끄면 사용자가 띄운 것까지 끌 수 있음)
+- 끌 때는 **실행 위치(`/proc/<pid>/cwd`)가 격리 폴더인 프로세스만** 끈다(`pgrep -f '^\./supervisor$'`만으로 끄면 사용자가 띄운 것까지 끌 수 있음. 2026-10-19 `pgrep -x worker`도 사용자 worker를 먼저 잡음)
 - 확인 스크립트(세션 scratchpad, 재부팅 시 사라짐): `authz_test.py`(공유-b) · `share_test.py`(공유-c, 앞 것을 import) · `ws_test.py`(작업공간-b) · `wsc_test.py`(작업공간-c, worker 포함) — 여기까지 지난 세션 것, 사라짐 / 작업공간-e: `pw/lib.mjs`·`pw/board.mjs`(헤드리스 보드) · `reg/share_reg.py`(공유-b·c 회귀 합본 59개, 공유 행은 공유-c API로)
 - worker도 격리: `go build -o <dir>/wrk/worker ./cmd/worker` + 옆 `env`(`WS_HOST="localhost:5051"`, `SQLITE=<dir>/wrk/worker.db`, `NAME="ws-dev"`) → 노드 폴더 `deviceKey`를 그 NAME으로, authKey = `GET /workers?nodeId=` 의 `instanceKey`
 - 소켓 확인은 `websockets.sync.client.connect`(17.1)가 편함: 스레드에서 프레임 읽기 + `ws.send(json.dumps({"k":2,"t":"TAB:VIEW","d":{...}}).encode())`(브라우저 → 서버 EVENT, binary)
