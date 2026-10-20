@@ -147,18 +147,15 @@ func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 
 	err = conn.Serve()
 
-	// 연결 종료: 등록 해제 + 이 연결 소속 미완 전송(reader) 정리 + 소유 process PENDING 전이.
+	// 연결 종료: 등록 해제 + 소유 process PENDING 전이.
 	key := auth.InstanceKey()
 	if key != "" {
 		router.workers.Remove(key)
 		router.workerOS.Remove(key)
 		recordSeen(key, false, "")
 		router.reconcileDisconnect(key)
-		for _, fr := range router.readers.FindAll(func(_ string, v *sendJob) bool {
-			return v.authKey == key
-		}) {
-			fr.Val.reader.Close() // OnClose가 readers에서 제거
-		}
+		// 미완 전송의 reader는 여기서 닫지 않는다 — send가 재접속을 기다려 이어 보내므로
+		// 수명은 send의 defer Close만 정한다(닫으면 다음 시도 SeekTo 실패) — F1(재시도 창)
 	}
 	conn.Close(err)
 

@@ -2,7 +2,7 @@
 
 > 2026-10-19 신설(파트(파일 전송) 안 가(검증만)). 이력 → `history/transfer-e2e.md` / 모듈 설계 → `REF-transfer.md`(파트(통신 인프라), `INDEX-infra.md`) / 확인 스크립트 명세 → `REF-test-scripts-1014.md` "2026-10-19 파일 전송" / 현재 진행 → `CURRENT.md`
 
-**상태: 시나리오 9개 확인 끝(34/34), 코드 수정 없음. F1(재시도 창)·F2(청크 왕복) 고칠지 사용자 결정 대기.**
+**상태: 안 가(검증만) 34/34 끝(2026-10-19) -> F1(재시도 창)·F2(청크 왕복) 고침 + 재확인 21/21(2026-10-20). 파트(파일 전송) 마감 → `INDEX-transfer-e2e.md`.**
 
 ## 확인 방법
 - 격리 supervisor(5051, 임시 DB `nexus_xfer_tmp`) + 지연·끊김 TCP 프록시(5152, Python) + 격리 worker(`NAME=xfer-dev`, `TMPDIR` = 수신 루트)
@@ -30,8 +30,35 @@
 - 해시 불일치는 끝까지 받은 뒤에야 판정 -> 전체를 한 번 더 보냄(설계대로, 이어받는 사이 원본이 바뀐 경우만 생김)
 - 코드로만 본 것(확인 안 함): worker가 끊긴 상태에서 `AbortFile`하면 `MsgFileAbort`를 못 보내 `.part`가 남음(best-effort) / 끊긴 전송의 worker `SaveFile`은 `recvExpire` 60초 동안 fd를 들고 있음(새 전송과 같은 `.part`를 열지만 옛 것은 쓰지 않음)
 
-## F1·F2 고치는 안 (결정 전)
+## F1·F2 고치는 안 (2026-10-20 가)로 결정·구현)
 | 항목 | 안 | 비고 |
 |---|---|---|
 | F1(재시도 창) | 가) "대상 연결 없음"이면 worker 재접속을 일정 시간(예: 10초) 기다린 뒤 재시도 / 나) 그대로 — 호출자가 다시 보냄 | 지금 호출처 = EXEC·EDIT 선배치(작은 파일)뿐이라 영향 없음 |
 | F2(청크 왕복) | 가) 청크 키움(32KB -> 256KB 등, 와이어는 base64 JSON) / 나) 응답을 기다리지 않고 여러 청크를 먼저 보내는 창 방식 / 다) 그대로 | 같음 — 큰 파일을 보내는 기능(안 나(업로드 기능))을 만들 때 의미가 생김 |
+
+- **2026-10-20 코드 확인 — F1 가)만으로는 안 됨**: 끊길 때 `supervisorRouter.go`(연결 종료 처리)가 그 worker 소속 `sendJob.reader`를 `Close()`함 -> 파일 fd 닫힘 + `OnClose`로 `readers`에서 빠짐. 재접속을 기다려도 다음 시도의 `SeekTo`가 "file already closed"로 실패하고, 기다리는 동안 `AbortFile`도 job을 못 찾음. 실측 T3에서 안 보였던 건 마지막 에러가 "대상 연결 없음"이라 가려졌기 때문 -> F1에 "끊김 시 reader 강제 Close 제거(수명은 `send`의 `defer Close`가 맡음)" 포함
+- F2 가) 와이어 확인: gorilla `SetReadLimit` 안 씀(제한 없음) -> 256KB(base64 ~342KB) 프레임 그대로 됨
+
+## F1·F2 고친 것 (2026-10-20)
+| 항목 | 위치 | 변경 |
+|---|---|---|
+| F1-a(재접속 대기) | `router/transfer.go` `send` -> `waitWorker` | 연결이 없으면 200ms(`reconnectPoll`) 간격으로 최대 10초(`reconnectWait`) 조회, `ctx` 취소(abort)면 즉시 빠짐. 대기도 3회 시도에 셈 |
+| F1-b(강제 Close 제거) | `router/supervisorRouter.go` 연결 종료 처리 | 끊길 때 그 worker 소속 reader를 닫던 루프 삭제 -> reader 수명은 `send`의 `defer Close`만 정함 |
+| F2(청크 왕복) | `router/transfer.go` `sendChunkSize` | 32KB -> 256KB(나)(창 방식)는 안 함 — 위 이유) |
+
+### 재확인 결과 (21/21)
+| 시나리오 | 결과 |
+|---|---|
+| T1(큰 파일) | 50MB 79MB/s, sha 일치 |
+| T3(끊김 이어받기) | **같은 send 안에서 성공**(끊김 -> 끝 4.5초), 끊긴 120MB 아래로 안 내려감(이어받기), sha 일치 |
+| T4(abort) | 0.01초에 끝남, `.part` 삭제, job 정리 |
+| T4b(대기 중 abort) 새로 | 프록시를 꺼 재접속 못 하게 한 뒤 1.5초 -> job 살아 있음, abort -> 0.00초에 끝남, job 정리 |
+| T10(재접속 안 됨) 새로 | 21.1초 뒤 `3회 시도 실패: 대상 연결 없음`(시도1 끊김 + 대기 10초 x 2 + 백오프), job 정리 -> 다시 보내면 `.part`(90MB)부터 이어받아 성공 |
+| T9(worker 재시작) | SIGTERM -> 재실행, **같은 send 안에서 성공**(4.4초), 같은 서브키, 이어받기, sha 일치 |
+| T8(지연) | 아래 표 |
+
+| 왕복 | 크기 | 32KB(HEAD 빌드, 같은 프록시) | 256KB |
+|---|---|---|---|
+| 10ms | 2MB / 20MB | 2.7 / 2.8MB/s | 13.0 / 17.0MB/s |
+| 50ms | 2MB / 20MB | 590 / 615KB/s | 3.6 / 4.5MB/s |
+- 남은 한계(설계대로): 끝내 재접속이 안 되면 실패까지 ~21초. worker가 끊긴 상태의 `AbortFile`은 `.part`를 못 지움(기존 best-effort 그대로)

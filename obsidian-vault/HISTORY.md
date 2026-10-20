@@ -24,11 +24,9 @@
 - 터미널 터치 스크롤(마감) → `INDEX-term-touch.md` (term-touch)
 - URL 바인딩(마감) → `INDEX-tile-url.md` (tile-url)
 - 페이지 표시 개편(마감) → `INDEX-board-pager.md` (board-pager)
+- 파일 전송(마감) → `INDEX-transfer-e2e.md` (transfer-e2e)
 
 ## history/ 파일 색인 (진행 중 파트)
-
-### `history/transfer-e2e.md` — 파일 전송 e2e 확인 (2026-10-19 신설)
-- 2026-10-19 안 가(검증만): overlay 확인용 REST + 프록시로 T1~T9 34/34, F1(재시도 창)·F2(청크 왕복) 실측, 코드 수정 없음
 
 ### `history/demo.md` — 시연 데이터 (2026-10-16 신설)
 - 2026-10-16 플랜 안 A·B·C 제시 → 안 C(생산 지그 시나리오) 선택, 스크립트 6개 + test1~3 공유 등록(REST), 브라우저 경유 실행 미확인

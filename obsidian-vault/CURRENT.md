@@ -8,12 +8,11 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **다음 할 것 = F1(재시도 창)·F2(청크 왕복) 고치기 -> 파트(파일 전송) 마감**: 2026-10-20 제안까지 함(사용자 확답 전) = F1 가) 재시도 전 재접속을 최대 ~10초 기다림(200ms 간격 조회, abort면 즉시 빠짐, 끊김도 3회에 셈) / F2 가) `sendChunkSize` 32KB -> 256KB. F2 나)(창 방식)는 안 함 — worker가 REQ를 고루틴으로 처리해 청크 순서가 바뀌고 `SaveFile.written`이 최대 끝 위치라 빈 구멍 뒤부터 이어받게 됨. 확답 -> 구현 -> 확인 스크립트 재작성(명세 `REF-test-scripts-1014.md` "2026-10-19 파일 전송")으로 T3(끊김 이어받기)·T8(지연) 다시 재기 (`REF-transfer-e2e.md` "F1·F2 고치는 안")
+- **파트(파일 전송) 마감(2026-10-20) → `INDEX-transfer-e2e.md`**: e2e 확인 34/34 -> F1-a(재접속 대기)·F1-b(강제 Close 제거)·F2(청크 256KB) + 재확인 21/21. 끊김·worker 재시작이 같은 send 안에서 이어받기, 왕복 50ms 615KB/s -> 4.5MB/s
+  - `history/transfer.md` 11.5k자 — 다음에 고칠 때 분할(파트(파일 전송)은 새 쌍 `REF-transfer-e2e`/`history/transfer-e2e`에 써서 안 건드림)
+- **다음 할 것**: 아래 "다음 파트" 후보에서 사용자가 고름
 - **파트(페이지 표시 개편) 마감(2026-10-20) → `INDEX-board-pager.md`**: 헤더 `VPagination` -> `GridPager`(도트·반 칸 작은 도트·드래그 칼럼 이동·아래로 당기면 `TilePeek` + active 타일 이동·창 방식). 격리 헤드리스 31/31 + 사용자 확인. 프로토타입 아티팩트 https://claude.ai/artifact/XLvPvzUkZQrfD1FN6Vaqo5
 - **파트(URL 바인딩) 마감(2026-10-19) → `INDEX-tile-url.md`**: `?focus=`(active)·`?view=`(보던 칼럼)로 새로고침 복원. 헤드리스 20/20 + 사용자 브라우저 확인
-- **진행 중 파트 = 파일 전송(2026-10-19)** → `REF-transfer-e2e.md`: 안 가(검증만) 확인 끝 — T1(큰 파일)~T9(worker 재시작) 34/34, 코드 수정 없음(vault만, 커밋 전). F1(재시도 창)·F2(청크 왕복)는 **고치기로 결정**(사용자)
-  - 격리 환경(5051·프록시 5152·worker `xfer-dev`·3001)은 세션 끝에 전부 끄고 `nexus_xfer_tmp` 삭제함. scratchpad 스크립트는 새 세션에서 안 보임 -> 명세로 재작성
-  - `history/transfer.md` 11.5k자 — 다음에 고칠 때 분할(이번엔 새 쌍 `REF-transfer-e2e`/`history/transfer-e2e`에 써서 안 건드림)
 - **파트(터미널 터치 스크롤) 마감(2026-10-19) → `INDEX-term-touch.md`**: 안 가(스크롤바 `touch-action: none`) + 안 나(쓸어서 스크롤, `touchScroll.util.ts`: 상자 먼저·관성·정상 화면 `scrollLines`·alt 화면 휠). 헤드리스 11/11 + 사용자 실기기 확인. 확인용 노드 irony `scroll-test`(215)·`scroll-test.ps1`(216)은 남겨 둠(사용자 결정)
   - 곁가지 해소: 셸 노드 종료 10초 = 설계대로(대화형 셸이 종료 요청 무시 -> 10초 뒤 SIGKILL), 사용자 "그대로 둬" → `REF-process-kill.md` 메모
 - **파트(Windows worker) 마감(2026-10-19) → `INDEX-windows-worker.md`**: `pty` OS별 분리 + ConPTY·Job Object, `.ps1` = powershell / 그 외 `cmd /c` + `SCRIPT_FORMAT`, 에디터 `$VISUAL` > `EDITOR` > PATH 탐색, OS L/W 표시(`00011`). VM 17/17 + Ctrl+C 상속 수정 + 사용자 재접속 확인. 미확인 = `.py`·EDIT 저장 CRLF·TEMP 공백.
@@ -22,7 +21,7 @@
 - 파트(고아 스크립트) 마감(2026-10-15) → `INDEX-worker-orphan.md`: worker가 SIGHUP·SIGTERM·SIGINT로 스크립트 정리(TERM -> 5초 -> KILL) 후 종료, `nohup`이면 SIGHUP만 무시. 사용자 재실행 확인. 
 - (이전 순서) 2026-10-14에 정한 순서 ① 파트(확인·실측) → ② 파트(모바일 가상 키보드) → ③ 파트(보드 미리보기)는 전부 마감
   - ③ 파트(보드 미리보기) **마감(2026-10-15) → `INDEX-board-preview.md`**: 전체보기에 다른 보드 줄 + 다른 보드 터미널 실시간 + 닫을 때 전체보기가 만든 xterm만 정리(중간안). 코드 `52ae8b9`
-  - 후보(아래 "다음 플랜"·미해결에서): ~~전체 화면을 켜면 칼럼이 `single` -> `row`~~ 버그 아님(2026-10-15 확인): 전체 화면으로 Grid 영역 높이가 `TILE_THRESHOLD.h` 560 이상 -> `capacity` y 1 -> 2 -> `effectiveSize`가 저장값 h 0.5를 그대로 써서 `single` -> `row`(1칸 축의 0.5를 1로 보는 규칙, `tileSplit.util.ts`) / process 단독 공유 UI 여부 / 회원가입 / 파일 전송 e2e(실사용 경로 EDIT `SendBuffer`는 동작 중 — 큰 파일·이어받기·abort를 쓰는 기능을 만들 때 같이 확인 추천) / iPhone 실기기 확인 / ~~Windows worker~~(2026-10-19 마감 → `INDEX-windows-worker.md`) / **worker 화면 송출 + 조작**(2026-10-15 아이디어, VNC 터널 + noVNC, SC1(VNC 서버 준비) = 장비 설치 전제 · SC2(못 쓰는 장비) = 가능 여부 보고 + 버튼 비활성화 결정, → `REF-worker-screen.md`) / ~~EDIT 에디터 소소한 수정~~(윈도-4로 해결)
+  - 후보(아래 "다음 플랜"·미해결에서): ~~전체 화면을 켜면 칼럼이 `single` -> `row`~~ 버그 아님(2026-10-15 확인): 전체 화면으로 Grid 영역 높이가 `TILE_THRESHOLD.h` 560 이상 -> `capacity` y 1 -> 2 -> `effectiveSize`가 저장값 h 0.5를 그대로 써서 `single` -> `row`(1칸 축의 0.5를 1로 보는 규칙, `tileSplit.util.ts`) / process 단독 공유 UI 여부 / 회원가입 / ~~파일 전송 e2e~~(2026-10-20 마감 → `INDEX-transfer-e2e.md`) / iPhone 실기기 확인 / ~~Windows worker~~(2026-10-19 마감 → `INDEX-windows-worker.md`) / **worker 화면 송출 + 조작**(2026-10-15 아이디어, VNC 터널 + noVNC, SC1(VNC 서버 준비) = 장비 설치 전제 · SC2(못 쓰는 장비) = 가능 여부 보고 + 버튼 비활성화 결정, → `REF-worker-screen.md`) / ~~EDIT 에디터 소소한 수정~~(윈도-4로 해결)
 - **시연 데이터(2026-10-16) 등록 → `REF-demo.md`**: irony 계정 폴더 `시연-생산지그`(id 200, 안 C(생산 지그 시나리오)) + test1 편집·test2 조작·test3 보기 공유. 코드 변경 없음(REST로 데이터만, 커밋할 코드 없음)
   - **다음 할 것**: 브라우저로 시연 순서 점검(irony + test3 동시) — Nexus 경유 실행은 아직 미확인(xterm.js 한글 정렬·24bit 색 사진, worker 환경 카메라). 시연 순서 → `REF-demo.md` "시연 순서"
   - 사용자가 하려던 기능 추가는 내용이 기억나지 않아 보류(2026-10-16)
@@ -32,7 +31,7 @@
 - **다음 플랜**: 위 "다음 파트" 후보에서 사용자가 고름
   - 나중으로 미룸: process 단독 공유 UI를 둘지 결정(지금 서버 API만, 두면 받는 쪽 진입점 = 기본 루트 터미널 탭, `REF-tile-binding-rework.md` R3(경로 없는 process)) / 회원가입
 - 5 공유에서 뒤로 미룬 것: ~~숨기기~~(2026-10-13 철회 — 타일 닫기로 충분, → `REF-process-share.md`) / ~~잘라내기~~ → 파트(노드 클립보드)로 마감(2026-10-13) / ~~보드 미리보기~~ → ③ 파트(보드 미리보기)로 마감(2026-10-15, 시안 E = 전체보기 줄) / 단축키 키 조합 / ~~크기 우선권 넘김 실측~~(파트(크기 가져오기)에서 15초로 바꾸고 실측 15.0~15.5초) / ~~`tabGrace` 60초 만료 실측~~(실측-2(탭 보관 60초), 60.1초)
-- 커밋 상태: 2026-10-19 파트(Windows worker) 마감까지 커밋(`41ff14a`, 코드+vault 한 커밋). 2026-10-19 파트(터미널 터치 스크롤) 마감도 커밋(`23e10a2`). 파트(URL 바인딩) 마감도 커밋(코드 + vault, 파일 전송 e2e 기록 포함). 파트(페이지 표시 개편) 마감도 커밋(코드 + vault, 2026-10-20). **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함). user vault 전체 git 제외
+- 커밋 상태: 2026-10-19 파트(Windows worker) 마감까지 커밋(`41ff14a`, 코드+vault 한 커밋). 2026-10-19 파트(터미널 터치 스크롤) 마감도 커밋(`23e10a2`). 파트(URL 바인딩) 마감도 커밋(코드 + vault, 파일 전송 e2e 기록 포함). 파트(페이지 표시 개편) 마감도 커밋(코드 + vault, 2026-10-20). 파트(파일 전송) 마감도 커밋(코드 + vault, 2026-10-20). **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함). user vault 전체 git 제외
 - 이전 세션(2026-10-12~15)의 scratchpad 스크립트는 이미 사라짐 — 명세는 `REF-test-scripts.md`(~10-13)·`REF-test-scripts-1014.md`(10-14~) 날짜별 절. 그때 격리 프로세스·임시 DB는 전부 정리됨. PC 재부팅 뒤라면 `docker start postgres15` -> supervisor -> worker -> `npm run dev`(→ MEMORY "로컬 개발 환경")
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
 - 역할 분담(2026-09-29 개정): node 타일 UI·process 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다
@@ -90,7 +89,7 @@
 - ~~**input**: I3(PENDING 중 입력 버림) 확인만 남음~~ → 실측-1(PENDING 입력 버림)로 확인 끝(2026-10-14) → `REF-process-input.md`
 - ~~**크기 바뀐 직후 htop 줄 밀림**~~ → 실측-3(htop 줄 밀림)에서 원인 확인·수정(2026-10-14 마감, → `REF-size-take.md` "실측-3 결과")
 - **Hub 막힘**: ping/pong(`e395433`)으로 해결, 남은 한계 = 막힘 최대 약 25초 → `REF-realtime.md` "발견"
-- **파일 전송**: 구현 완료 / e2e 미검증. 잔여: e2e 스모크 / abort sentinel. `history/transfer.md`가 분할 기준 초과(17k자) — 다음에 고칠 때 분할
+- ~~**파일 전송**: e2e 미검증~~ → 파트(파일 전송)로 해결(2026-10-20 마감, → `INDEX-transfer-e2e.md`). `history/transfer.md` 11.5k자 — 다음에 고칠 때 분할
 - **서브키 충돌/위조**: key↔subkey 결속 검증 미구현(명부는 인가에 안 쓰므로 계속 보류 — RS6(위조 검증))
 - **supervisor 영속성**: registry 메모리 → PG 미착수
 - ~~worker 종료 시 실행 중 스크립트가 고아로 남음~~ → 파트(고아 스크립트)로 해결(2026-10-15 마감, → `INDEX-worker-orphan.md`). 남은 한계: 스크립트가 직접 HUP를 피하고 worker가 crash하면 남음 — 안 마(시작 시 청소) 후보

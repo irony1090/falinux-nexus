@@ -40,7 +40,7 @@
 - `cmd/worker/router/workerRouter.go` — fileInit/fileChunk/fileResult/fileAbort + fileRecv
 
 ## 잔여 (마무리)
-> 2026-10-19 e2e 확인 끝 → `REF-transfer-e2e.md`(1번 해소, 3번 sentinel은 `errors.Is(context.Canceled)`로 충분, 새로 F1(재시도 창)·F2(청크 왕복))
+> 2026-10-19 e2e 확인 끝 → `REF-transfer-e2e.md`(1번 해소, 3번 sentinel은 `errors.Is(context.Canceled)`로 충분, 새로 F1(재시도 창)·F2(청크 왕복)) / 2026-10-20 F1·F2 고침 -> 같은 send 안에서 이어받기, 청크 256KB(→ `INDEX-transfer-e2e.md`)
 1. **e2e 스모크 테스트** — supervisor+worker 띄워 SHA256SUMS 전송 → 이어받기(중간 끊고 재접속) → abort 확인
 2. register 안의 임시 테스트 전송을 **밖으로 분리**(등록 완료 후 트리거) → 타이밍 레이스(subKey 미설정 시 폴더명 mainKey만) 해소
 3. abort로 끝난 SendFile 에러를 정상중단으로 구분할 sentinel 필요해지면 추가(현재는 과해서 보류)

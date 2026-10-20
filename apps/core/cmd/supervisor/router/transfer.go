@@ -17,17 +17,18 @@ import (
 )
 
 const (
-	sendChunkSize   = 32 * 1024 // 청크 크기(base64로 ~33% 부풀어 와이어에 실림)
-	maxSendAttempts = 3         // 전송 재시도 횟수
+	sendChunkSize   = 256 * 1024 // 청크 크기(base64로 ~33% 부풀어 와이어에 실림), 청크마다 왕복 1회 — F2(청크 왕복)
+	maxSendAttempts = 3          // 전송 재시도 횟수
 	sendCallTimeout = 10 * time.Second
 	retryBackoff    = 500 * time.Millisecond
+	reconnectWait   = 10 * time.Second       // 재시도 전 worker 재접속을 기다리는 최대 시간 — F1(재시도 창)
+	reconnectPoll   = 200 * time.Millisecond // 재접속 조회 간격
 )
 
 // errRejected는 수신측이 FileInit을 거부한 영구 실패다(재시도해도 의미 없음).
 var errRejected = errors.New("수신측이 전송을 거부함")
 
-// sendJob은 송신 중인 한 전송 작업이다. authKey를 함께 들고 있어
-// 연결이 끊기면 그 연결 소속 미완 전송만 골라 정리할 수 있다.
+// sendJob은 송신 중인 한 전송 작업이다. authKey는 AbortFile이 worker에 통보할 대상이다.
 // name(destPath)·perm은 reader에서 캐내지 않고 작업이 직접 들고 있다 — reader는
 // 메타 없는 순수 바이트 스트림(transfer.Reader)이라 파일/메모리 어느 쪽이든 받는다.
 // cancel은 진행 중인 send 루프를 중단시키는 손잡이다(AbortFile에서 호출).
@@ -118,8 +119,8 @@ func (r *supervisorRouter) send(authKey, name string, perm fs.FileMode, reader t
 
 	var lastErr error
 	for attempt := 1; attempt <= maxSendAttempts; attempt++ {
-		// 재접속 대비 매 시도마다 최신 연결을 다시 조회한다.
-		conn, exist := r.workers.Get(authKey)
+		// 재접속 대비 매 시도마다 최신 연결을 다시 조회한다(없으면 재접속을 기다림).
+		conn, exist := r.waitWorker(ctx, authKey)
 		if !exist {
 			lastErr = fmt.Errorf("대상 연결 없음: %s", authKey)
 		} else if err := r.sendOnce(ctx, conn, transferId, name, perm, reader, hash); err == nil {
@@ -142,6 +143,24 @@ func (r *supervisorRouter) send(authKey, name string, perm fs.FileMode, reader t
 		}
 	}
 	return transferId, fmt.Errorf("%d회 시도 실패: %w", maxSendAttempts, lastErr)
+}
+
+// waitWorker는 authKey 연결을 reconnectWait까지 기다린다. abort(ctx 취소)면 즉시 빠진다.
+func (r *supervisorRouter) waitWorker(ctx context.Context, authKey string) (*transport.Conn, bool) {
+	deadline := time.Now().Add(reconnectWait)
+	for {
+		if conn, ok := r.workers.Get(authKey); ok {
+			return conn, true
+		}
+		if time.Now().After(deadline) {
+			return nil, false
+		}
+		select {
+		case <-ctx.Done():
+			return nil, false
+		case <-time.After(reconnectPoll):
+		}
+	}
 }
 
 // sendOnce는 FileInit → 청크 루프 → FileResult 한 바퀴를 수행한다.

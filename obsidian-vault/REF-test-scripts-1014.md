@@ -44,6 +44,7 @@
 - scratchpad `xfer/`(재부팅 시 사라짐): `ov/main.go`(= `cmd/supervisor/main.go` 복사 + `mountXfer(e, r)`) · `ov/xfer_main.go`(`/xfer/file?key=&path=` `SendFile` / `/xfer/buf?key=&name=&size=&seed=` `SendBuffer` / `/xfer/abort?id=` / `/xfer/jobs` / `/xfer/workers`, 라우터는 인터페이스로 받음 — 반환 타입이 비공개라) · `ov/xfer_debug.go`(router 패키지, `XferWorkers`·`XferJobs` = `FindAll`) → `overlay.json` `Replace`로 3파일 끼워 `go build -overlay`
 - 격리: `sup/env`(PORT 5051, `IP=localhost`, `DB_NAME=nexus_xfer_tmp`) · `wrk/env`(`WS_HOST="localhost:5152"`, `NAME="xfer-dev"`) · 둘 다 `TMPDIR=xfer/tmp`(worker 수신 루트 = `os.TempDir()`)
 - `proxy.py 5152 5051`: asyncio TCP 프록시, `DELAY`(편도 초) 지연, SIGUSR1 = 지금 연결 전부 `transport.abort()`
+- (2026-10-20) `proxy.py` 지연 = 받은 시각 + DELAY 큐로 내보냄(읽을 때마다 sleep이면 큰 프레임에서 대역폭까지 깎임) / 새 시나리오 `t4b`(프록시 kill -> 대기 중 abort)·`t10`(프록시 kill 유지 -> 실패 시간 + 재전송 이어받기) / `SendFile` 수신 이름 = 원본 이름이라 `src/<시나리오>.bin` 하드링크 / T8 비교 기준 = `git show HEAD:...transfer.go`를 overlay로 끼운 `sup_old`
 - `test.py t1 ... t9`: 시나리오 이름 = REF 표. 키는 `#`가 있어 `urllib.parse.quote(safe='')` 필수 / `.part` 크기 폴링으로 끊는 시점·이어받기(최소 크기 >= 끊긴 크기) 판정 / worker 끄기는 `pgrep -x worker` 중 `/proc/<pid>/cwd` = `xfer/wrk`만
 
 ## 2026-10-19 보드 URL 바인딩 → `REF-tile-url.md`
