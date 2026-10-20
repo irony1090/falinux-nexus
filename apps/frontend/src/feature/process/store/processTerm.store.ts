@@ -4,6 +4,7 @@ import {
     type ProcessResponse, type ProcessResponseDto, type ProcessSnapshot, type ProcessStatus, type ProcessType,
 } from '@/feature/process/api/process.api'
 import { muteQueries } from '@/feature/process/util/xtermQuery.util'
+import { blockImeRecommit } from '@/feature/process/util/xtermIme.util'
 import { applyMods } from '@/feature/process/store/keyModifier.store'
 import type { TileSize } from '@/feature/widget/util/tile.type'
 import { FitAddon } from '@xterm/addon-fit'
@@ -351,8 +352,10 @@ export const provideProcessTerm = () => {
     const attach = (uid: string, el: HTMLElement) => {
         const h = handles.get(uid)
         if (!h) return
-        if (!h.term.element) h.term.open(el)
-        else if (h.term.element.parentElement !== el) el.appendChild(h.term.element)
+        if (!h.term.element) {
+            h.term.open(el)
+            blockImeRecommit(h.term)   // 한글 받침 넘김 확정 때 글자 두 번 전송 막기
+        } else if (h.term.element.parentElement !== el) el.appendChild(h.term.element)
     }
 
     const detach = (uid: string, el: HTMLElement) => {

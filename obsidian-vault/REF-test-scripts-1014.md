@@ -58,3 +58,8 @@
 - 판정: `.TileStrip.scrollLeft` vs `.cell` offsetLeft로 만든 칼럼 목록, `.GridPager .count` 글자, `.pill` 폭(정수 > 15 / 반 칸 < 6), `.TileStrip.scrubbing`, `.GridPager__hint.show`, `.TilePeek.open`, `.TileFrame--active` data-tile-id, `document.activeElement`
 - 드래그 = `page.mouse` down -> move(steps) — 첫 6px 전엔 포인터를 안 잡음. 스크롤 끝 대기 = scrollLeft가 60ms x 4번 같을 때
 - 폰(390x844 isMobile): 표시줄이 `#app-head-nav` 안·가운데인지만. 터치 드래그는 못 봄
+
+## 2026-10-20 한글 입력 중복 → `REF-term-ime.md`
+- scratchpad `ime/`: `index.html` + `main.js`(실제 `xtermIme.util.ts`를 절대 경로 import, xterm 두 개 = 수정 있음/없음, `onData` 수집) + `vite.config.mjs`(vite import 없이 객체만, `resolve.alias` `@xterm/xterm` -> 저장소 `node_modules/@xterm/xterm/lib/xterm.mjs`) -> `apps/frontend`에서 `npx vite build --config <ime>/vite.config.mjs` -> `run.mjs`(node http 정적 서버 5199 + `playwright-core@1.56`, 없는 파일 404 처리 — favicon 요청에 죽음)
+- 재생 = 입력창에 `CompositionEvent`·`InputEvent`(inputType·isComposing)를 사용자 로그 순서대로 dispatch, 값은 `ta.value` + `setSelectionRange`로 직접. 묶음 안은 동기, 묶음 사이 20ms(타이머 실행)
+- 실브라우저 기록 = 콘솔 스크립트(입력창 이벤트 capture + `WebSocket.prototype.send` 가로채 `PROCESS:INPUT` base64 해독). **앱 프레임은 문자열**(`JSON.stringify`) — 바이너리로만 해독하면 SEND 줄이 안 나옴
