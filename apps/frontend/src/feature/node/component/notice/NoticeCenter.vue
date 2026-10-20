@@ -1,23 +1,15 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { useAppHead } from '@/feature/layout/store/appHead.store';
-import { VBadge, VBtn, VIcon, VNavigationDrawer } from 'vuetify/components';
+import { watch } from 'vue';
+import { VBtn, VNavigationDrawer } from 'vuetify/components';
 import { useNoticeGo, useTileNoticeFeed } from '../../hook/tileNotice.hook';
 import { useTileNotices, type NoticeItem } from '../../store/tileNotice.store';
 import NoticeToasts from './NoticeToasts.vue';
 
-// 위치 알림 받기 + 헤더 종(안 읽은 수) + 내역 드로어 + 토스트 — 개편-8(알림 UI)
+// 위치 알림 받기 + 내역 드로어 + 토스트 — 개편-8(알림 UI). 종(안 읽은 수)은 BoardFooter
 useTileNoticeFeed();
-const { history, unread, markRead, clear } = useTileNotices();
+const { history, drawerOpen: open, markRead, clear } = useTileNotices();
 const go = useNoticeGo();
 
-const open = ref(false);
-// 헤더 높이가 auto라 Vuetify 레이아웃이 모름 — AppBody처럼 직접 내려 준다(안 하면 헤더가 드로어 윗부분을 덮음)
-const { size: headSize } = useAppHead();
-const drawerStyle = computed(() => {
-    const h = headSize.value?.outer[1] ?? 0;
-    return { top: `${h}px`, height: `calc(100% - ${h}px)` };
-})
 watch(open, v => { if (v) markRead() });
 
 const timeText = (at: number) => new Date(at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -28,15 +20,7 @@ const onItem = (it: NoticeItem) => {
 </script>
 
 <template>
-<teleport defer to="#app-head-tools">
-    <v-btn size="small" variant="text" icon title="위치 알림" @click="open = !open">
-        <v-badge v-if="unread" :content="unread > 99 ? '99+' : unread" color="primary" floating>
-            <v-icon icon="mdi-bell-outline" />
-        </v-badge>
-        <v-icon v-else icon="mdi-bell-outline" />
-    </v-btn>
-</teleport>
-<v-navigation-drawer v-model="open" location="end" temporary width="320" :style="drawerStyle">
+<v-navigation-drawer v-model="open" location="end" temporary width="320">
     <div class="head">
         <span>위치 알림</span>
         <v-btn size="x-small" variant="text" :disabled="!history.length" @click="clear">비우기</v-btn>

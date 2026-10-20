@@ -35,7 +35,7 @@ const onClick = (t: NoticeToast) => {
 .NoticeToasts {
     position: fixed;
     right: vars.$spacing-md;
-    bottom: vars.$spacing-md;
+    bottom: calc(56px + vars.$spacing-md);  // 보드 푸터(폰 56) 위
     z-index: 2000;
     display: flex;
     flex-direction: column;

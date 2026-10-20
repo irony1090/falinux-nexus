@@ -14,8 +14,6 @@ const TILE_GRIDS_STORE_KEY = Symbol('TileGridsStore')
 
 // strip padding = Grid 간격 = 타일 간격 (1칼럼 Grid 폭 계산이 이 셋이 같다고 가정)
 export const TILE_GAP = 8
-// Grid 하단 정보 줄 높이
-export const TILE_FOOT = 20
 // 전체보기 축소 비율(%) — ⑫(전체보기 세부) 사용자 조절
 export const OV_PERCENT = { init: 30, min: 15, max: 60, step: 5 } as const
 const OV_PERCENT_KEY = 'tile.overviewPercent'
@@ -105,6 +103,12 @@ export const provideTileGrids = () => {
     // ---- 표시줄(GridPager) — REF-board-pager.md ----
     // 도트 위치 = Grid 단위 실수(2.5 = Grid 2 오른쪽 칼럼부터)
     const pos = computed(() => stripPos(geometry.value, scrollX.value, TILE_GAP))
+    // 화면에 절반 이상 보이는 칼럼의 Grid 범위 — 인디케이터 숫자·Grid 정보 토스트(푸터-6)
+    const range = computed(() => {
+        const cols = geometry.value.columns
+        const lo = cols[view.value.from]?.grid ?? 0
+        return { lo, hi: cols[view.value.to]?.grid ?? lo }
+    })
     // 화면 왼쪽 끝이 될 수 있는 마지막 칼럼 — 그 뒤 칼럼은 스크롤 끝에 막힌다
     const maxCol = computed(() => {
         const { grids: gs, columns } = geometry.value
@@ -184,8 +188,6 @@ export const provideTileGrids = () => {
     const ovScale = computed(() => ovPercent.value / 100)
     // 긴 축을 따라 Grid 한 줄
     const ovDir = computed<'row' | 'col'>(() => (area.value?.w ?? 0) >= (area.value?.h ?? 0) ? 'row' : 'col')
-    // 스크롤바 두께 — TileStrip이 기록, 고정 버튼이 그만큼 비킴
-    const scrollbar = ref({ w: 0, h: 0 })
     let normScroll = 0
 
     // 전체보기의 다른 보드 줄 — 같은 cap으로 채워 "배치 그대로"(EV3(다른 보드 크기) = 같은 축소 비율)
@@ -323,6 +325,7 @@ export const provideTileGrids = () => {
         goGrid,
         goColumn,
         pos,
+        range,
         maxCol,
         scrubbing,
         goCol,
@@ -335,7 +338,6 @@ export const provideTileGrids = () => {
         ovScale,
         ovDir,
         otherBoards,
-        scrollbar,
         zoomOverview,
         enterOverview,
         leaveOverview,

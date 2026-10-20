@@ -8,15 +8,11 @@
 <div v-else-if="auth" class="state">
     <v-progress-circular indeterminate size="24" color="primary" />
 </div>
-<teleport v-if="auth" defer to="#app-head-title">
-    <board-menu />
-</teleport>
 <notice-center v-if="auth" />
 </template>
 
 <script lang="ts" setup>
 import TileWorkspace from '@/feature/node/component/TileWorkspace.vue';
-import BoardMenu from '@/feature/node/component/BoardMenu.vue';
 import NoticeCenter from '@/feature/node/component/notice/NoticeCenter.vue';
 import { useTileNotices } from '@/feature/node/store/tileNotice.store';
 import { provideTileTree } from '@/feature/node/store/tileTree.store';

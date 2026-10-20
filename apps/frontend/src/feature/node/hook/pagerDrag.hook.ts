@@ -3,9 +3,9 @@ import { TILE_GAP, useTileGrids } from '../store/tileGrids.store'
 
 // 이만큼 움직여야 드래그 — 그 전엔 포인터를 잡지 않아 도트 클릭이 그대로 동작
 const START = 6
-// 아래로 이만큼 = 타일 이동, 다시 이 위로 = 칼럼 이동
-const TILE_DOWN = 36
-const TILE_UP = 16
+// 위로 이만큼 = 타일 이동, 다시 이 아래로 = 칼럼 이동(인디케이터가 푸터에 있음 — 푸터-4(위로 열기))
+const TILE_PULL = 36
+const TILE_BACK = 16
 // 칼럼 하나 / 타일 하나에 드는 가로 px
 const COL_PX = 36
 const TILE_PX = 29
@@ -16,7 +16,7 @@ export type PagerMode = 'idle' | 'col' | 'tile'
 
 type Drag = { id: number; el: HTMLElement; x0: number; y0: number; held: boolean; col0: number; col: number; tile0: number }
 
-// 표시줄 드래그 — x축 = 칼럼 이동, 아래로 당긴 채 x축 = active 타일 이동. REF-board-pager.md
+// 표시줄 드래그 — x축 = 칼럼 이동, 위로 당긴 채 x축 = active 타일 이동. REF-board-pager.md
 export const usePagerDrag = () => {
     const {
         geometry, view, order, cap, activeId, maxCol, scrubbing, stripEl, overview,
@@ -77,7 +77,7 @@ export const usePagerDrag = () => {
             mode.value = 'col'
         }
 
-        if (mode.value === 'col' && dy > TILE_DOWN) {
+        if (mode.value === 'col' && -dy > TILE_PULL) {
             // 칼럼 사이면 가까운 칼럼에 맞추고, active가 화면에 없으면 화면의 첫 타일부터
             const v = clampCol(Math.round(d.col))
             goCol(v)
@@ -88,7 +88,7 @@ export const usePagerDrag = () => {
             mode.value = 'tile'
             return
         }
-        if (mode.value === 'tile' && dy < TILE_UP) {
+        if (mode.value === 'tile' && -dy < TILE_BACK) {
             Object.assign(d, { col0: d.col, x0: e.clientX })
             mode.value = 'col'
             return

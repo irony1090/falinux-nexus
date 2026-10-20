@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { useAuthStore } from '@/feature/user/store/auth.store';
+import logoUrl from '@/assets/logo.svg';
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { VBtn, VDivider, VIcon, VList, VListItem, VListSubheader, VMenu } from 'vuetify/components';
@@ -9,7 +10,8 @@ import { boardLabel, boardPath, useBoards } from '../store/boards.store';
 import MySharesDialog from './dialog/MySharesDialog.vue';
 import NodeNameDialog from './dialog/NodeNameDialog.vue';
 
-// 헤더 닉네임 자리: 지금 보드 이름 + 보드 전환·이름 변경·삭제 — REF-workspace.md "헤더"(제안: 닉네임은 메뉴 안으로)
+// 푸터 왼쪽: 로고 + 지금 보드 이름 + 보드 전환·이름 변경·삭제, 위로 열림. compact(폰) = 로고만 — REF-board-chrome.md
+defineProps<{ compact?: boolean }>();
 const route = useRoute();
 const router = useRouter();
 const { list, byHash, defaultBoard, rename, remove } = useBoards();
@@ -60,11 +62,12 @@ const onRemove = () => {
 </script>
 
 <template>
-<v-menu location="bottom start">
+<v-menu location="top start" offset="10">
     <template #activator="{ props: act }">
-        <button v-bind="act" class="BoardMenu" :disabled="busy" :title="`보드: ${title}`">
-            <span class="name">{{ title }}</span>
-            <v-icon size="18" icon="mdi-menu-down" />
+        <button v-bind="act" class="BoardMenu" :class="{ compact }" :disabled="busy" :title="`보드: ${title}`" :aria-label="`보드 메뉴 - ${title}`">
+            <img class="logo" :src="logoUrl" alt="" />
+            <span v-if="!compact" class="name">{{ title }}</span>
+            <v-icon size="16" icon="mdi-chevron-up" />
         </button>
     </template>
     <v-list density="compact" min-width="200">
@@ -93,17 +96,26 @@ const onRemove = () => {
 .BoardMenu {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    gap: 8px;
     min-width: 0;
     max-width: 240px;
-    padding: 2px 4px;
+    height: calc(var(--pill-h, 34px) - 6px);
+    padding: 0 8px 0 2px;
     border: none;
-    border-radius: 4px;
+    border-radius: 999px;
     background: none;
     color: inherit;
     font: inherit;
+    font-weight: vars.$weight-lg;
     cursor: pointer;
     &:hover { background: rgba(var(--v-theme-on-surface), 0.06); }
+    &.compact { gap: 4px; padding: 0 6px 0 4px; }
+}
+.logo {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
 }
 .name {
     min-width: 0;

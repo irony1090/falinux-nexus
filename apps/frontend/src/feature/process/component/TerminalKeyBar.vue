@@ -1,5 +1,5 @@
 <script lang="ts">
-export const KEY_BAR_HEIGHT = 40;    // 타일 영역 이동(키보드-2)도 이만큼 비운다
+export const KEY_BAR_HEIGHT = 40;    // 띄운 타일(맞춤-1(타일 띄우기))도 이만큼 비운다
 </script>
 
 <script setup lang="ts">

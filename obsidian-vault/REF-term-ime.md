@@ -1,6 +1,6 @@
 # REF — 터미널 한글 입력 중복 (IME)
 
-> 2026-10-20 신설. 이력 → `history/term-ime.md` / 확인 스크립트 → `REF-test-scripts-1014.md` "2026-10-20 한글 입력 중복" / 현재 진행 → `CURRENT.md`
+> 2026-10-20 신설. 이력 → `history/term-ime.md` / 확인 스크립트 → `REF-test-scripts-1020.md` "2026-10-20 한글 입력 중복" / 현재 진행 → `CURRENT.md`
 
 **상태: 마감(2026-10-20) → `INDEX-term-ime.md`. 가) 프론트에서 ① 막기 + 헤드리스 재생 3/3 + 사용자 실입력 확인. xterm은 정식 6.0.0 유지.**
 

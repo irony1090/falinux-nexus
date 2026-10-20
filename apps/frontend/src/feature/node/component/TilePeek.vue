@@ -8,7 +8,7 @@ const MG = 6;
 const MW = { min: 12, max: 52 };
 const MAX_W = 560;
 
-// 표시줄을 아래로 당긴 동안의 타일 패널: Grid별 미니맵 + 지금 보이는 범위 틀 + active — REF-board-pager.md
+// 인디케이터를 위로 당긴 동안의 타일 패널: Grid별 미니맵 + 지금 보이는 범위 틀 + active — REF-board-pager.md
 defineProps<{ open: boolean }>();
 const { grids, geometry, area, scrollX, viewW, activeId, order } = useTileGrids();
 
@@ -97,7 +97,7 @@ const label = computed(() => {
 </template>
 
 <style lang="scss">
-// teleport로 body에 붙으므로 scoped 밖. 위치(top·left)는 GridPager가 준다
+// teleport로 body에 붙으므로 scoped 밖. 위치(bottom·left)는 GridPager가 준다
 .TilePeek {
     position: fixed;
     z-index: 2100;
@@ -112,8 +112,8 @@ const label = computed(() => {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
     pointer-events: none;
     opacity: 0;
-    transform: translate(-50%, -8px) scale(0.96);
-    transform-origin: 50% 0;
+    transform: translate(-50%, 8px) scale(0.96);
+    transform-origin: 50% 100%;
     transition: opacity 0.2s, transform 0.2s;
     &.open {
         opacity: 1;

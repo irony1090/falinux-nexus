@@ -7,7 +7,7 @@
 
 ## REF / history 목록 (MEMORY 인덱스에서 옮김)
 - `REF-term-ime.md`(터미널 한글 입력 중복 — 리눅스 IME 재확정 ①② 이중 전송, 프론트에서 ① 막기) / `history/term-ime.md`
-- 확인 스크립트 명세 → `REF-test-scripts-1014.md` "2026-10-20 한글 입력 중복"
+- 확인 스크립트 명세 → `REF-test-scripts-1020.md` "2026-10-20 한글 입력 중복"
 
 ## HISTORY 색인 행 (원문)
 ### `history/term-ime.md` — 터미널 한글 입력 중복 (2026-10-20 신설)

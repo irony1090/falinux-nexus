@@ -6,19 +6,19 @@ import Tile from '@/feature/widget/component/Tile.vue';
 import TileLayout from '@/feature/widget/component/TileLayout.vue';
 import type { Area, CellSpan } from '@/feature/widget/util/tile.type';
 import { columnStops } from '@/feature/widget/util/tileSplit.util';
-import { computed, onBeforeUnmount, onMounted, watch, type CSSProperties } from 'vue';
+import { computed, onBeforeUnmount, onMounted, type CSSProperties } from 'vue';
 import { useRouter } from 'vue-router';
 import type { BoardItem } from '../api/board.api';
 import { useTileShortcut } from '../hook/tileShortcut.hook';
 import { boardLabel, focusPath, useBoards } from '../store/boards.store';
-import { TILE_FOOT as FOOT, TILE_GAP as GAP, useTileGrids, type BoardGrids } from '../store/tileGrids.store';
+import { TILE_GAP as GAP, useTileGrids, type BoardGrids } from '../store/tileGrids.store';
 import { useTileTree } from '../store/tileTree.store';
 import OverviewTile from './tile/OverviewTile.vue';
 import TileFrame from './tile/TileFrame.vue';
 
 const {
     grids, cap, area, stripEl, scrollX, viewW,
-    overview, ovScale, ovDir, otherBoards, scrollbar, leaveOverview, activate, scrubbing,
+    overview, ovScale, ovDir, otherBoards, leaveOverview, activate, scrubbing,
 } = useTileGrids();
 useTileShortcut();
 const { hash } = useTileTree();
@@ -29,12 +29,7 @@ const router = useRouter();
 // 칼럼 단위 스냅 앵커 위치(px). 전체 폭 Grid의 폭 = 측정한 area.w. 전체보기에선 앵커 없음(스냅 끔)
 const stopsOf = (cols: CellSpan) => overview.value ? [] : columnStops(area.value?.w ?? 0, cap.value, GAP, cols);
 
-const syncScrollbar = () => {
-    const el = stripEl.value;
-    if (el) scrollbar.value = { w: el.offsetWidth - el.clientWidth, h: el.offsetHeight - el.clientHeight };
-}
-
-// Grid 영역 = strip - padding - 정보 줄. 스크롤바 두께는 빼지 않는다(빼면 스크롤바 등장/소멸에 따라 칸 수가 진동)
+// Grid 영역 = strip - padding. 스크롤바 두께는 빼지 않는다(전체보기에선 스크롤바가 생기므로, 빼면 칸 수가 바뀜)
 // 전체보기도 strip 크기·padding은 그대로 둔다 — 여기서 재는 값이 바뀌면 "현재 배치 그대로"가 깨짐
 useResizeCallback(stripEl, () => {
     const el = stripEl.value;
@@ -43,14 +38,11 @@ useResizeCallback(stripEl, () => {
     const { paddingTop, paddingRight, paddingBottom, paddingLeft } = getComputedStyle(el);
     area.value = {
         w: width - removeUnit(paddingLeft) - removeUnit(paddingRight),
-        h: height - removeUnit(paddingTop) - removeUnit(paddingBottom) - FOOT - GAP,
+        h: height - removeUnit(paddingTop) - removeUnit(paddingBottom),
     } satisfies Area;
     viewW.value = el.clientWidth;
     scrollX.value = el.scrollLeft;
-    syncScrollbar();
 })
-// Grid 수·모드·배율이 바뀌면 스크롤바가 생기거나 사라진다
-watch([grids, overview, ovScale], syncScrollbar, { flush: 'post' });
 
 const onScroll = () => {
     if (stripEl.value) scrollX.value = stripEl.value.scrollLeft;
@@ -80,7 +72,7 @@ const onTileKey = (e: KeyboardEvent, tileId: string) => {
     activate(tileId);
 }
 
-// 전체보기: Grid를 실제 px(타일 영역만, 정보 줄 제외)로 그린 뒤 축소, 바깥 상자는 축소 크기만 차지
+// 전체보기: Grid를 실제 px로 그린 뒤 축소, 바깥 상자는 축소 크기만 차지
 const gridPx = (cols: CellSpan) => ({
     w: cols === 1 ? ((area.value?.w ?? 0) - GAP) / 2 : area.value?.w ?? 0,
     h: area.value?.h ?? 0,
@@ -140,7 +132,6 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
             <tile-layout
                 :cols="g.cols"
                 :gap="GAP"
-                :foot-height="FOOT"
                 :style="layoutStyle(g.cols)"
             >
                 <tile v-for="it in g.items" :key="it.tile.id" :cell="it"
@@ -153,10 +144,6 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
                 </tile>
                 <tile v-for="(e, ei) in g.empty" :key="`empty-${ei}`" :cell="e" empty />
 
-                <template v-if="!overview" #foot>
-                    <span class="tag">Grid {{ gi + 1 }}</span>
-                    <span>{{ g.axis ?? 'single' }} · {{ g.items.length }}타일</span>
-                </template>
                 <template #overlay>
                     <span v-for="x in stopsOf(g.cols)" :key="x" class="snap" :style="{ left: `${x}px` }" />
                 </template>
@@ -176,7 +163,7 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
         <div v-for="(g, gi) in b.grids" :key="gi" class="cell" :class="{ narrow: g.cols === 1 }">
             <div class="cap"><b>G{{ gi + 1 }}</b> · {{ g.items.length }}타일</div>
             <div class="box" :style="boxStyle(g.cols)">
-                <tile-layout :cols="g.cols" :gap="GAP" :foot-height="FOOT" :style="layoutStyle(g.cols)">
+                <tile-layout :cols="g.cols" :gap="GAP" :style="layoutStyle(g.cols)">
                     <tile v-for="it in g.items" :key="it.tile.id" :cell="it"
                         tabindex="0"
                         role="button"
@@ -197,7 +184,7 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
 
 <style scoped lang="scss">
 .TileStrip {
-    // ⑥ Grid 높이: 남은 높이 전부(헤더를 뺀 높이는 TileWorkspace가 정함, 선택 막대가 있으면 그만큼 줄어듦)
+    // ⑥ Grid 높이: 남은 높이 전부(선택 막대·푸터가 있으면 그만큼 줄어듦)
     flex: 1;
     min-height: 0;
     display: flex;
@@ -210,6 +197,11 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     scroll-padding: var(--gap);
     // 표시줄 드래그 중 — scrollLeft를 줄 때마다 칼럼으로 튀지 않게(놓으면 표시줄이 칼럼에 맞춘 뒤 다시 켬)
     &.scrubbing { scroll-snap-type: none; }
+    // 평소엔 스크롤바 없음(인디케이터가 대신, 터치·트랙패드·Shift+휠은 그대로) — 푸터-5(스크롤바 삭제)
+    &:not(.overview) {
+        scrollbar-width: none;
+        &::-webkit-scrollbar { display: none; }
+    }
 }
 .cell {
     flex: 0 0 100%;
@@ -234,12 +226,6 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     height: 1px;
     scroll-snap-align: start;
     pointer-events: none;
-}
-.tag {
-    font-family: monospace;
-    padding: 0 5px;
-    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 4px;
 }
 
 // 평소엔 상자 없음 — cell이 strip의 flex 항목

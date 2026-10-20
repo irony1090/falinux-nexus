@@ -29,6 +29,7 @@ const TOAST_MAX = 3
 const history = ref<NoticeItem[]>([])     // 새것 먼저
 const unread = ref(0)
 const toasts = ref<NoticeToast[]>([])
+const drawerOpen = ref(false)      // 내역 드로어 — 종은 푸터, 드로어는 NoticeCenter
 let seq = 0
 const timers = new Map<number, ReturnType<typeof setTimeout>>()
 
@@ -69,4 +70,4 @@ const clear = () => {
     unread.value = 0
 }
 
-export const useTileNotices = () => ({ history, unread, toasts, push, dismiss, markRead, clear })
+export const useTileNotices = () => ({ history, unread, toasts, drawerOpen, push, dismiss, markRead, clear })

@@ -26,6 +26,7 @@
 - 페이지 표시 개편(마감) → `INDEX-board-pager.md` (board-pager)
 - 파일 전송(마감) → `INDEX-transfer-e2e.md` (transfer-e2e)
 - 한글 입력 중복(마감) → `INDEX-term-ime.md` (term-ime)
+- 헤더·푸터 개편(마감) → `INDEX-board-chrome.md` (board-chrome·board-keyboard)
 
 ## history/ 파일 색인 (진행 중 파트)
 
@@ -78,6 +79,9 @@
 ### `history/util-drag.md` — 드래그 인프라 (DraggableSession/useDragGhost/GhostArea)
 - 2026-10-12 보류 결정(소비처였던 캔버스·트리 드래그 폐기, 드래그 UX 넣을 때 재검토)
 - 2026-08-07(3) 포팅 설계 확정(코드 없음) — 구 test-jig 드래그 코드 문제진단(단일슬롯 콜백/synthetic dispatch/이웃정렬 혼입/ghost 손코딩 중복)+재설계 방향 확정
+
+### `history/test-scripts-1020.md` — 확인 스크립트 명세 2026-10-20~ (2026-10-20 분할)
+- 2026-10-20 분할(페이지 표시·한글 입력 중복 절 이동) + 헤더·푸터 `foot/foot.mjs`(40개)
 
 ### `history/test-scripts-1014.md` — 확인 스크립트 명세 2026-10-14~ (2026-10-19 분할)
 - 2026-10-19 분할 + Windows worker(윈도-5·윈도-6)·터치 스크롤 스크립트

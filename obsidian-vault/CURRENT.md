@@ -11,15 +11,11 @@
 - **파트(한글 입력 중복) 마감(2026-10-20) → `INDEX-term-ime.md`**: 리눅스 IME의 "지우고 다시 넣기" 확정에서 xterm이 두 번 전송 -> 프론트 `blockImeRecommit`으로 한 경로 차단, xterm 6.0.0 유지. 헤드리스 재생 3/3 + 사용자 실입력 확인. 코드 `26c5760`
 - **파트(파일 전송) 마감(2026-10-20) → `INDEX-transfer-e2e.md`**: e2e 확인 34/34 -> F1-a(재접속 대기)·F1-b(강제 Close 제거)·F2(청크 256KB) + 재확인 21/21. 끊김·worker 재시작이 같은 send 안에서 이어받기, 왕복 50ms 615KB/s -> 4.5MB/s
   - `history/transfer.md` 11.5k자 — 다음에 고칠 때 분할(파트(파일 전송)은 새 쌍 `REF-transfer-e2e`/`history/transfer-e2e`에 써서 안 건드림)
+- **파트(헤더·푸터 개편) 마감(2026-10-20) → `INDEX-board-chrome.md`**: 헤더 삭제 + 하단 고정 푸터(배치 F(확정안)) 40/40 + 키보드 맞춤(포커스 터미널 타일만 키보드 위 영역에 맞춤, PTY rows만 바뀜) 28/28 + Edge 실기기 확인. 측정 도구 삭제. 코드 주석의 "표시줄" 14곳은 남음(사용자가 고침)
 - **다음 할 것**: ① (미룸) worker PTY `IUTF8`(아래 미해결 줄) ② 그다음 "다음 파트" 후보에서 사용자가 고름
 - **파트(페이지 표시 개편) 마감(2026-10-20) → `INDEX-board-pager.md`**: 헤더 `VPagination` -> `GridPager`(도트·반 칸 작은 도트·드래그 칼럼 이동·아래로 당기면 `TilePeek` + active 타일 이동·창 방식). 격리 헤드리스 31/31 + 사용자 확인. 프로토타입 아티팩트 https://claude.ai/artifact/XLvPvzUkZQrfD1FN6Vaqo5
-- **파트(URL 바인딩) 마감(2026-10-19) → `INDEX-tile-url.md`**: `?focus=`(active)·`?view=`(보던 칼럼)로 새로고침 복원. 헤드리스 20/20 + 사용자 브라우저 확인
-- **파트(터미널 터치 스크롤) 마감(2026-10-19) → `INDEX-term-touch.md`**: 안 가(스크롤바 `touch-action: none`) + 안 나(쓸어서 스크롤, `touchScroll.util.ts`: 상자 먼저·관성·정상 화면 `scrollLines`·alt 화면 휠). 헤드리스 11/11 + 사용자 실기기 확인. 확인용 노드 irony `scroll-test`(215)·`scroll-test.ps1`(216)은 남겨 둠(사용자 결정)
-  - 곁가지 해소: 셸 노드 종료 10초 = 설계대로(대화형 셸이 종료 요청 무시 -> 10초 뒤 SIGKILL), 사용자 "그대로 둬" → `REF-process-kill.md` 메모
-- **파트(Windows worker) 마감(2026-10-19) → `INDEX-windows-worker.md`**: `pty` OS별 분리 + ConPTY·Job Object, `.ps1` = powershell / 그 외 `cmd /c` + `SCRIPT_FORMAT`, 에디터 `$VISUAL` > `EDITOR` > PATH 탐색, OS L/W 표시(`00011`). VM 17/17 + Ctrl+C 상속 수정 + 사용자 재접속 확인. 미확인 = `.py`·EDIT 저장 CRLF·TEMP 공백.
-  - VM `nexus-win`은 남겨 둠(`docker start/stop nexus-win`, 화면 `127.0.0.1:8006`). VM worker `win-dev`는 사용자 supervisor 8012에 연결된 채(`nexus` 명부에 `win-dev os=windows`) → `REF-windows-worker.md` "VM 실행". 격리 5051 종료·`nexus_win_tmp` 삭제함
-- **파트(PgUp·PgDn 버튼) 마감(2026-10-19) → `INDEX-term-page-keys.md`**: active 터미널 타일 오른쪽 아래 버튼 2개, 키 전송, 키보드 열림·전체보기 중 숨김. 사용자 브라우저 확인
-- 파트(고아 스크립트) 마감(2026-10-15) → `INDEX-worker-orphan.md`: worker가 SIGHUP·SIGTERM·SIGINT로 스크립트 정리(TERM -> 5초 -> KILL) 후 종료, `nohup`이면 SIGHUP만 무시. 사용자 재실행 확인. 
+- 마감 파트(2026-10-15~19, 상세는 각 INDEX): URL 바인딩 `INDEX-tile-url` · 터미널 터치 스크롤 `INDEX-term-touch` · Windows worker `INDEX-windows-worker` · PgUp·PgDn 버튼 `INDEX-term-page-keys` · 고아 스크립트 `INDEX-worker-orphan`
+  - 남겨 둔 것: 확인용 노드 irony `scroll-test`(215)·`scroll-test.ps1`(216)(사용자 결정) / VM `nexus-win`(`docker start/stop nexus-win`, 화면 `127.0.0.1:8006`) + VM worker `win-dev`가 8012에 연결된 채 → `REF-windows-worker.md` "VM 실행" / Windows 미확인 = `.py`·EDIT 저장 CRLF·TEMP 공백
 - (이전 순서) 2026-10-14에 정한 순서 ① 파트(확인·실측) → ② 파트(모바일 가상 키보드) → ③ 파트(보드 미리보기)는 전부 마감
   - ③ 파트(보드 미리보기) **마감(2026-10-15) → `INDEX-board-preview.md`**: 전체보기에 다른 보드 줄 + 다른 보드 터미널 실시간 + 닫을 때 전체보기가 만든 xterm만 정리(중간안). 코드 `52ae8b9`
   - 후보(아래 "다음 플랜"·미해결에서): ~~전체 화면을 켜면 칼럼이 `single` -> `row`~~ 버그 아님(2026-10-15 확인): 전체 화면으로 Grid 영역 높이가 `TILE_THRESHOLD.h` 560 이상 -> `capacity` y 1 -> 2 -> `effectiveSize`가 저장값 h 0.5를 그대로 써서 `single` -> `row`(1칸 축의 0.5를 1로 보는 규칙, `tileSplit.util.ts`) / process 단독 공유 UI 여부 / 회원가입 / ~~파일 전송 e2e~~(2026-10-20 마감 → `INDEX-transfer-e2e.md`) / iPhone 실기기 확인 / ~~Windows worker~~(2026-10-19 마감 → `INDEX-windows-worker.md`) / **worker 화면 송출 + 조작**(2026-10-15 아이디어, VNC 터널 + noVNC, SC1(VNC 서버 준비) = 장비 설치 전제 · SC2(못 쓰는 장비) = 가능 여부 보고 + 버튼 비활성화 결정, → `REF-worker-screen.md`) / ~~EDIT 에디터 소소한 수정~~(윈도-4로 해결)
@@ -32,8 +28,8 @@
 - **다음 플랜**: 위 "다음 파트" 후보에서 사용자가 고름
   - 나중으로 미룸: process 단독 공유 UI를 둘지 결정(지금 서버 API만, 두면 받는 쪽 진입점 = 기본 루트 터미널 탭, `REF-tile-binding-rework.md` R3(경로 없는 process)) / 회원가입
 - 5 공유에서 뒤로 미룬 것: ~~숨기기~~(2026-10-13 철회 — 타일 닫기로 충분, → `REF-process-share.md`) / ~~잘라내기~~ → 파트(노드 클립보드)로 마감(2026-10-13) / ~~보드 미리보기~~ → ③ 파트(보드 미리보기)로 마감(2026-10-15, 시안 E = 전체보기 줄) / 단축키 키 조합 / ~~크기 우선권 넘김 실측~~(파트(크기 가져오기)에서 15초로 바꾸고 실측 15.0~15.5초) / ~~`tabGrace` 60초 만료 실측~~(실측-2(탭 보관 60초), 60.1초)
-- 커밋 상태: 2026-10-19 파트(Windows worker) 마감까지 커밋(`41ff14a`, 코드+vault 한 커밋). 2026-10-19 파트(터미널 터치 스크롤) 마감도 커밋(`23e10a2`). 파트(URL 바인딩) 마감도 커밋(코드 + vault, 파일 전송 e2e 기록 포함). 파트(페이지 표시 개편) 마감도 커밋(코드 + vault, 2026-10-20). 파트(파일 전송) 마감도 커밋(코드 + vault, 2026-10-20). 파트(한글 입력 중복)는 코드 커밋 `26c5760` + 마감 vault 커밋(2026-10-20). **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함). user vault 전체 git 제외
-- 이전 세션(2026-10-12~15)의 scratchpad 스크립트는 이미 사라짐 — 명세는 `REF-test-scripts.md`(~10-13)·`REF-test-scripts-1014.md`(10-14~) 날짜별 절. 그때 격리 프로세스·임시 DB는 전부 정리됨. PC 재부팅 뒤라면 `docker start postgres15` -> supervisor -> worker -> `npm run dev`(→ MEMORY "로컬 개발 환경")
+- 커밋 상태: 2026-10-19 파트(Windows worker) 마감까지 커밋(`41ff14a`, 코드+vault 한 커밋). 2026-10-19 파트(터미널 터치 스크롤) 마감도 커밋(`23e10a2`). 파트(URL 바인딩) 마감도 커밋(코드 + vault, 파일 전송 e2e 기록 포함). 파트(페이지 표시 개편) 마감도 커밋(코드 + vault, 2026-10-20). 파트(파일 전송) 마감도 커밋(코드 + vault, 2026-10-20). 파트(한글 입력 중복)는 코드 커밋 `26c5760` + 마감 vault 커밋(2026-10-20). 파트(헤더·푸터 개편) 마감도 커밋(코드 + vault, 2026-10-20). **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함). user vault 전체 git 제외
+- 이전 세션(2026-10-12~15)의 scratchpad 스크립트는 이미 사라짐 — 명세는 `REF-test-scripts.md`(~10-13)·`REF-test-scripts-1014.md`(10-14~)·`REF-test-scripts-1020.md`(10-20~) 날짜별 절. 그때 격리 프로세스·임시 DB는 전부 정리됨. PC 재부팅 뒤라면 `docker start postgres15` -> supervisor -> worker -> `npm run dev`(→ MEMORY "로컬 개발 환경")
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
 - 역할 분담(2026-09-29 개정): node 타일 UI·process 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다
 

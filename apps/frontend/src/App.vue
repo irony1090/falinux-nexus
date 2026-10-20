@@ -1,6 +1,5 @@
 <template>
 <provide-app-layout>
-    <app-head />
     <app-body>
       <router-view />
     </app-body>
@@ -11,10 +10,8 @@
 
 <script lang="ts" setup>
 import ProvideAppLayout from '@/feature/layout/component/provideAppLayout.vue';
-import AppHead from '@/feature/layout/component/AppHead.vue';
 import AppBody from '@/feature/layout/component/AppBody.vue';
 import AppDialog from '@/feature/layout/component/AppDialog.vue';
-import { provideAppHead } from '@/feature/layout/store/appHead.store';
 import { provideAppNav } from '@/feature/layout/store/appNav.store';
 import { provideAppWindow } from '@/feature/layout/store/appWindown.store';
 import { provideAppDialog } from '@/feature/layout/store/appDialog.store';
@@ -23,7 +20,6 @@ import { provideTestSocket } from '@/common/websocket/websocket.hook';
 import { bindTabId } from '@/common/util/tabId.util';
 
 provideAppWindow()
-provideAppHead()
 provideAppNav()
 
 provideAuthStore();
