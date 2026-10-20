@@ -8,9 +8,10 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
+- **파트(한글 입력 중복) 마감(2026-10-20) → `INDEX-term-ime.md`**: 리눅스 IME의 "지우고 다시 넣기" 확정에서 xterm이 두 번 전송 -> 프론트 `blockImeRecommit`으로 한 경로 차단, xterm 6.0.0 유지. 헤드리스 재생 3/3 + 사용자 실입력 확인. 코드 `26c5760`
 - **파트(파일 전송) 마감(2026-10-20) → `INDEX-transfer-e2e.md`**: e2e 확인 34/34 -> F1-a(재접속 대기)·F1-b(강제 Close 제거)·F2(청크 256KB) + 재확인 21/21. 끊김·worker 재시작이 같은 send 안에서 이어받기, 왕복 50ms 615KB/s -> 4.5MB/s
   - `history/transfer.md` 11.5k자 — 다음에 고칠 때 분할(파트(파일 전송)은 새 쌍 `REF-transfer-e2e`/`history/transfer-e2e`에 써서 안 건드림)
-- **다음 할 것**: ① 파트(한글 입력 중복) 사용자 실입력 확인 -> 마감(아래 줄) ② (미룸) worker PTY `IUTF8` ③ 그다음 "다음 파트" 후보에서 사용자가 고름
+- **다음 할 것**: ① (미룸) worker PTY `IUTF8`(아래 미해결 줄) ② 그다음 "다음 파트" 후보에서 사용자가 고름
 - **파트(페이지 표시 개편) 마감(2026-10-20) → `INDEX-board-pager.md`**: 헤더 `VPagination` -> `GridPager`(도트·반 칸 작은 도트·드래그 칼럼 이동·아래로 당기면 `TilePeek` + active 타일 이동·창 방식). 격리 헤드리스 31/31 + 사용자 확인. 프로토타입 아티팩트 https://claude.ai/artifact/XLvPvzUkZQrfD1FN6Vaqo5
 - **파트(URL 바인딩) 마감(2026-10-19) → `INDEX-tile-url.md`**: `?focus=`(active)·`?view=`(보던 칼럼)로 새로고침 복원. 헤드리스 20/20 + 사용자 브라우저 확인
 - **파트(터미널 터치 스크롤) 마감(2026-10-19) → `INDEX-term-touch.md`**: 안 가(스크롤바 `touch-action: none`) + 안 나(쓸어서 스크롤, `touchScroll.util.ts`: 상자 먼저·관성·정상 화면 `scrollLines`·alt 화면 휠). 헤드리스 11/11 + 사용자 실기기 확인. 확인용 노드 irony `scroll-test`(215)·`scroll-test.ps1`(216)은 남겨 둠(사용자 결정)
@@ -31,7 +32,7 @@
 - **다음 플랜**: 위 "다음 파트" 후보에서 사용자가 고름
   - 나중으로 미룸: process 단독 공유 UI를 둘지 결정(지금 서버 API만, 두면 받는 쪽 진입점 = 기본 루트 터미널 탭, `REF-tile-binding-rework.md` R3(경로 없는 process)) / 회원가입
 - 5 공유에서 뒤로 미룬 것: ~~숨기기~~(2026-10-13 철회 — 타일 닫기로 충분, → `REF-process-share.md`) / ~~잘라내기~~ → 파트(노드 클립보드)로 마감(2026-10-13) / ~~보드 미리보기~~ → ③ 파트(보드 미리보기)로 마감(2026-10-15, 시안 E = 전체보기 줄) / 단축키 키 조합 / ~~크기 우선권 넘김 실측~~(파트(크기 가져오기)에서 15초로 바꾸고 실측 15.0~15.5초) / ~~`tabGrace` 60초 만료 실측~~(실측-2(탭 보관 60초), 60.1초)
-- 커밋 상태: 2026-10-19 파트(Windows worker) 마감까지 커밋(`41ff14a`, 코드+vault 한 커밋). 2026-10-19 파트(터미널 터치 스크롤) 마감도 커밋(`23e10a2`). 파트(URL 바인딩) 마감도 커밋(코드 + vault, 파일 전송 e2e 기록 포함). 파트(페이지 표시 개편) 마감도 커밋(코드 + vault, 2026-10-20). 파트(파일 전송) 마감도 커밋(코드 + vault, 2026-10-20). 파트(한글 입력 중복)는 확인 전 상태로 커밋(코드 + vault, 2026-10-20, 사용자 요청) — 마감 때 vault만 따로 커밋. **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함). user vault 전체 git 제외
+- 커밋 상태: 2026-10-19 파트(Windows worker) 마감까지 커밋(`41ff14a`, 코드+vault 한 커밋). 2026-10-19 파트(터미널 터치 스크롤) 마감도 커밋(`23e10a2`). 파트(URL 바인딩) 마감도 커밋(코드 + vault, 파일 전송 e2e 기록 포함). 파트(페이지 표시 개편) 마감도 커밋(코드 + vault, 2026-10-20). 파트(파일 전송) 마감도 커밋(코드 + vault, 2026-10-20). 파트(한글 입력 중복)는 코드 커밋 `26c5760` + 마감 vault 커밋(2026-10-20). **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(작업 단위마다 안 함). user vault 전체 git 제외
 - 이전 세션(2026-10-12~15)의 scratchpad 스크립트는 이미 사라짐 — 명세는 `REF-test-scripts.md`(~10-13)·`REF-test-scripts-1014.md`(10-14~) 날짜별 절. 그때 격리 프로세스·임시 DB는 전부 정리됨. PC 재부팅 뒤라면 `docker start postgres15` -> supervisor -> worker -> `npm run dev`(→ MEMORY "로컬 개발 환경")
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
 - 역할 분담(2026-09-29 개정): node 타일 UI·process 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다
@@ -84,7 +85,6 @@
 ---
 
 ## 미해결 이슈 (이월)
-- **진행 중 파트 = 한글 입력 중복(2026-10-20)** → `REF-term-ime.md`: 원인 = 리눅스 IME의 "지우고 다시 넣기" 확정에서 xterm이 ①(`_inputEvent`)·②(조합 마무리 타이머)로 두 번 전송. 가) `xtermIme.util.ts` `blockImeRecommit`로 ① 막기 + xterm 정식 6.0.0 복귀, 헤드리스 재생 3/3. **남은 것 = 8011 재시작(vite 캐시가 아직 베타일 수 있음 — `node_modules/.vite/deps/@xterm_xterm.js`에 `_textareaChangeTimer`가 없어야 6.0.0) -> 사용자 실입력 확인(`ime-test` 221, 받침 넘김 말: 아니네·앞에·갑자기) -> 마감**. scratchpad `ime/`(재생 테스트)는 세션 끝나면 사라짐 -> 명세 `REF-test-scripts-1014.md`
 - **(미룸) worker PTY에 `IUTF8` 없음(2026-10-20 발견)**: 줄 단위 입력(`read`·`cat`)에서 한글 백스페이스가 1바이트만 지움(`ime-test`에서 화면 `어라 앞앞에` vs 받음 `어라 라 앞앞에`). `internal/execute/pty`에 termios 설정 없음. raw 모드 프로그램(Claude Code·readline)은 영향 없음. 한글 중복 해결 뒤 다룸
 - ~~`NODE:` 동적 구독~~ → 2026-10-12 파트(폴더 목록 동기화)로 해소(계정 토픽, → `REF-node-list-sync.md`)
 - ~~같은 터미널을 연 탭이 여러 개면 질의에 탭마다 응답~~ → 파트(질의 응답 중복)로 해결(2026-10-13 마감, → `REF-term-query.md`)
