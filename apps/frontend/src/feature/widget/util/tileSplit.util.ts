@@ -27,7 +27,8 @@ export const columnStops = (gridWidth: number, cap: Capacity, tileGap: number, c
 
 // 가로 구간(px). 좌표 = strip 스크롤 내용 기준(padding 포함)
 export interface StripSpan { x: number; w: number }
-export interface StripColumn extends StripSpan { grid: number }
+// pos = 이 칼럼이 화면 왼쪽 끝일 때 Grid 단위 위치(오른쪽 칼럼 = +0.5) — 표시줄 도트용
+export interface StripColumn extends StripSpan { grid: number; pos: number }
 export interface StripGeometry {
 	grids: Array<StripSpan>;
 	columns: Array<StripColumn>;    // 칼럼 = 스냅 한 칸 (가로 1칸 화면에선 Grid 하나)
@@ -43,7 +44,7 @@ export const stripGeometry = (gridCols: ReadonlyArray<CellSpan>, areaW: number, 
 		const w = cols === 1 ? half : areaW;
 		const stops = columnStops(areaW, cap, gap, cols);
 		grids.push({ x, w });
-		stops.forEach(s => columns.push({ x: x + s, w: stops.length === 2 ? half : w, grid }));
+		stops.forEach((s, i) => columns.push({ x: x + s, w: stops.length === 2 ? half : w, grid, pos: grid + i / 2 }));
 		x += w + gap;
 	});
 	return { grids, columns };
@@ -81,4 +82,33 @@ export const stripView = (geo: StripGeometry, scrollX: number, viewW: number, ga
 		from: shown[0] ?? col,
 		to: shown[shown.length - 1] ?? col,
 	};
+};
+
+// 스크롤 위치 -> Grid 단위 실수 위치(2.5 = Grid 2 오른쪽 칼럼부터). 칼럼 시작 사이는 선형, 양 끝 밖은 끝값
+export const stripPos = (geo: StripGeometry, scrollX: number, gap: number): number => {
+	const cols = geo.columns, t = scrollX + gap;
+	if (!cols.length) return 0;
+	for (let i = 0; i < cols.length - 1; i++) {
+		const a = cols[i]!, b = cols[i + 1]!;
+		if (t < b.x) return a.pos + Math.max(0, t - a.x) / (b.x - a.x) * (b.pos - a.pos);
+	}
+	return cols[cols.length - 1]!.pos;
+};
+
+// 칼럼 번호(실수) -> scrollLeft. 표시줄 드래그 중 칼럼 사이 위치
+export const colScroll = (geo: StripGeometry, col: number, gap: number): number => {
+	const cols = geo.columns;
+	const i = Math.max(0, Math.min(cols.length - 1, Math.floor(col)));
+	const a = cols[i], b = cols[i + 1];
+	if (!a) return 0;
+	return (b ? a.x + (col - i) * (b.x - a.x) : a.x) - gap;
+};
+
+// 타일 칼럼 [l, r]이 화면 밖이면 막 다 보이는 만큼만 옮긴 왼쪽 칼럼 — 오른쪽 밖 = 오른쪽 끝에, 왼쪽 밖 = 왼쪽 끝에.
+// 화면 폭 이상(1.0 타일)이면 그 타일 시작. span = 화면에 들어가는 칼럼 수(cap.x) — REF-board-pager.md "타일 위치 규칙"
+export const revealCol = (l: number, r: number, view: number, span: number, max: number): number => {
+	let v = view;
+	if (r - l + 1 >= span || l < view) v = l;
+	else if (r > view + span - 1) v = r - span + 1;
+	return Math.max(0, Math.min(max, v));
 };

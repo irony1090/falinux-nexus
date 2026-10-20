@@ -23,6 +23,7 @@
 - Windows worker(마감) → `INDEX-windows-worker.md` (windows-worker·windows-conpty·windows-exec)
 - 터미널 터치 스크롤(마감) → `INDEX-term-touch.md` (term-touch)
 - URL 바인딩(마감) → `INDEX-tile-url.md` (tile-url)
+- 페이지 표시 개편(마감) → `INDEX-board-pager.md` (board-pager)
 
 ## history/ 파일 색인 (진행 중 파트)
 

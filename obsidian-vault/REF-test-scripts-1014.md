@@ -50,3 +50,10 @@
 - scratchpad `url/`: `playwright-core@1.56` + `vite.iso.mts`(`base({mode:'development',command:'serve'})` 펼치고 `root`·`cacheDir`(env `ISO_CACHE`)·`server: {port:3001, strictPort, host:'localhost', hmr: undefined}`), 실행은 `apps/frontend`에서 `VITE_API_URL=http://localhost:5051 npx vite --config ...`
 - `url.mjs`(20개): `request` 컨텍스트로 계정(`POST /users`·`/users/session`) + 폴더 7개 + `GET /tiles` 트리에 폴더 타일 `f1`~`f7`(size `{w:0.5,h:1}`, 루트도 같은 크기) `PUT /tiles {tree, version}` -> `storageState`를 브라우저에 / 판정 = `location.search`, `.TileFrame--active`, `document.activeElement.dataset.tileId`, `.TileStrip.scrollLeft`, "화면 왼쪽 칼럼 타일" = strip 안에 보이는 `.TileFrame` 중 left·top 최소
 - 함정: URL 쓰기는 300ms 지연 + smooth 스크롤 뒤라 `waitForFunction(location.search...)`로 기다릴 것
+
+## 2026-10-20 페이지 표시 → `REF-board-pager.md`
+- scratchpad `pager/`: 격리 supervisor(`go build` + 옆 `env` PORT=5051·IP=127.0.0.1·DB_NAME=`nexus_pager_tmp`, `TMPDIR=<scratchpad>/tmp`로 실행) + `vite.iso.mts`(2026-10-19 절과 같음, 3001) + `playwright-core@1.56`
+- `pager.mjs`(31개): 계정 + 폴더 f1~f10 + `PUT /tiles`(루트 size `.5x1`, f1~f10 = `[.5,.5] [.5,.5] [1,1] [.5,.5] [.5,.5] [1,.5] [.5,1] [.5,1] [1,.5] [1,.5]`) -> 실제 배치 = Grid 6개 `[루트 f1 f2] [f3] [f4 f5 좁은] [f6] [f7 f8] [f9 f10]`, 칼럼 시작 scrollLeft = 0,636,...,6360(1280x800)
+- 판정: `.TileStrip.scrollLeft` vs `.cell` offsetLeft로 만든 칼럼 목록, `.GridPager .count` 글자, `.pill` 폭(정수 > 15 / 반 칸 < 6), `.TileStrip.scrubbing`, `.GridPager__hint.show`, `.TilePeek.open`, `.TileFrame--active` data-tile-id, `document.activeElement`
+- 드래그 = `page.mouse` down -> move(steps) — 첫 6px 전엔 포인터를 안 잡음. 스크롤 끝 대기 = scrollLeft가 60ms x 4번 같을 때
+- 폰(390x844 isMobile): 표시줄이 `#app-head-nav` 안·가운데인지만. 터치 드래그는 못 봄

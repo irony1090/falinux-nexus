@@ -18,7 +18,7 @@ import TileFrame from './tile/TileFrame.vue';
 
 const {
     grids, cap, area, stripEl, scrollX, viewW,
-    overview, ovScale, ovDir, otherBoards, scrollbar, leaveOverview, activate,
+    overview, ovScale, ovDir, otherBoards, scrollbar, leaveOverview, activate, scrubbing,
 } = useTileGrids();
 useTileShortcut();
 const { hash } = useTileTree();
@@ -96,7 +96,7 @@ const layoutStyle = (cols: CellSpan): CSSProperties | undefined => {
     return { width: `${w}px`, height: `${h}px`, transform: `scale(${ovScale.value})` };
 }
 
-const stripClass = computed(() => overview.value ? ['overview', ovDir.value, { multi: multi.value }] : []);
+const stripClass = computed(() => overview.value ? ['overview', ovDir.value, { multi: multi.value }] : { scrubbing: scrubbing.value });
 
 const currentName = computed(() => boardLabel(byHash(hash.value)) || '기본 보드');
 
@@ -208,6 +208,8 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     // 칼럼(Grid 가로 절반) 단위 스냅 — Grid 자체엔 snap-align 없음, 앵커(.snap)만
     scroll-snap-type: x mandatory;
     scroll-padding: var(--gap);
+    // 표시줄 드래그 중 — scrollLeft를 줄 때마다 칼럼으로 튀지 않게(놓으면 표시줄이 칼럼에 맞춘 뒤 다시 켬)
+    &.scrubbing { scroll-snap-type: none; }
 }
 .cell {
     flex: 0 0 100%;

@@ -1,6 +1,6 @@
 import type { Area, Capacity, GridPlan } from '@/feature/widget/util/tile.type'
 import { flatten, pack } from '@/feature/widget/util/tileOrder.util'
-import { capacity, effectiveSize, minSize, stripGeometry, stripView } from '@/feature/widget/util/tileSplit.util'
+import { capacity, colScroll, effectiveSize, minSize, revealCol, stripGeometry, stripPos, stripView } from '@/feature/widget/util/tileSplit.util'
 import { readUserPref, writeUserPref } from '@/common/util/userPrefs.util'
 import { useProcessTerm } from '@/feature/process/store/processTerm.store'
 import { useTestSocket } from '@/common/websocket/websocket.hook'
@@ -102,6 +102,28 @@ export const provideTileGrids = () => {
         if (c) scrollTo(c.x)
     }
 
+    // ---- 표시줄(GridPager) — REF-board-pager.md ----
+    // 도트 위치 = Grid 단위 실수(2.5 = Grid 2 오른쪽 칼럼부터)
+    const pos = computed(() => stripPos(geometry.value, scrollX.value, TILE_GAP))
+    // 화면 왼쪽 끝이 될 수 있는 마지막 칼럼 — 그 뒤 칼럼은 스크롤 끝에 막힌다
+    const maxCol = computed(() => {
+        const { grids: gs, columns } = geometry.value
+        const last = gs[gs.length - 1]
+        if (!last) return 0
+        const maxScroll = last.x + last.w + TILE_GAP - viewW.value
+        return columns.reduce((k, c, i) => c.x - TILE_GAP <= maxScroll + 1 ? i : k, 0)
+    })
+    // 표시줄 드래그 중엔 스냅을 끈다(TileStrip) — 켜 두면 scrollLeft를 줄 때마다 칼럼으로 튄다
+    const scrubbing = ref(false)
+    const goCol = (col: number, behavior: ScrollBehavior = 'smooth') => {
+        const c = geometry.value.columns[col]
+        if (c) scrollTo(c.x, behavior)
+    }
+    // col = 칼럼 번호(실수), 손가락을 바로 따라가게 애니메이션 없이
+    const scrubTo = (col: number) => {
+        if (stripEl.value) stripEl.value.scrollLeft = colScroll(geometry.value, col, TILE_GAP)
+    }
+
     // 크기 변경·새 타일로 타일이 화면 밖 Grid로 가면 그 Grid 시작으로 이동, 보이면 그대로.
     // nextTick 필수: 트리 변경 직후엔 늘어난 Grid가 아직 DOM에 없어 scrollTo가 옛 스크롤 폭에서 잘린다.
     // 스크롤 위치도 scrollX(스크롤 이벤트로 늦게 갱신)가 아니라 요소에서 직접 읽는다 — 폭이 줄며 잘린 직후일 수 있음
@@ -124,6 +146,24 @@ export const provideTileGrids = () => {
         if (!it) return undefined
         const cols = geometry.value.columns.filter(c => c.grid === gi)
         return { gi, first: cols[Math.min(it.c, cols.length - 1)]!, last: cols[Math.min(it.c + it.cw - 1, cols.length - 1)]! }
+    }
+
+    // 타일이 차지하는 칼럼 번호 [l, r]
+    const colRange = (tileId: string) => {
+        const span = columnsOf(tileId)
+        if (!span) return undefined
+        const cols = geometry.value.columns
+        return { l: cols.indexOf(span.first), r: cols.indexOf(span.last) }
+    }
+
+    // 표시줄 타일 이동 — active + 막 다 보이는 만큼 스크롤. view = 직전 왼쪽 칼럼, 옮긴 왼쪽 칼럼을 돌려준다
+    const stepTo = (tileId: string, view: number) => {
+        setActive(tileId)
+        const range = colRange(tileId)
+        if (!range) return view
+        const v = revealCol(range.l, range.r, view, cap.value.x, maxCol.value)
+        if (v !== view) goCol(v)
+        return v
     }
 
     // 보던 자리 = 스냅 기준 왼쪽 칼럼을 차지하는 타일(위쪽 먼저). URL ?view= — REF-tile-url.md U1(넣을 것)
@@ -282,6 +322,13 @@ export const provideTileGrids = () => {
         view,
         goGrid,
         goColumn,
+        pos,
+        maxCol,
+        scrubbing,
+        goCol,
+        scrubTo,
+        colRange,
+        stepTo,
         reveal,
         overview,
         ovPercent,
@@ -294,6 +341,7 @@ export const provideTileGrids = () => {
         leaveOverview,
         activeId,
         setActive,
+        focusTile,
         activate,
         anchorId,
         restore,
