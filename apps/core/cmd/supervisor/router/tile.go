@@ -80,9 +80,7 @@ type tilePutResponse struct {
 // publishTiles: 계정의 모든 탭에 저장된 트리 전체 — 4①(push 내용)
 func (r *supervisorRouter) publishTiles(userID int64, rec superdb.TileTree, tabID string) {
 	ev := protocol.TilesUpdateEvent{Hash: rec.Hash, Tree: rec.Tree, Version: rec.Version, TabID: tabID}
-	if err := r.subscribeHub.Publish(userTopic(userID), protocol.MsgTilesUpdate, ev); err != nil {
-		log.Printf("[tiles] 발행 실패 user=%d: %v", userID, err)
-	}
+	r.publishUser(userID, protocol.MsgTilesUpdate, ev)
 	r.publishPins(userID)
 }
 

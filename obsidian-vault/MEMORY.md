@@ -61,7 +61,7 @@ internal/
   protocol/ transport/ call/ execute/{,pty}  공유
   subscribe/ manager/ transfer/ util/ web/   재사용 코어
   worker/{store, db/{migrations,query,gen=workerdb}}
-  supervisor/{registry,bind,subscribe, store, db/{...,gen=superdb}}
+  supervisor/{bind, store, db/{...,gen=superdb}}
 sqlc.yaml  README.md  .gitignore
 ```
 
@@ -80,8 +80,8 @@ sqlc.yaml  README.md  .gitignore
 
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
-- 설계/재사용 지식: `REF-process.md` `REF-db.md` `REF-node-ui.md` `REF-node-ui-overview.md` `REF-frontend.md` `REF-realtime.md` `REF-widget.md` `REF-util.md` `REF-util-drag.md` `REF-test-env.md`(테스트 환경·함정) `REF-test-scripts.md`(날짜별 확인 스크립트 재작성 명세, ~10-13) `REF-test-scripts-1014.md`(같은 명세, 2026-10-14~) `REF-test-scripts-1020.md`(같은 명세, 2026-10-20~) `REF-external-access.md`(외부 접속 test1~3.falinux.com = 8011~8013, HTTPS 프록시) `REF-worker-screen.md`(worker 화면 송출 + 조작 — 아이디어, VNC 터널 + noVNC 추천) `REF-demo.md`(시연 데이터 — irony 폴더 200 + test1~3 공유, 스크립트 작성 규칙) `REF-refactor-socket.md`(파트(리팩터링) — supervisor 소켓 알림 규약 정리 후보)
-- 작업 이력(주제별): `history/node-ui.md` `history/node-ui-overview.md` `history/frontend.md` `history/realtime.md` `history/widget.md` `history/util.md` `history/util-drag.md` `history/test-env.md` `history/test-scripts.md` `history/test-scripts-1014.md` `history/test-scripts-1020.md` `history/external-access.md` `history/worker-screen.md` `history/demo.md` `history/refactor-socket.md`
+- 설계/재사용 지식: `REF-process.md` `REF-db.md` `REF-node-ui.md` `REF-node-ui-overview.md` `REF-frontend.md` `REF-realtime.md` `REF-widget.md` `REF-util.md` `REF-util-drag.md` `REF-test-env.md`(테스트 환경·함정) `REF-test-scripts.md`(날짜별 확인 스크립트 재작성 명세, ~10-13) `REF-test-scripts-1014.md`(같은 명세, 2026-10-14~) `REF-test-scripts-1020.md`(같은 명세, 2026-10-20~) `REF-external-access.md`(외부 접속 test1~3.falinux.com = 8011~8013, HTTPS 프록시) `REF-worker-screen.md`(worker 화면 송출 + 조작 — 아이디어, VNC 터널 + noVNC 추천) `REF-demo.md`(시연 데이터 — irony 폴더 200 + test1~3 공유, 스크립트 작성 규칙) `REF-refactor-socket.md`(파트(리팩터링) — 목적·기준 + supervisor 소켓 알림 정리 후보) `REF-refactor-socket-batches.md`(같은 파트 묶음별 계획·결과) `REF-refactor-cleanup.md`(같은 파트 — 소켓 밖 정리 후보)
+- 작업 이력(주제별): `history/node-ui.md` `history/node-ui-overview.md` `history/frontend.md` `history/realtime.md` `history/widget.md` `history/util.md` `history/util-drag.md` `history/test-env.md` `history/test-scripts.md` `history/test-scripts-1014.md` `history/test-scripts-1020.md` `history/external-access.md` `history/worker-screen.md` `history/demo.md` `history/refactor-socket.md` `history/refactor-socket-batches.md` `history/refactor-cleanup.md`
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록 = `HISTORY.md` "마감 파트"(최근 = 페이지 이동 `INDEX-tile-move` · 헤더·푸터 개편 `INDEX-board-chrome` · 한글 입력 중복 `INDEX-term-ime` · 파일 전송 `INDEX-transfer-e2e`)
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md`

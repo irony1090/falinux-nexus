@@ -2,7 +2,6 @@ package router
 
 import (
 	"errors"
-	"log"
 	"maps"
 	"net/http"
 	"strings"
@@ -156,11 +155,7 @@ func (r *supervisorRouter) publishWorkspacesAfterCommit(c echo.Context, userID i
 	for _, rec := range recs {
 		ev.Workspaces = append(ev.Workspaces, protocol.WorkspaceItem{Hash: rec.Hash, Name: rec.Name, IsDefault: rec.IsDefault, Ord: rec.Ord})
 	}
-	AfterCommit(c, func() {
-		if err := r.subscribeHub.Publish(userTopic(userID), protocol.MsgWorkspacesUpdate, ev); err != nil {
-			log.Printf("[workspaces] 발행 실패 user=%d: %v", userID, err)
-		}
-	})
+	AfterCommit(c, func() { r.publishUser(userID, protocol.MsgWorkspacesUpdate, ev) })
 }
 
 // listWorkspaces: 기본이 없으면 만든다

@@ -42,17 +42,7 @@ func paramID(c echo.Context) int64 {
 // publishNode: 받는 계정을 커밋 뒤 판정해서 보낸다(노드 자신 + 부모 + parents)
 func (router *supervisorRouter) publishNode(kind protocol.MsgType, node superdb.Node, parents ...pgtype.Int8) {
 	users := router.nodeRecipients(context.Background(), store.GetStorePool().Queries(), nodeJudgeIDs(node, parents...))
-	router.publishNodeTo(users, kind, node)
-}
-
-// publishNodeTo: 미리 구한 계정들에 보낸다(삭제 — 커밋 뒤엔 노드가 없어 판정 불가)
-func (router *supervisorRouter) publishNodeTo(users []int64, kind protocol.MsgType, node superdb.Node) {
-	res := newNodeResponse(node)
-	for _, u := range users {
-		if err := router.subscribeHub.Publish(userTopic(u), kind, res); err != nil {
-			log.Printf("[node] 발행 실패 user=%d kind=%s: %v", u, kind, err)
-		}
-	}
+	router.publishUsers(users, kind, newNodeResponse(node))
 }
 
 // nodeRecipients: 접속 중 계정 중 ids 하나라도 보기 이상인 계정. 조회 실패 = 아무에게도 안 보냄
@@ -61,15 +51,18 @@ func (router *supervisorRouter) nodeRecipients(ctx context.Context, q *superdb.Q
 	if len(users) == 0 {
 		return nil
 	}
-	rows, err := q.ListNodePermissionMatrix(ctx, superdb.ListNodePermissionMatrixParams{UserIds: users, NodeIds: ids})
+	vis, err := nodeVisibility(ctx, q, users, ids)
 	if err != nil {
 		log.Printf("[node] 받는 계정 조회 실패 nodes=%v: %v", ids, err)
 		return nil
 	}
 	var out []int64
-	for _, row := range rows {
-		if row.Permission > superdb.PermBlock && !slices.Contains(out, row.UserID) {
-			out = append(out, row.UserID)
+	for _, u := range users {
+		for _, visible := range vis[u] {
+			if visible {
+				out = append(out, u)
+				break
+			}
 		}
 	}
 	return out
@@ -295,14 +288,14 @@ func (router *supervisorRouter) deleteNode(c echo.Context) error {
 	}
 	// 둘 다 삭제 전에만 구할 수 있음 — NS3(판정 시점)
 	users, uids := collectAround(c, id)
-	recipients := router.nodeRecipients(c.Request().Context(), TxQueries(c), nodeJudgeIDs(victim))
+	recipients := router.nodeRecipients(c.Request().Context(), TxQueries(c), nodeJudgeIDs(victim)) // 커밋 뒤엔 노드가 없어 판정 불가
 	if err := TxQueries(c).DeleteNode(c.Request().Context(), superdb.DeleteNodeParams{
 		ID:          id,
 		OwnerUserID: victim.OwnerUserID,
 	}); err != nil {
 		panic(web.Err(500, "%v", err))
 	}
-	AfterCommit(c, func() { router.publishNodeTo(recipients, protocol.MsgNodeDelete, victim) })
+	AfterCommit(c, func() { router.publishUsers(recipients, protocol.MsgNodeDelete, newNodeResponse(victim)) })
 	AfterCommit(c, func() { router.reconcileAccess(users, uids) })
 	return c.JSON(200, map[string]any{})
 }

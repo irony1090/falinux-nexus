@@ -1,7 +1,6 @@
 package router
 
 import (
-	"log"
 	"slices"
 
 	"nexus/internal/protocol"
@@ -25,15 +24,7 @@ func (r *supervisorRouter) reconcileAccess(users []int64, uids []string) {
 		r.resyncSizeOwners(uids)
 		r.forceAbandoned(uids) // 권한이 보기로 내려가거나 풀려 조작 계정 타일이 0개가 될 수 있음 — 종료-4(모두 닫음)
 	}
-	for _, u := range users {
-		r.publishShareChange(u)
-	}
-}
-
-func (r *supervisorRouter) publishShareChange(userID int64) {
-	if err := r.subscribeHub.Publish(userTopic(userID), protocol.MsgShareChange, protocol.ShareChangeEvent{}); err != nil {
-		log.Printf("[access] SHARE:CHANGE 발행 실패 user=%d: %v", userID, err)
-	}
+	r.publishUsers(users, protocol.MsgShareChange, protocol.ShareChangeEvent{})
 }
 
 // liveUnder: 노드 자신과 하위의 살아 있는 process uid(요청 트랜잭션 안에서 — 커밋 뒤 재계산 대상)

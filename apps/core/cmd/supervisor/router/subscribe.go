@@ -20,6 +20,30 @@ func processTopic(uid string) string { return "PROCESS:" + uid }
 // userTopic: 계정 하나의 알림 토픽(타일·노드·active·공유·보드 목록)
 func userTopic(userID int64) string { return fmt.Sprintf("USER:%d", userID) }
 
+// publishUser·publishUsers: 계정의 모든 탭에(계정 토픽)
+func (r *supervisorRouter) publishUser(userID int64, kind protocol.MsgType, payload any) {
+	if err := r.subscribeHub.Publish(userTopic(userID), kind, payload); err != nil {
+		log.Printf("[push] 발행 실패 user=%d kind=%s: %v", userID, kind, err)
+	}
+}
+
+func (r *supervisorRouter) publishUsers(users []int64, kind protocol.MsgType, payload any) {
+	for _, u := range users {
+		r.publishUser(u, kind, payload)
+	}
+}
+
+// emitTab: 탭 하나에만(토픽 없음). 끊겨 있으면 버림
+func (r *supervisorRouter) emitTab(tabID string, kind protocol.MsgType, payload any) {
+	conn := r.tabs.connOf(tabID)
+	if conn == nil {
+		return
+	}
+	if err := conn.Emit(kind, payload); err != nil {
+		log.Printf("[push] 발행 실패 tab=%s kind=%s: %v", tabID, kind, err)
+	}
+}
+
 // handleSubscribeWS: 브라우저 소켓 = 탭 하나. URL `?tabId=`는 sessionStorage에 있던 이전 탭 id(없으면 빈 값).
 func (r *supervisorRouter) handleSubscribeWS(c echo.Context) error {
 	req, res := c.Request(), c.Response()
@@ -92,17 +116,19 @@ func (r *supervisorRouter) subscribeLiveProcesses(userID int64, conn *transport.
 func (r *supervisorRouter) applyAccess(users []int64, uids []string) {
 	r.accessMu.Lock()
 	defer r.accessMu.Unlock()
-	rows, err := store.GetStorePool().Queries().ListProcessPermissionMatrix(context.Background(), superdb.ListProcessPermissionMatrixParams{UserIds: users, Uids: uids})
+	vis, err := processVisibility(context.Background(), store.GetStorePool().Queries(), users, uids)
 	if err != nil {
 		log.Printf("[access] 단계 조회 실패 users=%v uids=%v: %v", users, uids, err)
 		return
 	}
-	for _, row := range rows {
-		for _, conn := range r.tabs.connsOfUser(row.UserID) {
-			if row.Permission > superdb.PermBlock {
-				r.subscribeHub.Subscribe(processTopic(row.Uid), conn)
-			} else {
-				r.subscribeHub.Unsubscribe(processTopic(row.Uid), conn)
+	for u, targets := range vis {
+		for _, conn := range r.tabs.connsOfUser(u) {
+			for uid, visible := range targets {
+				if visible {
+					r.subscribeHub.Subscribe(processTopic(uid), conn)
+				} else {
+					r.subscribeHub.Unsubscribe(processTopic(uid), conn)
+				}
 			}
 		}
 	}

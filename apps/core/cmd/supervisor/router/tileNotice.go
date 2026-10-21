@@ -52,9 +52,7 @@ func (r *supervisorRouter) publishPins(userID int64) {
 		log.Printf("[tiles] 고정 지도 계산 실패 user=%d: %v", userID, err)
 		return
 	}
-	if err := r.subscribeHub.Publish(userTopic(userID), protocol.MsgTilesPins, protocol.TilesPinsEvent{Pins: pins}); err != nil {
-		log.Printf("[tiles] 고정 지도 발행 실패 user=%d: %v", userID, err)
-	}
+	r.publishUser(userID, protocol.MsgTilesPins, protocol.TilesPinsEvent{Pins: pins})
 	next := make(map[int64]protocol.TilePin, len(pins))
 	for _, p := range pins {
 		next[p.NodeID] = p
@@ -69,9 +67,7 @@ func (r *supervisorRouter) publishPins(userID int64) {
 
 func (r *supervisorRouter) publishNotice(userID int64, ev protocol.TilesNoticeEvent) {
 	ev.At = time.Now().UnixMilli()
-	if err := r.subscribeHub.Publish(userTopic(userID), protocol.MsgTilesNotice, ev); err != nil {
-		log.Printf("[tiles] 위치 알림 발행 실패 user=%d: %v", userID, err)
-	}
+	r.publishUser(userID, protocol.MsgTilesNotice, ev)
 }
 
 // nodeName: 알림 문구용 — 권한 판정은 알림을 만드는 쪽에서 이미 끝남
