@@ -13,8 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// 원격 active 배지 — 다른 계정 탭의 active 타일(터미널 uid / 폴더 nodeId)을 볼 수 있는 계정에 알린다.
-// 탭 레지스트리 메모리만(DB 없음). 받는 쪽 판정 = 공유 판정 함수 일괄 — REF-node-ui-active.md "원격 active 구조안"
+// 원격 active 배지 — 다른 계정 탭의 active 타일을 볼 수 있는 계정에 알린다(메모리만, REF-node-ui-active.md "원격 active 구조안")
 
 // activeTarget: 둘 다 비면 active 없음
 type activeTarget struct {
@@ -46,8 +45,7 @@ func (r *supervisorRouter) onTabActive(conn *transport.Conn) {
 	})
 }
 
-// publishActive는 접속 중인 다른 계정 전부에 보낸다 — 볼 수 없는 계정엔 대상을 비워서(= 지움).
-// 이전에 누가 보고 있었는지 기억하지 않아도 대상이 바뀌거나 공유가 풀린 뒤 배지가 남지 않는다
+// publishActive: 접속 중인 다른 계정 전부에 — 볼 수 없는 계정엔 대상을 비워서(= 지움) 보내 옛 배지가 남지 않게
 func (r *supervisorRouter) publishActive(tab browserTab) {
 	var others []int64
 	for _, u := range r.tabs.onlineUsers() {
@@ -60,7 +58,7 @@ func (r *supervisorRouter) publishActive(tab browserTab) {
 	}
 	var visible map[int64]bool
 	if !tab.active.empty() {
-		// 보내는 계정도 판정한다 — 볼 수 없는 대상을 보내 남의 화면에 배지를 띄우지 못하게
+		// 보내는 계정도 판정 — 볼 수 없는 대상으로 남의 화면에 배지를 띄우지 못하게
 		visible = r.activeVisibility(append([]int64{tab.userID}, others...), tab.active)
 		if !visible[tab.userID] {
 			visible = nil
@@ -71,7 +69,7 @@ func (r *supervisorRouter) publishActive(tab browserTab) {
 		if visible[u] {
 			ev.UID, ev.NodeID = activeFields(tab.active)
 		}
-		if err := r.subscribeHub.Publish(tilesTopic(u), protocol.MsgActiveUpdate, ev); err != nil {
+		if err := r.subscribeHub.Publish(userTopic(u), protocol.MsgActiveUpdate, ev); err != nil {
 			log.Printf("[active] ACTIVE:UPDATE 발행 실패 user=%d: %v", u, err)
 		}
 	}
@@ -85,7 +83,7 @@ func activeFields(a activeTarget) (string, *int64) {
 	return "", &id
 }
 
-// activeVisibility는 계정마다 대상을 볼 수 있는지(보기 이상) 반환한다. 조회 실패 = 아무도 못 봄
+// activeVisibility: 계정마다 대상을 볼 수 있는지(보기 이상). 조회 실패 = 아무도 못 봄
 func (r *supervisorRouter) activeVisibility(users []int64, target activeTarget) map[int64]bool {
 	visible := map[int64]bool{}
 	q, ctx := store.GetStorePool().Queries(), context.Background()
@@ -111,7 +109,7 @@ func (r *supervisorRouter) activeVisibility(users []int64, target activeTarget) 
 	return visible
 }
 
-// listActive는 다른 계정 탭의 active 중 요청 계정이 볼 수 있는 것을 반환한다 — 새 탭·재접속·공유 변경 때 처음 받기
+// listActive: 다른 계정 탭의 active 중 볼 수 있는 것 — 새 탭·재접속·공유 변경 때 처음 받기
 func (r *supervisorRouter) listActive(c echo.Context) error {
 	me := r.requireSession(c).Data.ID
 	var tabs []browserTab

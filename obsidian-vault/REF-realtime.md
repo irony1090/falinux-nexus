@@ -12,7 +12,8 @@
   - → process 고빈도 출력에서 DB 안 타고, 소유자 무관하게 "보고 있는 모두"에게 전달.
   - **DB ≠ 라우팅 authority** 불변 원칙을 worker→browser 평면으로 확장 (MEMORY의 worker 레지스트리 원칙과 동일 철학).
 - **수신자 = presence(구독)이지 소유자가 아님**. 공유 기능·다중 유저 동일 화면이 전부 "구독자 집합" 한 개념으로 흡수됨.
-- **토픽 granularity = 펼친 폴더 단위** `NODE:<parentId>`(루트=`NODE:0`). 유저 트리 전체 1토픽 안 씀.
+- **현재 토픽(2026-10-21)**: process `PROCESS:<uid>` + 계정 `USER:<userId>`(옛 이름 `TILES:<userId>`, 옛 문서에 남은 `TILES:<userId>` = 같은 것). 키 정의·process 구독은 `subscribe.go` 한 곳 → `REF-refactor-socket.md`. 아래 `NODE:<parentId>`는 2026-10-12 폐기(→ `REF-node-list-sync.md`)
+- ~~**토픽 granularity = 펼친 폴더 단위** `NODE:<parentId>`(루트=`NODE:0`). 유저 트리 전체 1토픽 안 씀.~~
   - 이유: 공유의 권한 단위(폴더)와 토픽이 1:1 → 누설 없음 + fan-out 정밀. 트리 전체 토픽은 공유 시 권한 밖 변경까지 누설되어 결국 쪼개야 함.
   - **이동/삭제 = old parent + new parent 2개 토픽**에 발행(양면).
 - **비대칭 역할**: 브라우저 `call` → 서버 `Handle` / 서버 `Emit`(Publish) → 브라우저 `on`. **브라우저에 `Handle`(서버→브라우저 REQ 수신)은 두지 않음**.

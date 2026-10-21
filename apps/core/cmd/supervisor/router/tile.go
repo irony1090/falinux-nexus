@@ -24,8 +24,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// 작업 공간마다 타일 트리 문서 1개 — ⑪(타일 트리 서버 저장) REF-node-ui-save.md, 작업 공간 REF-workspace-impl.md.
-// `/tiles` = 기본 작업 공간, `/tiles/:hash` = 그 외(WS1(트리 주소))
+// 작업 공간마다 타일 트리 문서 1개 — `/tiles` = 기본, `/tiles/:hash` = 그 외(WS1(트리 주소), REF-node-ui-save.md)
 func (r *supervisorRouter) mountTiles(e *echo.Echo) {
 	g := e.Group("/tiles")
 	g.GET("", r.getTiles)
@@ -78,12 +77,10 @@ type tilePutResponse struct {
 	Version int64 `json:"version"`
 }
 
-func tilesTopic(userID int64) string { return fmt.Sprintf("TILES:%d", userID) }
-
-// publishTiles는 계정의 모든 탭에 저장된 트리 전체를 보낸다 — 4①(push 내용). 커밋 뒤에만 부를 것
+// publishTiles: 계정의 모든 탭에 저장된 트리 전체 — 4①(push 내용)
 func (r *supervisorRouter) publishTiles(userID int64, rec superdb.TileTree, tabID string) {
 	ev := protocol.TilesUpdateEvent{Hash: rec.Hash, Tree: rec.Tree, Version: rec.Version, TabID: tabID}
-	if err := r.subscribeHub.Publish(tilesTopic(userID), protocol.MsgTilesUpdate, ev); err != nil {
+	if err := r.subscribeHub.Publish(userTopic(userID), protocol.MsgTilesUpdate, ev); err != nil {
 		log.Printf("[tiles] 발행 실패 user=%d: %v", userID, err)
 	}
 	r.publishPins(userID)
@@ -234,8 +231,8 @@ func (d *tileDoc) marshal() ([]byte, error) {
 	return json.Marshal(d)
 }
 
-// keepFolderMeta: 프론트가 보낸 폴더 uid·shownAt·bound는 믿지 않는다 — 저장본의 같은 id 폴더 타일 값(없으면 비워서 marshal이 채움, FU2·FU3).
-// shownAt·bound는 보여 주는 노드가 그대로일 때만 이어받는다 — 타일 안에서 다른 폴더로 가면 그 노드를 "새로 연" 것(BD3(저장 위치))
+// keepFolderMeta: 프론트가 보낸 폴더 uid·shownAt·bound는 안 믿고 저장본 값을 쓴다(없으면 marshal이 채움, FU2·FU3)
+// shownAt·bound는 보여 주는 노드가 그대로일 때만 — 다른 폴더로 가면 "새로 연" 것(BD3(저장 위치))
 func (d *tileDoc) keepFolderMeta(stored *tileDoc) {
 	for key, t := range d.Tiles {
 		t.ShownAt, t.Bound = 0, false
@@ -325,8 +322,7 @@ func mustParseDoc(tree []byte) tileDoc {
 	return doc
 }
 
-// checkTerminalUIDs: 저장본에 없던 터미널 uid 추가·한 트리 안 uid 중복을 막는다 — WS5(터미널 타일 추가 주체).
-// 터미널 타일은 서버만 넣으므로(exec·고아 안전망·작업 공간 동작) 이것만으로 계정 전체 트리에서 uid가 하나로 유지된다
+// checkTerminalUIDs: 새 터미널 uid 추가·한 트리 안 중복을 막는다 — 터미널 타일은 서버만 넣으므로 계정 안 uid가 하나로 유지(WS5(터미널 타일 추가 주체))
 func checkTerminalUIDs(next, stored *tileDoc) error {
 	had := map[string]bool{}
 	for _, t := range stored.Tiles {
@@ -365,10 +361,9 @@ func closedTerminals(next, stored *tileDoc) []string {
 	return out
 }
 
-// appendTerminalTile: exec 성공 직후 터미널 타일을 서버 트리에 넣는다 — ⑪-4(타일 없는 실행 중 process).
-// 요청 트랜잭션이 아니라 별도 트랜잭션으로 핸들러 안에서 커밋까지 끝낸다: 요청 트랜잭션은 응답을 보낸 뒤
-// 커밋되므로 그 실패를 핸들러가 알 수 없고, 그러면 실패 시 process kill(보상)을 할 수 없다 (REF-node-ui-save-impl.md "3-b'(exec 연동) 구현").
-// 계정 트리 전부를 잠그고 uid를 찾는다: 실행과 타일 추가 사이에 고아 안전망(adoptOrphans)이 먼저 붙였으면 그 타일을 돌려준다(uid 중복 방지, WS5(터미널 타일 추가 주체))
+// appendTerminalTile: exec 성공 직후 터미널 타일을 넣는다 — ⑪-4(타일 없는 실행 중 process)
+// 별도 트랜잭션으로 핸들러 안에서 커밋까지: 요청 트랜잭션은 응답 뒤 커밋돼 실패를 알 수 없고, 그러면 kill(보상)을 못 한다
+// 고아 안전망(adoptOrphans)이 먼저 붙였으면 그 타일을 돌려준다(uid 중복 방지)
 func appendTerminalTile(ctx context.Context, userID int64, hash, parentTileID string, size tileSize, nodeID int64, uid string) (tileItem, superdb.TileTree, error) {
 	tx := store.GetStorePool().Transaction()
 	if err := tx.Begin(ctx); err != nil {
@@ -436,8 +431,7 @@ func appendTerminalTile(ctx context.Context, userID int64, hash, parentTileID st
 	return tile, upd, nil
 }
 
-// attachViewerTerminal: exec 때 실행자가 아닌 계정의 트리에 터미널 타일을 넣는다 — SD2(실행 때 터미널 타일을 넣을 계정).
-// 계정마다 별도 트랜잭션(한 번에 한 계정 트리만 잠금 → 교착 없음)
+// attachViewerTerminal: exec 때 실행자가 아닌 계정에 터미널 타일 — SD2(실행 때 터미널 타일을 넣을 계정). 계정마다 별도 트랜잭션(교착 없음)
 func attachViewerTerminal(ctx context.Context, userID, nodeID int64, uid string, place placeFunc) (*superdb.TileTree, error) {
 	tx := store.GetStorePool().Transaction()
 	if err := tx.Begin(ctx); err != nil {
@@ -460,8 +454,7 @@ func attachViewerTerminal(ctx context.Context, userID, nodeID int64, uid string,
 	return upd, nil
 }
 
-// insertTerminal: userID의 보드에 uid 터미널 타일을 place가 고른 자리에 넣는다. 어느 보드에든 이미 있거나 place가 자리를 못 고르면 nil(위치 없음).
-// q = 호출부 트랜잭션. 계정 트리 전부를 ListTileTreesForUpdate로 잠근다(잠금 순서)
+// insertTerminal: place가 고른 자리에 터미널 타일. 이미 있거나 자리가 없으면 nil. q = 호출부 트랜잭션, 계정 트리 전부 잠금(잠금 순서)
 func insertTerminal(ctx context.Context, q *superdb.Queries, userID, nodeID int64, uid string, place placeFunc) (*superdb.TileTree, error) {
 	if _, err := loadOrCreateTileTree(ctx, q, userID); err != nil {
 		return nil, err
@@ -529,8 +522,7 @@ func visibleAncestors(ctx context.Context, q *superdb.Queries, userID, nodeID in
 // placeFunc: 터미널 타일을 넣을 보드(recs·docs 같은 순서)와 부모 타일. ok=false = 넣지 않음(위치 없음)
 type placeFunc func(recs []superdb.TileTree, docs []tileDoc, ancestors []int64) (int, string, bool)
 
-// boundPlace: 다른 계정이 실행한 터미널 — 받는 타일이 있고 그 보드를 접속 중 탭이 보고 있을 때만(확정 "붙이는 조건"·BD9(보는 보드 판정)).
-// viewed = tabs.viewedBoards("" = 기본 보드)
+// boundPlace: 다른 계정이 실행한 터미널 — 받는 타일이 있고 그 보드를 접속 중 탭이 볼 때만(BD9(보는 보드 판정)). viewed = tabs.viewedBoards
 func boundPlace(viewed map[string]bool) placeFunc {
 	return func(recs []superdb.TileTree, docs []tileDoc, ancestors []int64) (int, string, bool) {
 		at, id, ok := bindingTile(docs, ancestors)
@@ -541,8 +533,7 @@ func boundPlace(viewed map[string]bool) placeFunc {
 	}
 }
 
-// bindingTile: 터미널을 받을 폴더 타일 — BD1(우선순위)·BD2(바인딩 단위). 가까운 조상부터 보고 그 노드의 폴더 타일이 있는 첫 조상에서 멈춘다
-// (더 먼 조상으로 넘어가지 않음). 그중 고정 > shownAt 가장 이른 것, 같으면 보드 순·너비 우선 순
+// bindingTile: 터미널을 받을 폴더 타일 — 폴더 타일이 있는 가장 가까운 조상에서 멈추고, 그중 betterBinding(BD1(우선순위)·BD2(바인딩 단위))
 func bindingTile(docs []tileDoc, ancestors []int64) (int, string, bool) {
 	for _, anc := range ancestors {
 		at, best, found := 0, tileItem{}, false
@@ -642,8 +633,8 @@ func (d *tileDoc) terminalUIDs() []string {
 	return uids
 }
 
-// adoptOrphans: 살아 있는데 계정의 어느 트리에도 타일이 없는 process를 기본 작업 공간 루트 끝에 붙인다 — WS3(고아 안전망 위치).
-// 대상 = 내가 실행한 것만(남이 실행한 것은 받는 타일 규칙 — BD8(고아 안전망)). 먼저 잠그지 않고 보고, 고아가 있을 때만 잠근 뒤 다시 본다
+// adoptOrphans: 타일 없는 살아 있는 process(내가 실행한 것만, BD8(고아 안전망))를 기본 루트 끝에 — WS3(고아 안전망 위치)
+// 잠그지 않고 먼저 보고, 고아가 있을 때만 잠근 뒤 다시 본다
 func (r *supervisorRouter) adoptOrphans(c echo.Context, userID int64) {
 	ctx := c.Request().Context()
 	q := TxQueries(c)
@@ -782,9 +773,7 @@ type tileBindRequest struct {
 	TileID string `json:"tileId" validate:"required"`
 }
 
-// bindTile: 폴더 타일을 "여기로 타일 고정"한다 — BD4(설정 방법), 해제는 없음(개편-2(여기로 고정), 고정 타일이 사라지면 먼저 연 타일로 넘어감).
-// 계정 트리 전부를 잠그고 같은 노드의 다른 고정을 푼다(노드마다 고정 하나).
-// 루트 목록 타일(nodeId null)은 받는 타일이 될 수 없어 400
+// bindTile: "여기로 타일 고정" — BD4(설정 방법), 해제 없음. 같은 노드의 다른 고정을 푼다(노드마다 하나). 루트 목록 타일 = 400
 func (r *supervisorRouter) bindTile(c echo.Context) error {
 	sess := r.requireSession(c)
 	var body tileBindRequest

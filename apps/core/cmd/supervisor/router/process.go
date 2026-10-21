@@ -19,21 +19,14 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// ===== frontend → supervisor: 실행 트리거 (wire 오케스트레이션) =====
-//
-// 상태 생성(UID·spec·pool·AgentInteractive)은 ProcessManager에 위임하고, 여기선 "누구(who)"에
-// 대한 라우팅/전송만 한다: worker 조회 → manager 호출 → (content 선배치) → MsgExec 전송 →
-// bind.Relay 기동.
+// ===== frontend -> supervisor: 실행 =====
+// 상태 생성은 ProcessManager, 여기는 라우팅·전송만: worker 조회 -> 등록 -> 본문 선배치 -> 구독 -> relay -> MsgExec
 
-// Exec은 frontend의 "이 노드 실행/편집" 요청을 받아 worker에 명령하는 진입점이다.
-// kind로 manager.Exec(EXEC) vs manager.ExecEdit(EDIT)를 고른다. tabID는 요청 탭 —
-// 실행 성공 시 크기 소유자가 된다(성공 시 uid, 실패 시 error를 돌려준다).
-// process 소유 = 노드 소유자, startedBy = 실행한 계정 — SH9(받은 쪽이 실행한 process의 소유)
+// Exec: 실행·편집 진입점. 성공하면 tabID가 크기 소유자. 소유 = 노드 소유자, startedBy = 실행 계정 — SH9(받은 쪽이 실행한 process의 소유)
 func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.ExecType, node superdb.Node, tabID string) (string, error) {
 	worker, _ := r.workers.Get(authKey)
 
-	// 1. 상태 등록(manager). UID·spec·Inter는 manager가 authoritative하게 만든다.
-	//    method value로 EXEC/EDIT 분기(entry 타입 추론 → process 패키지 직접 import 회피).
+	// 1. 상태 등록 — UID·spec·Inter는 manager가 만든다
 	register := r.processManager.Exec
 	if kind == protocol.ExecTypeEdit {
 		register = r.processManager.ExecEdit
@@ -44,9 +37,7 @@ func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.E
 	}
 	uid := entry.Record.Uid
 
-	// 2. content 선배치: node 본문을 실행 경로에 파일로 먼저 깐다. DestPath는 manager가 spec에
-	//    쓴 것과 동일한 WorkerNodePath라 실행 대상과 정확히 일치한다(worker가 양쪽 동일 치환).
-	//    EXEC=실행 가능(0755) / EDIT=편집 대상(0644). 전송 실패 시 등록 롤백.
+	// 2. 본문 선배치 — spec과 같은 WorkerNodePath. EXEC = 0755 / EDIT = 0644, 실패하면 등록 롤백
 	destPath := process.WorkerNodePath(node, *entry.Record)
 	var content []byte
 	if node.Content.Valid {
@@ -61,15 +52,13 @@ func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.E
 		return "", fmt.Errorf("content 선배치 실패: %w", err)
 	}
 
-	// 3. 볼 수 있는 계정의 연결된 소켓 전부 구독(O(계정 동기화)). 반드시 relay Start() 이전이라야 RUNNING 등
-	//    초기 이벤트를 놓치지 않는다. 이후 연결되는 소켓은 handleSubscribeWS가 DB로 구독한다.
+	// 3. 순서 의존: 구독은 relay Start() 전에 — 늦으면 RUNNING 등 첫 이벤트를 놓친다
 	r.subscribeViewers(uid)
 
-	// 4. fan-out relay 기동: Output()/Status() 드레인 → PROCESS:<uid> 토픽으로 Publish.
-	//    종료 시 구독 정리(cleanupProcessTopic)까지 묶어서 한다 — startRelay 참조.
+	// 4. relay 기동(끝나면 구독 정리까지 — startRelay)
 	r.startRelay(uid, entry.Inter)
 
-	// 5. worker에 실행 명령. spec은 Record에서 파생(단일 진실의 출처).
+	// 5. worker에 실행 명령
 	ctx, cancel := context.WithTimeout(context.Background(), sendCallTimeout)
 	defer cancel()
 	res, err := worker.Call(ctx, protocol.MsgExec, entry.Spec())
@@ -92,8 +81,7 @@ func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.E
 
 const exitExecFailed = 126 // 실행이 시작되지 못함(셸 관례 "실행 불가")
 
-// failExec는 시작되지 못한 process를 DB까지 FAILED로 닫는다 — 메모리만 지우면 PENDING 행이 "실행 중"으로 남는다(2026-10-12 발견).
-// EXEC는 applyStatus가 메모리도 정리하고, EDIT는 editResult를 기다리느라 남기므로 여기서 지운다
+// failExec: 시작 못 한 process를 DB까지 FAILED로 — 메모리만 지우면 PENDING 행이 "실행 중"으로 남는다(2026-10-12). EDIT 엔트리는 여기서 지움
 func (r *supervisorRouter) failExec(uid string) {
 	r.applyStatus(uid, execute.CommandFailed, 0, exitExecFailed)
 	if _, ok := r.processManager.Get(uid); ok {
@@ -101,33 +89,23 @@ func (r *supervisorRouter) failExec(uid string) {
 	}
 }
 
-// processTopic은 한 process의 fan-out 토픽 키다(구독/발행 단일 출처).
-func processTopic(processId string) string { return "PROCESS:" + processId }
-
-// publishProcess는 PROCESS:<uid> 토픽에 MsgProcessUpdate(전체 process 구조체)를 발행한다.
-// node 도메인의 publishNode와 대칭 — DB/memory 갱신이 모두 끝난 뒤(REST 트랜잭션이면 AfterCommit
-// 안에서만) 호출해야 한다. 첫 사용처는 resizeProcess.
+// publishProcess: PROCESS:UPDATE(전체 process 구조체) — 크기 변경·종료 요청
 func (r *supervisorRouter) publishProcess(rec superdb.Process) {
 	if err := r.subscribeHub.Publish(processTopic(rec.Uid), protocol.MsgProcessUpdate, newProcessResponse(rec)); err != nil {
 		log.Printf("[process] Publish 실패 topic=%s: %v", processTopic(rec.Uid), err)
 	}
 }
 
-// startRelay는 bind.Relay를 기동하고, 드레인이 끝나는 즉시(=더 이상 이 토픽에 발행될 일이
-// 없어지는 시점) Hub 구독을 정리하는 감시 고루틴을 함께 붙인다. Exec(최초 실행)과
-// reconcileReconnect(재바인딩) 둘 다 이 지점 하나로 relay를 기동해야 종료 후 정리가 누락되지
-// 않는다.
-//
-// 재발 방지: worker 끊김(Detach)으로 끝난 relay는 구독을 정리하지 않는다. process는 살아 있고,
-// 정리하면 재접속 Rebind 뒤 새 relay의 발행을 받을 소켓이 없어진다(2026-10-01 실행 확인한 "Rebind 뒤
-// 출력 끊김"). 재접속이 빨라 새 구독(subscribeViewers)이 먼저 걸려도 이 정리가 늦게 돌아 지우는 경합도 같이 막는다.
+// startRelay: relay를 띄우고, 드레인이 끝나면 구독을 정리한다. Exec·reconcileReconnect 둘 다 여기로만 띄울 것
+// 재발 방지: worker 끊김(Detach)으로 끝난 relay는 정리하지 않는다 — process는 살아 있어, 정리하면 재접속 뒤
+// 새 relay의 출력을 받을 소켓이 없어진다(2026-10-01 "Rebind 뒤 출력 끊김")
 func (r *supervisorRouter) startRelay(uid string, inter *execute.AgentInteractive) {
 	relay := bind.NewRelay(uid, inter, r.screens.open(uid), func(k protocol.MsgType, p any) error {
 		return r.subscribeHub.Publish(processTopic(uid), k, p)
 	})
 	relay.Start()
 	go func() {
-		relay.Wait() // pumpOutput/pumpStatus가 채널 close까지 완전히 드레인(마지막 Completed/Failed 발행 포함)한 뒤에만 반환
+		relay.Wait() // 마지막 Completed/Failed 발행까지 드레인한 뒤 반환
 		if inter.Detached() {
 			return
 		}
@@ -135,24 +113,11 @@ func (r *supervisorRouter) startRelay(uid string, inter *execute.AgentInteractiv
 	}()
 }
 
-// cleanupProcessTopic은 process가 완전히 끝난 뒤(relay.Wait() 반환 후) 그 토픽에 남아있는
-// Hub 구독을 전부 해제한다. Kill()은 신호만 보낼 뿐 실제 종료는 비동기(MsgStatus)로 오므로
-// killProcess 안에서 바로 구독해지하면 마지막 상태 이벤트를 놓칠 race가 생긴다 — 그래서 정리는
-// 여기, "더 이상 아무것도 발행되지 않는다"가 보장된 시점에서만 한다.
-func (r *supervisorRouter) cleanupProcessTopic(uid string) {
-	r.screens.drop(uid) // S4(끝난 process): 끝나면 버림
-	topic := processTopic(uid)
-	for _, conn := range r.subscribeHub.Subscribers(topic) {
-		r.subscribeHub.Unsubscribe(topic, conn)
-	}
-}
-
 // frontend → supervisor 제어: 입력 = 소켓 PROCESS:INPUT(input.go) / 리사이즈·종료 = REST(processApi.go)
 
 // ===== worker → supervisor: process 이벤트 수신 =====
 
-// output: MsgData(EVENT). worker가 보낸 출력 바이트를 받아 해당 process의 AgentInteractive로
-// 밀어넣는다 → bind.Relay가 드레인해 frontend로 fan-out.
+// output: MsgData — 출력 바이트를 Inter로(relay가 브라우저로 보냄)
 func (r *supervisorRouter) output(ev protocol.Frame) {
 	var body protocol.DataEvent
 	if err := ev.Bind(&body); err != nil {
@@ -166,8 +131,7 @@ func (r *supervisorRouter) output(ev protocol.Frame) {
 	entry.Inter.PushOutput(body.Data)
 }
 
-// status: MsgStatus(EVENT). RUNNING(+PID) / 종료(Completed|Failed +ExitCode).
-// worker 보고와 worker 끊김 합성이 공유하는 applyStatus 깔때기로 위임한다.
+// status: MsgStatus — applyStatus로
 func (r *supervisorRouter) status(ev protocol.Frame) {
 	var body protocol.StatusEvent
 	if err := ev.Bind(&body); err != nil {
@@ -178,17 +142,9 @@ func (r *supervisorRouter) status(ev protocol.Frame) {
 	r.applyStatus(body.UID, body.Status, body.PID, body.ExitCode)
 }
 
-// applyStatus는 모든 상태전이의 유일 수렴점이다(REF-process "status 단일 깔때기").
-// 진입: ① worker On(MsgStatus) ② worker 끊김 시 supervisor 합성 호출(CommandPending)
-// ③ 재접속 3-way 대조 결과(CommandProcess=재바인딩 성공 / CommandFailed=worker측 소실).
-// PID를 아는 여기서 pool 상태(MarkProcessRunning/Pending/Done)를 갱신하고, Inter에도 반영한다.
-//
-// ⚠️ memory entry 없어도(=이미 정리됨) DB 반영은 계속한다 — 재접속 "supervisor만 앎" 분기는
-// 끊김 처리 때 이미 processManager.Remove된 uid에 대해 DB만 Failed로 닫아야 하기 때문이다.
-// entry가 필요한 동작(Inter 반영·memory 정리)만 존재 여부로 가드한다.
-//
-// ⚠️ EDIT는 Completed에서 즉시 teardown 금지 — editResult(read-back) 처리가 UID→NodeID
-// 매핑을 위해 엔트리를 필요로 한다. 따라서 EDIT 엔트리 제거는 editResult가 맡는다.
+// applyStatus: 모든 상태 전이의 단일 깔때기 — worker 보고 / 끊김 합성(PENDING) / 재접속 대조(REF-process "status 단일 깔때기")
+// 메모리 entry가 없어도 DB는 닫는다(재접속 "supervisor만 앎" = 이미 Remove된 uid). entry가 필요한 동작만 존재로 가드
+// EDIT는 Completed에서 지우지 않는다 — editResult가 UID -> NodeID 매핑에 엔트리를 쓴다
 func (r *supervisorRouter) applyStatus(uid string, status execute.CommandStatus, pid, exit int) {
 	entry, ok := r.processManager.Get(uid)
 
@@ -217,7 +173,7 @@ func (r *supervisorRouter) applyStatus(uid string, status execute.CommandStatus,
 		}
 
 	case status.IsCompleted():
-		// entry 유무와 무관하게 DB는 항상 닫는다(주석 참조).
+		// entry 유무와 무관하게 DB는 닫는다
 		row, err := q.MarkProcessDone(ctx, superdb.MarkProcessDoneParams{
 			Uid:      uid,
 			Status:   status.String(),
@@ -236,14 +192,13 @@ func (r *supervisorRouter) applyStatus(uid string, status execute.CommandStatus,
 		if entry.Inter != nil {
 			entry.Inter.Done(exit) // output/status 채널 close → relay 드레인 종료
 		}
-		// EDIT는 editResult 처리 후 제거(위 주석). EXEC 등은 여기서 memory 정리.
+		// EDIT는 editResult가 제거
 		if entry.Record == nil || protocol.ExecType(entry.Record.Type) != protocol.ExecTypeEdit {
 			r.processManager.Remove(uid)
 		}
 
 	case status == execute.CommandPending:
-		// worker 끊김 합성 호출 전용(REF-process "worker 끊김→PENDING"). 정상 경로에선 끊김
-		// 직후 entry가 아직 memory에 있을 때만 호출된다 — 없으면 이미 정리된 것.
+		// worker 끊김 합성 전용 — entry가 없으면 이미 정리된 것
 		if !ok {
 			return
 		}
@@ -272,9 +227,7 @@ func (r *supervisorRouter) applyStatus(uid string, status execute.CommandStatus,
 	}
 }
 
-// reconcileDisconnect는 worker 연결이 끊겼을 때 그 device 소유 활성 process를 전부
-// PENDING으로 낙관적 전이한다(REF-process "worker 끊김→PENDING"). deviceKey=InstanceKey
-// (workers 레지스트리 키와 동일).
+// reconcileDisconnect: 끊긴 worker(deviceKey = InstanceKey)의 활성 process를 전부 PENDING으로(낙관적)
 func (r *supervisorRouter) reconcileDisconnect(deviceKey string) {
 	q := store.GetStorePool().Queries()
 	ctx := context.Background()
@@ -289,9 +242,7 @@ func (r *supervisorRouter) reconcileDisconnect(deviceKey string) {
 	}
 }
 
-// sync: MsgSync(EVENT, worker→sup). 재접속 직후 worker가 보고하는 procs 스냅샷을 받아
-// reconcileReconnect로 넘긴다. conn/auth는 register 핸들러와 동일하게 클로저로 캡처한다
-// (register 완료 후에만 MsgSync가 오므로 auth는 이 시점에 항상 채워져 있다).
+// sync: MsgSync — 재접속 직후 worker의 procs 스냅샷을 reconcileReconnect로(register 뒤에만 오므로 auth는 채워져 있음)
 func (r *supervisorRouter) sync(conn *transport.Conn, auth *protocol.RegisterRequest) transport.EventHandler {
 	return func(ev protocol.Frame) {
 		var body protocol.SyncEvent
@@ -307,11 +258,9 @@ func (r *supervisorRouter) sync(conn *transport.Conn, auth *protocol.RegisterReq
 	}
 }
 
-// reconcileReconnect는 재접속한 worker의 보고(reported)와 DB의 활성(PENDING/PROCESS) uid
-// 목록을 3-way 대조한다(REF-process "재접속 재바인딩"):
-//   - 교집합: Rebind로 새 Inter 장착 + 볼 수 있는 계정 소켓 재구독(W) + relay 재기동 + applyStatus로 보고 상태 동기화 + 기록된 종료 요청 전달(종료-3(재접속 전달)).
-//   - DB만 앎(worker 재부팅 소실): CommandFailed로 종결 + 브라우저에 FAILED 직접 발행(Y — entry·relay가 없어서).
-//   - worker만 앎(고아): 로그만 남기고 무시(YAGNI, kill 지시 안 함).
+// reconcileReconnect: worker 보고와 DB 활성 uid를 대조한다(REF-process "재접속 재바인딩")
+//   - 둘 다: Rebind + 재구독 + relay 재기동 + 상태 동기화 + 기록된 종료 요청 전달(종료-3(재접속 전달))
+//   - DB만: FAILED로 닫고 직접 발행(relay 없음) / worker만(고아): 로그만
 func (r *supervisorRouter) reconcileReconnect(deviceKey string, worker *transport.Conn, reported []protocol.SyncEntry) {
 	q := store.GetStorePool().Queries()
 	ctx := context.Background()
@@ -364,8 +313,7 @@ func (r *supervisorRouter) reconcileReconnect(deviceKey string, worker *transpor
 	}
 }
 
-// publishLost는 relay 없이 종료된 process(재접속 때 worker에 없음)의 FAILED를 직접 발행하고 구독을 정리한다.
-// 구독이 이미 정리됐을 수 있어(relay가 끝난 process) 볼 수 있는 계정 소켓을 먼저 다시 구독한다 — 새로고침 없이 목록에서 빠지게
+// publishLost: relay 없이 끝난 process의 FAILED를 직접 발행 — 구독이 이미 정리됐을 수 있어 먼저 다시 구독한다
 func (r *supervisorRouter) publishLost(uid string) {
 	r.subscribeViewers(uid)
 	ev := protocol.StatusEvent{UID: uid, Status: execute.CommandFailed, ExitCode: 502}
@@ -375,9 +323,7 @@ func (r *supervisorRouter) publishLost(uid string) {
 	r.cleanupProcessTopic(uid)
 }
 
-// editResult: MsgEditResult(REQ, EDIT 전용). worker가 편집 종료 후 회수한 최종 파일 내용.
-// EditResult엔 nodeId가 없으므로 UID→entry→NodeID로 매핑해 nodes.content를 diff 후 UPDATE한다
-// (같으면 no-op). 처리 후 EDIT 엔트리를 제거한다(teardown 담당).
+// editResult: EDIT 종료 후 파일 내용 — UID -> entry -> NodeID로 content를 비교해 다르면 UPDATE, 끝나면 엔트리 제거
 func (r *supervisorRouter) editResult(req protocol.Frame) (any, error) {
 	var body protocol.EditResult
 	if err := req.Bind(&body); err != nil {
@@ -396,7 +342,7 @@ func (r *supervisorRouter) editResult(req protocol.Frame) (any, error) {
 	q := store.GetStorePool().Queries()
 	ctx := context.Background()
 
-	// 저장판별 = read-back & diff. 현재 content와 같으면 no-op(:wq 안 했으면 파일 불변).
+	// 같으면 저장 안 함(:wq 안 했으면 파일 그대로)
 	cur, err := q.GetNode(ctx, superdb.GetNodeParams{ID: nodeID, OwnerUserID: owner})
 	if err != nil {
 		return nil, err

@@ -12,25 +12,19 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// 구 PortBridge web/requestContext.go(전역 map[*http.Request]any + RequestScope 인터페이스 +
-// 도메인별 *Context 4종)를 대체한다. 그 기계장치의 실체는 "요청 경계 자동 커밋/롤백"이었고,
-// echo.Context가 요청 수명 저장소(c.Set/c.Get)를 이미 주므로 전역 map은 불필요해진다.
-// 4개 중복 Context는 아래 단일 txScope + 미들웨어 하나로 합쳐진다.
+// 요청 경계 트랜잭션: 요청마다 txScope 하나, 미들웨어가 끝에 커밋/롤백
 
 const txContextKey = "txScope"
 
-// txScope는 요청 1건의 트랜잭션 수명을 담는다.
-// 요청마다 새로 만들어 echo.Context에 실리므로 단일 goroutine 전용 → 락 불필요.
+// txScope: 요청 1건의 트랜잭션 수명. 요청마다 새로 만들어 단일 goroutine 전용(락 없음)
 type txScope struct {
 	pool  *store.StorePool
 	tx    *store.Transaction
 	err   error
-	hooks []func() // 커밋 성공 후에만 실행(AfterCommit 참조) — 예: socket Publish
+	hooks []func() // AfterCommit
 }
 
-// ensureTx는 트랜잭션을 lazy하게 시작한다(처음 호출 때만 Begin).
-// 한 번도 부르지 않은 읽기전용 핸들러는 트랜잭션을 열지 않는다(구 *Context.Transaction 동작 보존).
-// Begin 실패는 panic(web.Err(500))으로 던져 PanicMiddleware가 응답한다.
+// ensureTx: 처음 부를 때만 Begin(안 부른 읽기 핸들러는 트랜잭션 없음). 실패 = panic(web.Err(500))
 func (s *txScope) ensureTx() *store.Transaction {
 	if s.tx == nil {
 		t := s.pool.Transaction()
@@ -42,8 +36,7 @@ func (s *txScope) ensureTx() *store.Transaction {
 	return s.tx
 }
 
-// release는 요청 종료 시 한 번 호출된다. err 유무로 커밋/롤백을 가른다.
-// 트랜잭션을 한 번도 안 열었으면(tx==nil) 아무것도 하지 않는다.
+// release: 요청 끝에 한 번 — err면 롤백, 아니면 커밋 뒤 hooks. 트랜잭션을 안 열었으면 아무것도 안 함
 func (s *txScope) release() {
 	if s.tx == nil {
 		return
@@ -63,12 +56,8 @@ func (s *txScope) release() {
 	}
 }
 
-// txMiddleware는 요청마다 txScope를 만들어 echo.Context에 싣고, 종료 시 커밋/롤백한다.
-//   - 핸들러 panic(web.Err(...) 등 기대된 에러 + 예기치 못한 버그): err 기록 → 롤백 → 재-panic(바깥 PanicMiddleware가 잡아 응답)
-//   - 핸들러 error 반환(드묾): err 기록 → 롤백 → 그대로 반환
-//   - 정상: 커밋
-//
-// PanicMiddleware보다 안쪽(나중 Use)에 등록해야 재-panic이 그쪽으로 전파된다.
+// txMiddleware: 요청마다 txScope를 싣고 끝에 커밋/롤백. panic·error 반환 = 롤백(panic은 다시 던짐)
+// 순서 의존: PanicMiddleware보다 안쪽(나중 Use)에 등록해야 다시 던진 panic이 그쪽에 잡힌다
 func txMiddleware(pool *store.StorePool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) (err error) {
@@ -90,21 +79,22 @@ func txMiddleware(pool *store.StorePool) echo.MiddlewareFunc {
 	}
 }
 
-// Tx는 핸들러에서 현재 요청의 트랜잭션을 꺼낸다(lazy Begin).
-// 구 web.GetRequestScopePanic[model.XxxContext](req).Transaction() 자리를 대체.
+// Tx: 현재 요청의 트랜잭션(lazy Begin)
 func Tx(c echo.Context) *store.Transaction {
 	return c.Get(txContextKey).(*txScope).ensureTx()
 }
 
-// TxQueries는 현재 요청 트랜잭션의 sqlc Queries를 바로 꺼내는 단축 헬퍼.
+// TxQueries: 현재 요청 트랜잭션의 sqlc Queries
 func TxQueries(c echo.Context) *superdb.Queries {
 	return Tx(c).QueriesPanic()
 }
 
-// AfterCommit은 fn을 이 요청의 트랜잭션이 성공적으로 커밋된 뒤에만 실행되도록 예약한다
-// (롤백되거나 commit 자체가 실패하면 실행되지 않음). socket Publish처럼 "커밋 후 flush"가
-// 필요한 부수효과(REF-realtime.md 주의점 1)를 핸들러 안에서 등록해 두는 용도.
-// 등록 순서대로, release() 시점(핸들러 반환 후)에 동기 실행된다.
+// AfterCommit: fn을 커밋 성공 뒤에만 실행한다(롤백·커밋 실패면 안 함). 등록 순서대로, 핸들러 반환 후 동기 실행.
+//
+// 소켓 발행 규칙 — 롤백된 변경이 나가지 않게:
+//   - publish*·reconcileAccess·sendKill은 호출자가 AfterCommit으로 감싼다(트랜잭션 밖 호출은 그대로)
+//   - 이름이 ...AfterCommit으로 끝나는 함수만 스스로 감싼다(publishWorkspacesAfterCommit·reconcileShareAfterCommit)
+//   - 예외: resizeProcess의 먼저 발행(밀림-가(먼저 발행)) — DB가 아니라 worker에 보낼 값을 미리 알린다
 func AfterCommit(c echo.Context, fn func()) {
 	scope := c.Get(txContextKey).(*txScope)
 	scope.hooks = append(scope.hooks, fn)

@@ -45,7 +45,7 @@ type supervisorRouter struct {
 	processManager *process.ProcessManager // 실행 상태 레지스트리(UID→entry). 라우팅은 여기 router가.
 	sizeOwners     *sizeOwners             // uid -> PTY 크기 소유 탭(sizeOwner.go)
 	screens        *screens                // uid -> 화면 복원 버퍼(screen.go)
-	accessMu       sync.Mutex              // 출력 구독 재계산·연결 구독을 한 줄로(shareAccess.go)
+	accessMu       sync.Mutex              // 출력 구독 재계산·연결 구독을 한 줄로(subscribe.go)
 	pins           *pinState               // 계정별 마지막 고정 지도(tileNotice.go)
 }
 
