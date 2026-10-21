@@ -7,11 +7,9 @@ import (
 	"nexus/internal/execute"
 )
 
-// 이 파일은 Nexus 도메인 메시지(어휘)를 모은다.
-// 봉투(Frame/Kind)는 protocol.go에 있고, 여기엔 "무엇을 주고받는지"만 정의한다.
+// Nexus 도메인 메시지 어휘 — 봉투(Frame/Kind)는 protocol.go
 
-// MsgRegister는 worker가 supervisor에 접속하며 보내는 등록 요청이다.
-// MsgFile*는 파일 전송(supervisor → worker)의 단계별 메시지다.
+// worker 등록 + 파일 전송(supervisor -> worker)
 const (
 	MsgRegister   MsgType = "REGISTER"
 	MsgFileInit   MsgType = "FILE_INIT"   // 통보 → FileInitResponse
@@ -20,8 +18,7 @@ const (
 	MsgFileAbort  MsgType = "FILE_ABORT"  // 진행중 중단
 )
 
-// RegisterRequest: worker → supervisor.
-// 최초 접속이면 SubKey가 빈 값, 재접속(재부팅 후)이면 이전에 받은 SubKey를 함께 보낸다.
+// RegisterRequest: worker -> supervisor. SubKey = 최초 접속이면 빈 값, 재접속이면 이전에 받은 값
 type RegisterRequest struct {
 	Key    string `json:"key"`              // 사전 지정 고유키 (여러 worker가 같을 수 있음)
 	SubKey string `json:"subKey,omitempty"` // 재접속 시에만 채워짐
@@ -44,8 +41,7 @@ func (r RegisterRequest) InstanceKey() string {
 	}
 }
 
-// RegisterResponse: supervisor → worker.
-// 최초면 supervisor가 새로 부여한 SubKey, 재접속이면 확인된 SubKey.
+// RegisterResponse: supervisor -> worker. 최초면 새로 부여한 SubKey, 재접속이면 확인된 SubKey
 type RegisterResponse struct {
 	SubKey string `json:"subKey"`
 }
@@ -54,11 +50,8 @@ func NewRegisterRequest(key, subKey string) RegisterRequest {
 	return RegisterRequest{Key: key, SubKey: subKey}
 }
 
-// ===== 파일 전송 (supervisor → worker) =====
-//
-// 흐름: FileInit(통보) → [FileChunk × N] → FileResult(완료/검증). 중단은 FileAbort.
-// 모든 메시지는 TransferID로 한 전송 세션을 묶는다 — Frame.ID는 요청1↔응답1 짝짓기용이라 별개다.
-// (한 연결에서 여러 파일이 동시에 오갈 수 있으므로 세션 식별자가 따로 필요)
+// ===== 파일 전송 (supervisor -> worker) =====
+// FileInit -> FileChunk × N -> FileResult, 중단 = FileAbort. 한 연결에 여러 전송이 동시에 오가므로 TransferID로 묶는다(Frame.ID와 별개)
 
 // FileInitRequest: 전송 통보. (REQ → FileInitResponse)
 type FileInitRequest struct {
@@ -71,16 +64,14 @@ type FileInitRequest struct {
 	Resume     bool   `json:"resume,omitempty"` // 송신자의 이어받기 의향
 }
 
-// FileInitResponse: 수락 여부 + 이어받기 시작 위치.
-// ResumeOffset은 "받는 쪽"이 정한다(이미 가진 바이트 수). 0이면 처음부터.
+// FileInitResponse: 수락 여부 + ResumeOffset(받는 쪽이 이미 가진 바이트 수, 0 = 처음부터)
 type FileInitResponse struct {
 	Accept       bool   `json:"accept"`
 	ResumeOffset int64  `json:"resumeOffset"`
 	Reason       string `json:"reason,omitempty"` // 거부 사유(accept=false일 때)
 }
 
-// FileChunkRequest: 데이터 한 조각. (REQ → FileChunkResponse)
-// Data는 Frame.Data(json) 봉투라 base64로 인코딩되어 나간다(~33% 증가).
+// FileChunkRequest: 데이터 한 조각(REQ -> FileChunkResponse). Data는 json 봉투라 base64(~33% 증가)
 type FileChunkRequest struct {
 	TransferID string `json:"transferId"`
 	Offset     int64  `json:"offset"` // 이 조각의 시작 바이트 위치(멱등 WriteAt용)
@@ -110,24 +101,9 @@ type FileAbortRequest struct {
 	Reason     string `json:"reason,omitempty"`
 }
 
-// ===== process 실행 (supervisor ↔ worker) =====
-//
-// 제어(REQ/RES): MsgExec / MsgResize / MsgKill — 성패 응답 필요.
-// 스트림(EVENT): MsgData(입력·출력 양방향) / MsgStatus(worker→sup) — 짝 응답 없음.
-// 실행 종류(ProcessSpec.Type): EXEC=일반 인터랙티브 실행 / EDIT=에디터로 편집 후 내용 회수.
-//
-//	둘 다 같은 PTY 엔진을 쓰며 Type만 다르다.
-//	- EXEC: Cmd를 그대로 실행(argv = Cmd + Args).
-//	- EDIT: 편집 대상 파일은 미리 깔아 둔다 — 초기 내용은 SendBuffer(메모리 전송)로 worker에
-//	        먼저 보내거나 기존 파일을 그대로 쓴다(인라인 Seed 주입은 폐기). EDIT는 그 경로를
-//	        에디터로 열고, 종료 시 MsgEditResult(REQ)로 파일 내용을 read-back한다.
-//	        에디터 = Cmd(있으면) / 없으면 worker가 $EDITOR(→없으면 OS 기본) 해석.
-//	★경로 치환: supervisor는 worker의 실제 경로를 모르므로 Cmd/Args/Cwd/Env에 치환 토큰
-//	({WORKER_BASE})을 박아 보내고, worker가 실행 직전 실제 값으로 치환한다(알 수 없는 {..}는
-//	그대로 둠). → 토큰 상수는 아래 Placeholder*.
-//
-// 모든 메시지는 UID로 한 process를 가리킨다. UID는 initiator(보통 supervisor)가 발급하는
-// 시스템 전체 식별자고, 실제 OS PID와는 별개다(PID는 worker 로컬, StatusEvent로 보고된다).
+// ===== process 실행 (supervisor <-> worker) =====
+// 제어(REQ/RES) = EXEC·RESIZE·KILL / 스트림(EVENT) = DATA(양방향)·STATUS(worker -> sup)
+// UID = supervisor가 발급하는 전체 식별자(OS PID와 별개, PID는 STATUS로 보고)
 const (
 	MsgExec   MsgType = "EXEC"   // sup→worker REQ: ProcessSpec → ExecResponse
 	MsgData   MsgType = "DATA"   // EVENT 양방향: 입력(sup→worker) / 출력(worker→sup)
@@ -140,13 +116,7 @@ const (
 	MsgSync MsgType = "SYNC" // worker→sup EVENT: SyncEvent (재접속 직후 자기 procs 스냅샷 자발 보고)
 )
 
-// ExecType은 실행 종류를 구분한다(MsgExec 공통 — 같은 PTY 엔진 위의 named recipe).
-//
-//	EXEC = 일반 인터랙티브 실행(산출물 없음, 종료코드만).
-//	EDIT = 에디터로 띄워 편집 → 종료 시 파일 내용 회수(MsgEditResult). 초기 내용은 미리
-//	       전송(SendBuffer)해 깔아 둔다(인라인 주입 아님).
-//
-// 빈 값은 EXEC로 간주한다(하위호환 기본값 — Kind() 사용).
+// ExecType: EXEC = 실행 / EDIT = 미리 보낸 파일을 에디터로 열고 종료 때 내용 회수(MsgEditResult). 빈 값 = EXEC(Kind())
 type ExecType string
 
 const (
@@ -154,22 +124,13 @@ const (
 	ExecTypeEdit ExecType = "EDIT"
 )
 
-// Placeholder*는 명령 치환 토큰이다. supervisor가 Cmd/Args/Cwd/Env에 그대로 박아 보내면
-// worker가 실행 직전 실제 값으로 치환한다(매칭 안 되는 {..}는 그대로 둔다). 양쪽이 같은
-// 문자열을 참조하도록 여기에 둔다 — worker는 치환, supervisor는 명령 빌드에 사용.
-// 치환 토큰. supervisor가 Cmd/Args/Cwd/Env/전송 DestPath에 그대로 박아 보내면 worker가
-// 실행/저장 직전 실제 값으로 치환한다(매칭 안 되는 {..}는 그대로). 경로 조립은 supervisor가
-// process/node 구조체로 하고(→ process.WorkerNodePath), worker는 placeholder만 지역화한다.
+// Placeholder*: supervisor가 Cmd/Args/Cwd/Env/DestPath에 넣어 보내면 worker가 실행·저장 직전 실제 값으로 바꾼다(모르는 {..}는 그대로)
 const (
 	PlaceholderWorkerBase   = "{WORKER_BASE}"   // worker 베이스 디렉토리(ProcessRoot)
 	PlaceholderWorkerEditor = "{WORKER_EDITOR}" // worker 기본 텍스트 에디터($VISUAL>$EDITOR>OS 기본값)
 )
 
-// ProcessSpec: 실행 명세. (MsgExec REQ)
-// UID는 initiator가 발급(RandomKey). 와이어 데이터라 execute가 아닌 여기(protocol)에 둔다
-// — execute는 Linux 전용(PTY ioctl)이므로 protocol/transport의 이식성을 위해 분리.
-// 공통 필드(UID/Cmd/Args/...) + 종류 구분(Type). EDIT의 초기 내용은 별도 전송(SendBuffer)이라
-// 여기에 인라인 필드를 두지 않는다.
+// ProcessSpec: 실행 명세(MsgExec REQ). EDIT 초기 내용은 별도 전송(SendBuffer)이라 필드 없음
 type ProcessSpec struct {
 	UID  string   `json:"uid"`
 	Type ExecType `json:"type,omitempty"` // EXEC(기본·빈값) | EDIT
@@ -181,7 +142,7 @@ type ProcessSpec struct {
 	Cols uint16   `json:"cols,omitempty"`
 }
 
-// Kind는 Type을 정규화해 반환한다(빈 값 → EXEC). worker/supervisor는 이걸로 분기한다.
+// Kind: 빈 값 = EXEC
 func (s ProcessSpec) Kind() ExecType {
 	if s.Type == ExecTypeEdit {
 		return ExecTypeEdit
@@ -189,23 +150,20 @@ func (s ProcessSpec) Kind() ExecType {
 	return ExecTypeExec
 }
 
-// ExecResponse: 실행 수락/거부. (MsgExec RES)
-// 수락 후 실제 RUNNING(+PID)은 별도 MsgStatus(EVENT)로 비동기 통보된다.
+// ExecResponse: 실행 수락/거부(MsgExec RES). RUNNING(+PID)은 뒤에 STATUS로
 type ExecResponse struct {
 	Accept bool   `json:"accept"`
 	Reason string `json:"reason,omitempty"`
 }
 
-// DataEvent: 입출력 바이트. (MsgData EVENT, 양방향)
-// 보내는 쪽에 따라 입력(sup→worker)/출력(worker→sup)이 결정된다(받는 쪽 On 핸들러가 구분).
-// Data는 Frame.Data(json) 봉투라 base64로 인코딩되어 나간다.
+// DataEvent: 입출력 바이트(MsgData, 방향 = 보내는 쪽). Data는 json 봉투라 base64
 type DataEvent struct {
 	UID  string `json:"uid"`
 	Data []byte `json:"data"`
 	Off  int64  `json:"off,omitempty"` // sup→browser 출력만: 이 묶음까지의 누적 바이트(화면 복원 이음매용)
 }
 
-// ResizeRequest: 터미널 창 크기 변경. (MsgResize REQ) → Interactive.Layout 매핑.
+// ResizeRequest: 터미널 창 크기(MsgResize REQ)
 type ResizeRequest struct {
 	UID  string `json:"uid"`
 	Rows uint16 `json:"rows"`
@@ -218,9 +176,7 @@ type KillRequest struct {
 	Force bool   `json:"force,omitempty"`
 }
 
-// StatusEvent: process 상태 변화 통보. (MsgStatus EVENT, worker→sup)
-// Status는 execute.CommandStatus를 그대로 사용한다(execute가 이식 가능해져 미러 불필요).
-// PID는 PROCESS(시작) 시 채워진다(worker OS pid, 보고 전용). ExitCode는 종료(Completed/Failed) 시에만 유효.
+// StatusEvent: 상태 변화(MsgStatus, worker -> sup). PID = 시작 때(보고 전용)
 type StatusEvent struct {
 	UID      string                `json:"uid"`
 	Status   execute.CommandStatus `json:"status"`
@@ -228,21 +184,14 @@ type StatusEvent struct {
 	ExitCode int                   `json:"exitCode"`      // Completed/Failed 시에만 의미(0이 정상종료라 omitempty 금지)
 }
 
-// EditResult: EDIT 종료 시 worker가 회수한 최종 파일 내용. (MsgEditResult REQ, worker→sup → 빈 응답)
-// 저장 여부 판별은 supervisor가 한다: 노드의 현재 content와 비교해 바뀌었을 때만 UPDATE.
-// (vi는 :wq·:q! 모두 정상종료라 종료코드로 저장여부 못 가림 → 무조건 read-back 후 supervisor가 diff.)
-// 에디터 비정상 종료(예: :cq)는 별도 MsgStatus(Failed)로 통보되니 supervisor가 취소로 처리할 수 있다.
+// EditResult: EDIT 종료 때 회수한 파일 내용(MsgEditResult REQ). vi는 :wq·:q! 모두 정상 종료라 supervisor가 content와 비교해 저장 여부를 가린다
 type EditResult struct {
 	UID     string `json:"uid"`
 	Content []byte `json:"content"`
 }
 
-// ===== 재접속 재바인딩 (worker→sup) =====
-//
-// worker 끊김 시 supervisor는 관련 process를 전부 PENDING으로 낙관적 전이한다(REF-process
-// "worker 끊김→PENDING"). 재접속하면 worker가 자기 로컬 procs를 스냅샷해 MsgSync로 자발적
-// 보고하고, supervisor는 DB(PENDING/PROCESS)와 3-way 대조해 재바인딩한다. RegisterRequest에
-// 얹지 않고 별도 메시지로 분리한다 — 식별자 핸드셰이크와 도메인 상태 동기화는 관심사가 다르다.
+// ===== 재접속 재바인딩 (worker -> sup) =====
+// 재접속한 worker가 자기 procs를 MsgSync로 보고 -> supervisor가 DB와 대조(REF-process "재접속 재바인딩")
 
 // SyncEntry: worker가 보고하는 개별 process 상태 한 줄.
 type SyncEntry struct {
@@ -251,29 +200,21 @@ type SyncEntry struct {
 	PID    int                   `json:"pid,omitempty"`
 }
 
-// SyncEvent: MsgSync payload. (worker→sup EVENT, register 성공 직후 1회 자발 전송)
+// SyncEvent: MsgSync payload — register 성공 직후 1회
 type SyncEvent struct {
 	Procs []SyncEntry `json:"procs"`
 }
 
-// ===== node 카탈로그 (supervisor → browser) =====
-//
-// worker는 관여하지 않는다(node는 순수 supervisor PG 영속). REST(CRUD) 커밋 성공 후
-// 그 노드를 볼 수 있는 접속 계정의 TILES:<userId> 토픽으로 EVENT를 push한다(REF-node-list-sync.md). 세분화 kind(created/
-// moved/renamed 등) 대신 CRUD 3종 + payload=항상 전체 node 구조체로 통일한다(REF-realtime.md
-// "Kind(MsgType) 어휘 — node 도메인 확정"). 이동/이름변경은 별도 kind 없이 UPDATE에 흡수.
+// ===== node 카탈로그 (supervisor -> browser) =====
+// 볼 수 있는 접속 계정의 USER:<userId> 토픽, CRUD 3종 + payload = 전체 node(이동·이름변경 = UPDATE, REF-node-list-sync.md)
 const (
 	MsgNodeCreate MsgType = "NODE:CREATE" // sup→browser EVENT: 전체 node 구조체
 	MsgNodeUpdate MsgType = "NODE:UPDATE" // sup→browser EVENT: 전체 node 구조체 (이동/이름변경 포함)
 	MsgNodeDelete MsgType = "NODE:DELETE" // sup→browser EVENT: 전체 node 구조체(삭제 직전 스냅샷)
 )
 
-// ===== process 객체 변경 통지 (supervisor → browser) =====
-//
-// PROCESS:<uid> 토픽 위에서 기존 MsgData(출력 바이트)/MsgStatus(상태전이, worker 원본 그대로
-// 중계)와 별개로 쓰는 채널이다 — "process 레코드 자체가 바뀌었다"를 알릴 땐 이 kind로 전체
-// processResponse DTO를 실어보낸다(node 도메인과 동일 원칙: payload=항상 전체 구조체).
-// 첫 사용처는 resize(rows/cols 변경) — worker 확인 후 DB+memory 동기화가 끝난 시점에만 발행.
+// ===== process 변경 통지 (supervisor -> browser) =====
+// PROCESS:<uid> 토픽에서 DATA·STATUS와 별개로 process 레코드 변경(크기·종료 요청)을 전체 DTO로
 const (
 	MsgProcessUpdate MsgType = "PROCESS:UPDATE" // sup→browser EVENT: 전체 process 구조체
 
@@ -284,8 +225,7 @@ const (
 	MsgProcessInput MsgType = "PROCESS:INPUT"
 )
 
-// SizeOwnerEvent: 받는 탭이 uid의 PTY 크기 소유자가 됐다는 통지. Lost = 잃음(연결된 채 다른 탭에 넘어감) — 크기-2(잃음 알림)
-// By = 잃음일 때 가져간 다른 계정의 닉네임(같은 계정·자동 넘김이면 비움) — K5(빼앗긴 탭 안내)
+// SizeOwnerEvent: 받는 탭이 크기 소유자가 됨 / Lost = 잃음(크기-2(잃음 알림)), By = 가져간 다른 계정 닉네임(K5(빼앗긴 탭 안내))
 type SizeOwnerEvent struct {
 	UID  string `json:"uid"`
 	Lost bool   `json:"lost,omitempty"`
@@ -314,7 +254,7 @@ type TabActiveEvent struct {
 	NodeID *int64 `json:"nodeId,omitempty"`
 }
 
-// 다른 계정 탭의 active 변경 — TILES:<userId> 토픽. 받는 계정이 볼 수 없는 대상이면 비워서(= 지움) 보낸다
+// 다른 계정 탭의 active 변경 — USER:<userId> 토픽. 받는 계정이 볼 수 없는 대상이면 비워서(= 지움) 보낸다
 const MsgActiveUpdate MsgType = "ACTIVE:UPDATE" // sup→browser EVENT: ActiveUpdateEvent
 
 // ActiveUpdateEvent: Key = 탭 id 해시 앞 8자(탭 id 원문 = 크기 우선권 열쇠라 내보내지 않음). GET /tabs/active 응답 항목과 같은 모양
@@ -326,11 +266,10 @@ type ActiveUpdateEvent struct {
 	NodeID   *int64 `json:"nodeId,omitempty"`
 }
 
-// 계정의 타일 트리 저장 통지 — TILES:<userId> 토픽, 4 O(계정 동기화) 화면 (REF-node-ui-sync.md)
+// 계정의 타일 트리 저장 통지 — USER:<userId> 토픽, 4 O(계정 동기화) 화면 (REF-node-ui-sync.md)
 const MsgTilesUpdate MsgType = "TILES:UPDATE" // sup→browser EVENT: TilesUpdateEvent
 
-// TilesUpdateEvent: 저장된 트리 전체 + version(4①(push 내용)). TabID = 저장한 탭, 받는 쪽이 자기 것을 거른다(4②(내 변경 되받기)) — 모르면 ""
-// Hash = 저장된 작업 공간, 받는 탭은 보는 작업 공간이 아니면 무시(WS6(TILES 이벤트 구분))
+// TilesUpdateEvent: 트리 전체 + version. TabID = 저장한 탭(자기 것 거름, 4②(내 변경 되받기)), Hash = 보는 보드가 아니면 무시(WS6(TILES 이벤트 구분))
 type TilesUpdateEvent struct {
 	Hash    string          `json:"hash"`
 	Tree    json.RawMessage `json:"tree"`
@@ -338,7 +277,7 @@ type TilesUpdateEvent struct {
 	TabID   string          `json:"tabId"`
 }
 
-// 폴더 타일 고정 지도 — TILES:<userId> 토픽, 트리 저장마다 계정 보드 전체로 다시 계산(개편-1(고정 지도), REF-tile-binding-rework.md)
+// 폴더 타일 고정 지도 — USER:<userId> 토픽, 트리 저장마다 계정 보드 전체로 다시 계산(개편-1(고정 지도), REF-tile-binding-rework.md)
 const MsgTilesPins MsgType = "TILES:PINS" // sup→browser EVENT: TilesPinsEvent
 
 // TilePin: 같은 폴더 노드의 타일이 내 보드를 통틀어 2개 이상일 때 그 노드의 고정 타일 — R4(고정 표시 남발)
@@ -352,7 +291,7 @@ type TilesPinsEvent struct {
 	Pins []TilePin `json:"pins"`
 }
 
-// 타일 위치 알림 — TILES:<userId> 토픽, 토스트·알림 내역용(개편-5(알림 이벤트), REF-tile-binding-rework.md "위치 알림")
+// 타일 위치 알림 — USER:<userId> 토픽, 토스트·알림 내역용(개편-5(알림 이벤트), REF-tile-binding-rework.md "위치 알림")
 const MsgTilesNotice MsgType = "TILES:NOTICE" // sup→browser EVENT: TilesNoticeEvent
 
 const (
@@ -378,12 +317,12 @@ type TilesNoticeEvent struct {
 	At     int64     `json:"at"` // unix ms
 }
 
-// 공유 변경(걸기·풀기·단계 변경·노드 이동·삭제) — TILES:<userId> 토픽(SD4), 받은 쪽이 다시 조회한다(SD6). REF-process-share-reconcile.md
+// 공유 변경(걸기·풀기·단계 변경·노드 이동·삭제) — USER:<userId> 토픽(SD4), 받은 쪽이 다시 조회한다(SD6). REF-process-share-reconcile.md
 const MsgShareChange MsgType = "SHARE:CHANGE" // sup→browser EVENT: ShareChangeEvent
 
 type ShareChangeEvent struct{}
 
-// 작업 공간 목록 변경(만들기·이름·삭제) — TILES:<userId> 토픽, 목록 전체를 보낸다 (REF-workspace-impl.md)
+// 작업 공간 목록 변경(만들기·이름·삭제) — USER:<userId> 토픽, 목록 전체를 보낸다 (REF-workspace-impl.md)
 const MsgWorkspacesUpdate MsgType = "WORKSPACES:UPDATE" // sup→browser EVENT: WorkspacesUpdateEvent
 
 type WorkspaceItem struct {

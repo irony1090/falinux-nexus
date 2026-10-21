@@ -13,7 +13,7 @@
 - 파일 전송 흐름: `UploadInit → Ready → Chunk → Status → Result`
 
 ## Process 실행 추상화 (worker agent 핵심)
-- **`IInteractive` 인터페이스**: `Output()`, `Write()`, `Status()`, `Kill()`, `Layout(cols, rows uint16) error`(2026-07-22 `syscall.Errno`→`error` 정정 — "그 자리에서 확인된 진짜 결과" 계약 통일, 상세 → `REF-process-resize.md`), `ExitCode() int`
+- **`IInteractive` 인터페이스**(2026-10-21 `Output()`·`ExitCode()` 뺌 — 정돈-5(실행 인터페이스 안 쓰는 메서드), 지금 = `OutputAll`·`Write`·`Status`·`Kill`·`Layout`): ~~`Output()`~~, `Write()`, `Status()`, `Kill()`, `Layout(cols, rows uint16) error`(2026-07-22 `syscall.Errno`→`error` 정정 — "그 자리에서 확인된 진짜 결과" 계약 통일, 상세 → `REF-process-resize.md`), `ExitCode() int`
   - `*Interactive` (로컬 PTY 구체 타입), `*AgentInteractive` (원격 agent 래퍼) 모두 구현
 - **`AgentInteractive`**: agent WebSocket을 통한 원격 process 래퍼
   - `onWrite`/`onLayout`/`onKill` 콜백으로 agent에 명령 전달
@@ -40,7 +40,7 @@ CreateProcess → process 생성 + AgentInteractive 생성 + (필요시 파일 �
 ---
 
 ## process 모듈 설계 (2026-06-25 확정, Step 1 구현 시작)
-- **★발견: `execute`는 스텁 아님** — PortBridge 이식 완료/미배선. 보유: `IInteractive`(Output/Write/Status/Kill/Layout/ExitCode), `*Interactive`(로컬 PTY — **직접 만든 `/dev/ptmx` ioctl, creack/pty 불필요, Linux 전용**), `*AgentInteractive`(원격 래퍼 onWrite/onLayout/onKill+Push*/Done), 기타 `ExecCommand`/`Fifo`/`TmuxSession`, `syncProcess.SyncData[T]`. 빠진 것=신원(UID/PID)·매니저·배선
+- **★발견: `execute`는 스텁 아님** — PortBridge 이식 완료/미배선. 보유(2026-10-21 `ExecCommand`·`Fifo`·`TmuxSession` 삭제 — 정돈-1(PortBridge 실행 잔재)): `IInteractive`(Output/Write/Status/Kill/Layout/ExitCode), `*Interactive`(로컬 PTY — **직접 만든 `/dev/ptmx` ioctl, creack/pty 불필요, Linux 전용**), `*AgentInteractive`(원격 래퍼 onWrite/onLayout/onKill+Push*/Done), 기타 `ExecCommand`/`Fifo`/`TmuxSession`, `syncProcess.SyncData[T]`. 빠진 것=신원(UID/PID)·매니저·배선
 - **★패키지 분리(2026-06-25)**: `execute`가 통째 Linux 전용이면 supervisor(AgentInteractive만 필요)까지 비-Linux 빌드 불가 → **OS syscall 의존 파일을 `execute/pty`(package pty)로 분리**. `execInteractive.go`(PTY)·`execFIFO.go`(Mkfifo) 이동. `execute`(이식 가능)=IInteractive/AgentInteractive/CommandStatus/ExecCommand/Tmux 유지. pty는 execute를 import(CommandStatus 등), `var _ execute.IInteractive = (*Interactive)(nil)` 어서션. 공유 변수 `rn`/`nr`는 분리 후 양쪽 각자 보유
 - **상태 어휘**: `execute.CommandStatus`(Pending=0/Process=1/Completed=2/Failed=3)를 **와이어에서 그대로 사용**(`StatusEvent.Status`). execute가 이식 가능해져 `protocol`이 import 가능 → **ProcStatus 미러는 폐기**(단일 소스). transport→protocol→execute 그래프에 execute 이식부가 딸려오나 전부 portable이라 무방
 - **구조체 공유 = 데이터 서술자만**: `ProcessSpec{UID,Cmd,Args,Cwd,Env,Rows,Cols}`는 **`protocol`에 둠**(execute 아님 — 이식성 이유, 순수 데이터라 protocol이 적격, execute가 필요시 protocol을 import=사이클 없음). 런타임 핸들은 각자 → 행위는 `IInteractive`로 통일. **통째 동일 구조체 박지 말 것**(런타임 핸들 다름)

@@ -35,6 +35,8 @@
 - **pkill 자기 셸 함정(2026-10-14)**: heredoc으로 만든 스크립트 안에 `TCP-LISTEN:5152` 같은 문자열이 있으면 `pkill -f 'TCP-LISTEN:515[2]'`가 그 heredoc을 품은 bash 명령줄까지 잡는다(exit 144) -> 포트·`/proc` 기준으로 pid를 골라 끈다
 - `GET /users/presence`는 공유 대상 계정만 `?ids=`로 — 자기 계정 `lastSeen`은 `GET /processes/:uid/presence`의 계정 항목으로 본다
 
+- **소켓 연결 순서 함정(2026-10-21)**: 서버는 `TAB:ID`를 먼저 보내고 그 뒤 process 토픽을 구독한다(`handleSubscribeWS`) -> 확인 클라이언트가 `TAB:ID`를 받자마자 입력을 보내면 그 출력을 못 받는다. 연결 뒤 0.3초쯤 기다릴 것
+- **유저 id 얻기**: `POST /users`·`/users/session` 응답에 id가 없고 `/users/lookup?identification=`은 자기 자신을 거절 -> 두 계정이 서로 조회
 - **빌드 출력 함정(2026-10-21)**: `apps/core`에서 `go build ./cmd/supervisor`를 `-o` 없이 돌리면 `apps/core/supervisor`(gitignore)를 덮어씀 -> 빌드 확인도 항상 `-o <scratchpad>/...`
 
 ## 테스트 클라이언트 함정

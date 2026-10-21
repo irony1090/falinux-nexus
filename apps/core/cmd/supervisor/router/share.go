@@ -14,8 +14,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// 공유 걸기·풀기·목록 — 공유-c(공유 API), REF-process-share-api.md.
-// 공유는 대상 소유자만(P(공유 권한), 재공유 불가). 커밋 뒤 받는 쪽 구독·타일 반영 = 공유-d 실시간-2(shareAccess.go).
+// 공유 걸기·풀기·목록 — 대상 소유자만(P(공유 권한), 재공유 불가). 받는 쪽 구독·타일 반영 = shareAccess.go (REF-process-share-api.md)
 
 func (r *supervisorRouter) mountShares(e *echo.Echo) {
 	e.GET("/shares/mine", r.listMyShares)
@@ -33,7 +32,7 @@ type shareRequest struct {
 	TileID     string `json:"tileId"` // 노드 공유: 공유 버튼을 누른 폴더 타일 — 받는 쪽 폴더 타일이 그 uid를 받음(FU2)
 }
 
-// shareEntry: 대상에 실제로 적용되는 한 계정의 공유. 출처는 노드 공유만(process는 direct로 구분).
+// shareEntry: 대상에 실제로 적용되는 한 계정의 공유
 type shareEntry struct {
 	UserID       int64   `json:"userId"`
 	Nickname     string  `json:"nickname"`
@@ -56,7 +55,7 @@ func paramUserID(c echo.Context) int64 {
 	return id
 }
 
-// bindShareRequest는 공유 단계와 공유한 타일 id를 읽는다. 저장할 수 있는 단계 = 0 차단·10 보기·20 조작·30 편집(40 소유자는 저장 안 함).
+// bindShareRequest: 저장할 수 있는 단계 = 0 차단·10 보기·20 조작·30 편집(40 소유자는 저장 안 함)
 func bindShareRequest(c echo.Context) (int16, string) {
 	var body shareRequest
 	if err := c.Bind(&body); err != nil {
@@ -72,7 +71,7 @@ func bindShareRequest(c echo.Context) (int16, string) {
 	panic(web.Err(400, "공유 단계는 0, 10, 20, 30 중 하나입니다"))
 }
 
-// requireShareTarget은 받을 계정을 확인한다. 없으면 404, 대상 소유자 자신이면 400(SH4(공유 대상 찾기)).
+// requireShareTarget: 없으면 404, 대상 소유자 자신이면 400(SH4(공유 대상 찾기))
 func requireShareTarget(c echo.Context, ownerID int64) int64 {
 	userID := paramUserID(c)
 	if _, err := TxQueries(c).GetUser(c.Request().Context(), userID); err != nil {
@@ -86,7 +85,7 @@ func requireShareTarget(c echo.Context, ownerID int64) int64 {
 
 // ===== 내가 공유한 것 — O5 =====
 
-// myShare: 내가 직접 건 공유 한 건. 해제는 kind에 맞는 DELETE(노드 /nodes/:id/shares/:userId, process /processes/:uid/shares/:userId).
+// myShare: 내가 직접 건 공유 한 건(해제 = kind에 맞는 DELETE)
 type myShare struct {
 	Kind       string  `json:"kind"` // NODE | PROCESS
 	NodeID     *int64  `json:"nodeId,omitempty"`
@@ -97,7 +96,7 @@ type myShare struct {
 	Permission int16   `json:"permission"`
 }
 
-// listMyShares는 내가 건 공유 전부(노드 + 살아 있는 process 단독)를 반환한다. 단계 변경은 O2(공유 목록 창)에서.
+// listMyShares: 내가 건 공유 전부(노드 + 살아 있는 process 단독)
 func (r *supervisorRouter) listMyShares(c echo.Context) error {
 	sess := r.requireSession(c)
 	q, ctx := TxQueries(c), c.Request().Context()
@@ -148,14 +147,14 @@ func findShareEntry(entries []shareEntry, userID int64) *shareEntry {
 	return nil
 }
 
-// listNodeShares는 노드에 실제로 적용되는 공유 전부(직접 + 상위에서 이어진 것)를 출처와 함께 반환한다 — O2(적용 공유 목록)
+// listNodeShares: 노드에 적용되는 공유 전부(직접 + 상위에서 이어진 것) — O2(적용 공유 목록)
 func (r *supervisorRouter) listNodeShares(c echo.Context) error {
 	sess := r.requireSession(c)
 	node, _ := requireNode(c, sess.Data.ID, paramID(c), superdb.PermOwner)
 	return c.JSON(200, r.nodeShareEntries(c, node.ID))
 }
 
-// putNodeShare는 노드 공유를 건다. 이미 있으면 단계만 바꾼다(upsert). 폴더만 — SH1(공유 단위)
+// putNodeShare: upsert, 폴더만 — SH1(공유 단위)
 func (r *supervisorRouter) putNodeShare(c echo.Context) error {
 	sess := r.requireSession(c)
 	node, _ := requireNode(c, sess.Data.ID, paramID(c), superdb.PermOwner)
@@ -184,11 +183,11 @@ func (r *supervisorRouter) putNodeShare(c echo.Context) error {
 		saved.add(attachSharedFolder(c, userID, node.ID, sharedFromUID(c, sess.Data.ID, tileID, node.ID)))
 		r.attachSharedTerminals(c, userID, liveUnder(c, node.ID), saved) // 이미 실행 중인 터미널도 — 폴더 타일을 먼저 넣어야 받는 타일이 됨
 	}
-	r.afterShareChange(c, userID, liveUnder(c, node.ID), saved)
+	r.reconcileShareAfterCommit(c, userID, liveUnder(c, node.ID), saved)
 	return c.JSON(200, shareChangeResponse{Entry: findShareEntry(r.nodeShareEntries(c, node.ID), userID), Previous: previous})
 }
 
-// deleteNodeShare는 이 노드에 건 공유 행을 지운다. 상위에서 이어지는 공유는 그대로(응답 entry로 알 수 있음).
+// deleteNodeShare: 이 노드의 공유 행만(상위에서 이어지는 공유는 그대로)
 func (r *supervisorRouter) deleteNodeShare(c echo.Context) error {
 	sess := r.requireSession(c)
 	node, _ := requireNode(c, sess.Data.ID, paramID(c), superdb.PermOwner)
@@ -200,13 +199,13 @@ func (r *supervisorRouter) deleteNodeShare(c echo.Context) error {
 	if n == 0 {
 		panic(web.Err(404, "이 노드에 건 공유가 없습니다"))
 	}
-	r.afterShareChange(c, userID, liveUnder(c, node.ID), nil)
+	r.reconcileShareAfterCommit(c, userID, liveUnder(c, node.ID), nil)
 	return c.JSON(200, shareChangeResponse{Entry: findShareEntry(r.nodeShareEntries(c, node.ID), userID)})
 }
 
 // ===== process 단독 공유 =====
 
-// requireProcessOwner는 process 소유자인지 확인하고 DB 행을 반환한다(끝난 process 포함).
+// requireProcessOwner: 소유자 확인 + DB 행(끝난 process 포함)
 func (r *supervisorRouter) requireProcessOwner(c echo.Context, userID int64) superdb.Process {
 	uid := c.Param("processId")
 	checkPerm(r.processPerm(uid, userID), superdb.PermOwner, "존재하지 않는 process입니다")
@@ -235,7 +234,7 @@ func (r *supervisorRouter) listProcessShares(c echo.Context) error {
 	return c.JSON(200, r.processShareEntries(c, rec.Uid))
 }
 
-// putProcessShare는 process 단독 공유를 건다(upsert). 살아 있는 process만 — SC6(process 단독 공유 대상)
+// putProcessShare: upsert, 살아 있는 process만 — SC6(process 단독 공유 대상)
 func (r *supervisorRouter) putProcessShare(c echo.Context) error {
 	sess := r.requireSession(c)
 	rec := r.requireProcessOwner(c, sess.Data.ID)
@@ -263,11 +262,11 @@ func (r *supervisorRouter) putProcessShare(c echo.Context) error {
 	if before <= superdb.PermBlock && mustProcessPerm(c, userID, rec.Uid) > superdb.PermBlock && rec.NodeID.Valid && !rec.KillRequestedAt.Valid {
 		saved.add(attachTerminal(c, userID, rec.NodeID.Int64, rec.Uid, r.boundPlaceOf(userID)))
 	}
-	r.afterShareChange(c, userID, []string{rec.Uid}, saved)
+	r.reconcileShareAfterCommit(c, userID, []string{rec.Uid}, saved)
 	return c.JSON(200, shareChangeResponse{Entry: findShareEntry(r.processShareEntries(c, rec.Uid), userID), Previous: previous})
 }
 
-// deleteProcessShare는 process 단독 공유 행을 지운다. 노드에서 이어지는 공유는 그대로.
+// deleteProcessShare: 단독 공유 행만(노드에서 이어지는 공유는 그대로)
 func (r *supervisorRouter) deleteProcessShare(c echo.Context) error {
 	sess := r.requireSession(c)
 	rec := r.requireProcessOwner(c, sess.Data.ID)
@@ -279,13 +278,12 @@ func (r *supervisorRouter) deleteProcessShare(c echo.Context) error {
 	if n == 0 {
 		panic(web.Err(404, "이 process에 건 공유가 없습니다"))
 	}
-	r.afterShareChange(c, userID, []string{rec.Uid}, nil)
+	r.reconcileShareAfterCommit(c, userID, []string{rec.Uid}, nil)
 	return c.JSON(200, shareChangeResponse{Entry: findShareEntry(r.processShareEntries(c, rec.Uid), userID)})
 }
 
-// bindProcessTile: "현재 타일에 바인딩"(개편-4) — 그 터미널 타일을 내 어느 보드에 있든 빼서 본문 {hash} 보드의 {tileId} 폴더 타일 아래로 옮긴다
-// (최소화 풂). 내 보드에 타일이 없으면 새로 만든다(옛 "내 보드에 열기", 살아 있는 process만). {tileId}가 그 사이 닫혔으면 그 보드 루트.
-// 타일 고정은 건드리지 않음(R6(바인딩 단어 겹침)). 이미 그 타일 아래면 added=false. 보기(10) 이상
+// bindProcessTile: "현재 타일에 바인딩"(개편-4) — 터미널 타일을 {hash} 보드의 {tileId} 아래로 옮김(없으면 새로, 닫혔으면 루트). 보기(10) 이상
+// 타일 고정은 안 건드림(R6(바인딩 단어 겹침)). 이미 그 아래면 added=false
 func (r *supervisorRouter) bindProcessTile(c echo.Context) error {
 	sess := r.requireSession(c)
 	uid := c.Param("processId")

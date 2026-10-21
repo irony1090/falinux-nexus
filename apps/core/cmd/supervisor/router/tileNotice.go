@@ -13,7 +13,7 @@ import (
 
 // 타일 위치 알림 — 개편-5(알림 이벤트), REF-tile-binding-rework.md "위치 알림"
 
-// pinState: 계정별 마지막으로 보낸 고정 지도 — PIN_MOVED(M5(고정 이동)) 비교용. 서버 재시작 뒤 첫 계산은 비교 없이 기록만
+// pinState: 계정별 마지막으로 보낸 고정 지도 — M5(고정 이동) 비교용. 서버 재시작 뒤 첫 계산은 기록만
 type pinState struct {
 	mu    sync.Mutex
 	users map[int64]*userPins
@@ -39,7 +39,7 @@ func (s *pinState) of(userID int64) *userPins {
 	return u
 }
 
-// publishPins: 트리가 바뀔 때마다 계정 보드 전체로 고정 지도를 다시 계산해 보내고, 고정 타일이 바뀐 노드는 PIN_MOVED. 커밋 뒤 호출(publishTiles 끝)
+// publishPins: 계정 보드 전체로 고정 지도를 다시 계산해 보내고, 고정 타일이 바뀐 노드는 PIN_MOVED(publishTiles 끝에서)
 func (r *supervisorRouter) publishPins(userID int64) {
 	u := r.pins.of(userID)
 	u.mu.Lock()
@@ -52,9 +52,7 @@ func (r *supervisorRouter) publishPins(userID int64) {
 		log.Printf("[tiles] 고정 지도 계산 실패 user=%d: %v", userID, err)
 		return
 	}
-	if err := r.subscribeHub.Publish(tilesTopic(userID), protocol.MsgTilesPins, protocol.TilesPinsEvent{Pins: pins}); err != nil {
-		log.Printf("[tiles] 고정 지도 발행 실패 user=%d: %v", userID, err)
-	}
+	r.publishUser(userID, protocol.MsgTilesPins, protocol.TilesPinsEvent{Pins: pins})
 	next := make(map[int64]protocol.TilePin, len(pins))
 	for _, p := range pins {
 		next[p.NodeID] = p
@@ -69,9 +67,7 @@ func (r *supervisorRouter) publishPins(userID int64) {
 
 func (r *supervisorRouter) publishNotice(userID int64, ev protocol.TilesNoticeEvent) {
 	ev.At = time.Now().UnixMilli()
-	if err := r.subscribeHub.Publish(tilesTopic(userID), protocol.MsgTilesNotice, ev); err != nil {
-		log.Printf("[tiles] 위치 알림 발행 실패 user=%d: %v", userID, err)
-	}
+	r.publishUser(userID, protocol.MsgTilesNotice, ev)
 }
 
 // nodeName: 알림 문구용 — 권한 판정은 알림을 만드는 쪽에서 이미 끝남

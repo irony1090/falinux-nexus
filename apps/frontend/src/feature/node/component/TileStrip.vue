@@ -195,7 +195,7 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     // 칼럼(Grid 가로 절반) 단위 스냅 — Grid 자체엔 snap-align 없음, 앵커(.snap)만
     scroll-snap-type: x mandatory;
     scroll-padding: var(--gap);
-    // 표시줄 드래그 중 — scrollLeft를 줄 때마다 칼럼으로 튀지 않게(놓으면 표시줄이 칼럼에 맞춘 뒤 다시 켬)
+    // 인디케이터 드래그 중 — scrollLeft를 줄 때마다 칼럼으로 튀지 않게(놓으면 인디케이터가 칼럼에 맞춘 뒤 다시 켬)
     &.scrubbing { scroll-snap-type: none; }
     // 평소엔 스크롤바 없음(인디케이터가 대신, 터치·트랙패드·Shift+휠은 그대로) — 푸터-5(스크롤바 삭제)
     &:not(.overview) {

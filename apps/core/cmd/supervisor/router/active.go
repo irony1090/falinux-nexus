@@ -13,8 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// 원격 active 배지 — 다른 계정 탭의 active 타일(터미널 uid / 폴더 nodeId)을 볼 수 있는 계정에 알린다.
-// 탭 레지스트리 메모리만(DB 없음). 받는 쪽 판정 = 공유 판정 함수 일괄 — REF-node-ui-active.md "원격 active 구조안"
+// 원격 active 배지 — 다른 계정 탭의 active 타일을 볼 수 있는 계정에 알린다(메모리만, REF-node-ui-active.md "원격 active 구조안")
 
 // activeTarget: 둘 다 비면 active 없음
 type activeTarget struct {
@@ -46,8 +45,7 @@ func (r *supervisorRouter) onTabActive(conn *transport.Conn) {
 	})
 }
 
-// publishActive는 접속 중인 다른 계정 전부에 보낸다 — 볼 수 없는 계정엔 대상을 비워서(= 지움).
-// 이전에 누가 보고 있었는지 기억하지 않아도 대상이 바뀌거나 공유가 풀린 뒤 배지가 남지 않는다
+// publishActive: 접속 중인 다른 계정 전부에 — 볼 수 없는 계정엔 대상을 비워서(= 지움) 보내 옛 배지가 남지 않게
 func (r *supervisorRouter) publishActive(tab browserTab) {
 	var others []int64
 	for _, u := range r.tabs.onlineUsers() {
@@ -58,22 +56,23 @@ func (r *supervisorRouter) publishActive(tab browserTab) {
 	if len(others) == 0 {
 		return
 	}
-	var visible map[int64]bool
+	var sight activeSight
+	senderSees := false
 	if !tab.active.empty() {
-		// 보내는 계정도 판정한다 — 볼 수 없는 대상을 보내 남의 화면에 배지를 띄우지 못하게
-		visible = r.activeVisibility(append([]int64{tab.userID}, others...), tab.active)
-		if !visible[tab.userID] {
-			visible = nil
+		// 보내는 계정도 판정 — 볼 수 없는 대상으로 남의 화면에 배지를 띄우지 못하게
+		var err error
+		sight, err = loadActiveSight(context.Background(), store.GetStorePool().Queries(), append([]int64{tab.userID}, others...), []activeTarget{tab.active})
+		if err != nil {
+			log.Printf("[active] 대상 판정 실패 target=%+v: %v", tab.active, err)
 		}
+		senderSees = sight.sees(tab.userID, tab.active)
 	}
 	for _, u := range others {
 		ev := protocol.ActiveUpdateEvent{Key: sidKey(tab.tabID), UserID: tab.userID, Nickname: tab.nickname}
-		if visible[u] {
+		if senderSees && sight.sees(u, tab.active) {
 			ev.UID, ev.NodeID = activeFields(tab.active)
 		}
-		if err := r.subscribeHub.Publish(tilesTopic(u), protocol.MsgActiveUpdate, ev); err != nil {
-			log.Printf("[active] ACTIVE:UPDATE 발행 실패 user=%d: %v", u, err)
-		}
+		r.publishUser(u, protocol.MsgActiveUpdate, ev)
 	}
 }
 
@@ -85,47 +84,52 @@ func activeFields(a activeTarget) (string, *int64) {
 	return "", &id
 }
 
-// activeVisibility는 계정마다 대상을 볼 수 있는지(보기 이상) 반환한다. 조회 실패 = 아무도 못 봄
-func (r *supervisorRouter) activeVisibility(users []int64, target activeTarget) map[int64]bool {
-	visible := map[int64]bool{}
-	q, ctx := store.GetStorePool().Queries(), context.Background()
-	if target.uid != "" {
-		rows, err := q.ListProcessPermissionMatrix(ctx, superdb.ListProcessPermissionMatrixParams{UserIds: users, Uids: []string{target.uid}})
-		if err != nil {
-			log.Printf("[active] process 단계 조회 실패 uid=%s: %v", target.uid, err)
-			return visible
-		}
-		for _, row := range rows {
-			visible[row.UserID] = row.Permission > superdb.PermBlock
-		}
-		return visible
-	}
-	rows, err := q.ListNodePermissionMatrix(ctx, superdb.ListNodePermissionMatrixParams{UserIds: users, NodeIds: []int64{target.nodeID}})
-	if err != nil {
-		log.Printf("[active] 노드 단계 조회 실패 node=%d: %v", target.nodeID, err)
-		return visible
-	}
-	for _, row := range rows {
-		visible[row.UserID] = row.Permission > superdb.PermBlock
-	}
-	return visible
+// activeSight: 계정마다 active 대상을 볼 수 있는지(process·노드 두 표)
+type activeSight struct {
+	procs visibility[string]
+	nodes visibility[int64]
 }
 
-// listActive는 다른 계정 탭의 active 중 요청 계정이 볼 수 있는 것을 반환한다 — 새 탭·재접속·공유 변경 때 처음 받기
+func (s activeSight) sees(user int64, a activeTarget) bool {
+	if a.uid != "" {
+		return s.procs[user][a.uid]
+	}
+	return s.nodes[user][a.nodeID]
+}
+
+// loadActiveSight: users × targets 판정. 조회 실패 = 빈 표(아무도 못 봄) + err
+func loadActiveSight(ctx context.Context, q *superdb.Queries, users []int64, targets []activeTarget) (activeSight, error) {
+	var uids []string
+	var nodeIDs []int64
+	for _, a := range targets {
+		if a.uid != "" {
+			uids = append(uids, a.uid)
+		} else {
+			nodeIDs = append(nodeIDs, a.nodeID)
+		}
+	}
+	var s activeSight
+	var err error
+	if len(uids) > 0 {
+		if s.procs, err = processVisibility(ctx, q, users, uids); err != nil {
+			return activeSight{}, err
+		}
+	}
+	if len(nodeIDs) > 0 {
+		if s.nodes, err = nodeVisibility(ctx, q, users, nodeIDs); err != nil {
+			return activeSight{}, err
+		}
+	}
+	return s, nil
+}
+
+// listActive: 다른 계정 탭의 active 중 볼 수 있는 것 — 새 탭·재접속·공유 변경 때 처음 받기
 func (r *supervisorRouter) listActive(c echo.Context) error {
 	me := r.requireSession(c).Data.ID
 	var tabs []browserTab
-	var uids []string
-	var nodeIDs []int64
 	for _, tab := range r.tabs.activeTabs() {
-		if tab.userID == me {
-			continue
-		}
-		tabs = append(tabs, tab)
-		if tab.active.uid != "" {
-			uids = append(uids, tab.active.uid)
-		} else {
-			nodeIDs = append(nodeIDs, tab.active.nodeID)
+		if tab.userID != me {
+			tabs = append(tabs, tab)
 		}
 	}
 	out := []protocol.ActiveUpdateEvent{}
@@ -135,44 +139,17 @@ func (r *supervisorRouter) listActive(c echo.Context) error {
 
 	// 보내는 계정도 볼 수 있어야 한다(publishActive와 같은 규칙)
 	users := []int64{me}
+	targets := make([]activeTarget, 0, len(tabs))
 	for _, tab := range tabs {
 		users = append(users, tab.userID)
+		targets = append(targets, tab.active)
 	}
-	q, ctx := TxQueries(c), c.Request().Context()
-	procPerm := map[int64]map[string]bool{}
-	nodePerm := map[int64]map[int64]bool{}
-	if len(uids) > 0 {
-		rows, err := q.ListProcessPermissionMatrix(ctx, superdb.ListProcessPermissionMatrixParams{UserIds: users, Uids: uids})
-		if err != nil {
-			panic(web.Err(500, "%v", err))
-		}
-		for _, row := range rows {
-			if procPerm[row.UserID] == nil {
-				procPerm[row.UserID] = map[string]bool{}
-			}
-			procPerm[row.UserID][row.Uid] = row.Permission > superdb.PermBlock
-		}
-	}
-	if len(nodeIDs) > 0 {
-		rows, err := q.ListNodePermissionMatrix(ctx, superdb.ListNodePermissionMatrixParams{UserIds: users, NodeIds: nodeIDs})
-		if err != nil {
-			panic(web.Err(500, "%v", err))
-		}
-		for _, row := range rows {
-			if nodePerm[row.UserID] == nil {
-				nodePerm[row.UserID] = map[int64]bool{}
-			}
-			nodePerm[row.UserID][row.NodeID] = row.Permission > superdb.PermBlock
-		}
-	}
-	sees := func(user int64, a activeTarget) bool {
-		if a.uid != "" {
-			return procPerm[user][a.uid]
-		}
-		return nodePerm[user][a.nodeID]
+	sight, err := loadActiveSight(c.Request().Context(), TxQueries(c), users, targets)
+	if err != nil {
+		panic(web.Err(500, "%v", err))
 	}
 	for _, tab := range tabs {
-		if !sees(me, tab.active) || !sees(tab.userID, tab.active) {
+		if !sight.sees(me, tab.active) || !sight.sees(tab.userID, tab.active) {
 			continue
 		}
 		ev := protocol.ActiveUpdateEvent{Key: sidKey(tab.tabID), UserID: tab.userID, Nickname: tab.nickname}

@@ -77,23 +77,13 @@ func (r *supervisorRouter) releaseSizeOwner(uid string) {
 
 // notifySizeOwner는 그 탭의 소켓에만 보낸다(끊겨 있으면 재연결 후 GET /processes로 안다).
 func (r *supervisorRouter) notifySizeOwner(uid, tabID string) {
-	r.emitSizeOwner(uid, tabID, protocol.SizeOwnerEvent{UID: uid})
+	r.emitTab(tabID, protocol.MsgProcessSizeOwner, protocol.SizeOwnerEvent{UID: uid})
 }
 
 // notifySizeOwnerLost: 연결된 채 소유권을 잃은 탭에 알린다 — 크기-2(잃음 알림). 안 알리면 그 탭이 계속 질의에 응답한다(REF-term-query.md)
 // by = 가져간 다른 계정의 닉네임(K5(빼앗긴 탭 안내)), 같은 계정이거나 가져간 사람이 없으면 ""
 func (r *supervisorRouter) notifySizeOwnerLost(uid, tabID, by string) {
-	r.emitSizeOwner(uid, tabID, protocol.SizeOwnerEvent{UID: uid, Lost: true, By: by})
-}
-
-func (r *supervisorRouter) emitSizeOwner(uid, tabID string, ev protocol.SizeOwnerEvent) {
-	conn := r.tabs.connOf(tabID)
-	if conn == nil {
-		return
-	}
-	if err := conn.Emit(protocol.MsgProcessSizeOwner, ev); err != nil {
-		log.Printf("[sizeOwner] 알림 실패 uid=%s lost=%v: %v", uid, ev.Lost, err)
-	}
+	r.emitTab(tabID, protocol.MsgProcessSizeOwner, protocol.SizeOwnerEvent{UID: uid, Lost: true, By: by})
 }
 
 var (

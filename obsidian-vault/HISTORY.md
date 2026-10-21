@@ -28,6 +28,7 @@
 - 한글 입력 중복(마감) → `INDEX-term-ime.md` (term-ime)
 - 헤더·푸터 개편(마감) → `INDEX-board-chrome.md` (board-chrome·board-keyboard)
 - 페이지 이동(마감) → `INDEX-tile-move.md` (tile-move)
+- 리팩터링(마감) → `INDEX-refactor.md` (refactor-socket·refactor-socket-batches·refactor-cleanup)
 
 ## history/ 파일 색인 (진행 중 파트)
 

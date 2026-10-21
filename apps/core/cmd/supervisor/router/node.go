@@ -15,9 +15,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// nodes 카탈로그 핸들러. user.go와 동일 규약: echo 기본 핸들러 + panic(web.Err(...)) +
-// TxQueries(c)(txMiddleware가 깐 트랜잭션). 인가 = 공유 단계 판정(perm.go), 쓰기 쿼리의 owner 인자 = 대상 노드 소유자(SB4(노드 쓰기 쿼리의 owner 인자)).
-// DTO·pgtype 변환은 nodeDto.go, PATCH {valid,value} 래퍼는 internal/patch.
+// nodes 카탈로그 핸들러 — 인가 = 공유 단계 판정(perm.go), 쓰기 쿼리의 owner 인자 = 대상 노드 소유자(SB4(노드 쓰기 쿼리의 owner 인자)). DTO = nodeDto.go
 
 func (router *supervisorRouter) mountNodes(e *echo.Echo) {
 	g := e.Group("/nodes")
@@ -30,7 +28,7 @@ func (router *supervisorRouter) mountNodes(e *echo.Echo) {
 	g.POST("/:id/copy", router.copyNode)
 }
 
-// paramID는 경로 :id를 int64로 파싱한다(실패=400).
+// paramID: 경로 :id(실패 = 400)
 func paramID(c echo.Context) int64 {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -41,37 +39,30 @@ func paramID(c echo.Context) int64 {
 
 // node 변경 전달 = 볼 수 있는 접속 계정의 계정 토픽 — REF-node-list-sync.md NS2(받는 계정)·NS3(판정 시점)
 
-// publishNode는 커밋 뒤 판정해서 보낸다(노드 자신 + 부모 + parents). 반드시 AfterCommit 안에서 부를 것 — 롤백 시 누설
+// publishNode: 받는 계정을 커밋 뒤 판정해서 보낸다(노드 자신 + 부모 + parents)
 func (router *supervisorRouter) publishNode(kind protocol.MsgType, node superdb.Node, parents ...pgtype.Int8) {
 	users := router.nodeRecipients(context.Background(), store.GetStorePool().Queries(), nodeJudgeIDs(node, parents...))
-	router.publishNodeTo(users, kind, node)
+	router.publishUsers(users, kind, newNodeResponse(node))
 }
 
-// publishNodeTo는 미리 구한 계정들에 보낸다(삭제 — 커밋 뒤엔 노드가 없어 판정 불가). AfterCommit 안에서만
-func (router *supervisorRouter) publishNodeTo(users []int64, kind protocol.MsgType, node superdb.Node) {
-	res := newNodeResponse(node)
-	for _, u := range users {
-		if err := router.subscribeHub.Publish(tilesTopic(u), kind, res); err != nil {
-			log.Printf("[node] 발행 실패 user=%d kind=%s: %v", u, kind, err)
-		}
-	}
-}
-
-// nodeRecipients는 접속 중 계정 중 ids 하나라도 보기 이상인 계정이다. 조회 실패 = 아무에게도 안 보냄
+// nodeRecipients: 접속 중 계정 중 ids 하나라도 보기 이상인 계정. 조회 실패 = 아무에게도 안 보냄
 func (router *supervisorRouter) nodeRecipients(ctx context.Context, q *superdb.Queries, ids []int64) []int64 {
 	users := router.tabs.onlineUsers()
 	if len(users) == 0 {
 		return nil
 	}
-	rows, err := q.ListNodePermissionMatrix(ctx, superdb.ListNodePermissionMatrixParams{UserIds: users, NodeIds: ids})
+	vis, err := nodeVisibility(ctx, q, users, ids)
 	if err != nil {
 		log.Printf("[node] 받는 계정 조회 실패 nodes=%v: %v", ids, err)
 		return nil
 	}
 	var out []int64
-	for _, row := range rows {
-		if row.Permission > superdb.PermBlock && !slices.Contains(out, row.UserID) {
-			out = append(out, row.UserID)
+	for _, u := range users {
+		for _, visible := range vis[u] {
+			if visible {
+				out = append(out, u)
+				break
+			}
 		}
 	}
 	return out
@@ -88,8 +79,7 @@ func nodeJudgeIDs(node superdb.Node, parents ...pgtype.Int8) []int64 {
 	return ids
 }
 
-// createNode는 FOLDER/SCRIPT 노드를 만든다. ord 미지정 시 형제 끝에 append.
-// 부모가 있으면 부모 편집(30), 소유 = 부모 소유자, created_by = 요청 계정 — SH8(받은 쪽이 만든 노드의 소유). 루트 생성 = 내 것.
+// createNode: 부모 편집(30) 이상, 소유 = 부모 소유자, created_by = 요청 계정 — SH8(받은 쪽이 만든 노드의 소유). 루트 = 내 것
 func (router *supervisorRouter) createNode(c echo.Context) error {
 	sess := router.requireSession(c)
 	body := bindCreateRequest(c)
@@ -104,7 +94,7 @@ func (router *supervisorRouter) createNode(c echo.Context) error {
 	}
 	parent := int8Ptr(body.ParentID)
 
-	// ord: 지정 없으면 형제 max+1로 끝에 붙인다.
+	// ord 없으면 형제 끝
 	var ord int64
 	if body.Ord != nil {
 		ord = *body.Ord
@@ -143,8 +133,7 @@ func (router *supervisorRouter) createNode(c echo.Context) error {
 	return c.JSON(200, withNodePermission(newNodeResponse(node), perm))
 }
 
-// listChildren은 한 부모의 자식을 그리드 순서로 반환한다(부모 보기(10), 차단 자식 제외).
-// parentId 없음(루트) = 내 루트만 — 공유받은 루트는 공유-d(실시간).
+// listChildren: 부모 보기(10) 이상, 차단 자식 제외. parentId 없음 = 내 루트 + 공유받은 루트
 func (router *supervisorRouter) listChildren(c echo.Context) error {
 	sess := router.requireSession(c)
 	q, ctx := TxQueries(c), c.Request().Context()
@@ -182,7 +171,7 @@ func (router *supervisorRouter) listChildren(c echo.Context) error {
 	return c.JSON(200, out)
 }
 
-// getNode는 노드 1건을 반환한다(보기(10) 이상, 볼 수 없음/없음=404).
+// getNode: 보기(10) 이상(볼 수 없음·없음 = 404)
 func (router *supervisorRouter) getNode(c echo.Context) error {
 	sess := router.requireSession(c)
 	node, perm := requireNode(c, sess.Data.ID, paramID(c), superdb.PermView)
@@ -200,8 +189,7 @@ func (router *supervisorRouter) getNode(c echo.Context) error {
 	return c.JSON(200, res)
 }
 
-// patchNode는 보낸 필드만 부분수정한다(patch.Field → set_* 플래그/pgtype). 편집(30) 이상, 이동은 checkMove.
-// (DB 보호: device_key=FOLDER만/content=SCRIPT만 → 잘못된 kind면 CHECK 위반 500.)
+// patchNode: 보낸 필드만 수정, 편집(30) 이상, 이동은 checkMove. device_key = FOLDER만·content = SCRIPT만(어기면 CHECK 위반 500)
 func (router *supervisorRouter) patchNode(c echo.Context) error {
 	sess := router.requireSession(c)
 	id := paramID(c)
@@ -249,8 +237,7 @@ func (router *supervisorRouter) patchNode(c echo.Context) error {
 	return c.JSON(200, withNodePermission(newNodeResponse(node), perm))
 }
 
-// checkMove는 이동 검사다: 대상 편집(호출자가 확인) + 대상 아래 편집 미만 공유 없음 + 목적지 편집 + 목적지 소유자 = 대상 소유자
-// + 루트로는 소유자만 + 사이클 금지(SB6(이동 사이클 검사)). 같은 부모 안의 순서 변경은 이동이 아니라 통과.
+// checkMove: 아래 편집 미만 공유 없음 + 목적지 편집 + 같은 소유자 + 루트로는 소유자만 + SB6(이동 사이클 검사). 같은 부모 안 순서 변경은 통과
 func checkMove(c echo.Context, userID int64, target superdb.Node, perm int16, dest *int64) {
 	if dest != nil && target.ParentID.Valid && target.ParentID.Int64 == *dest {
 		return
@@ -277,8 +264,7 @@ func checkMove(c echo.Context, userID int64, target superdb.Node, perm int16, de
 	}
 }
 
-// requireNoLowerShare는 받은 쪽이 지우거나 옮기는 노드 아래에 그 계정의 편집 미만 공유 행이 있으면 403이다
-// — 차단·보기 하위가 ON DELETE CASCADE로 같이 지워지거나 같이 옮겨지는 것 방지(SH8)
+// requireNoLowerShare: 지우거나 옮기는 노드 아래에 그 계정의 편집 미만 공유가 있으면 403 — 차단·보기 하위가 같이 지워지거나 옮겨지지 않게(SH8)
 func requireNoLowerShare(c echo.Context, userID, nodeID int64) {
 	found, err := TxQueries(c).HasLowerShareBelow(c.Request().Context(), superdb.HasLowerShareBelowParams{
 		UserID: userID, MinPerm: superdb.PermEdit, NodeID: nodeID,
@@ -291,8 +277,7 @@ func requireNoLowerShare(c echo.Context, userID, nodeID int64) {
 	}
 }
 
-// deleteNode는 노드를 삭제한다(편집(30) 이상). FOLDER면 하위 subtree가 FK ON DELETE CASCADE로 동반 삭제.
-// 발행 payload는 "삭제 직전 스냅샷"이라(REF-realtime.md) 삭제 전에 미리 조회해 둔다.
+// deleteNode: 편집(30) 이상, FOLDER면 하위도 CASCADE. 발행 payload = 삭제 직전 스냅샷이라 미리 조회
 func (router *supervisorRouter) deleteNode(c echo.Context) error {
 	sess := router.requireSession(c)
 	id := paramID(c)
@@ -303,19 +288,19 @@ func (router *supervisorRouter) deleteNode(c echo.Context) error {
 	}
 	// 둘 다 삭제 전에만 구할 수 있음 — NS3(판정 시점)
 	users, uids := collectAround(c, id)
-	recipients := router.nodeRecipients(c.Request().Context(), TxQueries(c), nodeJudgeIDs(victim))
+	recipients := router.nodeRecipients(c.Request().Context(), TxQueries(c), nodeJudgeIDs(victim)) // 커밋 뒤엔 노드가 없어 판정 불가
 	if err := TxQueries(c).DeleteNode(c.Request().Context(), superdb.DeleteNodeParams{
 		ID:          id,
 		OwnerUserID: victim.OwnerUserID,
 	}); err != nil {
 		panic(web.Err(500, "%v", err))
 	}
-	AfterCommit(c, func() { router.publishNodeTo(recipients, protocol.MsgNodeDelete, victim) })
+	AfterCommit(c, func() { router.publishUsers(recipients, protocol.MsgNodeDelete, newNodeResponse(victim)) })
 	AfterCommit(c, func() { router.reconcileAccess(users, uids) })
 	return c.JSON(200, map[string]any{})
 }
 
-// sameParent는 이동 요청의 목적지(dest, nil=루트)가 지금 부모와 같은지 본다.
+// sameParent: 목적지(dest, nil = 루트)가 지금 부모와 같은지
 func sameParent(cur pgtype.Int8, dest *int64) bool {
 	if dest == nil {
 		return !cur.Valid
@@ -323,7 +308,7 @@ func sameParent(cur pgtype.Int8, dest *int64) bool {
 	return cur.Valid && cur.Int64 == *dest
 }
 
-// collectAround는 노드 주변 공유 계정과 하위 살아 있는 process uid를 모은다(요청 트랜잭션 안).
+// collectAround: 노드 주변 공유 계정 + 하위 살아 있는 process uid(요청 트랜잭션 안)
 func collectAround(c echo.Context, id int64) ([]int64, []string) {
 	q, ctx := TxQueries(c), c.Request().Context()
 	users, err := q.ListShareUsersAround(ctx, id)
@@ -337,7 +322,7 @@ func collectAround(c echo.Context, id int64) ([]int64, []string) {
 	return users, uids
 }
 
-// mergeUsers는 이동 뒤(조상이 바뀐 상태)의 공유 계정을 이동 전 목록에 합친다.
+// mergeUsers: 이동 뒤 공유 계정을 이동 전 목록에 합친다
 func mergeUsers(c echo.Context, before []int64, id int64) []int64 {
 	after, err := TxQueries(c).ListShareUsersAround(c.Request().Context(), id)
 	if err != nil {

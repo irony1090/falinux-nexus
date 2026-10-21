@@ -2,7 +2,6 @@ package router
 
 import (
 	"errors"
-	"log"
 	"maps"
 	"net/http"
 	"strings"
@@ -15,8 +14,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// 작업 공간 목록·만들기(분리)·폴더 이동·이름·삭제 — 작업공간-b(API), REF-workspace-impl.md.
-// 타일을 옮기는 동작은 서버가 한 트랜잭션에서 두 트리를 함께 고친다(WS2(변경 방식))
+// 작업 공간 목록·만들기·폴더 이동·이름·삭제 — 타일 이동은 한 트랜잭션에서 두 트리를 함께 고친다(WS2(변경 방식), REF-workspace-impl.md)
 
 func (r *supervisorRouter) mountWorkspaces(e *echo.Echo) {
 	g := e.Group("/workspaces")
@@ -157,11 +155,7 @@ func (r *supervisorRouter) publishWorkspacesAfterCommit(c echo.Context, userID i
 	for _, rec := range recs {
 		ev.Workspaces = append(ev.Workspaces, protocol.WorkspaceItem{Hash: rec.Hash, Name: rec.Name, IsDefault: rec.IsDefault, Ord: rec.Ord})
 	}
-	AfterCommit(c, func() {
-		if err := r.subscribeHub.Publish(tilesTopic(userID), protocol.MsgWorkspacesUpdate, ev); err != nil {
-			log.Printf("[workspaces] 발행 실패 user=%d: %v", userID, err)
-		}
-	})
+	AfterCommit(c, func() { r.publishUser(userID, protocol.MsgWorkspacesUpdate, ev) })
 }
 
 // listWorkspaces: 기본이 없으면 만든다

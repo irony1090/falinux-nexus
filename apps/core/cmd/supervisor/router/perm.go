@@ -89,3 +89,38 @@ func (r *supervisorRouter) requireProcess(uid string, userID int64, min int16) *
 	}
 	return entry
 }
+
+// visibility: 계정 -> 대상 -> 보기 이상인지(없는 칸 = false)
+type visibility[K comparable] map[int64]map[K]bool
+
+func (v visibility[K]) set(user int64, target K, perm int16) {
+	if v[user] == nil {
+		v[user] = map[K]bool{}
+	}
+	v[user][target] = perm > superdb.PermBlock
+}
+
+// nodeVisibility·processVisibility: users × 대상을 단계 행렬 한 번 조회로 판정
+func nodeVisibility(ctx context.Context, q *superdb.Queries, users, ids []int64) (visibility[int64], error) {
+	rows, err := q.ListNodePermissionMatrix(ctx, superdb.ListNodePermissionMatrixParams{UserIds: users, NodeIds: ids})
+	if err != nil {
+		return nil, err
+	}
+	v := visibility[int64]{}
+	for _, row := range rows {
+		v.set(row.UserID, row.NodeID, row.Permission)
+	}
+	return v, nil
+}
+
+func processVisibility(ctx context.Context, q *superdb.Queries, users []int64, uids []string) (visibility[string], error) {
+	rows, err := q.ListProcessPermissionMatrix(ctx, superdb.ListProcessPermissionMatrixParams{UserIds: users, Uids: uids})
+	if err != nil {
+		return nil, err
+	}
+	v := visibility[string]{}
+	for _, row := range rows {
+		v.set(row.UserID, row.Uid, row.Permission)
+	}
+	return v, nil
+}

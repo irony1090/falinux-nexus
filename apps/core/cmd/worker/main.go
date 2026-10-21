@@ -43,7 +43,6 @@ func main() {
 		done, err := router.NewWorkerRouter(
 			u,
 			env.Name,
-			env.ProcessRoot,
 			store.GetStorePool(),
 			state,
 			func() { log.Printf("등록 완료, 접속 성공") }, // register 성공 시 호출
@@ -97,7 +96,6 @@ func handleSignals(state *router.WorkerState) {
 }
 
 // mountStore는 worker SQLite를 열고(PRAGMA 옵션) goose 마이그레이션을 적용한다.
-// 마이그레이션 적용은 InitStorePool과 분리된 별도 단계(GetStorePool().Migrate).
 func mountStore(dbPath string) {
 	if err := store.InitStorePool(dbPath, map[string]string{
 		"journal_mode": "WAL",

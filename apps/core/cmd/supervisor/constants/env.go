@@ -4,16 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
-)
-
-var (
-	separator  = string(filepath.Separator)
-	currentDir = "." + separator
 )
 
 // EnvVars는 자주 사용하는 환경 변수 값들을 저장하는 구조체
@@ -30,8 +24,6 @@ type EnvVars struct {
 	DBHost      string
 	DBPort      int
 	SessionKey  string // 세션 쿠키 서명 키
-	// UploadDir string `iniName:"UPLOAD_DIR"`
-	// AssetsDir string `iniName:"ASSETS_DIR"`
 }
 
 var env *EnvVars
@@ -133,7 +125,6 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 	}
 	env.Port = port
 	env.WorkerPath = workerPath
-	// env.StaticDir = pathToAbsolutePath(projectDir, staticDir)
 	env.ProjectDir = projectDir
 	env.Ip = ip
 	env.DBUser = dbUser
@@ -147,18 +138,6 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 	log.Printf("Loaded %v", env)
 
 	return env, nil
-}
-
-func pathToAbsolutePath(projectDir, p string) string {
-
-	if strings.HasPrefix(p, currentDir) {
-		p = p[len(currentDir):]
-		return filepath.Join(projectDir, p)
-	} else if filepath.IsAbs(p) {
-		return p
-	} else {
-		return filepath.Join(projectDir, p)
-	}
 }
 
 func LoadEnvFromString(envContent, projectDir string) (*EnvVars, error) {
