@@ -70,6 +70,7 @@
   - `on`: type당 **다중 핸들러(Set)**, 해제 함수 반환 + `onUnmounted` 자동 해제.
   - **브라우저에 `Handle` 없음**(서버→브라우저 REQ 미수신, 비대칭).
 - 검증: 3모드 e2e 통과(2026-06-30) — `REF-realtime.md`/`history/realtime.md`.
+- **`WireData` = `string | Blob | BufferSource`(2026-10-21)**: VSCode 내장 TS 6.0.3은 `send`에서 `SharedArrayBuffer`를 빼서 옛 `ArrayBufferLike` 포함 타입이 에디터에서만 에러(프로젝트 TS 5.9.3은 통과). 지금 타입은 두 버전 다 통과
 
 ## user/login · 공용 API · 전역 다이얼로그 → `REF-frontend-auth.md`
 - 로그인 상태(모듈 단일 값)·라우터 가드·401 처리·AppDialog 주의(content = v-html)·회원가입 보류 메모는 분리 파일에

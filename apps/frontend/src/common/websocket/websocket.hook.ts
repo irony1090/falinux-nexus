@@ -13,7 +13,7 @@ import { readTabId } from '../util/tabId.util';
  *     on    ↔ Conn.On    (EVENT 수신)
  * ──────────────────────────────────────────────────────────────────────── */
 
-export type WireData = string | ArrayBufferLike | Blob | ArrayBufferView;
+export type WireData = string | Blob | BufferSource;
 
 /** 코어가 이해하는 정규화된 수신 분류 (와이어 형태와 무관). */
 export type Inbound<D = unknown> =
