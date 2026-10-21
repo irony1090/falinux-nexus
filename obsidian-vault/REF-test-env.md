@@ -35,6 +35,8 @@
 - **pkill 자기 셸 함정(2026-10-14)**: heredoc으로 만든 스크립트 안에 `TCP-LISTEN:5152` 같은 문자열이 있으면 `pkill -f 'TCP-LISTEN:515[2]'`가 그 heredoc을 품은 bash 명령줄까지 잡는다(exit 144) -> 포트·`/proc` 기준으로 pid를 골라 끈다
 - `GET /users/presence`는 공유 대상 계정만 `?ids=`로 — 자기 계정 `lastSeen`은 `GET /processes/:uid/presence`의 계정 항목으로 본다
 
+- **빌드 출력 함정(2026-10-21)**: `apps/core`에서 `go build ./cmd/supervisor`를 `-o` 없이 돌리면 `apps/core/supervisor`(gitignore)를 덮어씀 -> 빌드 확인도 항상 `-o <scratchpad>/...`
+
 ## 테스트 클라이언트 함정
 - 테스트 클라이언트 함정 모음: `PATCH /nodes/:id` 본문은 필드마다 `{valid: true, value: x}`(`internal/patch`, 그냥 값이면 400) / Vuetify 다이얼로그 선택자는 `.v-dialog.v-overlay--active`(두 클래스가 같은 요소) / 소켓 프레임 binary / exec는 `X-Tab-Id` 필수 / STATUS `status` 숫자 / 브라우저 쿠키 도메인 `localhost` / `users.identification`은 해시 저장 / 화면 밖 Grid xterm은 `innerText`에 안 잡힘(`.xterm-rows` `textContent`) / API로 만든 노드는 열린 목록에 안 뜸(`[title="새로고침"]`) / Vite가 heredoc으로 막 만든 파일을 빈 내용으로 캐시할 수 있음(`touch`) / 세션 쿠키 값에 `=` 있을 수 있음(첫 `=`에서 자를 것) / exec 직후 크기 0x0이라 resize 먼저(소유 탭) / vim 테스트는 파일 이름을 매번 다르게(swap 파일)
 
