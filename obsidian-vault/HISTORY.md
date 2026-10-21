@@ -28,21 +28,9 @@
 - 한글 입력 중복(마감) → `INDEX-term-ime.md` (term-ime)
 - 헤더·푸터 개편(마감) → `INDEX-board-chrome.md` (board-chrome·board-keyboard)
 - 페이지 이동(마감) → `INDEX-tile-move.md` (tile-move)
+- 리팩터링(마감) → `INDEX-refactor.md` (refactor-socket·refactor-socket-batches·refactor-cleanup)
 
 ## history/ 파일 색인 (진행 중 파트)
-
-### `history/refactor-socket.md` — 리팩터링: supervisor 소켓 알림 후보 조사 (2026-10-21 신설)
-- 2026-10-21 R1(목록 조사) 소켓 알림 범위 — 후보 9개, 코드 변경 없음
-
-### `history/refactor-cleanup.md` — 리팩터링: 소켓 밖 정리 후보 (2026-10-21 신설)
-- 2026-10-21 R1(목록 조사) 2회차 — 후보 10개(정돈-1(PortBridge 실행 잔재) ~ 정돈-10(파일 전송 송신부)), 코드 변경 없음
-- 2026-10-21(2) 묶음 가(안 쓰는 코드 삭제)·나(tile.go 나누기)·다(작은 것), 격리 35/35
-- 2026-10-21(3) 정돈-8(TileFrame.vue 섞인 관심사) 맞춤-1(타일 띄우기) -> `useTileFloat`, 폰 확인 5/5
-
-### `history/refactor-socket-batches.md` — 리팩터링: 소켓 알림 정리 묶음 (2026-10-21 분할)
-- 2026-10-21(2) 1차 정리: 소켓-1(계정 토픽 이름)·소켓-5(커밋 뒤 발행 규약 섞임)·소켓-6(process 구독 지점 흩어짐) + 주석 13파일, 격리 32/32
-- 2026-10-21(3) PC 꺼짐 뒤 재개, 브랜치 `refactor/socket` 분기, 1차 한 커밋
-- 2026-10-21(4) 2차: 소켓-2(여러 계정에 보내기 중복)·소켓-3(볼 수 있는 계정 판정 중복)·소켓-4(탭 하나로 보내기)·소켓-7(빈 패키지·낡은 주석), 격리 35/35
 
 ### `history/demo.md` — 시연 데이터 (2026-10-16 신설)
 - 2026-10-16 플랜 안 A·B·C 제시 → 안 C(생산 지그 시나리오) 선택, 스크립트 6개 + test1~3 공유 등록(REST), 브라우저 경유 실행 미확인
