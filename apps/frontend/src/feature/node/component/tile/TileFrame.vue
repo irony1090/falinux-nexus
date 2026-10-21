@@ -31,7 +31,7 @@ const props = defineProps({
     },
 })
 
-const { tiles, hash: boardHash, pinByNode, resize, setMinimized, detachToBoard, moveToBoard, navigate } = useTileTree();
+const { tiles, hash: boardHash, pinByNode, resize, setMinimized, setShortcutsOff, detachToBoard, moveToBoard, navigate } = useTileTree();
 const { list: boards, defaultBoard, add: addBoard } = useBoards();
 const router = useRouter();
 const { cap, posOf, instanceOf, reveal, overview, rootTab, activeId, setActive } = useTileGrids();
@@ -211,6 +211,13 @@ const onPin = () => {
     if (t) boardRun(bindTile(boardHash.value, t.id));
 }
 
+// 터미널 타일 메뉴 — 이 타일이 active인 동안 앱 단축키 끄기(이동-3(타일별 단축키 끔))
+const terminalMenu = computed(() => tile.value?.type === 'terminal' && !unavailable.value);
+const shortcutsOff = computed(() => tile.value?.type === 'terminal' && !!tile.value.shortcutsOff);
+const toggleShortcuts = () => {
+    if (tile.value?.type === 'terminal') setShortcutsOff(tile.value.id, !shortcutsOff.value);
+}
+
 // 다른 계정 active — 터미널 = uid / 폴더 = 보여 주는 nodeId(루트 제외). RA1(맞추는 기준)
 const { byUid, byNodeId } = useRemoteActive();
 const remoteUsers = computed(() => {
@@ -261,6 +268,7 @@ const onX = () => {
             <span v-if="pathText" class="path" :title="pathText">{{ pathText }} /</span>
             <span class="name">{{ name }}</span>
             <span v-if="startedBy" class="by" :title="proc?.startedByMe ? '내가 실행' : `${startedBy}님이 실행`">실행: {{ startedBy }}</span>
+            <v-icon v-if="shortcutsOff" class="keys-off" size="14" icon="mdi-keyboard-off-outline" title="단축키 꺼짐 — 이 타일이 active인 동안 Ctrl+Alt 단축키가 터미널로 갑니다" />
         </template>
         <template v-else>
             <span class="name">{{ name }}</span>
@@ -292,11 +300,17 @@ const onX = () => {
             <v-chip v-else size="x-small" variant="tonal" class="pill" :color="pill.color" :title="proc?.exitCode != null ? `exit ${proc.exitCode}` : undefined">{{ pill.text }}</v-chip>
         </template>
 
-        <v-menu v-if="boardMenu || canPin" location="bottom end">
+        <v-menu v-if="boardMenu || canPin || terminalMenu" location="bottom end">
             <template #activator="{ props: act }">
-                <v-btn v-bind="act" size="x-small" variant="text" icon="mdi-dots-vertical" title="보드" :loading="boardBusy" />
+                <v-btn v-bind="act" size="x-small" variant="text" icon="mdi-dots-vertical" title="메뉴" :loading="boardBusy" />
             </template>
             <v-list density="compact" min-width="180">
+                <v-list-item v-if="terminalMenu"
+                    :title="shortcutsOff ? '단축키 켜기' : '단축키 끄기'"
+                    subtitle="이 타일이 active일 때 Ctrl+Alt 단축키"
+                    :prepend-icon="shortcutsOff ? 'mdi-keyboard-outline' : 'mdi-keyboard-off-outline'"
+                    @click="toggleShortcuts"
+                />
                 <v-list-item v-if="canPin" title="여기로 타일 고정" prepend-icon="mdi-pin-outline" @click="onPin" />
                 <template v-if="boardMenu">
                     <v-list-item v-if="isDefaultBoard" title="새 보드로 분리" prepend-icon="mdi-view-dashboard-outline" @click="detachOpen = true" />
@@ -494,6 +508,7 @@ const onX = () => {
     opacity: 0.7;
 }
 .spacer { flex: 1; }
+.keys-off { flex: none; }
 .by {
     flex: 0 1 auto;
     min-width: 0;

@@ -10,7 +10,7 @@ const TILE_TREE_STORE_KEY = Symbol('TileTreeStore')
 
 type TileBase = TileNode & { parent: string | null }    // parent = 이 타일을 연 폴더 타일 (노드 트리의 부모 아님)
 export type FolderTile = TileBase & { type: 'folder'; nodeId: number | null; uid?: string; bound?: boolean }  // null = 루트 목록, uid = 서버 발급(새 타일은 저장 뒤 생김), 공유로 받은 타일은 공유한 타일과 같음, bound = 수동 타일 고정(서버만 씀, 표시는 pins)
-export type TerminalTile = TileBase & { type: 'terminal'; nodeId: number; uid: string }
+export type TerminalTile = TileBase & { type: 'terminal'; nodeId: number; uid: string; shortcutsOff?: true }   // shortcutsOff = active인 동안 앱 단축키 끔(이동-3(타일별 단축키 끔))
 export type Tile = FolderTile | TerminalTile
 
 // 트리를 바꾸는 동작. 409·다른 탭 push 때 서버 트리 위에 다시 실행되므로 검사(throw)를 전부 먼저 하고 변경은 뒤에 한다 —
@@ -85,6 +85,13 @@ const minimizeOp = (tileId: string, on: boolean): Op => ({ tiles }) => {
     if (tile.type !== 'terminal') throw new Error(`[TILE_TREE] not a terminal tile: ${tileId}`)
     if (on) tile.minimized = true
     else delete tile.minimized
+}
+
+const shortcutsOffOp = (tileId: string, on: boolean): Op => ({ tiles }) => {
+    const tile = tileIn(tiles, tileId)
+    if (tile.type !== 'terminal') throw new Error(`[TILE_TREE] not a terminal tile: ${tileId}`)
+    if (on) tile.shortcutsOff = true
+    else delete tile.shortcutsOff
 }
 
 // exec 응답의 타일 넣기 — 이미 있으면 그대로(재적용 때 서버 트리에 있음), 부모가 닫혔으면 루트 (서버 appendTerminalTile과 같은 규칙)
@@ -295,6 +302,8 @@ export const provideTileTree = () => {
 
     const setMinimized = (tileId: string, on: boolean) => run(minimizeOp(tileId, on))
 
+    const setShortcutsOff = (tileId: string, on: boolean) => run(shortcutsOffOp(tileId, on))
+
     // exec 응답의 터미널 타일(서버가 이미 트리에 넣음, ⑪-4). 서버 version이 바로 다음이고 저장할 게 없으면 PUT 없이 반영,
     // 아니면 동작으로 쌓는다 — 다음 PUT이 409를 받고 서버 트리(타일 있음) 위에 재적용되며 이 동작은 건너뛴다
     const applyServerTile = (tile: TerminalTile, tileVersion: number) => {
@@ -372,6 +381,7 @@ export const provideTileTree = () => {
         close,
         resize,
         setMinimized,
+        setShortcutsOff,
         applyServerTile,
         detachToBoard,
         moveToBoard,

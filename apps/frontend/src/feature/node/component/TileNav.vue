@@ -4,6 +4,7 @@ import { VBtn, VIcon } from 'vuetify/components';
 import { OV_PERCENT, useTileGrids } from '../store/tileGrids.store';
 import FootPill from './FootPill.vue';
 import GridPager from './GridPager.vue';
+import PagerPopup from './PagerPopup.vue';
 
 // 푸터 가운데: 인디케이터(GridPager) + 알약 오른쪽 끝 전체보기 버튼(옛 OverviewButton) — REF-board-chrome.md 배치 F(확정안)
 const { cap, grids, overview, ovPercent, zoomOverview, enterOverview, leaveOverview } = useTileGrids();
@@ -55,6 +56,7 @@ const procCount = computed(() => grids.value.reduce((n, g) => n + g.items.filter
             </v-btn>
         </template>
     </grid-pager>
+    <pager-popup />
 </div>
 </template>
 

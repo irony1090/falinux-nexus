@@ -128,19 +128,18 @@ export const provideTileGrids = () => {
         if (stripEl.value) stripEl.value.scrollLeft = colScroll(geometry.value, col, TILE_GAP)
     }
 
-    // 크기 변경·새 타일로 타일이 화면 밖 Grid로 가면 그 Grid 시작으로 이동, 보이면 그대로.
+    // 타일이 화면 밖이면 인디케이터와 같은 "타일 위치 규칙"(revealCol)으로 이동, 보이면 그대로 — 이동-1(타일 위치 규칙 통일).
     // nextTick 필수: 트리 변경 직후엔 늘어난 Grid가 아직 DOM에 없어 scrollTo가 옛 스크롤 폭에서 잘린다.
     // 스크롤 위치도 scrollX(스크롤 이벤트로 늦게 갱신)가 아니라 요소에서 직접 읽는다 — 폭이 줄며 잘린 직후일 수 있음
     const reveal = async (tileId: string) => {
         await nextTick()
         if (overview.value) return
         const el = stripEl.value
-        const span = columnsOf(tileId)
-        if (!el || !span) return
-        const { gi, first, last } = span
-        // 1px = 소수 폭 오차 허용
-        const shown = first.x >= el.scrollLeft - 1 && last.x + last.w <= el.scrollLeft + el.clientWidth + 1
-        if (!shown) goGrid(gi)
+        const range = colRange(tileId)
+        if (!el || !range) return
+        const cur = stripView(geometry.value, el.scrollLeft, el.clientWidth, TILE_GAP).col
+        const v = revealCol(range.l, range.r, cur, cap.value.x, maxCol.value)
+        if (v !== cur) goCol(v)
     }
 
     // 타일이 차지하는 칼럼 — gi = Grid 번호
@@ -223,8 +222,8 @@ export const provideTileGrids = () => {
         el.scrollTop = cell && first && ovDir.value === 'col' ? cell.offsetTop - first.offsetTop : 0
     }
 
-    // gi 없음(Esc·돌아가기) = 원래 위치 / gi = 누른 타일의 Grid로 이동
-    const leaveOverview = async (gi?: number) => {
+    // tileId 없음(Esc·돌아가기) = 원래 위치 / tileId = 원래 위치 기준으로 그 타일이 보이게(reveal)
+    const leaveOverview = async (tileId?: string) => {
         const el = stripEl.value
         if (!el || !overview.value) return
         overview.value = false
@@ -234,7 +233,7 @@ export const provideTileGrids = () => {
         el.scrollLeft = normScroll
         // 위치가 그대로면 scroll 이벤트가 안 와서 전체보기 중 값이 남는다
         scrollX.value = el.scrollLeft
-        if (gi != null) goGrid(gi)
+        if (tileId) await reveal(tileId)
     }
 
     // ---- active 타일 = 키 입력 대상. 탭 메모리만, 보드 화면마다 1개 — REF-node-ui-active.md AT1(상태 위치) ----
@@ -244,6 +243,12 @@ export const provideTileGrids = () => {
         if (activeId.value && !m.has(activeId.value)) activeId.value = null
     })
     watch(hash, () => activeId.value = null)
+
+    // 앱 단축키를 끄는가 — 모든 앱 단축키는 처리 맨 앞에서 이것만 본다(새 단축키도). 이동-3(타일별 단축키 끔)
+    const appShortcutsOff = computed(() => {
+        const t = activeId.value ? tiles.value[activeId.value] : undefined
+        return t?.type === 'terminal' && !!t.shortcutsOff
+    })
 
     // 타일 안 누르기 — 포커스는 브라우저 기본 동작에 맡긴다
     const setActive = (tileId: string) => {
@@ -257,16 +262,13 @@ export const provideTileGrids = () => {
         stripEl.value?.querySelector<HTMLElement>(`.TileFrame[data-tile-id="${CSS.escape(tileId)}"]`)?.focus({ preventScroll: true })
     }
 
-    // 단축키·이 탭에서 연 타일 — active + 화면 밖이면 스크롤 + 포커스. 전체보기 중이면 나가며 그 Grid로 (AT2(active가 되는 때)·AT6(이동할 때 같이 할 일))
+    // 단축키·이 탭에서 연 타일 — active + 화면 밖이면 스크롤 + 포커스. 전체보기 중이면 나가며 그 타일로 (AT2(active가 되는 때)·AT6(이동할 때 같이 할 일))
     const activate = async (tileId: string) => {
         await nextTick()    // 막 연 타일은 아직 배치(posOf)에 없을 수 있다
         if (!posOf.value.has(tileId)) return
         activeId.value = tileId
-        if (overview.value) {
-            await leaveOverview(grids.value.findIndex(g => g.items.some(it => it.tile.id === tileId)))
-        } else {
-            await reveal(tileId)
-        }
+        if (overview.value) await leaveOverview(tileId)
+        else await reveal(tileId)
         focusTile(tileId)
     }
 
@@ -342,6 +344,7 @@ export const provideTileGrids = () => {
         enterOverview,
         leaveOverview,
         activeId,
+        appShortcutsOff,
         setActive,
         focusTile,
         activate,

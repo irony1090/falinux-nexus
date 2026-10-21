@@ -3,7 +3,7 @@ import { TILE_GAP, useTileGrids } from '../store/tileGrids.store'
 
 // 이만큼 움직여야 드래그 — 그 전엔 포인터를 잡지 않아 도트 클릭이 그대로 동작
 const START = 6
-// 위로 이만큼 = 타일 이동, 다시 이 아래로 = 칼럼 이동(인디케이터가 푸터에 있음 — 푸터-4(위로 열기))
+// 당긴 거리가 이만큼 = 타일 이동, 다시 이 아래로 = 칼럼 이동. 푸터는 위로만(푸터-4(위로 열기)), 커서 팝업은 위·아래 — 이동-2(커서 위치 페이지 표시)
 const TILE_PULL = 36
 const TILE_BACK = 16
 // 칼럼 하나 / 타일 하나에 드는 가로 px
@@ -13,16 +13,19 @@ const TILE_PX = 29
 const SETTLE_MAX = 700
 
 export type PagerMode = 'idle' | 'col' | 'tile'
+export type PagerPull = 'up' | 'both'
 
 type Drag = { id: number; el: HTMLElement; x0: number; y0: number; held: boolean; col0: number; col: number; tile0: number }
 
-// 표시줄 드래그 — x축 = 칼럼 이동, 위로 당긴 채 x축 = active 타일 이동. REF-board-pager.md
-export const usePagerDrag = () => {
+// 인디케이터 드래그 — x축 = 칼럼 이동, 당긴 채 x축 = active 타일 이동. REF-board-pager.md
+export const usePagerDrag = (pull: PagerPull = 'up') => {
     const {
         geometry, view, order, cap, activeId, maxCol, scrubbing, stripEl, overview,
         goCol, scrubTo, colRange, stepTo, focusTile,
     } = useTileGrids()
     const mode = ref<PagerMode>('idle')
+    // 타일 이동에 들어간 쪽 — 타일 패널을 그쪽에 띄운다
+    const pullDir = ref<'up' | 'down'>('up')
     let d: Drag | null = null
     let stopSettle = () => {}
 
@@ -77,7 +80,10 @@ export const usePagerDrag = () => {
             mode.value = 'col'
         }
 
-        if (mode.value === 'col' && -dy > TILE_PULL) {
+        // 당긴 거리. 타일 이동 중엔 들어간 쪽 기준
+        const pulled = mode.value === 'tile' ? (pullDir.value === 'up' ? -dy : dy) : (pull === 'both' ? Math.abs(dy) : -dy)
+        if (mode.value === 'col' && pulled > TILE_PULL) {
+            pullDir.value = dy < 0 ? 'up' : 'down'
             // 칼럼 사이면 가까운 칼럼에 맞추고, active가 화면에 없으면 화면의 첫 타일부터
             const v = clampCol(Math.round(d.col))
             goCol(v)
@@ -88,7 +94,7 @@ export const usePagerDrag = () => {
             mode.value = 'tile'
             return
         }
-        if (mode.value === 'tile' && -dy < TILE_BACK) {
+        if (mode.value === 'tile' && pulled < TILE_BACK) {
             Object.assign(d, { col0: d.col, x0: e.clientX })
             mode.value = 'col'
             return
@@ -119,5 +125,5 @@ export const usePagerDrag = () => {
 
     onBeforeUnmount(() => stopSettle())
 
-    return { mode, down, move, up }
+    return { mode, pullDir, down, move, up }
 }

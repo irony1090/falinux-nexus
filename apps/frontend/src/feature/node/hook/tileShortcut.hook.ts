@@ -7,7 +7,7 @@ const SECOND_DIGIT_MS = 1000
 // Ctrl+Alt+숫자 = 위치 번호로 active 전환 — REF-node-ui-active.md AT4(단축키 조합)·AT5(10번 이상).
 // window capture에서 멈춘다: xterm 포커스 중에도 터미널 프로그램보다 먼저 받는다
 export const useTileShortcut = () => {
-    const { posOf, order, activate } = useTileGrids()
+    const { posOf, order, activate, appShortcutsOff } = useTileGrids()
 
     let pending: number | null = null
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -37,7 +37,7 @@ export const useTileShortcut = () => {
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
-        if (!e.ctrlKey || !e.altKey || e.metaKey || e.shiftKey || !/^Digit\d$/.test(e.code)) return
+        if (appShortcutsOff.value || !e.ctrlKey || !e.altKey || e.metaKey || e.shiftKey || !/^Digit\d$/.test(e.code)) return
         e.preventDefault()
         e.stopPropagation()
         if (!e.repeat) onDigit(Number(e.code.slice(5)))

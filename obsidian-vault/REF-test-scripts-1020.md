@@ -24,3 +24,10 @@
 - scratchpad `fit/`: 격리 supervisor(5051·127.0.0.1·`nexus_fit_tmp`) + worker(`NAME=fit-dev`, `SQLITE`=격리 폴더) 둘 다 `TMPDIR=fit/tmp` + `setsid`, `vite.iso.mts`(2026-10-19 절과 같음, 3001) + `playwright-core@1.56`
 - `fit.mjs`(28개): 계정·폴더(`deviceKey: fit-dev`)·스크립트(`seq 1 120` + `while read`) -> 페이지에서 `fetch` exec 두 번(`size {w:.5,h:.5}`, 서버가 타일 넣음) -> 새로고침. 폰 390x844 `isMobile`, 열림 = `setViewportSize` 높이 -340. 포커스 = `[data-term-uid] textarea`.focus(). PTY 크기 = `GET /processes`의 rows·cols. 비소유 탭 = 같은 storageState 새 컨텍스트
 - 함정: strip을 칸 사이 값(120)으로 옮기면 스냅으로 되돌아감 -> 이동 확인은 Grid 단위(다음 칸 slot left - 8)
+
+## 2026-10-21 페이지 이동 → `REF-tile-move.md`
+- scratchpad `move/`: 격리 supervisor(5051·127.0.0.1·`nexus_move_tmp`, `TMPDIR=move/tmp`) + `vite.iso.mts`(2026-10-19 절과 같음, 3001 — 소켓 주소는 이제 `VITE_API_URL`에서 만들어서 교체 플러그인 불필요) + `playwright-core@1.56`. 브라우저 = `executablePath` `~/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome`(1.56이 찾는 headless_shell-1194는 없음)
+- `move.mjs`(28개): 데이터 = 페이지 표시 절과 같은 f1~f10(Grid 6개, 칼럼 시작 0,636,...). 이동-1 = 단축키(`keyboard.down Control/Alt` + `press DigitN`) 뒤 "타일 오른쪽 = 화면 오른쪽 - 8" / "타일 왼쪽 = 화면 왼쪽 + 8" / 보이면 scrollLeft 그대로 / 1.0 타일 = Grid 시작 - 8. 이동-2 = `.PagerPopup.shown`·`.FootPill` 가운데 좌표, 창 밖 = `window`에 `mouseout(relatedTarget null)` dispatch, blur = `window` `blur` dispatch, 폰 = `isMobile`·`hasTouch` 새 컨텍스트
+- 함정: 포커스 확인은 `document.activeElement.closest('.TileFrame').dataset.tileId`. 팝업 안 요소는 `.PagerPopup` 아래로 골라야 푸터 것과 안 섞임
+- `keys.mjs`(17개): 격리 worker 추가(`go build -o move/wrk/worker` + 옆 `env` `WS_HOST=localhost:5051`·`SQLITE=move/wrk/worker.db`·`NAME=keys-dev`, `TMPDIR=move/tmp`·`setsid`). 계정·폴더(`deviceKey: keys-dev`)·스크립트(`ctrl-alt-test.sh` 본문) -> 페이지에서 `fetch /processes/exec`(`X-Tab-Id` = `sessionStorage['nexus.tabId']`) 두 번 -> 새로고침. 메뉴 = `.TileFrame__head [title="메뉴"]` -> `.v-overlay--active .v-list-item:first-child`. 터미널 화면 = `.xterm-rows` textContent, 포커스 = `.xterm-screen` 클릭
+- 함정: Ctrl+Alt+숫자 뒤 두 자리 기다림(1초)보다 길게 기다린 뒤 active를 볼 것. 정리 = `/proc/<pid>/cwd`가 `move/sup`·`move/wrk`·`move/tmp` 아래인 것 + 3001 pid

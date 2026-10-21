@@ -34,6 +34,10 @@
 
 - **모바일 키보드 = `resizes-content` + 열린 동안 배치 영역은 키보드 전 높이(px) 고정**(2026-10-14): 타일 재배치 금지. `dvh`로 배치하는 새 영역도 지킬 것 (→ `REF-mobile-viewport.md` 4). **2026-10-20 개정**: 포커스 터미널 타일만 키보드 위 영역에 맞춤(그 PTY rows만 바뀜) (→ `REF-board-keyboard.md` "맞춤 계획")
 
+- **타일 이동 = 페이지 표시의 "타일 위치 규칙"**(2026-10-21): 타일로 가는 경로는 전부 `reveal`(= `revealCol`, 화면 밖일 때만 막 다 보이는 만큼). Grid 단위 이동은 "Grid로 가기"가 목적일 때만 (→ `REF-tile-move.md`)
+
+- **앱 단축키 = 검사 한 곳 `appShortcutsOff`(`tileGrids.store`)를 맨 앞에서 거친다**(2026-10-21): 터미널 타일마다 "단축키 끄기"(타일 트리 `shortcutsOff`) — 그 타일이 active면 앱 단축키 전부 꺼짐. **새 단축키도 반드시 이 검사를 넣는다**. 터미널 자체 동작(Ctrl+C 복사·Ctrl+V 붙여넣기)은 대상 아님 (→ `REF-tile-move.md` 이동-3)
+
 ## 기술 스택 (확정)
 - **레포**: `nexus` / 모노레포 `apps/core`(Go) + `apps/frontend`(프론트, 스캐폴딩 완료 2026-06-30)
 - **프론트**: Vue3 + TS + Vuetify4 (scratch preset, Router=standard / **Pinia 미사용**, CSS framework 없음). 상태공유=provide/inject(+컴포넌트 밖 필요 시 reactive 모듈 패턴). 기본폰트=Noto Sans Korean. **색 = Vuetify 테마 색 이름 의존, hex 금지**(2026-09-29), 공유 표시 = 테마 `share`(청록) (→ `REF-frontend.md`)
@@ -78,6 +82,6 @@ sqlc.yaml  README.md  .gitignore
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
 - 설계/재사용 지식: `REF-process.md` `REF-db.md` `REF-node-ui.md` `REF-node-ui-overview.md` `REF-frontend.md` `REF-realtime.md` `REF-widget.md` `REF-util.md` `REF-util-drag.md` `REF-test-env.md`(테스트 환경·함정) `REF-test-scripts.md`(날짜별 확인 스크립트 재작성 명세, ~10-13) `REF-test-scripts-1014.md`(같은 명세, 2026-10-14~) `REF-test-scripts-1020.md`(같은 명세, 2026-10-20~) `REF-external-access.md`(외부 접속 test1~3.falinux.com = 8011~8013, HTTPS 프록시) `REF-worker-screen.md`(worker 화면 송출 + 조작 — 아이디어, VNC 터널 + noVNC 추천) `REF-demo.md`(시연 데이터 — irony 폴더 200 + test1~3 공유, 스크립트 작성 규칙)
 - 작업 이력(주제별): `history/node-ui.md` `history/node-ui-overview.md` `history/frontend.md` `history/realtime.md` `history/widget.md` `history/util.md` `history/util-drag.md` `history/test-env.md` `history/test-scripts.md` `history/test-scripts-1014.md` `history/test-scripts-1020.md` `history/external-access.md` `history/worker-screen.md` `history/demo.md`
-- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 헤더·푸터 개편(마감) → `INDEX-board-chrome.md` / ★ 모바일 가상 키보드(마감, 중요) → `INDEX-mobile-keyboard.md` / 통신 인프라(마감) → `INDEX-infra.md` / process 배선(마감) → `INDEX-process-wiring.md` / node UI 레이아웃 설계(마감) → `INDEX-node-ui-layout.md` / node UI 연동(마감) → `INDEX-node-ui-link.md` / process 터미널 기능(마감) → `INDEX-process-terminal.md` / process 동기화·공유·보드(마감) → `INDEX-process-share.md` / 터미널 동작 보강(마감) → `INDEX-terminal-ops.md` / 노드 조작(마감) → `INDEX-node-ops.md` / 프론트 마무리(마감) → `INDEX-frontend-polish.md` / 보드 미리보기(마감) → `INDEX-board-preview.md` / 고아 스크립트(마감) → `INDEX-worker-orphan.md` / PgUp·PgDn 버튼(마감) → `INDEX-term-page-keys.md` / Windows worker(마감) → `INDEX-windows-worker.md` / 터미널 터치 스크롤(마감) → `INDEX-term-touch.md` / URL 바인딩(마감) → `INDEX-tile-url.md` / 페이지 표시 개편(마감) → `INDEX-board-pager.md` / 파일 전송(마감) → `INDEX-transfer-e2e.md` / 한글 입력 중복(마감) → `INDEX-term-ime.md`
+- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록 = `HISTORY.md` "마감 파트"(최근 = 페이지 이동 `INDEX-tile-move` · 헤더·푸터 개편 `INDEX-board-chrome` · 한글 입력 중복 `INDEX-term-ime` · 파일 전송 `INDEX-transfer-e2e`)
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md`

@@ -42,17 +42,18 @@ type tileSize struct {
 }
 
 type tileItem struct {
-	ID        string   `json:"id"`
-	Type      string   `json:"type"` // folder | terminal
-	Parent    *string  `json:"parent"`
-	Kids      []string `json:"kids"`
-	Size      tileSize `json:"size"`
-	NodeID    *int64   `json:"nodeId"`        // folder: null = 루트 목록 / terminal: 필수
-	UID       string   `json:"uid,omitempty"` // terminal: process uid / folder: 서버가 발급하는 타일 uid(FU1), 공유로 생긴 받는 쪽 타일은 공유한 타일과 같은 값(FU2)
-	Adopted   bool     `json:"adopted,omitempty"`
-	Minimized bool     `json:"minimized,omitempty"` // 배치에서만 빠짐(트리·uid 유지) — SD3(실행 중 터미널 치우기)
-	ShownAt   int64    `json:"shownAt,omitempty"`   // folder: 지금 노드를 보여 주기 시작한 시각(unix ms, 서버만 씀) — BD3(저장 위치)
-	Bound     bool     `json:"bound,omitempty"`     // folder: 터미널 받는 타일로 고정(서버만 씀) — BD4(설정 방법)
+	ID           string   `json:"id"`
+	Type         string   `json:"type"` // folder | terminal
+	Parent       *string  `json:"parent"`
+	Kids         []string `json:"kids"`
+	Size         tileSize `json:"size"`
+	NodeID       *int64   `json:"nodeId"`        // folder: null = 루트 목록 / terminal: 필수
+	UID          string   `json:"uid,omitempty"` // terminal: process uid / folder: 서버가 발급하는 타일 uid(FU1), 공유로 생긴 받는 쪽 타일은 공유한 타일과 같은 값(FU2)
+	Adopted      bool     `json:"adopted,omitempty"`
+	Minimized    bool     `json:"minimized,omitempty"`    // 배치에서만 빠짐(트리·uid 유지) — SD3(실행 중 터미널 치우기)
+	ShortcutsOff bool     `json:"shortcutsOff,omitempty"` // terminal: 이 타일이 active인 동안 앱 단축키 끔 — 이동-3(타일별 단축키 끔)
+	ShownAt      int64    `json:"shownAt,omitempty"`      // folder: 지금 노드를 보여 주기 시작한 시각(unix ms, 서버만 씀) — BD3(저장 위치)
+	Bound        bool     `json:"bound,omitempty"`        // folder: 터미널 받는 타일로 고정(서버만 씀) — BD4(설정 방법)
 }
 
 type tileDoc struct {
@@ -160,7 +161,7 @@ func (d *tileDoc) validate() error {
 		}
 		switch t.Type {
 		case "folder":
-			if t.Adopted || t.Minimized {
+			if t.Adopted || t.Minimized || t.ShortcutsOff {
 				return fmt.Errorf("폴더 타일에 터미널 필드가 있습니다: %s", key)
 			}
 		case "terminal":

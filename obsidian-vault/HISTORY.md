@@ -27,6 +27,7 @@
 - 파일 전송(마감) → `INDEX-transfer-e2e.md` (transfer-e2e)
 - 한글 입력 중복(마감) → `INDEX-term-ime.md` (term-ime)
 - 헤더·푸터 개편(마감) → `INDEX-board-chrome.md` (board-chrome·board-keyboard)
+- 페이지 이동(마감) → `INDEX-tile-move.md` (tile-move)
 
 ## history/ 파일 색인 (진행 중 파트)
 

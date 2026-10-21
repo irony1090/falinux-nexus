@@ -9,7 +9,8 @@ const MW = { min: 12, max: 52 };
 const MAX_W = 560;
 
 // 인디케이터를 위로 당긴 동안의 타일 패널: Grid별 미니맵 + 지금 보이는 범위 틀 + active — REF-board-pager.md
-defineProps<{ open: boolean }>();
+// below = 막대 아래쪽에 띄움(커서 팝업을 아래로 당김)
+defineProps<{ open: boolean; below?: boolean }>();
 const { grids, geometry, area, scrollX, viewW, activeId, order } = useTileGrids();
 
 const fullW = computed(() => {
@@ -83,7 +84,7 @@ const label = computed(() => {
 </script>
 
 <template>
-<div class="TilePeek" :class="{ open }" aria-live="polite">
+<div class="TilePeek" :class="{ open, below }" aria-live="polite">
     <div class="clip" :style="clipStyle">
         <div class="row" :style="{ width: `${total}px`, transform: `translateX(${-off}px)` }">
             <div v-for="(m, gi) in minis" :key="gi" class="mini" :style="{ left: `${m.x}px`, width: `${m.w}px` }">
@@ -115,6 +116,10 @@ const label = computed(() => {
     transform: translate(-50%, 8px) scale(0.96);
     transform-origin: 50% 100%;
     transition: opacity 0.2s, transform 0.2s;
+    &.below {
+        transform: translate(-50%, -8px) scale(0.96);
+        transform-origin: 50% 0;
+    }
     &.open {
         opacity: 1;
         transform: translate(-50%, 0) scale(1);

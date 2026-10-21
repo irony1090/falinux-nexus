@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
 import { computed, ref, watch } from 'vue';
-import { usePagerDrag } from '../hook/pagerDrag.hook';
+import { usePagerDrag, type PagerPull } from '../hook/pagerDrag.hook';
 import { useTileGrids } from '../store/tileGrids.store';
 import FootPill from './FootPill.vue';
 import TilePeek from './TilePeek.vue';
@@ -11,9 +11,12 @@ const SP = 22;
 const PAD = 24;
 const COUNT_W = 72;
 
-// 푸터 인디케이터: Grid마다 도트 + 지금 위치(반 칸 = 두 도트 사이 작은 도트). 드래그 = 칼럼 이동, 위로 당기면 타일 이동 — REF-board-pager.md
+// 푸터 인디케이터: Grid마다 도트 + 지금 위치(반 칸 = 두 도트 사이 작은 도트). 드래그 = 칼럼 이동, 당기면 타일 이동 — REF-board-pager.md
+// pull = 타일 이동으로 당기는 쪽(푸터 = 위, 커서 팝업 = 위·아래)
+const props = withDefaults(defineProps<{ pull?: PagerPull }>(), { pull: 'up' });
 const { grids, pos, range, goGrid, goColumn } = useTileGrids();
-const { mode, down, move, up } = usePagerDrag();
+const { mode, pullDir, down, move, up } = usePagerDrag(props.pull);
+defineExpose({ mode });
 
 const wrapEl = ref<HTMLElement>();
 const barEl = ref<HTMLElement>();
@@ -59,13 +62,15 @@ const countText = computed(() => {
 })
 
 // 표시줄은 앱 바(overflow 잘림) 안이라 안내·타일 패널은 body에 고정 위치로 — 드래그를 시작할 때 자리를 잰다
-// 막대 위쪽에 띄운다(bottom 기준) — 푸터-4(위로 열기)
-const anchor = ref({ bottom: 0, center: 0 });
+// 안내는 막대 위쪽(bottom 기준) — 푸터-4(위로 열기). 타일 패널은 당긴 쪽
+const anchor = ref({ bottom: 0, top: 0, center: 0 });
 watch(mode, m => {
     const r = barEl.value?.getBoundingClientRect();
-    if (m !== 'idle' && r) anchor.value = { bottom: document.documentElement.clientHeight - r.top + 8, center: r.left + r.width / 2 };
+    if (m !== 'idle' && r) anchor.value = { bottom: document.documentElement.clientHeight - r.top + 8, top: r.bottom + 8, center: r.left + r.width / 2 };
 })
 const floatStyle = computed(() => ({ bottom: `${anchor.value.bottom}px`, left: `${anchor.value.center}px` }));
+const peekStyle = computed(() => pullDir.value === 'down' ? { top: `${anchor.value.top}px`, left: `${anchor.value.center}px` } : floatStyle.value);
+const hintText = computed(() => props.pull === 'both' ? '위·아래로 당기면 타일 선택' : '위로 당기면 타일 선택');
 
 // 칼럼 화살표 버튼 대신 — 표시줄 안에 포커스가 있을 때 ←/→
 const onKey = (e: KeyboardEvent) => {
@@ -103,8 +108,8 @@ const onKey = (e: KeyboardEvent) => {
         <span ref="endEl" class="end"><slot name="end" /></span>
     </foot-pill>
     <teleport to="body">
-        <div class="GridPager__hint text-body-small" :class="{ show: mode === 'col' }" :style="floatStyle" aria-hidden="true">위로 당기면 타일 선택</div>
-        <tile-peek :open="mode === 'tile'" :style="floatStyle" />
+        <div class="GridPager__hint text-body-small" :class="{ show: mode === 'col' }" :style="floatStyle" aria-hidden="true">{{ hintText }}</div>
+        <tile-peek :open="mode === 'tile'" :below="pullDir === 'down'" :style="peekStyle" />
     </teleport>
 </div>
 </template>
