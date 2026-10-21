@@ -8,24 +8,17 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **파트(페이지 이동) 마감(2026-10-21) → `INDEX-tile-move.md`**: 이동-1(타일 위치 규칙 통일)·이동-2(커서 위치 페이지 표시)·이동-3(타일별 단축키 끔), 격리 28/28·17/17 + 사용자 확인. 확인용 스크립트 irony `test`/`ctrl-alt-test`(225) 남김
-- **진행 중 = 파트(리팩터링), 브랜치 `refactor/socket`(2026-10-21 사용자 결정)**: master `03bc9a6`에서 분기, 파트 마감 때 `--no-ff`로 master에 머지. 그동안 master에서 다른 작업을 하면 CURRENT·HISTORY·MEMORY가 머지 때 충돌하므로 되도록 브랜치에서만 작업
+- **진행 중 = 파트(리팩터링), 브랜치 `refactor/socket`**(master `03bc9a6`에서 분기, 마감 때 `--no-ff` 머지. master에서 다른 작업을 하면 CURRENT·HISTORY·MEMORY가 머지 때 충돌 -> 되도록 브랜치에서만)
   - 목적·기준 = 사람이 읽기 쉽게, 성능이 떨어지지 않는 선까지, 주석은 손대는 파일만 한 줄 기준 (→ `REF-refactor-socket.md` "목적·기준")
-  - **소켓 알림 1차 커밋 끝(브랜치)**: 소켓-1(계정 토픽 이름)·소켓-5(커밋 뒤 발행 규약 섞임)·소켓-6(process 구독 지점 흩어짐) + 주석 13파일, 기능 변경 없음(격리 32/32, 주석 뺀 diff 재검토) → `REF-refactor-socket-batches.md` "1차 범위 결과"
-  - **소켓 알림 2차 코드 끝, 커밋 전(2026-10-21)**: 소켓-2(여러 계정에 보내기 중복)·소켓-3(볼 수 있는 계정 판정 중복)·소켓-4(탭 하나로 보내기)·소켓-7(빈 패키지·낡은 주석), 격리 35/35(변경 전과 같음) → `REF-refactor-socket-batches.md` "2차 결과". 소켓 영역은 보류 소켓-8(kind 이름 접두어 제각각)·범위 밖 소켓-9(worker·presence push 없음)만 남음
-  - **소켓 밖 R1(목록 조사) 끝(2026-10-21)** → `REF-refactor-cleanup.md`: 후보 10개, 추천 묶음 가(안 쓰는 코드 삭제 = 정돈-1·2·3·4)·나(tile.go 나누기 = 정돈-6)·다(정돈-5·7). **다음** = 사용자 R2(범위 결정) + 소켓 2차 커밋 여부
+  - 커밋 끝(브랜치): 소켓 1차 `8cf32bc` · 소켓 2차 `0dc83a7` (→ `REF-refactor-socket-batches.md`). 소켓 영역 남은 것 = 보류 소켓-8(kind 이름 접두어 제각각)·범위 밖 소켓-9(worker·presence push 없음)
+  - **커밋 전(작업 트리에 있음)**: 소켓 밖 정리 묶음 가(안 쓰는 코드 삭제)·나(tile.go 나누기)·다(작은 것) — 약 1,200줄 삭제·`tile.go` 3파일·`IInteractive` 2메서드·"표시줄" -> "인디케이터", 격리 35/35 + 정돈-8(TileFrame.vue 섞인 관심사) 맞춤-1(타일 띄우기) -> `hook/tileFloat.hook.ts`, 폰 확인 5/5 (→ `REF-refactor-cleanup.md` "결과"). 사용자 diff 검토 뒤 커밋
+  - **다음 = 사용자 결정 대기**(2026-10-21): 커밋 전 묶음 diff 검토·커밋 / 파트(리팩터링)를 더 할지 마감할지(남은 후보 = 정돈-9(프론트 공용 유틸 미사용)·정돈-10(파일 전송 송신부) 둘 다 유지 추천, 보류 소켓-8(kind 이름 접두어 제각각))
+  - 확인 스크립트(scratchpad `sockref_test.py`·`run_iso.sh`)는 세션 끝나면 사라짐 → 명세 `REF-test-scripts-1020.md` "2026-10-21 소켓 알림 리팩터"
 - **(답 대기) 파트(파일 전송) 이름 정정 제안(2026-10-21)**: 그 파트는 내부 전송 모듈 검증·수정까지였고 **안 나(업로드 기능, UI에서 파일을 worker로 보내기)는 미착수**. 사용자가 "시작도 안 한 걸로 안다"고 해서 이름을 "파일 전송 검증(내부 모듈)"으로 바꾸고 후보에 안 나(업로드 기능)를 적자고 제안함 — 답 받으면 MEMORY·HISTORY·CURRENT·INDEX 반영
-- **파트(한글 입력 중복) 마감(2026-10-20) → `INDEX-term-ime.md`**: 리눅스 IME의 "지우고 다시 넣기" 확정에서 xterm이 두 번 전송 -> 프론트 `blockImeRecommit`으로 한 경로 차단, xterm 6.0.0 유지. 헤드리스 재생 3/3 + 사용자 실입력 확인. 코드 `26c5760`
-- **파트(파일 전송) 마감(2026-10-20) → `INDEX-transfer-e2e.md`**: e2e 확인 34/34 -> F1-a(재접속 대기)·F1-b(강제 Close 제거)·F2(청크 256KB) + 재확인 21/21. 끊김·worker 재시작이 같은 send 안에서 이어받기, 왕복 50ms 615KB/s -> 4.5MB/s
-  - `history/transfer.md` 11.5k자 — 다음에 고칠 때 분할(파트(파일 전송)은 새 쌍 `REF-transfer-e2e`/`history/transfer-e2e`에 써서 안 건드림)
-- **파트(헤더·푸터 개편) 마감(2026-10-20) → `INDEX-board-chrome.md`**: 헤더 삭제 + 하단 고정 푸터(배치 F(확정안)) 40/40 + 키보드 맞춤(포커스 터미널 타일만 키보드 위 영역에 맞춤, PTY rows만 바뀜) 28/28 + Edge 실기기 확인. 측정 도구 삭제. 코드 주석의 "표시줄" 14곳은 남음(사용자가 고침)
-- **다음 할 것**: ① (미룸) worker PTY `IUTF8`(아래 미해결 줄) ② 그다음 "다음 파트" 후보에서 사용자가 고름
-- **파트(페이지 표시 개편) 마감(2026-10-20) → `INDEX-board-pager.md`**: 헤더 `VPagination` -> `GridPager`(도트·반 칸 작은 도트·드래그 칼럼 이동·아래로 당기면 `TilePeek` + active 타일 이동·창 방식). 격리 헤드리스 31/31 + 사용자 확인. 프로토타입 아티팩트 https://claude.ai/artifact/XLvPvzUkZQrfD1FN6Vaqo5
-- 마감 파트(2026-10-15~19, 상세는 각 INDEX): URL 바인딩 `INDEX-tile-url` · 터미널 터치 스크롤 `INDEX-term-touch` · Windows worker `INDEX-windows-worker` · PgUp·PgDn 버튼 `INDEX-term-page-keys` · 고아 스크립트 `INDEX-worker-orphan`
-  - 남겨 둔 것: 확인용 노드 irony `scroll-test`(215)·`scroll-test.ps1`(216)(사용자 결정) / VM `nexus-win`(`docker start/stop nexus-win`, 화면 `127.0.0.1:8006`) + VM worker `win-dev`가 8012에 연결된 채 → `REF-windows-worker.md` "VM 실행" / Windows 미확인 = `.py`·EDIT 저장 CRLF·TEMP 공백
-- (이전 순서) 2026-10-14에 정한 순서 ① 파트(확인·실측) → ② 파트(모바일 가상 키보드) → ③ 파트(보드 미리보기)는 전부 마감
-  - ③ 파트(보드 미리보기) **마감(2026-10-15) → `INDEX-board-preview.md`**: 전체보기에 다른 보드 줄 + 다른 보드 터미널 실시간 + 닫을 때 전체보기가 만든 xterm만 정리(중간안). 코드 `52ae8b9`
-  - 후보(아래 "다음 플랜"·미해결에서): ~~전체 화면을 켜면 칼럼이 `single` -> `row`~~ 버그 아님(2026-10-15 확인): 전체 화면으로 Grid 영역 높이가 `TILE_THRESHOLD.h` 560 이상 -> `capacity` y 1 -> 2 -> `effectiveSize`가 저장값 h 0.5를 그대로 써서 `single` -> `row`(1칸 축의 0.5를 1로 보는 규칙, `tileSplit.util.ts`) / process 단독 공유 UI 여부 / 회원가입 / ~~파일 전송 e2e~~(2026-10-20 마감 → `INDEX-transfer-e2e.md`) / iPhone 실기기 확인 / ~~Windows worker~~(2026-10-19 마감 → `INDEX-windows-worker.md`) / **worker 화면 송출 + 조작**(2026-10-15 아이디어, VNC 터널 + noVNC, SC1(VNC 서버 준비) = 장비 설치 전제 · SC2(못 쓰는 장비) = 가능 여부 보고 + 버튼 비활성화 결정, → `REF-worker-screen.md`) / ~~EDIT 에디터 소소한 수정~~(윈도-4로 해결)
+- **최근 마감 파트**(상세는 각 INDEX, 목록 = `HISTORY.md` "마감 파트"): 페이지 이동 `INDEX-tile-move`(10-21) · 한글 입력 중복 `INDEX-term-ime` · 파일 전송 `INDEX-transfer-e2e` · 헤더·푸터 개편 `INDEX-board-chrome` · 페이지 표시 개편 `INDEX-board-pager`(10-20) · URL 바인딩 `INDEX-tile-url` · 터미널 터치 스크롤 `INDEX-term-touch` · Windows worker `INDEX-windows-worker` · PgUp·PgDn 버튼 `INDEX-term-page-keys` · 고아 스크립트 `INDEX-worker-orphan` · 보드 미리보기 `INDEX-board-preview`(10-15~19)
+  - 남겨 둔 것: 확인용 노드 irony `test`/`ctrl-alt-test`(225)·`scroll-test`(215)·`scroll-test.ps1`(216) / VM `nexus-win`(`docker start/stop nexus-win`, 화면 `127.0.0.1:8006`) + VM worker `win-dev` → `REF-windows-worker.md` "VM 실행" / Windows 미확인 = `.py`·EDIT 저장 CRLF·TEMP 공백
+  - `history/transfer.md` 11.5k자 — 다음에 고칠 때 분할
+- **파트(리팩터링) 다음 할 것**: ① (미룸) worker PTY `IUTF8`(아래 미해결 줄) ② "다음 파트" 후보에서 사용자가 고름 — 후보: 안 나(업로드 기능) / process 단독 공유 UI 여부 / 회원가입 / iPhone 실기기 확인 / worker 화면 송출 + 조작(→ `REF-worker-screen.md`)
 - **시연 데이터(2026-10-16) 등록 → `REF-demo.md`**: irony 계정 폴더 `시연-생산지그`(id 200, 안 C(생산 지그 시나리오)) + test1 편집·test2 조작·test3 보기 공유. 코드 변경 없음(REST로 데이터만, 커밋할 코드 없음)
   - **다음 할 것**: 브라우저로 시연 순서 점검(irony + test3 동시) — Nexus 경유 실행은 아직 미확인(xterm.js 한글 정렬·24bit 색 사진, worker 환경 카메라). 시연 순서 → `REF-demo.md` "시연 순서"
   - 사용자가 하려던 기능 추가는 내용이 기억나지 않아 보류(2026-10-16)
@@ -80,7 +73,7 @@
 - EXEC 실행 방식 = **A(직접 실행, shebang 필수) 현상 유지 확정**(2026-10-12 사용자 결정)
 - **kill 정책 확정(2026-10-12)** → `REF-process-kill.md` "확정" — 마감·커밋
 - (이전 기록, 위로 해소) 끊긴 창 kill 거절 vs 큐잉(입력은 I3(PENDING 중 입력) = 버림 확정) / ~~공유 kill 인가~~(SH3(받은 계정 권한)으로 해소: 조작 이상) / kill 에스컬레이션
-- **정리 잔여(구)**: `register.go` 주석 SendBuffer 테스트. worker `baseDir` 필드·`instanceKey()` dead code화(정리 여부 판단)
+- **정리 잔여(구)**: `register.go` 주석 SendBuffer 테스트. ~~worker `baseDir`·`instanceKey()`~~ → 정돈-4(작은 잔재)로 삭제(2026-10-21)
 
 ### 프론트 user/login — 마감(2026-10-12, → `REF-frontend-auth.md`)
 - 서버 쪽 잔여(`SESSION_KEY` env화 · checkSession `createdAt=0`) → 파트(서버 정리)에서 해소(2026-10-13)
@@ -88,6 +81,7 @@
 ---
 
 ## 미해결 이슈 (이월)
+- **(관찰) 2026-10-21 13:03:43 PC 갑자기 재부팅**: 로그가 경고 없이 끊김(journal "uncleanly shut down"). 그 시각 CPU 98% 유휴·메모리 26%·OOM·커널 패닉·하드웨어 오류 기록 없음 -> 앱 버퍼(화면 복원 ring은 process당 256KB 상한 S5(ring 상한)) 원인 아님. 직전 1초에 RustDesk 정시 재시작(매시 :03, 평소 하루 25번 무사)·gnome-shell 커서 drm 오류(다른 날에도 있음)만 있음 -> 전원·하드웨어·GPU 멈춤 쪽 추정, 재발하면 다시 봄
 - **(리팩터링 이후) 기본 보드가 아닌 보드에서 새 보드를 만들 수 없음(2026-10-21 사용자 발견)**: 다른 보드로 이동만 됨. 원인 후보 = `TileFrame.vue` ⋮ 메뉴의 "새 보드로 분리"가 `v-if="isDefaultBoard"` — 의도였는지(파트(보드 분리) 결정) 먼저 확인할 것
 - **(미룸) worker PTY에 `IUTF8` 없음(2026-10-20 발견)**: 줄 단위 입력(`read`·`cat`)에서 한글 백스페이스가 1바이트만 지움(`ime-test`에서 화면 `어라 앞앞에` vs 받음 `어라 라 앞앞에`). `internal/execute/pty`에 termios 설정 없음. raw 모드 프로그램(Claude Code·readline)은 영향 없음. 한글 중복 해결 뒤 다룸
 - ~~`NODE:` 동적 구독~~ → 2026-10-12 파트(폴더 목록 동기화)로 해소(계정 토픽, → `REF-node-list-sync.md`)

@@ -43,7 +43,7 @@
 - backoff: `internal/util/retry.util.go` `Backoff{cur,base,max}` `Next()`(2배·상한)/`Reset()`. `reached`(register 성공) 기준 Reset → 정상가동 후 끊김=짧게, 그 전 실패=증가. **jitter 미적용**(worker 다수·supervisor 동시재접속 부하 시 full jitter 추가)
 
 ## transport.Conn 수명 상태
-- `ConnState`(StateActive=0/StateClosed) + `State()` + `String()`. `atomic.Int32` 필드(zero=Active). Serve 수신루프 종료·Close에서 StateClosed 전이(둘 다 idempotent)
+- ~~`ConnState`(StateActive=0/StateClosed) + `State()` + `String()`~~ — 읽는 곳이 없어 2026-10-21 삭제(정돈-4(작은 잔재), → `REF-refactor-cleanup.md`)
 - 도메인 무지·대칭 유지 — "연결이 살아있나"는 conn 속성, **신원(메인키#서브키)은 라우터 몫**(conn 아님)
 
 ## `internal/util/string.util.go` — RandomKey

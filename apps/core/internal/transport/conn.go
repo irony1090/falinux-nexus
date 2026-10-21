@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 
 	"nexus/internal/call"
 	"nexus/internal/protocol"
@@ -16,27 +15,7 @@ import (
 // ErrClosed는 Conn이 닫힌 뒤의 동작에 반환된다.
 var ErrClosed = errors.New("transport: conn closed")
 
-// ConnState는 Conn의 수명 상태다(도메인 무관, supervisor·worker 대칭).
-type ConnState int32
-
-const (
-	StateActive ConnState = iota // 수신/송신 가능
-	StateClosed                  // 닫힘: Serve 종료 또는 Close 호출
-)
-
-func (s ConnState) String() string {
-	switch s {
-	case StateActive:
-		return "active"
-	case StateClosed:
-		return "closed"
-	default:
-		return "unknown"
-	}
-}
-
-// MessageRW는 Conn이 의존하는 최소 전송면이다.
-// gorilla *websocket.Conn이 그대로 만족한다.
+// MessageRW: Conn이 의존하는 최소 전송면(gorilla *websocket.Conn이 그대로 만족)
 type MessageRW interface {
 	ReadMessage() (messageType int, p []byte, err error)
 	WriteMessage(messageType int, data []byte) error
@@ -49,12 +28,10 @@ type Handler func(req protocol.Frame) (any, error)
 // EventHandler는 들어온 EVENT를 소비한다(응답 없음).
 type EventHandler func(ev protocol.Frame)
 
-// eventBufferSize는 수신 EVENT 큐의 버퍼 크기다. 가득 차면 Serve가
-// 잠깐 블록하며 자연스러운 backpressure가 걸린다(느린 구독자 신호).
+// eventBufferSize: 수신 EVENT 큐. 가득 차면 Serve가 잠깐 블록(backpressure)
 const eventBufferSize = 256
 
-// Conn은 한 WS 연결 위에 요청/응답(REQ/RES)을 얹는다.
-// supervisor·worker 양쪽이 동일한 API(Call/Handle)를 쓴다(대칭).
+// Conn: WS 연결 하나 위의 REQ/RES·EVENT(supervisor·worker 대칭)
 type Conn struct {
 	rw   MessageRW
 	corr *call.Correlator[protocol.Frame]
@@ -65,8 +42,6 @@ type Conn struct {
 
 	events chan protocol.Frame // 수신 EVENT 큐(디스패처가 순차 소비)
 	done   chan struct{}       // 디스패처 종료 신호(Close에서 close)
-
-	state atomic.Int32 // ConnState: 연결 수명 상태(zero=StateActive)
 
 	wmu       sync.Mutex // 쓰기 직렬화
 	closeOnce sync.Once
@@ -114,8 +89,7 @@ func (c *Conn) On(t protocol.MsgType, h EventHandler) {
 	c.mu.Unlock()
 }
 
-// Emit은 짝(응답) 없는 EVENT를 보낸다(블록하지 않음). Call과 대칭이지만
-// Correlator를 거치지 않는다 — 채번도 대기표도 없이 그대로 내보낸다.
+// Emit: 응답 없는 EVENT(블록 안 함, Correlator 안 거침)
 func (c *Conn) Emit(t protocol.MsgType, data any) error {
 	f, err := protocol.NewEvent(t, data)
 	if err != nil {
@@ -124,13 +98,7 @@ func (c *Conn) Emit(t protocol.MsgType, data any) error {
 	return c.write(f)
 }
 
-// State는 현재 연결 수명 상태를 반환한다.
-func (c *Conn) State() ConnState {
-	return ConnState(c.state.Load())
-}
-
-// Call은 요청을 보내고 짝 응답이 올 때까지 블록한다.
-// 응답이 Err를 담고 있으면 그 에러를 반환한다(모든 실패가 같은 통로).
+// Call: 응답까지 블록. 응답의 Err도 error로 반환(실패 통로 하나)
 func (c *Conn) Call(ctx context.Context, t protocol.MsgType, data any) (protocol.Frame, error) {
 	return c.corr.Call(ctx, outReq{t: t, data: data})
 }
@@ -140,8 +108,7 @@ func (c *Conn) Serve() error {
 	for {
 		_, raw, err := c.rw.ReadMessage()
 		if err != nil {
-			c.state.Store(int32(StateClosed)) // 수신 루프 종료 = 더는 활성 아님
-			c.corr.Close(err)                 // 끊김 → 모든 대기 Call 실패
+			c.corr.Close(err) // 끊김 → 모든 대기 Call 실패
 			return err
 		}
 
@@ -171,9 +138,7 @@ func (c *Conn) Serve() error {
 	}
 }
 
-// dispatch는 수신 EVENT를 등록된 핸들러에 순차 배달한다.
-// 단일 goroutine이라 수신 순서가 그대로 보존된다(출력 스트리밍 순서 유지).
-// New에서 시작해 Close(close(done))에서 종료한다.
+// dispatch: 수신 EVENT를 goroutine 하나로 순차 배달 — 수신 순서 = 출력 순서(New에서 시작, Close에서 끝)
 func (c *Conn) dispatch() {
 	for {
 		select {
@@ -231,7 +196,6 @@ func (c *Conn) Close(err error) error {
 	}
 	var closeErr error
 	c.closeOnce.Do(func() {
-		c.state.Store(int32(StateClosed))
 		close(c.done) // 디스패처 종료 + Serve의 EVENT push 깨움
 		c.corr.Close(err)
 		closeErr = c.rw.Close()

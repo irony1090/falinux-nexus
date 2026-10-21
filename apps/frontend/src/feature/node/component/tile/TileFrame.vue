@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { useVirtualKeyboard } from '@/common/hook/virtualKeyboard.hook';
-import { KEY_BAR_HEIGHT } from '@/feature/process/component/TerminalKeyBar.vue';
 import type { TileSpan } from '@/feature/widget/util/tile.type';
 import { effectiveSize } from '@/feature/widget/util/tileSplit.util';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { isRunning, pillOf, useProcessTerm } from '@/feature/process/store/processTerm.store';
-import { computed, onBeforeUnmount, ref, watch, type CSSProperties } from 'vue';
+import { computed, ref } from 'vue';
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
 import { useRouter } from 'vue-router';
 import { VBtn, VCard, VChip, VIcon, VList, VListItem, VListSubheader, VMenu } from 'vuetify/components';
 import { useGetNode, useNodePath, useNodeRuns } from '../../api/node.api';
 import { bindTile } from '../../api/tile.api';
 import { useTerminalKill } from '../../hook/terminalKill.hook';
+import { useTileFloat } from '../../hook/tileFloat.hook';
 import { boardLabel, boardPath, useBoards } from '../../store/boards.store';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
@@ -119,40 +118,9 @@ const sizeMenu = ref<InstanceType<typeof VMenu>>();
 const relocateSizeMenu = () => requestAnimationFrame(() => sizeMenu.value?.updateLocation?.(new Event('resize')));
 useResizeCallback(frameEl, relocateSizeMenu);
 
-// 맞춤-1(타일 띄우기): 키보드가 열린 동안 포커스된 터미널 타일만 가로 자리·폭은 그대로, 높이 = 보이는 영역 위 끝~키 줄 위 끝 — REF-board-keyboard.md "맞춤 계획"
-// 빠진 grid 칸(부모 .Tile)은 빈 채 남아 다른 타일이 안 움직인다. 보드가 가로로 움직이면 그 칸 위치를 다시 읽어 따라간다
-const kb = useVirtualKeyboard();
-const floating = computed(() => kb.open && !overview.value && tile.value?.type === 'terminal' && kb.termUid === tile.value.uid);
-const slot = ref<{ left: number; width: number }>();
-const readSlot = () => {
-    const r = frameEl.value?.parentElement?.getBoundingClientRect();
-    slot.value = r && { left: r.left, width: r.width };
-}
-let slotRaf = 0;
-const onScroll = (e: Event) => {
-    if (!(e.target instanceof Node) || !frameEl.value || !e.target.contains(frameEl.value)) return;   // 터미널 안 스크롤 등은 무시
-    cancelAnimationFrame(slotRaf);
-    slotRaf = requestAnimationFrame(readSlot);
-}
-const unlisten = () => {
-    window.removeEventListener('scroll', onScroll, { capture: true });
-    cancelAnimationFrame(slotRaf);
-}
-watch(floating, on => {
-    unlisten();
-    if (!on) return;
-    readSlot();
-    window.addEventListener('scroll', onScroll, { capture: true, passive: true });
-});
-onBeforeUnmount(unlisten);
-const floatStyle = computed<CSSProperties | undefined>(() => floating.value && slot.value ? {
-    position: 'fixed',
-    left: `${slot.value.left}px`,
-    width: `${slot.value.width}px`,
-    top: `${kb.top}px`,
-    height: `${kb.bottom - KEY_BAR_HEIGHT - kb.top}px`,
-    zIndex: 1000,   // 다른 타일 위, 키 줄(2000) 아래
-} : undefined);
+// 맞춤-1(타일 띄우기) — 키보드가 열린 동안 포커스된 터미널 타일만 띄운다
+const termUid = computed(() => tile.value?.type === 'terminal' ? tile.value.uid : undefined);
+const floatStyle = useTileFloat(frameEl, termUid, overview);
 
 const setSize = (axis: 'w' | 'h', v: TileSpan) => {
     if (!tile.value) return;

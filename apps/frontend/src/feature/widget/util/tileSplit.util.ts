@@ -27,7 +27,7 @@ export const columnStops = (gridWidth: number, cap: Capacity, tileGap: number, c
 
 // 가로 구간(px). 좌표 = strip 스크롤 내용 기준(padding 포함)
 export interface StripSpan { x: number; w: number }
-// pos = 이 칼럼이 화면 왼쪽 끝일 때 Grid 단위 위치(오른쪽 칼럼 = +0.5) — 표시줄 도트용
+// pos = 이 칼럼이 화면 왼쪽 끝일 때 Grid 단위 위치(오른쪽 칼럼 = +0.5) — 인디케이터 도트용
 export interface StripColumn extends StripSpan { grid: number; pos: number }
 export interface StripGeometry {
 	grids: Array<StripSpan>;
@@ -95,7 +95,7 @@ export const stripPos = (geo: StripGeometry, scrollX: number, gap: number): numb
 	return cols[cols.length - 1]!.pos;
 };
 
-// 칼럼 번호(실수) -> scrollLeft. 표시줄 드래그 중 칼럼 사이 위치
+// 칼럼 번호(실수) -> scrollLeft. 인디케이터 드래그 중 칼럼 사이 위치
 export const colScroll = (geo: StripGeometry, col: number, gap: number): number => {
 	const cols = geo.columns;
 	const i = Math.max(0, Math.min(cols.length - 1, Math.floor(col)));

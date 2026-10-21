@@ -35,7 +35,7 @@
 
 | 단계 | 하는 일 | 파일 |
 |---|---|---|
-| 맞춤-1(타일 띄우기) | `TileFrame`이 `useVirtualKeyboard`의 `open`·`termUid`가 자기 터미널이면, 열리기 직전 자기 rect의 left·width를 잡아 `position: fixed` + `top = kb.top` · `height = kb.bottom - KEY_BAR_HEIGHT - kb.top` · 다른 타일 위 z-index(키 줄 아래). 타일 자리는 `Tile`의 grid 좌표라 빠져도 다른 타일 안 움직임(normal 모드 strip·layout에 transform 없음 확인) | `tile/TileFrame.vue` |
+| 맞춤-1(타일 띄우기) | `TileFrame`이 `useVirtualKeyboard`의 `open`·`termUid`가 자기 터미널이면, 열리기 직전 자기 rect의 left·width를 잡아 `position: fixed` + `top = kb.top` · `height = kb.bottom - KEY_BAR_HEIGHT - kb.top` · 다른 타일 위 z-index(키 줄 아래). 타일 자리는 `Tile`의 grid 좌표라 빠져도 다른 타일 안 움직임(normal 모드 strip·layout에 transform 없음 확인) | `hook/tileFloat.hook.ts`(`useTileFloat`, 2026-10-21 정돈-8(TileFrame.vue 섞인 관심사)로 `TileFrame.vue`에서 옮김) |
 | 맞춤-2(올리기 제거) | `TileWorkspace`의 `shift`·`measure`·`cursorRect`·`translateY`·커서 이동 감시 삭제. 키보드 열린 동안 `baseH` px 높이 고정(라-2(높이 고정))은 유지 | `TileWorkspace.vue` |
 | 맞춤-3(크기 반영) | 코드 추가 없음 예상: `ProcessTerminal`의 ResizeObserver(150ms 묶음) -> 소유 탭이면 PTY rows 전송, 아니면 고정 + 스크롤. 닫으면 원래 높이 -> 원래 rows | `ProcessTerminal.vue`(확인만) |
 | 맞춤-4(확인) | 격리 헤드리스(창 높이 줄여 resizes-content 흉내, 기존 `kb3` 방식): 다른 타일 rect 불변 · 포커스 타일 아래 끝 = 키 줄 위 끝 · cols 불변·rows 감소 · 닫으면 복원 · 포커스 다른 터미널로 옮김 · 비소유 탭 스크롤. 이후 사용자 Edge 실기기(기본·전체 화면) | - |

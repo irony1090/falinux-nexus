@@ -22,7 +22,7 @@
 - sqlc gen은 별도 패키지 `workerdb`(`internal/worker/db/gen`) → 참조는 `workerdb.New(DBTX)`(*sql.DB·*sql.Tx 모두 가능)
 
 ## supervisor store 자산 (`internal/supervisor/store/connectManager.go`) — 구현 완료 (2026-06-26)
-- 구 PortBridge `internal/store/connectManager.go`(pgx) 이식. worker판과 **API 대칭**: `InitStorePool`/`GetStorePool`/`Queries()`/`Transaction()` + Transaction `Begin/Commit/Rollback/Queries/QueriesPanic/AddAfterRelease/IsStart`
+- 구 PortBridge `internal/store/connectManager.go`(pgx) 이식. worker판과 **API 대칭**: `InitStorePool`/`GetStorePool`/`Queries()`/`Transaction()` + Transaction `Begin/Commit/Rollback/Queries/QueriesPanic/AddAfterRelease/IsStart` (2026-10-21 worker판 `Transaction`·`Close`는 안 써서 삭제 — 정돈-3(worker 저장소 트랜잭션), 대칭 깨짐)
 - 차이는 타입(`*pgxpool.Pool`/`pgx.Tx`)과 시그니처: `InitStorePool(user, pass, host string, port int, name string)`(DSN `postgres://...` 조립 + Ping). gen 패키지 `superdb`(`superdb.New(DBTX)`, DBTX는 `*pgxpool.Pool`·`pgx.Tx` 둘 다 만족). ★인자 순서: port가 name보다 앞(사용자 조정)
 - worker판이 고친 두 수정 동일 반영: **afterUnsfae→afterUnsafe + 결과 err 전달**(구 버그=인자 무시하고 store.err 넘김) / **InitStorePool 재호출 시 실패연결 정리 후 재시도**(모호한 return nil 제거)
 - `pgxpool` 의존성이 `puddle/v2`를 indirect로 끌어옴(go mod tidy)

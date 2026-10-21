@@ -34,10 +34,6 @@ func NewAgentInteractive(
 	return ai
 }
 
-func (a *AgentInteractive) Output() ([]byte, error) {
-	return a.output.Shift()
-}
-
 func (a *AgentInteractive) OutputAll() ([]byte, error) {
 	batch, err := a.output.ShiftAll()
 	if err != nil {
@@ -93,8 +89,4 @@ func (a *AgentInteractive) Detach() {
 // Detached는 Detach로 닫혔는지 반환한다(relay 드레인 이후에 읽을 것).
 func (a *AgentInteractive) Detached() bool {
 	return a.detached
-}
-
-func (a *AgentInteractive) ExitCode() int {
-	return a.exitCode
 }

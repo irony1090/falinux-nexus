@@ -1,6 +1,4 @@
-// Package pty는 로컬 PTY 기반 process 실행을 제공한다(OS별 구현 = execInteractive_{linux,windows}.go).
-// 이식 가능한 execute 패키지(IInteractive·AgentInteractive·CommandStatus)와 분리되어,
-// supervisor 등 PTY가 필요 없는 빌드가 execute만 import할 수 있게 한다.
+// Package pty는 로컬 PTY 실행(OS별 = execInteractive_{linux,windows}.go). execute와 분리해 supervisor는 PTY 없이 빌드된다
 package pty
 
 import (
@@ -64,10 +62,6 @@ func (i *Interactive) Status() (execute.CommandStatus, int, error) {
 	return sts, i.exitCode, err
 }
 
-// Output 대화형 출력 읽기. 데이터가 없으면 데이터가 올 때까지 대기
-func (i *Interactive) Output() ([]byte, error) {
-	return i.ouput.Shift()
-}
 func (i *Interactive) OutputAll() ([]byte, error) {
 	batch, err := i.ouput.ShiftAll()
 	if err != nil {
@@ -77,16 +71,6 @@ func (i *Interactive) OutputAll() ([]byte, error) {
 }
 func (i *Interactive) Write(data []byte) error {
 	return i.input.Push(data)
-}
-
-func (i *Interactive) Refresh() error {
-	i.Write([]byte{0x0c})
-	// err := syscall.Kill(-i.cmd.Process.Pid, syscall.SIGWINCH)
-	// log.Printf("REFRESH~ %v", err)
-	return nil
-}
-func (i *Interactive) ExitCode() int {
-	return i.exitCode
 }
 
 func streamInputLogic(master io.Writer, input *syncProcess.SyncData[[]byte]) {

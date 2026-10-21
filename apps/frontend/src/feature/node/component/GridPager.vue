@@ -6,7 +6,7 @@ import { useTileGrids } from '../store/tileGrids.store';
 import FootPill from './FootPill.vue';
 import TilePeek from './TilePeek.vue';
 
-// 도트 한 칸 폭 / 표시줄 좌우 여백 / 숫자 자리(간격 포함)
+// 도트 한 칸 폭 / 인디케이터 좌우 여백 / 숫자 자리(간격 포함)
 const SP = 22;
 const PAD = 24;
 const COUNT_W = 72;
@@ -61,7 +61,7 @@ const countText = computed(() => {
     return `${lo === hi ? lo + 1 : `${lo + 1}-${hi + 1}`} / ${grids.value.length}`;
 })
 
-// 표시줄은 앱 바(overflow 잘림) 안이라 안내·타일 패널은 body에 고정 위치로 — 드래그를 시작할 때 자리를 잰다
+// 인디케이터는 앱 바(overflow 잘림) 안이라 안내·타일 패널은 body에 고정 위치로 — 드래그를 시작할 때 자리를 잰다
 // 안내는 막대 위쪽(bottom 기준) — 푸터-4(위로 열기). 타일 패널은 당긴 쪽
 const anchor = ref({ bottom: 0, top: 0, center: 0 });
 watch(mode, m => {
@@ -72,7 +72,7 @@ const floatStyle = computed(() => ({ bottom: `${anchor.value.bottom}px`, left: `
 const peekStyle = computed(() => pullDir.value === 'down' ? { top: `${anchor.value.top}px`, left: `${anchor.value.center}px` } : floatStyle.value);
 const hintText = computed(() => props.pull === 'both' ? '위·아래로 당기면 타일 선택' : '위로 당기면 타일 선택');
 
-// 칼럼 화살표 버튼 대신 — 표시줄 안에 포커스가 있을 때 ←/→
+// 칼럼 화살표 버튼 대신 — 인디케이터 안에 포커스가 있을 때 ←/→
 const onKey = (e: KeyboardEvent) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     e.preventDefault();

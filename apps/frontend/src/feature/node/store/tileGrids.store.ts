@@ -100,7 +100,7 @@ export const provideTileGrids = () => {
         if (c) scrollTo(c.x)
     }
 
-    // ---- 표시줄(GridPager) — REF-board-pager.md ----
+    // ---- 인디케이터(GridPager) — REF-board-pager.md ----
     // 도트 위치 = Grid 단위 실수(2.5 = Grid 2 오른쪽 칼럼부터)
     const pos = computed(() => stripPos(geometry.value, scrollX.value, TILE_GAP))
     // 화면에 절반 이상 보이는 칼럼의 Grid 범위 — 인디케이터 숫자·Grid 정보 토스트(푸터-6)
@@ -117,7 +117,7 @@ export const provideTileGrids = () => {
         const maxScroll = last.x + last.w + TILE_GAP - viewW.value
         return columns.reduce((k, c, i) => c.x - TILE_GAP <= maxScroll + 1 ? i : k, 0)
     })
-    // 표시줄 드래그 중엔 스냅을 끈다(TileStrip) — 켜 두면 scrollLeft를 줄 때마다 칼럼으로 튄다
+    // 인디케이터 드래그 중엔 스냅을 끈다(TileStrip) — 켜 두면 scrollLeft를 줄 때마다 칼럼으로 튄다
     const scrubbing = ref(false)
     const goCol = (col: number, behavior: ScrollBehavior = 'smooth') => {
         const c = geometry.value.columns[col]
@@ -159,7 +159,7 @@ export const provideTileGrids = () => {
         return { l: cols.indexOf(span.first), r: cols.indexOf(span.last) }
     }
 
-    // 표시줄 타일 이동 — active + 막 다 보이는 만큼 스크롤. view = 직전 왼쪽 칼럼, 옮긴 왼쪽 칼럼을 돌려준다
+    // 인디케이터 타일 이동 — active + 막 다 보이는 만큼 스크롤. view = 직전 왼쪽 칼럼, 옮긴 왼쪽 칼럼을 돌려준다
     const stepTo = (tileId: string, view: number) => {
         setActive(tileId)
         const range = colRange(tileId)
