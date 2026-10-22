@@ -31,7 +31,7 @@ const props = defineProps({
 })
 
 const { tiles, hash: boardHash, pinByNode, resize, setMinimized, setShortcutsOff, detachToBoard, moveToBoard, navigate } = useTileTree();
-const { list: boards, defaultBoard, add: addBoard } = useBoards();
+const { list: boards, add: addBoard } = useBoards();
 const router = useRouter();
 const { cap, posOf, instanceOf, reveal, overview, rootTab, activeId, setActive } = useTileGrids();
 const { procs, owners, restored, gone, takeSize } = useProcessTerm();
@@ -144,8 +144,7 @@ const onMinimize = () => {
     setMinimized(tile.value.id, true);
     setTab('terminals');
 }
-// ---- 보드: 폴더 타일(루트 제외)을 하위째 새 보드로 분리(기본 보드에서만) / 다른 보드로 이동 — W1(분리 범위)·W3(이동 범위) ----
-const isDefaultBoard = computed(() => !!defaultBoard.value && defaultBoard.value.hash === boardHash.value);
+// ---- 보드: 폴더 타일(루트 제외)을 하위째 새 보드로 분리(어느 보드에서든) / 다른 보드로 이동 — W1(분리 범위)·W3(이동 범위) ----
 const otherBoards = computed(() => boards.value.filter(b => b.hash !== boardHash.value));
 const boardMenu = computed(() => tile.value?.type === 'folder' && !!tile.value.parent && !unavailable.value);
 const boardBusy = ref(false);
@@ -281,7 +280,7 @@ const onX = () => {
                 />
                 <v-list-item v-if="canPin" title="여기로 타일 고정" prepend-icon="mdi-pin-outline" @click="onPin" />
                 <template v-if="boardMenu">
-                    <v-list-item v-if="isDefaultBoard" title="새 보드로 분리" prepend-icon="mdi-view-dashboard-outline" @click="detachOpen = true" />
+                    <v-list-item title="새 보드로 분리" prepend-icon="mdi-view-dashboard-outline" @click="detachOpen = true" />
                     <template v-if="otherBoards.length">
                         <v-list-subheader>다른 보드로 이동</v-list-subheader>
                         <v-list-item v-for="b in otherBoards" :key="b.hash"
@@ -290,7 +289,6 @@ const onX = () => {
                             @click="onMove(b.hash)"
                         />
                     </template>
-                    <v-list-item v-if="!isDefaultBoard && !otherBoards.length" subtitle="옮길 보드가 없습니다" disabled />
                 </template>
             </v-list>
         </v-menu>

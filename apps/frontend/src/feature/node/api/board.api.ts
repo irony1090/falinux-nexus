@@ -31,7 +31,7 @@ export const listBoards = () => BaseAxios.get(
 .catch(throwCatch)
 
 // POST /workspaces — 기본 보드의 폴더 타일을 하위째 떼어 새 보드로(W1(분리 범위)). version = 기본 보드 version
-export const createBoard = (param: { folderTileId: string; name: string; version: number }) => BaseAxios.post(
+export const createBoard = (param: { from: string; folderTileId: string; name: string; version: number }) => BaseAxios.post(
     '/workspaces', param, conflictable
 ).then(toResult)
 .catch(throwCatch)

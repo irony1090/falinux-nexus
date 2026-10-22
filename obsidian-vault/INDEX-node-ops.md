@@ -10,7 +10,7 @@
 | 폴더 목록 동기화 | 2026-10-12 | node 변경을 볼 수 있는 접속 계정의 `TILES:<userId>`로, 발행 시점 DB 판정 | `REF-node-list-sync.md` |
 | 노드 클립보드 | 2026-10-13 | 복사·잘라내기·붙여넣기 + 선택 모드·우클릭 메뉴·드래그 | `REF-node-clipboard.md` · `REF-node-select.md` |
 
-**남은 것(CURRENT·미해결 이슈에 있음)**: RS6(위조 검증) 보류 / Label 모듈 보류(다시 볼 조건 → `REF-node-label.md` "Label 모듈")
+**남은 것(`BACKLOG.md`에 있음)**: RS6(위조 검증) 보류 / Label 모듈 보류(다시 볼 조건 → `REF-node-label.md` "Label 모듈")
 
 ## REF / history 목록 (MEMORY 인덱스에서 옮김)
 - `REF-node-label.md` / `history/node-label.md` — 모듈 REF라 MEMORY 모듈 현황표 "문서" 칸에는 그대로 남김

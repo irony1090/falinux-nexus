@@ -356,7 +356,7 @@ export const provideTileTree = () => {
 
     // 폴더 타일을 하위째 새 보드로(기본 보드에서만, W1(분리 범위)) — 만든 보드를 돌려준다
     const detachToBoard = async (folderTileId: string, name: string) => {
-        const res = await serverChange(v => createBoard({ folderTileId, name, version: v }))
+        const res = await serverChange(v => createBoard({ from: hash_.value, folderTileId, name, version: v }))
         if (!res.ok || !res.workspace) throw { message: '보드를 만들지 못했습니다' }
         return res.workspace
     }

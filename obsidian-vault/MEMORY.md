@@ -52,7 +52,7 @@
 - 컨테이너 env = supervisor env 일치: user `irony` / pass `!Fa1289` / 포트 `5432`. **단 기본 DB는 `workspace`(구 PortBridge)** → nexus용 `nexus` DB는 **수동 생성함**(`CREATE DATABASE nexus OWNER irony;`, 2026-06-26 1회)
 - supervisor 띄우면 `init()`의 mountStore가 goose 마이그레이션 자동 적용(멱등)
 - **포트(2026-10-13~)**: 외부 접속 설정 중 = supervisor 8012(0.0.0.0) · 프론트 8011 · worker -> localhost:8012. 옛 5050·3000으로 되돌리는 법 → `REF-external-access.md`
-- **빌드본 = 사용용(2026-10-22~)**: `build/<이름>`(`scripts/build.sh`) + 공통 `build/{supervisor,worker}.env`·`worker-sqlite.db`, **8013(test3) · DB `nexus_build`**. 개발(8011·8012, `nexus`)과 분리, 사용자 Claude 세션이 그 위에서 돎. **Claude는 8013을 끄지 않는다**. embed `cmd/*/env` = 배포 값 / **개발 실행 = `go run ./cmd/supervisor -env dev.env` 필수** (→ `INDEX-build.md` -> `REF-build.md`)
+- **빌드본 = 사용용(2026-10-22~)**: `build/<이름>`(`scripts/build.sh`) + 공통 `build/{supervisor,worker}.env`·`worker-sqlite.db`, **8013(test3) · DB `nexus_build`**. 개발(8011·8012, `nexus`)과 분리, 사용자 Claude 세션이 그 위에서 돎. **Claude는 8013을 끄지 않는다**. 빌드본 worker 교체 = 그 위 process 전부 종료(사용자 세션 포함, supervisor만 교체는 PENDING 뒤 이어짐). embed `cmd/*/env` = 배포 값 / **개발 실행 = `go run ./cmd/supervisor -env dev.env` 필수** (→ `INDEX-build.md` -> `REF-build.md`)
 - **함정**: 잔류 supervisor가 5050(지금은 8012) 점유 시 `bind: address already in use`(마이그레이션은 init서 정상, 바인드만 실패). `ss -ltnp | grep :5050`로 pid 찾아 kill
 
 ## apps/core 디렉토리
@@ -69,20 +69,20 @@ sqlc.yaml  README.md  .gitignore
 ## 모듈 현황 (상세는 각 REF)
 | 모듈 | 상태 | 문서 |
 |------|------|------|
-| 통신 인프라·파일 전송·supervisor web (마감) | 구현 완료(파일 전송 e2e 확인·F1·F2 고침 2026-10-20 → `INDEX-transfer-e2e.md`) | → `INDEX-infra.md` |
-| process 실행 (execute/pty/manager/bind) | 배선 마감 → `INDEX-process-wiring.md` / 터미널 기능(입력·SNAPSHOT·EDIT) 마감 → `INDEX-process-terminal.md` / 동기화·공유(5 공유(P·R·T))·보드·presence 마감 → `INDEX-process-share.md` / 종료 정책·바인딩 타일·질의 응답 중복·크기 가져오기 마감(2026-10-12~14) → `INDEX-terminal-ops.md` / worker 종료 시 스크립트 정리 마감(2026-10-15) → `INDEX-worker-orphan.md` / Windows worker(ConPTY·실행 규칙·에디터·OS 표시) 마감(2026-10-19) → `INDEX-windows-worker.md`. EXEC 실행 방식 = 현상 유지 확정 | `REF-process.md` + 마감 INDEX 6개 |
+| 통신 인프라·파일 전송·supervisor web | 마감 | `INDEX-infra.md` · `INDEX-transfer-e2e.md` |
+| process 실행 (execute/pty/manager/bind) | 배선·터미널 기능·동기화/공유/보드·종료 정책·고아 스크립트·Windows worker 전부 마감. EXEC 실행 방식 = 현상 유지 확정 | `REF-process.md` + 마감 INDEX(`HISTORY.md` "마감 파트") |
 | DB/스토어 (sqlc·goose·store) | 구현 완료 | `REF-db.md` |
-| Node 카탈로그 | Node 모듈·roster(명부)·서버 정리·폴더 목록 동기화·노드 클립보드 마감 → `INDEX-node-ops.md` / UI 연동 마감 → `INDEX-node-ui-link.md`. label 보류 | `REF-node-label.md`(+`REF-node-ui.md` UI 컨셉 / `REF-node-ui-overview.md` 전체보기·가상 키보드) |
+| Node 카탈로그 | Node 모듈·roster(명부)·폴더 목록 동기화·노드 클립보드·UI 연동 마감, label 보류 | `REF-node-label.md` + `INDEX-node-ops.md` |
 | 공용 PATCH 래퍼 (`internal/patch`) | `patch.Field[T]` 3-state(`{valid,value}`), worker도 재사용 예정 | `REF-node-label.md` |
-| 프론트엔드 (apps/frontend) | 스캐폴딩·socket hook + node 타일 UI(레이아웃 → `INDEX-node-ui-layout.md`, 연동 → `INDEX-node-ui-link.md`) + 터미널 기능(→ `INDEX-process-terminal.md`) + ⑮(모바일 가상 키보드)(→ `INDEX-mobile-keyboard.md`) + user/login 마무리·active 타일(→ `INDEX-frontend-polish.md`) + 전체보기 다른 보드 줄(→ `INDEX-board-preview.md`), 전부 마감. 회원가입은 별도 파트로 보류 | `REF-frontend.md`(+`REF-node-ui.md` 컨셉 / `REF-node-ui-overview.md` 전체보기·가상 키보드) |
-| 실시간 push (socket) | 전송 토대·3모드·ping/pong(Hub 막힘 해소, `e395433`)·node CRUD 발행(`AfterCommit`)·계정 토픽, 마감(→ `INDEX-node-ops.md`) | `REF-realtime.md` |
-| 위젯 (Skeleton/SkeletonGroup/StickyBox/TileLayout) | Skeleton/SkeletonGroup shimmer 로딩 위젯 신설 + StickyBox 컴포넌트 구현·스토어 리팩터(reportSelf/viewportClient, 2026-08-07) + TileLayout(CSS grid 타일 위젯, node UI Phase1 뼈대, 2026-08-19). 셋 다 실사용 미배선(TileLayout은 index.vue 데모만) | `REF-widget.md` |
-| 범용 유틸 (EventInterface/Memoized/LifecycleRegistry/GroupedSet) | 4종 + 공유 리사이즈 관측 그룹(`feature/common`, AppHead·StickyBox가 씀, 2026-08-07). 반복 주제(전역 규칙)라 전용 REF | `REF-util.md`(+`REF-util-drag.md` DraggableSession/useDragGhost/GhostArea, 설계 확정·**보류**(2026-10-12)) |
+| 프론트엔드 (apps/frontend) | 타일 UI·터미널·⑮(모바일 가상 키보드)·로그인·active 타일·보드 미리보기 전부 마감, 회원가입 보류 | `REF-frontend.md` · `REF-node-ui.md`(컨셉) · `REF-node-ui-overview.md`(전체보기·가상 키보드) |
+| 실시간 push (socket) | 전송 토대·3모드·ping/pong·node CRUD 발행(`AfterCommit`)·계정 토픽, 마감 | `REF-realtime.md` |
+| 위젯 (Skeleton/SkeletonGroup/StickyBox/TileLayout) | 구현만, 실사용 미배선(TileLayout = index.vue 데모만) | `REF-widget.md` |
+| 범용 유틸 (EventInterface/Memoized/LifecycleRegistry/GroupedSet) | 4종 + 공유 리사이즈 관측 그룹(`feature/common`), 반복 주제 | `REF-util.md` · `REF-util-drag.md`(드래그, 보류) |
 
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
-- 설계/재사용 지식: `REF-process.md` `REF-db.md` `REF-node-ui.md` `REF-node-ui-overview.md` `REF-frontend.md` `REF-realtime.md` `REF-widget.md` `REF-util.md` `REF-util-drag.md` `REF-test-env.md`(테스트 환경·함정) `REF-test-scripts.md`(날짜별 확인 스크립트 재작성 명세, ~10-13) `REF-test-scripts-1014.md`(같은 명세, 2026-10-14~) `REF-test-scripts-1020.md`(같은 명세, 2026-10-20~) `REF-external-access.md`(외부 접속 test1~3.falinux.com = 8011~8013, HTTPS 프록시) `REF-worker-screen.md`(worker 화면 송출 + 조작 — 아이디어, VNC 터널 + noVNC 추천) `REF-demo.md`(시연 데이터 — irony 폴더 200 + test1~3 공유, 스크립트 작성 규칙) `REF-worker-dir.md`(worker 폴더 타일 — worker 디렉토리 보기·실행·업로드, 2026-10-22 구상)
-- 작업 이력(주제별): `history/node-ui.md` `history/node-ui-overview.md` `history/frontend.md` `history/realtime.md` `history/widget.md` `history/util.md` `history/util-drag.md` `history/test-env.md` `history/test-scripts.md` `history/test-scripts-1014.md` `history/test-scripts-1020.md` `history/external-access.md` `history/worker-screen.md` `history/demo.md` `history/worker-dir.md`
-- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록 = `HISTORY.md` "마감 파트"(최근 = 빌드본 분리 `INDEX-build` · 리팩터링 `INDEX-refactor` · 페이지 이동 `INDEX-tile-move` · 헤더·푸터 개편 `INDEX-board-chrome` · 한글 입력 중복 `INDEX-term-ime` · 파일 전송 `INDEX-transfer-e2e`)
+- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 3개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-worker-dir.md`(worker 폴더 타일, 다음)
+- 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
+- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록 = `HISTORY.md` "마감 파트"(최근 = 새 보드·IUTF8 `INDEX-fix-board-iutf8` · 빌드본 분리 `INDEX-build` · 리팩터링 `INDEX-refactor`)
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
-- 현재 진행: `CURRENT.md`
+- 현재 진행: `CURRENT.md` / 나중에 할 것: `BACKLOG.md`(세션 시작 시 안 읽음)

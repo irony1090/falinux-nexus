@@ -35,4 +35,4 @@
 | 다시 넣은 뒤 새 조합 없이 끝남 | `["니"]` — 글자 빠짐 없음 |
 
 ## 곁가지 (미룸)
-- worker PTY에 `IUTF8` 없음 -> 줄 단위 입력(`read`·`cat`)에서 한글 백스페이스가 1바이트만 지움(`ime-test` 화면 `어라 앞앞에` vs 받음 `어라 라 앞앞에`). raw 모드(Claude Code·readline)는 무관 -> `CURRENT.md`
+- worker PTY에 `IUTF8` 없음 -> 줄 단위 입력(`read`·`cat`)에서 한글 백스페이스가 1바이트만 지움(`ime-test` 화면 `어라 앞앞에` vs 받음 `어라 라 앞앞에`). raw 모드(Claude Code·readline)는 무관 -> **2026-10-22 해결**(`REF-fix-board-iutf8.md`)

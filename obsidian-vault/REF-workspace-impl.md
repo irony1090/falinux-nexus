@@ -31,7 +31,7 @@
 |---|---|
 | `GET /workspaces` | 계정의 작업 공간 목록 `[{hash, name, isDefault, ord}]`(기본이 없으면 만듦) |
 | `GET/PUT /tiles`, `GET/PUT /tiles/:hash` | 지금 `/tiles`와 같은 규칙(version 409). PUT은 WS5 검사 추가. 기본 GET은 WS3 고아 안전망 |
-| `POST /workspaces` | 만들기(분리): `{folderTileId, name?, version}` — 출발 = 기본 작업 공간만(`/`에서만 만듦), 루트 폴더 타일 불가. 그 폴더 타일 + 하위가 새 트리의 루트가 됨(W1(분리 범위) = 타일 트리 하위) |
+| `POST /workspaces` | 만들기(분리): `{folderTileId, name?, version}` — 출발 = ~~기본 작업 공간만~~ -> `from`(출발 hash, 비면 기본) 어느 보드든(2026-10-22, `REF-fix-board-iutf8.md`), 루트 폴더 타일 불가. 그 폴더 타일 + 하위가 새 트리의 루트가 됨(W1(분리 범위) = 타일 트리 하위) |
 | `POST /workspaces/:hash/move` | 폴더 이동(W3(이동 범위)): `{folderTileId, to: hash, version}` — 도착 작업 공간 루트 끝, 작업 공간의 루트 폴더 타일은 불가 |
 | `PATCH /workspaces/:hash` | 이름 변경 |
 | `DELETE /workspaces/:hash` | 삭제(W2(삭제 처리)): 루트 폴더 타일째 기본 작업 공간 루트 끝으로, kill 없음. 기본은 삭제 불가 |

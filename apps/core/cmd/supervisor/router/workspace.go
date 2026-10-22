@@ -26,6 +26,7 @@ func (r *supervisorRouter) mountWorkspaces(e *echo.Echo) {
 }
 
 type workspaceCreateRequest struct {
+	From         string `json:"from"` // 출발 보드 hash, 비면 기본 보드
 	FolderTileID string `json:"folderTileId" validate:"required"`
 	Name         string `json:"name" validate:"max=64"`
 	Version      int64  `json:"version" validate:"required"`
@@ -173,7 +174,7 @@ func (r *supervisorRouter) listWorkspaces(c echo.Context) error {
 	return c.JSON(http.StatusOK, out)
 }
 
-// createWorkspace: 기본 작업 공간의 폴더 타일 하나를 하위째 떼어 새 작업 공간의 루트로 — W1(분리 범위), `/`에서만 만듦
+// createWorkspace: 출발 보드의 폴더 타일 하나를 하위째 떼어 새 작업 공간의 루트로 — W1(분리 범위), 어느 보드에서든(2026-10-22)
 func (r *supervisorRouter) createWorkspace(c echo.Context) error {
 	sess := r.requireSession(c)
 	body := bindBody[workspaceCreateRequest](c)
@@ -182,8 +183,17 @@ func (r *supervisorRouter) createWorkspace(c echo.Context) error {
 	q := TxQueries(c)
 
 	// 행 하나만 잠그므로 잠금 순서 규칙 대상 아님
-	ensureTileTree(c, userID)
-	src, err := q.GetTileTreeForUpdate(ctx, userID)
+	var src superdb.TileTree
+	var err error
+	if body.From == "" {
+		ensureTileTree(c, userID)
+		src, err = q.GetTileTreeForUpdate(ctx, userID)
+	} else {
+		src, err = q.GetTileTreeByHashForUpdate(ctx, superdb.GetTileTreeByHashForUpdateParams{UserID: userID, Hash: body.From})
+		if errors.Is(err, pgx.ErrNoRows) {
+			panic(web.Err(404, "보드를 찾을 수 없습니다"))
+		}
+	}
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}

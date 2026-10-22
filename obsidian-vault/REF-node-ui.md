@@ -39,6 +39,6 @@ Splitpanes(단순 split-pane), Golden Layout/Dockview(VSCode류 풀 도킹 엔�
   3. ~~좌표 NULL 폴백~~ — position_x/y 미사용으로 이 문제 자체가 소멸(2026-08-10).
 
 ## 열린 질문
-최신 목록은 `CURRENT.md` "열린 질문"(번호 유지)에서 관리. 이 파일에 있던 항목의 처리:
+최신 목록은 `BACKLOG.md` "열린 질문"(번호 유지, 2026-10-22 CURRENT에서 옮김)에서 관리. 이 파일에 있던 항목의 처리:
 - 레이아웃 저장 스코프 → **계정 단위 확정**(2026-08-19), 저장 대상은 여는 관계 트리(2026-09-29, → `REF-node-ui-layout.md`)
 - 분할 UX / `ProcessDialog` 다중 인스턴스 / 라우팅 / `NODE:<parentId>` 동적 구독 → 미정, CURRENT ①~④로 이월

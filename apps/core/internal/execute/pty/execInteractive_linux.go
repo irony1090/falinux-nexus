@@ -48,7 +48,25 @@ func openPty() (master *os.File, slave *os.File, err error) {
 		return nil, nil, fmt.Errorf("slave 열기 실패: %w", err)
 	}
 
+	if err := setUTF8(slave); err != nil {
+		slave.Close()
+		master.Close()
+		return nil, nil, err
+	}
 	return master, slave, nil
+}
+
+// setUTF8은 줄 편집(canonical 모드)의 백스페이스가 UTF-8 한 글자를 지우게 IUTF8을 켠다(없으면 1바이트만 지움)
+func setUTF8(slave *os.File) error {
+	var t syscall.Termios
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, slave.Fd(), syscall.TCGETS, uintptr(unsafe.Pointer(&t))); errno != 0 {
+		return fmt.Errorf("termios 읽기 실패: %v", errno)
+	}
+	t.Iflag |= syscall.IUTF8
+	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, slave.Fd(), syscall.TCSETS, uintptr(unsafe.Pointer(&t))); errno != 0 {
+		return fmt.Errorf("termios 쓰기 실패: %v", errno)
+	}
+	return nil
 }
 
 // sysProc는 Interactive의 Linux 전용 핸들이다.

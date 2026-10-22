@@ -38,3 +38,8 @@
 - 변경 전 비교: `git worktree add --detach <scratchpad>/base HEAD`에서 빌드한 `supervisor.base`로 같은 스크립트(끝나면 `git worktree remove --force`)
 - 2026-10-21(2차) 다시 작성 = 35개: 위 순서 + `TAB:ACTIVE {uid}` 뒤 b1 ACTIVE:UPDATE uid·`GET /tabs/active`(B) 보임 / 공유 풀기 뒤 `TAB:ACTIVE {uid}` -> b1 대상 빈 ACTIVE:UPDATE·`/tabs/active` 안 보임. kill은 `{force: true}`, 끝 STATUS = `status` 2(Completed)·3(Failed). 실행기 `run_iso.sh <sup|supbase>`(DB 만들기 -> supervisor -> worker -> 스크립트 -> cwd 기준 종료 -> DROP)
 - 함정 → `REF-test-env.md` "소켓 연결 순서"·"유저 id 얻기". 정리 = cwd가 `iso/sup`·`iso/wrk`인 pid + `DROP DATABASE`
+
+## 2026-10-22 새 보드·IUTF8 (→ `REF-fix-board-iutf8.md` "확인")
+- `iutf8_test.go`(package pty): `ExecInteractive("bash","-c", pre+"stty -a | grep -o -- '-\\?iutf8'; head -n1 | od -An -tx1; echo END")` -> 0.3초 뒤 `Write("가나\x7f\n")` -> `Status()`가 완료될 때까지 -> `OutputAll()`. pre = "" / "stty -iutf8; " 두 번. 실행 = `{"Replace":{"<repo>/apps/core/internal/execute/pty/iutf8_scratch_test.go":"<scratchpad>/iutf8_test.go"}}` overlay로 `go test -overlay ... -run TestIUTF8 -v ./internal/execute/pty/`. bash `read`로 하면 `-iutf8` 쪽이 멈춤(bash가 깨진 바이트 뒤를 기다림) -> `head` 사용
+- `newboard_test.py`(Python `requests`, 16개): 계정 만들기·로그인 -> `GET /tiles` 루트 아래 A(A1)·B 폴더 타일(`nodeId: null`)로 PUT -> `POST /workspaces {folderTileId:A}`(from 없음) -> `{from:b1, folderTileId:A1}` -> 거부 4개(루트 400·없는 from 404·옛 version 409·다른 계정 404) -> 목록 3개
+
