@@ -68,11 +68,11 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 	}
 
 	sqlite := os.Getenv(("SQLITE"))
-	if wsScheme == "" {
+	if sqlite == "" {
 		if isNil {
 			return nil, fmt.Errorf("환경변수 SQLITE 값 필수")
 		} else {
-			wsScheme = env.WsScheme
+			sqlite = env.Sqlite
 		}
 	}
 

@@ -12,3 +12,6 @@
 # 환경
 .env
 .env.local
+
+# embed env = 배포 값(비밀번호) -> git 제외, 개발 값은 dev.env (REF-build.md "env 내뱉기 계획")
+/cmd/*/env

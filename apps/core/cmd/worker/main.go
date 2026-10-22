@@ -4,6 +4,9 @@ package main
 
 import (
 	_ "embed"
+	"errors"
+	"flag"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -22,6 +25,9 @@ import (
 
 //go:embed env
 var envContent string
+
+// 빌드본은 실행 파일 옆 env를 읽는다(-env로 바꿈). 개발은 -env dev.env 필수
+var envFile = flag.String("env", "", "env 파일 (개발 = 필수·상대 경로는 소스 폴더 / 빌드본 = 기본 env·상대 경로는 실행 파일 폴더)")
 
 func init() {
 	initEnv()
@@ -110,19 +116,32 @@ func mountStore(dbPath string) {
 	log.Printf("worker: DB 준비됨 (%s)", dbPath)
 }
 
+// embed env = 배포 값 -> 빌드본에서 파일이 없을 때 내뱉는 용도로만 쓴다 (REF-build.md "env 내뱉기 계획")
 func initEnv() {
 	projectDir := getProjectRoot()
-	_, err := constants.LoadEnvFromString(envContent, projectDir)
-	if err != nil {
-		panic(err.Error())
+	flag.Parse()
+	envPath := *envFile
+	if constants.IsDev() {
+		// 개발은 -env 필수: 빼먹으면 embed(배포 값)로 떠서 빌드본 supervisor(8013)에 같은 메인키로 붙는다
+		if envPath == "" {
+			panic("개발 실행은 -env 필수 (예: go run ./cmd/worker -env dev.env)")
+		}
+	} else if envPath == "" {
+		envPath = "env"
+	}
+	if !filepath.IsAbs(envPath) {
+		envPath = filepath.Join(projectDir, envPath)
 	}
 
-	if !constants.IsDev() {
-		envPath := filepath.Join(projectDir, "env")
-		_, err = constants.LoadEnv(envPath, projectDir)
-		if err != nil {
-			panic(err.Error())
+	if _, err := os.Stat(envPath); errors.Is(err, os.ErrNotExist) && !constants.IsDev() {
+		if err := os.WriteFile(envPath, []byte(envContent), 0o600); err != nil {
+			panic(fmt.Sprintf("env 파일 만들기 실패: %v", err))
 		}
+		log.Printf("worker: env 파일이 없어 배포 기본값으로 만듦 -> %s (값 확인 후 다시 실행)", envPath)
+		os.Exit(1)
+	}
+	if _, err := constants.LoadEnv(envPath, projectDir); err != nil {
+		panic(err.Error())
 	}
 }
 

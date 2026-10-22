@@ -7,7 +7,7 @@
 |---|---|---|
 | https://test1.falinux.com | 8011 | 프론트(vite 개발 서버) |
 | https://test2.falinux.com | 8012 | supervisor(REST + 소켓 `/subscribe`) |
-| https://test3.falinux.com | 8013 | 비어 있음(여분) |
+| https://test3.falinux.com | 8013 | **빌드본**(supervisor가 화면 + API, 2026-10-22~ → `REF-build.md`) |
 
 - 앞단 = 다른 장비의 nginx가 TLS를 끝내고 이 장비 LAN IP(192.168.40.132 등)의 포트로 **평문 HTTP** 전달 → 이 장비 서버는 https 처리 불필요, 대신 **0.0.0.0 바인드 필수**(localhost만 열면 502)
 - WebSocket 업그레이드 통과 확인(wss 에코). **nginx 유휴 끊김 = 30초**(실측) — 앱 소켓은 ping 10초(`transport.KeepAlive`)로 안 걸림

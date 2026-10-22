@@ -69,8 +69,9 @@ goose -dir internal/worker/db/migrations create add_something sql
 
 ```sh
 go build ./...
-go run ./cmd/supervisor
-go run ./cmd/worker
+# clone 직후: cmd/*/env(embed, 배포 값, git 제외)가 없으면 컴파일이 안 된다 -> dev.env를 env로 복사해 배포 값으로 채울 것
+go run ./cmd/supervisor -env dev.env
+go run ./cmd/worker -env dev.env
 ```
 
 ## 현황 / 다음 작업

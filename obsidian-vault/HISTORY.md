@@ -29,8 +29,12 @@
 - 헤더·푸터 개편(마감) → `INDEX-board-chrome.md` (board-chrome·board-keyboard)
 - 페이지 이동(마감) → `INDEX-tile-move.md` (tile-move)
 - 리팩터링(마감) → `INDEX-refactor.md` (refactor-socket·refactor-socket-batches·refactor-cleanup)
+- 빌드본 분리(마감) → `INDEX-build.md` (build)
 
 ## history/ 파일 색인 (진행 중 파트)
+
+### `history/worker-dir.md` — worker 폴더 타일 (2026-10-22 신설)
+- 2026-10-22 구상·조율: Q1~Q11 답(별도 장비 타일·장비-1~3 규칙), 개정 큰 계획 폴더-1~6 제시, 코드 없음
 
 ### `history/demo.md` — 시연 데이터 (2026-10-16 신설)
 - 2026-10-16 플랜 안 A·B·C 제시 → 안 C(생산 지그 시나리오) 선택, 스크립트 6개 + test1~3 공유 등록(REST), 브라우저 경유 실행 미확인

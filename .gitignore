@@ -2,3 +2,6 @@
 
 # user vault(사용자 필기·사진) — git 제외
 obsidian-vault/user/
+
+# 빌드본(scripts/build.sh) — REF-build.md
+build/

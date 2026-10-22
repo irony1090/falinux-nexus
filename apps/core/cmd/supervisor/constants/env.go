@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,7 @@ type EnvVars struct {
 	DBHost      string
 	DBPort      int
 	SessionKey  string // 세션 쿠키 서명 키
+	WebDir      string // 빌드된 웹 파일 폴더(비면 서빙 안 함). 상대 경로 = 실행 파일 폴더 기준
 }
 
 var env *EnvVars
@@ -116,6 +118,13 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		}
 	}
 
+	webDir := os.Getenv("WEB_DIR")
+	if webDir == "" && !isNil {
+		webDir = env.WebDir
+	} else if webDir != "" && !filepath.IsAbs(webDir) {
+		webDir = filepath.Join(projectDir, webDir)
+	}
+
 	if isNil {
 		// 환경 변수 값으로 구조체 초기화
 		env = &EnvVars{
@@ -133,6 +142,7 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 	env.DBHost = dbHost
 	env.DBPort = dbPort
 	env.SessionKey = sessionKey
+	env.WebDir = webDir
 
 	log.Printf("root path %s", projectDir)
 	log.Printf("Loaded %v", env)
