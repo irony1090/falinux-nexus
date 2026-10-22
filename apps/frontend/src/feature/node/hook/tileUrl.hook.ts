@@ -1,7 +1,7 @@
 import { onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter, type LocationQuery } from 'vue-router'
 import type { provideTileGrids } from '../store/tileGrids.store'
-import { useTileTree } from '../store/tileTree.store'
+import { isProcTile, useTileTree } from '../store/tileTree.store'
 
 // 스크롤이 멈춘 뒤에 쓴다
 const WRITE_DELAY = 300
@@ -46,7 +46,7 @@ export const useTileUrl = (ctx: ReturnType<typeof provideTileGrids>) => {
         if (!measured) return       // Grid 측정 전 — 스크롤할 자리가 없다
         if (tab === 'terminals') rootTab.value = 'terminals'
         const t = focus ? tiles.value[focus] : undefined
-        if (t?.type === 'terminal' && t.minimized) setMinimized(t.id, false)
+        if (isProcTile(t) && t.minimized) setMinimized(t.id, false)
         // view 있음 = 이 훅이 쓴 URL(새로고침) -> 복원 / 없음 = 다른 화면이 보낸 이동(focusPath) -> 예전처럼 activate.
         // 없는 타일(그 사이 닫힘)은 건너뛰고 아래 write가 지금 상태로 덮는다 — U4(없는 타일)
         if (view) await restore(focus, view)

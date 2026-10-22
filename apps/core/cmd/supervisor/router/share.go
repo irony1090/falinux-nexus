@@ -9,7 +9,6 @@ import (
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/web"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
 )
@@ -319,7 +318,7 @@ func (r *supervisorRouter) bindProcessTile(c echo.Context) error {
 	}
 	dst := docs[hash]
 	parentID := body.TileID
-	if p, ok := dst.Tiles[parentID]; !ok || p.Type != "folder" {
+	if p, ok := dst.Tiles[parentID]; !ok || !p.canParent() {
 		parentID = dst.RootID
 	}
 
@@ -342,7 +341,7 @@ func (r *supervisorRouter) bindProcessTile(c echo.Context) error {
 			panic(web.Err(400, "끝난 process는 열 수 없습니다"))
 		}
 		nodeID := rec.NodeID.Int64
-		tile = tileItem{ID: uuid.NewString(), Type: "terminal", Kids: []string{}, Size: tileSize{W: 0.5, H: 0.5}, NodeID: &nodeID, UID: uid}
+		tile = newTerminalTile(nil, nodeID, uid, defaultTileSize)
 	}
 	tile.Parent, tile.Minimized = &parentID, false
 	parent := dst.Tiles[parentID]

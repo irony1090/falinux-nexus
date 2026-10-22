@@ -9,7 +9,6 @@ import (
 	"nexus/internal/supervisor/store"
 	"nexus/internal/web"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -58,10 +57,10 @@ func appendTerminalTile(ctx context.Context, userID int64, hash, parentTileID st
 		}
 		// 부모 타일을 그 사이 다른 탭이 닫았으면 루트에 붙인다
 		parent, ok := doc.Tiles[parentTileID]
-		if !ok || parent.Type != "folder" {
+		if !ok || !parent.canParent() {
 			parent = doc.Tiles[doc.RootID]
 		}
-		tile := tileItem{ID: uuid.NewString(), Type: "terminal", Parent: &parent.ID, Kids: []string{}, Size: size, NodeID: &nodeID, UID: uid}
+		tile := newTerminalTile(&parent.ID, nodeID, uid, size)
 		parent.Kids = append(parent.Kids, tile.ID)
 		doc.Tiles[parent.ID] = parent
 		doc.Tiles[tile.ID] = tile
@@ -136,7 +135,7 @@ func insertTerminal(ctx context.Context, q *superdb.Queries, userID, nodeID int6
 	}
 	doc := &docs[at]
 	parent := doc.Tiles[parentID]
-	tile := tileItem{ID: uuid.NewString(), Type: "terminal", Parent: &parent.ID, Kids: []string{}, Size: tileSize{W: 0.5, H: 0.5}, NodeID: &nodeID, UID: uid}
+	tile := newTerminalTile(&parent.ID, nodeID, uid, defaultTileSize)
 	parent.Kids = append(parent.Kids, tile.ID)
 	doc.Tiles[parent.ID] = parent
 	doc.Tiles[tile.ID] = tile
@@ -254,7 +253,8 @@ func (r *supervisorRouter) adoptOrphans(c echo.Context, userID int64) {
 	uids := make([]string, 0, len(orphans))
 	for _, p := range orphans {
 		nodeID := p.NodeID.Int64
-		t := tileItem{ID: uuid.NewString(), Type: "terminal", Parent: &root.ID, Kids: []string{}, Size: tileSize{W: 0.5, H: 0.5}, NodeID: &nodeID, UID: p.Uid, Adopted: true}
+		t := newTerminalTile(&root.ID, nodeID, p.Uid, defaultTileSize)
+		t.Adopted = true
 		doc.Tiles[t.ID] = t
 		root.Kids = append(root.Kids, t.ID)
 		uids = append(uids, p.Uid)

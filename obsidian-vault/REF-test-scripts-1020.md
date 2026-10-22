@@ -52,3 +52,10 @@
 - 보관 프로세스 찾기 = `/proc/*/cmdline` 끝 두 개가 `-hold`, `.../<uid>.sock`
 - 스크립트: `tick.sh`(0.2초마다 `tick N`) · `exit7.sh`(3초 뒤 exit 7) · `io.sh`(`read` 뒤 `stty size` 반복) · `note.txt`(EDIT, 입력 `ggdGinew<Esc>:wq`)
 - 정리: cwd가 `keep/` 아래인 프로세스 kill, `DROP DATABASE nexus_keep_tmp`, 소켓 폴더 비었는지 확인
+
+## 2026-10-22 타일 종류 정리 (`pw/tk.mjs`·`pw/tk2.mjs`, playwright-core 1.64) → `REF-tile-kinds.md` "확인"
+- 격리 supervisor 5051·worker `tk-dev` 공유, 프론트 2개: 새 = 저장소 `apps/frontend` / 옛 = `git archive HEAD apps/frontend`를 scratchpad에 풀고 `node_modules` symlink. vite 설정 = scratchpad `iso-{new,old}.mts`(그 트리의 `vite.config.mts`를 **정적 import**해 함수 호출 후 `root`·`cacheDir`·`server.port`만 덮음 — 동적 import는 TS 변환이 안 돼 `UserConfig` export 오류). `VITE_API_URL=http://localhost:5051`은 환경 변수로(.env보다 우선)
+- 계정마다 새로 만들고 `POST /nodes`로 폴더 F1(`deviceKey=tk-dev`) + 스크립트 `longrun`(sleep 300)·`quick`(바로 끝)
+- tk: 루트 -> F1 새 타일 -> 두 스크립트 실행 -> 터미널 ⋮ 메뉴·단축키 끄기 -> 폴더 ⋮ 메뉴 -> RUN 칩 메뉴 -> 최소화(루트 탭) -> 파일 탭 -> F1 닫기(터미널 adopted) -> 끝난 터미널 × title -> 전체보기 라벨. 단계마다 `.TileFrame`별 {클래스, 머리 줄 글자, 자식별 계산 CSS, 버튼 title/disabled, 루트 탭, ro, revoked}
+- tk2: F1 새 보드로 분리(이름 다이얼로그 Enter) -> URL·새 보드 타일 -> 기본 보드에서 F1 다시 열고 다른 보드(B2)로 이동 -> `GET /tiles` 기본 트리 종류
+- 함정: 행 메뉴도 title "메뉴" -> 머리 줄은 `.TileFrame__head [title="메뉴"]` / 스크립트 행 = `.row`를 `.nm` 글자로 거름 / 옛 트리 symlink node_modules -> 아이콘 글꼴 403(무시) / 정리는 `nexus-hold-1000/tk-dev/` 소켓의 보관 프로세스만, `/tmp/<nodeId>/<uid>` 실행 사본은 uid로 골라 지움(test3도 같은 폴더 씀)

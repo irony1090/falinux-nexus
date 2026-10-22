@@ -52,7 +52,7 @@ func (r *supervisorRouter) listNodeRuns(c echo.Context) error {
 	for _, rec := range docs {
 		doc := mustParseDoc(rec.Tree)
 		for _, t := range doc.Tiles {
-			if t.Type == "terminal" {
+			if t.holdsProc() {
 				where[t.UID] = runLocation{hash: rec.Hash, tileID: t.ID, minimized: t.Minimized}
 				uids = append(uids, t.UID)
 			}

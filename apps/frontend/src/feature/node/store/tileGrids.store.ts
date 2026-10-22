@@ -8,7 +8,7 @@ import { tabReady } from '@/common/util/tabId.util'
 import { computed, inject, nextTick, onBeforeUnmount, provide, ref, shallowRef, watch } from 'vue'
 import type { BoardItem } from '../api/board.api'
 import { useBoardTrees } from './boardTrees.store'
-import { useTileTree, type Tile } from './tileTree.store'
+import { isProcTile, useTileTree, type Tile } from './tileTree.store'
 
 const TILE_GRIDS_STORE_KEY = Symbol('TileGridsStore')
 
@@ -58,7 +58,7 @@ export const provideTileGrids = () => {
     const instanceOf = computed(() => {
         const byNode = new Map<number, Array<string>>()
         flat.value.forEach(({ tile }) => {
-            if (tile.type !== 'terminal') return
+            if (!isProcTile(tile)) return
             byNode.set(tile.nodeId, [...(byNode.get(tile.nodeId) ?? []), tile.id])
         })
         const rst = new Map<string, number>()
@@ -70,7 +70,7 @@ export const provideTileGrids = () => {
 
     // 루트 타일 터미널 탭 목록 — 최소화 먼저, 그다음 배치 순서
     const terminals = computed(() => {
-        const all = flat.value.flatMap(({ tile }) => tile.type === 'terminal' ? [tile] : [])
+        const all = flat.value.flatMap(({ tile }) => isProcTile(tile) ? [tile] : [])
         return [...all.filter(t => t.minimized), ...all.filter(t => !t.minimized)]
     })
 
@@ -247,7 +247,7 @@ export const provideTileGrids = () => {
     // 앱 단축키를 끄는가 — 모든 앱 단축키는 처리 맨 앞에서 이것만 본다(새 단축키도). 이동-3(타일별 단축키 끔)
     const appShortcutsOff = computed(() => {
         const t = activeId.value ? tiles.value[activeId.value] : undefined
-        return t?.type === 'terminal' && !!t.shortcutsOff
+        return isProcTile(t) && !!t.shortcutsOff
     })
 
     // 타일 안 누르기 — 포커스는 브라우저 기본 동작에 맡긴다
@@ -258,7 +258,7 @@ export const provideTileGrids = () => {
     // 터미널 = xterm / 그 밖(폴더·볼 수 없는 터미널) = 타일 요소(tabindex -1)
     const focusTile = (tileId: string) => {
         const t = tiles.value[tileId]
-        if (t?.type === 'terminal' && focusTerm(t.uid)) return
+        if (isProcTile(t) && focusTerm(t.uid)) return
         stripEl.value?.querySelector<HTMLElement>(`.TileFrame[data-tile-id="${CSS.escape(tileId)}"]`)?.focus({ preventScroll: true })
     }
 
@@ -287,7 +287,7 @@ export const provideTileGrids = () => {
     // 다른 계정에 알릴 active 대상 — 터미널 = uid / 폴더 = 보여 주는 nodeId(루트 = 계정마다 다른 목록이라 없음). REF-node-ui-active.md "원격 active 구조안"
     const activeTarget = computed(() => {
         const t = activeId.value ? tiles.value[activeId.value] : undefined
-        if (t?.type === 'terminal') return { uid: t.uid }
+        if (isProcTile(t)) return { uid: t.uid }
         if (t?.type === 'folder' && t.nodeId !== null) return { nodeId: t.nodeId }
         return {}
     })

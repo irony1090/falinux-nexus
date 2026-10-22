@@ -3,6 +3,7 @@ import { computed, inject, onBeforeUnmount, provide, readonly, ref, watch, type 
 import type { BoardItem } from '../api/board.api'
 import { getTiles, type TileTree, type TileTreeResponse } from '../api/tile.api'
 import type { provideBoards } from './boards.store'
+import { isProcTile } from './tileTree.store'
 
 const BOARD_TREES_STORE_KEY = Symbol('BoardTreesStore')
 
@@ -91,7 +92,7 @@ export const provideBoardTrees = (current: Readonly<Ref<string>>, boards: Return
 
     // 다른 보드 트리의 터미널 uid — 터미널 등록 기준에 더한다(미리보기-2(터미널 등록))
     const uids = computed(() => new Set(Object.values(trees_.value)
-        .flatMap(e => Object.values(e.tree.tiles).flatMap(t => t.type === 'terminal' ? [t.uid] : []))))
+        .flatMap(e => Object.values(e.tree.tiles).flatMap(t => isProcTile(t) ? [t.uid] : []))))
 
     const ctx = {
         isOpen: readonly(open_),

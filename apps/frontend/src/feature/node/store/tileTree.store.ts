@@ -1,4 +1,5 @@
 import type { TileNode, TileSize } from '@/feature/widget/util/tile.type'
+import { canParent, holdsProc } from '@/feature/widget/util/tileKind.util'
 import { useAppDialog } from '@/feature/layout/store/appDialog.store'
 import { useTestSocket } from '@/common/websocket/websocket.hook'
 import { readTabId } from '@/common/util/tabId.util'
@@ -12,6 +13,13 @@ type TileBase = TileNode & { parent: string | null }    // parent = 이 타일�
 export type FolderTile = TileBase & { type: 'folder'; nodeId: number | null; uid?: string; bound?: boolean }  // null = 루트 목록, uid = 서버 발급(새 타일은 저장 뒤 생김), 공유로 받은 타일은 공유한 타일과 같음, bound = 수동 타일 고정(서버만 씀, 표시는 pins)
 export type TerminalTile = TileBase & { type: 'terminal'; nodeId: number; uid: string; shortcutsOff?: true }   // shortcutsOff = active인 동안 앱 단축키 끔(이동-3(타일별 단축키 끔))
 export type Tile = FolderTile | TerminalTile
+
+// 능력별 타일 — 가드가 TILE_KINDS를 믿으므로 종류를 더하면 이 두 타입도 같이 (REF-tile-kinds.md)
+export type ParentTile = FolderTile     // 능력-2(자식 가능)
+export type ProcTile = TerminalTile     // 능력-3(process 담음)
+export const isParentTile = (t: Tile | undefined): t is ParentTile => !!t && canParent(t)
+export const isProcTile = (t: Tile | undefined): t is ProcTile => !!t && holdsProc(t)
+export const procUid = (t: Tile | undefined) => isProcTile(t) ? t.uid : undefined
 
 // 트리를 바꾸는 동작. 409·다른 탭 push 때 서버 트리 위에 다시 실행되므로 검사(throw)를 전부 먼저 하고 변경은 뒤에 한다 —
 // 변경 도중 throw하면 반쯤 바뀐 트리가 남는다. 대상 타일이 없으면 throw = 그 동작은 버림.
@@ -32,6 +40,12 @@ const folderIn = (tiles: Record<string, Tile>, id: string) => {
     return tile
 }
 
+const parentIn = (tiles: Record<string, Tile>, id: string) => {
+    const tile = tiles[id]
+    if (!isParentTile(tile)) throw new Error(`[TILE_TREE] not a parent tile: ${id}`)
+    return tile
+}
+
 const tileIn = (tiles: Record<string, Tile>, id: string) => {
     const tile = tiles[id]
     if (!tile) throw new Error(`[TILE_TREE] no tile: ${id}`)
@@ -41,7 +55,7 @@ const tileIn = (tiles: Record<string, Tile>, id: string) => {
 // 부모 kids 끝에 붙인다 (= 타일 순서 규칙의 "연 순서"). 재적용마다 새 객체 — 반응형 트리에 넣은 객체가 이후 변경돼도 동작은 그대로
 const attachOp = (parentId: string, tile: Tile): Op => ({ tiles }) => {
     if (tiles[tile.id]) throw new Error(`[TILE_TREE] already attached: ${tile.id}`)
-    const parent = folderIn(tiles, parentId)
+    const parent = parentIn(tiles, parentId)
     tiles[tile.id] = clone(tile)
     parent.kids = [...parent.kids, tile.id]
 }
@@ -54,15 +68,15 @@ const navigateOp = (tileId: string, nodeId: number | null): Op => ({ tiles }) =>
 }
 
 // 폴더를 닫으면 그 폴더가 연 타일들이 부모 소속이 된다 (⑩ 타일 닫기 규칙):
-// 하위 폴더는 닫힌 자리로, 터미널은 adopted로 표시해 kids 끝에 붙인다(= 부모가 직접 실행한 프로세스 뒤).
+// process 타일(터미널)은 adopted로 표시해 kids 끝에 붙이고(= 부모가 직접 실행한 프로세스 뒤), 나머지(하위 폴더)는 닫힌 자리로.
 // 실행 중 터미널의 닫기 금지(kill 먼저)는 UI가 막는다 — 스토어는 process 상태를 모른다
 const closeOp = (tileId: string): Op => ({ tiles }) => {
     const tile = tileIn(tiles, tileId)
     if (!tile.parent) return   // 루트는 닫을 수 없음
-    const parent = folderIn(tiles, tile.parent)
+    const parent = parentIn(tiles, tile.parent)
     const kids = tile.kids.map(k => tiles[k]).filter(k => !!k)
-    const folders = kids.filter(k => k.type === 'folder')
-    const terminals = kids.filter(k => k.type === 'terminal')
+    const folders = kids.filter(k => !isProcTile(k))
+    const terminals = kids.filter(isProcTile)
     // 닫힌 폴더 안에서 보이던 순서(직접 실행 -> 넘겨받음) 그대로 넘긴다
     const lifted = [...terminals.filter(k => !k.adopted), ...terminals.filter(k => k.adopted)]
 
@@ -79,17 +93,17 @@ const resizeOp = (tileId: string, size: TileSize): Op => ({ tiles }) => {
     tileIn(tiles, tileId).size = { ...size }
 }
 
-// 터미널만 최소화한다. 다시 열면 트리 자리·크기 그대로 배치에 돌아온다
+// process 타일만 최소화한다. 다시 열면 트리 자리·크기 그대로 배치에 돌아온다
 const minimizeOp = (tileId: string, on: boolean): Op => ({ tiles }) => {
     const tile = tileIn(tiles, tileId)
-    if (tile.type !== 'terminal') throw new Error(`[TILE_TREE] not a terminal tile: ${tileId}`)
+    if (!isProcTile(tile)) throw new Error(`[TILE_TREE] not a process tile: ${tileId}`)
     if (on) tile.minimized = true
     else delete tile.minimized
 }
 
 const shortcutsOffOp = (tileId: string, on: boolean): Op => ({ tiles }) => {
     const tile = tileIn(tiles, tileId)
-    if (tile.type !== 'terminal') throw new Error(`[TILE_TREE] not a terminal tile: ${tileId}`)
+    if (!isProcTile(tile)) throw new Error(`[TILE_TREE] not a process tile: ${tileId}`)
     if (on) tile.shortcutsOff = true
     else delete tile.shortcutsOff
 }
@@ -97,7 +111,7 @@ const shortcutsOffOp = (tileId: string, on: boolean): Op => ({ tiles }) => {
 // exec 응답의 타일 넣기 — 이미 있으면 그대로(재적용 때 서버 트리에 있음), 부모가 닫혔으면 루트 (서버 appendTerminalTile과 같은 규칙)
 const upsertOp = (tile: TerminalTile): Op => tree => {
     if (tree.tiles[tile.id]) return
-    const parentId = tile.parent && tree.tiles[tile.parent]?.type === 'folder' ? tile.parent : tree.rootId
+    const parentId = tile.parent && isParentTile(tree.tiles[tile.parent]) ? tile.parent : tree.rootId
     attachOp(parentId, { ...tile, parent: parentId })(tree)
 }
 

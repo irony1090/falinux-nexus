@@ -3,7 +3,7 @@ import { lookupProcesses } from '@/feature/process/api/process.api'
 import { type provideProcessTerm } from '@/feature/process/store/processTerm.store'
 import { useTestSocket } from '@/common/websocket/websocket.hook'
 import { onBeforeUnmount, watch, type Ref } from 'vue'
-import type { provideTileTree } from '../store/tileTree.store'
+import { isProcTile, type provideTileTree } from '../store/tileTree.store'
 
 // 트리의 터미널 타일과 processTerm 등록을 맞춘다 — ⑪ 3-d(터미널 복원) + 4-c(터미널 등록 일원화).
 // 새로고침 복원·다른 탭 push·409 재적용으로 트리에 처음 보이는 터미널이 전부 이 길로 등록된다(REF-node-ui-sync.md).
@@ -26,7 +26,7 @@ export const useTerminalRestore = (
     const missing = new Set<string>()   // 조회해도 없던 uid(남의 것·삭제) — 다시 조회하지 않음
     const viaOthers = new Set<string>() // others 때문에 이 훅이 새로 등록한 uid — release가 지울 후보
 
-    const tileUids = () => new Set(Object.values(tiles.value).flatMap(t => t.type === 'terminal' ? [t.uid] : []))
+    const tileUids = () => new Set(Object.values(tiles.value).flatMap(t => isProcTile(t) ? [t.uid] : []))
     const treeUids = () => new Set([...tileUids(), ...(others?.value ?? [])])
 
     // 조회 직전에 고른다 — 아직 등록 안 됐고 지금 보드엔 없이 others에만 있는 uid

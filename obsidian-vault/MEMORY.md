@@ -37,6 +37,7 @@
 - **타일 이동 = 페이지 표시의 "타일 위치 규칙"**(2026-10-21): 타일로 가는 경로는 전부 `reveal`(= `revealCol`, 화면 밖일 때만 막 다 보이는 만큼). Grid 단위 이동은 "Grid로 가기"가 목적일 때만 (→ `REF-tile-move.md`)
 
 - **앱 단축키 = 검사 한 곳 `appShortcutsOff`(`tileGrids.store`)를 맨 앞에서 거친다**(2026-10-21): 터미널 타일마다 "단축키 끄기"(타일 트리 `shortcutsOff`) — 그 타일이 active면 앱 단축키 전부 꺼짐. **새 단축키도 반드시 이 검사를 넣는다**. 터미널 자체 동작(Ctrl+C 복사·Ctrl+V 붙여넣기)은 대상 아님 (→ `REF-tile-move.md` 이동-3)
+- **타일 종류 = 능력으로 묻는다**(2026-10-22, 파트(타일 종류 정리)): 여러 종류가 같이 쓰는 로직은 `type` 비교 대신 능력-1(루트 가능)·2(자식 가능)·3(process 담음) — 서버 `router/tileKind.go` `tileKinds` / 프론트 `widget/util/tileKind.util.ts` `TILE_KINDS`(두 표를 같게). 화면 = 공통 틀 `TileFrame` + 종류 컴포넌트(`tileComponents.ts`). 새 종류 추가 절차 → `REF-tile-kinds.md` "새 종류를 더할 때"
 
 ## 기술 스택 (확정)
 - **레포**: `nexus` / 모노레포 `apps/core`(Go) + `apps/frontend`(프론트, 스캐폴딩 완료 2026-06-30)
@@ -81,7 +82,7 @@ sqlc.yaml  README.md  .gitignore
 
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
-- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 3개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-worker-dir.md`(worker 폴더 타일, 진행 중)
+- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 3개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-tile-kinds.md`(타일 종류 정리, 진행 중) · `REF-worker-dir.md`(worker 폴더 타일·파일 전송 확장, 그다음)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록 = `HISTORY.md` "마감 파트"(최근 = process 살려 두기 `INDEX-process-keep` · 새 보드·IUTF8 `INDEX-fix-board-iutf8` · 빌드본 분리 `INDEX-build` · 리팩터링 `INDEX-refactor`)
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`

@@ -7,7 +7,6 @@ import (
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/web"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -55,7 +54,7 @@ func attachSharedFolder(c echo.Context, userID, nodeID int64, uid string) *super
 	}
 	doc := mustParseDoc(def.Tree)
 	root := doc.Tiles[doc.RootID]
-	tile := tileItem{ID: uuid.NewString(), Type: "folder", Parent: &root.ID, Kids: []string{}, Size: tileSize{W: 0.5, H: 0.5}, NodeID: &nodeID, UID: uid}
+	tile := newFolderTile(&root.ID, &nodeID, uid)
 	doc.Tiles[tile.ID] = tile
 	root.Kids = append(root.Kids, tile.ID)
 	doc.Tiles[root.ID] = root
@@ -74,7 +73,7 @@ func sharedFromUID(c echo.Context, userID int64, tileID string, nodeID int64) st
 	}
 	for _, d := range docs {
 		doc := mustParseDoc(d.Tree)
-		if t, ok := doc.Tiles[tileID]; ok && t.Type == "folder" && t.NodeID != nil && *t.NodeID == nodeID {
+		if t, ok := doc.Tiles[tileID]; ok && t.Type == tileFolder && t.NodeID != nil && *t.NodeID == nodeID {
 			return t.UID
 		}
 	}
