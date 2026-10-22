@@ -67,14 +67,16 @@ func (r *workerRouter) register() error {
 	}
 
 	r.sendSync() // 재접속 재바인딩(REF-process): 살아남은 procs 스냅샷을 자발적으로 보고
+	r.state.ready.Store(r.conn)
 
 	return nil
 }
 
-// sendSync는 r.procs(재접속 넘어 유지되는 공유 맵)에 남은 process를 MsgSync로 보고한다.
-// teardown이 종료된 uid를 즉시 procs.Remove하므로, 맵에 남아있다는 것 자체가 "아직 실행
-// 중"이라는 불변조건이다 — 매번 Status()를 다시 읽지 않는다(그 채널은 pumpStatus 고루틴의
-// 단일 소비자용이라 여기서 또 읽으면 이벤트를 가로채 레이스가 난다).
+// sendSync는 r.procs(재접속 넘어 유지되는 공유 맵)에 남은 process를 MsgSync로 보고하고, 각 보관 프로세스에 화면
+// 스냅샷을 요청한다(끊긴 동안 버린 출력·supervisor 재시작으로 빈 ring을 메움 — 응답은 forward가 MsgScreen으로).
+// finish가 종료된 uid를 procs.Remove하므로, 맵에 남아있다는 것 자체가 "아직 실행 중"이라는 불변조건이다.
+//
+// 순서 의존: 스냅샷 요청은 MsgSync 뒤 — supervisor가 sync로 Rebind해야 MsgScreen을 받을 entry가 생긴다.
 func (r *workerRouter) sendSync() {
 	snapshot := r.procs.FindAll(func(_ string, _ *procEntry) bool { return true })
 	procs := make([]protocol.SyncEntry, 0, len(snapshot))
@@ -82,10 +84,15 @@ func (r *workerRouter) sendSync() {
 		procs = append(procs, protocol.SyncEntry{
 			UID:    e.Val.uid,
 			Status: execute.CommandProcess,
-			PID:    e.Val.inter.Pid(),
+			PID:    e.Val.pid,
 		})
 	}
 	if err := r.conn.Emit(protocol.MsgSync, protocol.SyncEvent{Procs: procs}); err != nil {
 		log.Printf("[WORKER-REGISTER] MsgSync 전송 실패 %v", err)
+	}
+	for _, e := range snapshot {
+		if err := e.Val.h.RequestSnap(); err != nil {
+			log.Printf("[WORKER-REGISTER] 스냅샷 요청 실패 uid=%s: %v", e.Val.uid, err)
+		}
 	}
 }

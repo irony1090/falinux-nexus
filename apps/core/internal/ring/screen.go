@@ -1,10 +1,8 @@
-package bind
+package ring
 
 import (
 	"bytes"
 	"sync"
-
-	"nexus/internal/ring"
 )
 
 // alt screen 진입·해제 시퀀스 — worker가 TERM=xterm-256color를 강제하므로 TUI는 smcup/rmcup로 이것을 낸다.
@@ -21,22 +19,58 @@ var altSeqs = []struct {
 const altCarry = 7 // 가장 긴 시퀀스 길이 - 1: 묶음 경계에 걸친 시퀀스용
 
 // Screen은 process 하나의 화면 복원 버퍼다(최근 출력 ring + 지금 alt screen인지).
-// relay가 Write, 스냅샷 API가 Snapshot — 한 락 안에서 셋(data·off·alt)을 같이 읽어야 서로 어긋나지 않는다.
+// 보관 프로세스·supervisor relay가 Write, 스냅샷이 Snapshot — 한 락 안에서 셋(data·off·alt)을 같이 읽어야 서로 어긋나지 않는다.
 type Screen struct {
 	mu   sync.Mutex
-	ring *ring.Ring
+	ring *Ring
 	alt  bool
 	tail []byte // 직전 묶음 끝 altCarry 바이트
 }
 
 func NewScreen(capacity int) *Screen {
-	return &Screen{ring: ring.New(capacity)}
+	return &Screen{ring: New(capacity)}
 }
 
 // Write는 p를 쌓고 쓴 뒤의 누적 offset을 반환한다(DATA 이벤트의 off).
 func (s *Screen) Write(p []byte) int64 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.write(p)
+}
+
+// WriteAt은 보관 프로세스가 매긴 끝 offset(end)으로 쓴다. 이미 가진 바이트면 ok=false.
+// 사이가 비면(끊긴 동안 넘친 출력) 비우고 이어 쓴다 — 스냅샷이 빈 구간을 붙여 보여 주지 않게.
+func (s *Screen) WriteAt(p []byte, end int64) (ok bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if end <= s.ring.Off() {
+		return false
+	}
+	start := end - int64(len(p))
+	if start < s.ring.Off() {
+		p = p[s.ring.Off()-start:]
+	} else if start > s.ring.Off() {
+		s.ring.Reset(start)
+	}
+	s.write(p)
+	return true
+}
+
+// Seed는 보관 프로세스의 스냅샷으로 통째로 바꾼다. 이미 그 offset까지 가졌으면 ok=false.
+func (s *Screen) Seed(data []byte, end int64, alt bool) (ok bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if end <= s.ring.Off() {
+		return false
+	}
+	s.ring.Reset(end - int64(len(data)))
+	s.ring.Write(data)
+	s.alt = alt
+	s.tail = append(s.tail[:0], data[max(0, len(data)-altCarry):]...)
+	return true
+}
+
+func (s *Screen) write(p []byte) int64 {
 	edge := append(append([]byte(nil), s.tail...), p[:min(altCarry, len(p))]...)
 	if alt, ok := lastAlt(edge); ok {
 		s.alt = alt

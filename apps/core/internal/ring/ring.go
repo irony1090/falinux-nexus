@@ -40,5 +40,10 @@ func (r *Ring) Snapshot() ([]byte, int64) {
 	return out, r.off
 }
 
+// Reset은 내용을 비우고 누적 offset을 off로 맞춘다(다음 Write가 off 뒤로 이어짐).
+func (r *Ring) Reset(off int64) {
+	r.head, r.size, r.off = 0, 0, off
+}
+
 // Off는 지금까지 쓴 누적 바이트를 반환한다.
 func (r *Ring) Off() int64 { return r.off }

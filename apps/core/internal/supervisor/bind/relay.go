@@ -6,6 +6,7 @@ import (
 
 	"nexus/internal/execute"
 	"nexus/internal/protocol"
+	"nexus/internal/ring"
 )
 
 // Publish는 한 토픽으로 이벤트를 내보내는 전략이다. Relay가 subscribe.Hub의 제네릭
@@ -25,7 +26,7 @@ type Publish func(kind protocol.MsgType, payload any) error
 type Relay struct {
 	uid     string
 	inter   execute.IInteractive
-	screen  *Screen // 화면 복원 버퍼. nil이면 쌓지 않음(off = 0)
+	screen  *ring.Screen // 화면 복원 버퍼. nil이면 쌓지 않음(off = 0)
 	publish Publish
 
 	// TODO(후순위): DB sink(EXEC만 on) 훅 배선 지점.
@@ -35,7 +36,7 @@ type Relay struct {
 }
 
 // NewRelay는 릴레이를 만든다(아직 goroutine 미기동 — Start에서 기동).
-func NewRelay(uid string, inter execute.IInteractive, screen *Screen, publish Publish) *Relay {
+func NewRelay(uid string, inter execute.IInteractive, screen *ring.Screen, publish Publish) *Relay {
 	return &Relay{uid: uid, inter: inter, screen: screen, publish: publish}
 }
 
@@ -51,25 +52,64 @@ func (r *Relay) Start() {
 // Wait는 두 pump가 끝날 때까지(=process 종료) 블록한다.
 func (r *Relay) Wait() { r.wg.Wait() }
 
-// pumpOutput은 OutputAll()로 대기분을 배치 드레인해 MsgData(EVENT ↓) 한 프레임으로 발행한다.
-// OutputAll()이 err(채널 close)을 주면 종료한다.
+// chunkSource는 offset·스냅샷 구분을 가진 출력(AgentInteractive) — 없으면 OutputAll로 받고 offset을 직접 센다
+type chunkSource interface {
+	OutputChunks() ([]execute.Chunk, error)
+}
+
+// pumpOutput은 대기분을 배치 드레인해 MsgData(EVENT ↓)로 발행한다. 채널 close(err)면 종료한다.
 func (r *Relay) pumpOutput() {
 	defer r.wg.Done()
+	src, ok := r.inter.(chunkSource)
+	if !ok {
+		src = joined{r.inter}
+	}
 	for {
-		data, err := r.inter.OutputAll()
+		chunks, err := src.OutputChunks()
 		if err != nil {
 			return // Done() 시 output 채널 close → 정상 종료
 		}
-		// TODO: DB sink(EXEC만) 배선 지점.
-		// 쓰기 -> 발행 순서 고정: 스냅샷이 그 사이에 떠도 이 이벤트의 off <= 스냅샷 off라 프론트가 버린다(S1(이음매 처리))
-		var off int64
-		if r.screen != nil {
-			off = r.screen.Write(data)
-		}
-		if err := r.publish(protocol.MsgData, protocol.DataEvent{UID: r.uid, Data: data, Off: off}); err != nil {
-			log.Printf("[bind] publish data uid=%s: %v", r.uid, err)
+		for _, c := range chunks {
+			r.relayChunk(c)
 		}
 	}
+}
+
+// relayChunk: 쓰기 -> 발행 순서 고정 — 스냅샷이 그 사이에 떠도 이 이벤트의 off <= 스냅샷 off라 프론트가 버린다(S1(이음매 처리)).
+// 보관 프로세스 offset이 있으면 그 값을 그대로 쓴다: 이미 가진 묶음은 버리고, 스냅샷(Seed)은 새로 생긴 경우에만 통째로
+// 발행한다(브라우저가 자기 off로 겹친 앞부분을 버림) — REF-process-keep.md 살리기-6(화면 내용 이전)
+func (r *Relay) relayChunk(c execute.Chunk) {
+	off := c.Off
+	switch {
+	case r.screen == nil:
+		if c.Seed {
+			return
+		}
+	case c.Seed:
+		if !r.screen.Seed(c.Data, c.Off, c.Alt) {
+			return
+		}
+	case c.Off > 0:
+		if !r.screen.WriteAt(c.Data, c.Off) {
+			return
+		}
+	default:
+		off = r.screen.Write(c.Data)
+	}
+	if err := r.publish(protocol.MsgData, protocol.DataEvent{UID: r.uid, Data: c.Data, Off: off}); err != nil {
+		log.Printf("[bind] publish data uid=%s: %v", r.uid, err)
+	}
+}
+
+// joined는 OutputAll만 있는 IInteractive를 offset 없는 묶음 하나로 감싼다
+type joined struct{ inter execute.IInteractive }
+
+func (j joined) OutputChunks() ([]execute.Chunk, error) {
+	data, err := j.inter.OutputAll()
+	if err != nil {
+		return nil, err
+	}
+	return []execute.Chunk{{Data: data}}, nil
 }
 
 // pumpStatus는 Status()를 드레인해 MsgStatus(EVENT ↓)로 발행한다.

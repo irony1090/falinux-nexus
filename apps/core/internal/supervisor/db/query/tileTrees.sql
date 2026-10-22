@@ -91,3 +91,10 @@ ORDER BY id; -- ListTileTreesForUpdate와 같은 순서 — 고정 지도가 bin
 SELECT user_id, hash, is_default
 FROM tile_trees
 WHERE jsonb_path_exists(tree, '$.tiles.* ? (@.type == "terminal" && @.uid == $uid)', jsonb_build_object('uid', sqlc.arg(uid)::text));
+
+-- name: ListTerminalRefs :many
+-- uids 중 아직 터미널 타일이 남은 것(계정·uid 쌍) — K3(타일 같이 정리)
+SELECT DISTINCT tt.user_id, (t.value->>'uid')::text AS uid
+FROM tile_trees tt, jsonb_each(tt.tree->'tiles') t
+WHERE t.value->>'type' = 'terminal'
+  AND t.value->>'uid' = ANY(sqlc.arg(uids)::text[]);

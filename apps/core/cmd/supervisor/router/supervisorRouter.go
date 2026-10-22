@@ -81,6 +81,7 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 		screens:        newScreens(),
 		pins:           newPinState(),
 	}
+	go router.runPurge() // 끝난 process 주기 삭제(K2(supervisor 정리))
 
 	e := echo.New()
 	e.Validator = &CustomValidator{validator: validator.New()}
@@ -144,6 +145,7 @@ func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 	conn.On(protocol.MsgStatus, router.status)             // 상태전이 → applyStatus 깔때기
 	conn.Handle(protocol.MsgEditResult, router.editResult) // UID→NodeID→content UPDATE
 	conn.On(protocol.MsgSync, router.sync(conn, &auth))    // 재접속 재바인딩(REF-process)
+	conn.On(protocol.MsgScreen, router.screen)             // 보관 프로세스 화면 스냅샷(REF-process-keep)
 
 	err = conn.Serve()
 

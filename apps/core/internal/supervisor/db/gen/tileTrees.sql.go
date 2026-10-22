@@ -205,6 +205,39 @@ func (q *Queries) GetTileTreeForUpdate(ctx context.Context, userID int64) (TileT
 	return i, err
 }
 
+const listTerminalRefs = `-- name: ListTerminalRefs :many
+SELECT DISTINCT tt.user_id, (t.value->>'uid')::text AS uid
+FROM tile_trees tt, jsonb_each(tt.tree->'tiles') t
+WHERE t.value->>'type' = 'terminal'
+  AND t.value->>'uid' = ANY($1::text[])
+`
+
+type ListTerminalRefsRow struct {
+	UserID int64
+	Uid    string
+}
+
+// uids 중 아직 터미널 타일이 남은 것(계정·uid 쌍) — K3(타일 같이 정리)
+func (q *Queries) ListTerminalRefs(ctx context.Context, uids []string) ([]ListTerminalRefsRow, error) {
+	rows, err := q.db.Query(ctx, listTerminalRefs, uids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTerminalRefsRow
+	for rows.Next() {
+		var i ListTerminalRefsRow
+		if err := rows.Scan(&i.UserID, &i.Uid); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTileTreeDocs = `-- name: ListTileTreeDocs :many
 SELECT hash, is_default, tree
 FROM tile_trees

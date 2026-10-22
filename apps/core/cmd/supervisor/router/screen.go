@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"nexus/cmd/supervisor/process"
-	"nexus/internal/supervisor/bind"
+	"nexus/internal/ring"
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/web"
 
@@ -21,26 +21,26 @@ const screenCap = 256 * 1024 // S5(ring 상한)
 // 지우는 곳 = cleanupProcessTopic(process 완전 종료). worker 끊김(Detach)은 유지. 메모리 전용이라 supervisor 재시작 후엔 비어 있다.
 type screens struct {
 	mu sync.Mutex
-	m  map[string]*bind.Screen // uid -> 버퍼
+	m  map[string]*ring.Screen // uid -> 버퍼
 }
 
 func newScreens() *screens {
-	return &screens{m: map[string]*bind.Screen{}}
+	return &screens{m: map[string]*ring.Screen{}}
 }
 
 // open은 uid의 버퍼를 반환한다. 없으면 만든다(exec·Rebind 때 relay에 넘김).
-func (s *screens) open(uid string) *bind.Screen {
+func (s *screens) open(uid string) *ring.Screen {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	sc := s.m[uid]
 	if sc == nil {
-		sc = bind.NewScreen(screenCap)
+		sc = ring.NewScreen(screenCap)
 		s.m[uid] = sc
 	}
 	return sc
 }
 
-func (s *screens) get(uid string) (*bind.Screen, bool) {
+func (s *screens) get(uid string) (*ring.Screen, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	sc, ok := s.m[uid]
@@ -96,7 +96,7 @@ const redrawWait = 500 * time.Millisecond
 // 순서 의존: 바꾼 크기로 출력이 나온 뒤에(최대 redrawWait) 되돌린다. 바로 되돌리면 TUI가 신호를 처리할 때 이미 원래 크기라
 // "안 바뀜"으로 보고 다시 그리지 않는다(2026-10-02 확인: 간격 0/50/200ms에서 성공/실패/성공 — 고정 대기로는 못 막음).
 // 대가로 화면이 두 번(cols-1, cols) 그려진다.
-func (r *supervisorRouter) redraw(entry *process.ProcessEntry, sc *bind.Screen) {
+func (r *supervisorRouter) redraw(entry *process.ProcessEntry, sc *ring.Screen) {
 	uid := entry.Record.Uid
 	cols, rows := uint16(entry.Record.Cols), uint16(entry.Record.Rows)
 	tmp := cols - 1

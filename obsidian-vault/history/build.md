@@ -16,3 +16,8 @@
 - 사용자가 `build/const`로 다시 빌드·재실행 -> Claude가 8013 응답·SPA 경로·worker 연결·PostgreSQL 연결 확인
 - 사용자가 개발 env 파일 이름을 `dev.env`로 바꿈 -> Claude가 main.go 2개·README 2곳·`apps/core/.gitignore` 주석·vault를 `dev.env`로 맞춤, `go build ./...` OK
 - 파트(빌드본 분리) 마감: INDEX-build로 접고 코드 + vault 한 커밋
+
+## 2026-10-22(3) `CLAUDE*` 변수 상속 발견
+- 사용자: test3 터미널에서 연 Claude에 "transcript saving is off - inherited CLAUDE_CODE_CHILD_SESSION marker"
+- Claude가 조상 프로세스 추적: claude -> bash -> `worker -hold` -> test3 worker 4178326(`-env ../worker.env`). worker·supervisor 환경에 이전 세션 `bb6187d5`의 `CLAUDE*` 변수 -> 재배포-3(새 것 띄우기)을 Claude Bash 도구로 띄운 탓
+- 규칙·해결 방법 → `REF-build.md` "Claude가 띄운 빌드본", 코드 수정은 BACKLOG

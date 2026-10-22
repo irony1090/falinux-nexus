@@ -18,6 +18,7 @@ import (
 
 	"nexus/cmd/worker/constants"
 	"nexus/cmd/worker/router"
+	"nexus/internal/execute/hold"
 	"nexus/internal/util"
 	"nexus/internal/worker/db/migrations"
 	"nexus/internal/worker/store"
@@ -30,6 +31,9 @@ var envContent string
 var envFile = flag.String("env", "", "env 파일 (개발 = 필수·상대 경로는 소스 폴더 / 빌드본 = 기본 env·상대 경로는 실행 파일 폴더)")
 
 func init() {
+	if holdSock() != "" {
+		return // 보관 프로세스는 env·sqlite를 쓰지 않는다
+	}
 	initEnv()
 	env := constants.GetEnv()
 
@@ -37,13 +41,30 @@ func init() {
 
 }
 
+// holdSock은 `worker -hold <소켓>`(보관 프로세스 모드)이면 소켓 경로 — worker가 process마다 스스로 띄운다(REF-process-keep.md)
+func holdSock() string {
+	if len(os.Args) == 3 && os.Args[1] == "-hold" {
+		return os.Args[2]
+	}
+	return ""
+}
+
 func main() {
+	if sock := holdSock(); sock != "" {
+		hold.Main(sock)
+		return
+	}
 	env := constants.GetEnv()
 
 	u := url.URL{Scheme: env.WsScheme, Host: env.WsHost, Path: "/worker"}
 	backoff := util.NewBackoff(0, time.Second*2, time.Second*60)
-	state := router.NewWorkerState() // 재접속 루프 동안 procs·live conn 유지(재바인딩 기반)
-	go handleSignals(state)
+	holdDir, err := router.HoldDir(env.Name)
+	if err != nil {
+		log.Fatalf("worker: 보관 프로세스 폴더 %v", err)
+	}
+	state := router.NewWorkerState(store.GetStorePool(), holdDir) // 재접속 루프 동안 procs·live conn 유지(재바인딩 기반)
+	state.Recover()
+	go handleSignals()
 	for {
 		log.Printf("접속 시도 worker -> supervisor")
 		done, err := router.NewWorkerRouter(
@@ -69,35 +90,21 @@ func main() {
 	}
 }
 
-// shutdownGrace는 종료 신호 뒤 SIGTERM -> SIGKILL 유예(종료-1(유예 시간), systemd TimeoutStopSec보다 짧게).
-const shutdownGrace = 5 * time.Second
-
-// handleSignals는 종료 신호로 실행 중 process를 정리한 뒤 worker를 끝낸다(REF-worker-orphan).
+// handleSignals는 종료 신호에 worker만 끝낸다 — process는 보관 프로세스에 남는다(K4(기본 종료 동작), REF-process-keep.md).
 // SIGHUP을 등록하는 것 자체가 안 나(SIGHUP 복원): nohup 등으로 무시 상태로 시작했어도 Go가 핸들러를
-// 설치해 무시가 풀리고, exec되는 스크립트는 기본 처분으로 시작한다(무시는 exec로 상속되므로 이게 없으면
-// worker가 죽어도 PTY hangup의 SIGHUP을 스크립트가 무시해 고아로 남음).
+// 설치해 무시가 풀리고, exec되는 보관 프로세스는 기본 처분으로 시작한다(무시는 exec로 상속됨).
 // hupIgnored는 Notify 전에 읽어야 한다(등록 뒤엔 무시가 풀려 항상 false).
-func handleSignals(state *router.WorkerState) {
+func handleSignals() {
 	hupIgnored := signal.Ignored(syscall.SIGHUP)
 	sigs := make(chan os.Signal, 2)
 	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT)
-	closing := false
 	for sig := range sigs {
-		switch {
-		case sig == syscall.SIGHUP && hupIgnored: // nohup으로 띄운 의도 유지
+		if sig == syscall.SIGHUP && hupIgnored { // nohup으로 띄운 의도 유지
 			log.Printf("SIGHUP 받음, nohup 실행이라 무시하고 계속 실행")
-		case !closing:
-			closing = true
-			log.Printf("%v 받음, 실행 중 process 정리 후 종료(다시 보내면 즉시 강제 종료)", sig)
-			go func() {
-				state.Shutdown(shutdownGrace)
-				os.Exit(0)
-			}()
-		default: // 종료-3(두 번째 신호)
-			log.Printf("%v 다시 받음, 즉시 강제 종료", sig)
-			state.KillAll(true)
-			os.Exit(1)
+			continue
 		}
+		log.Printf("%v 받음, worker 종료(process는 보관 프로세스에서 계속)", sig)
+		os.Exit(0)
 	}
 }
 

@@ -98,3 +98,13 @@ WHERE p.uid = ANY(sqlc.arg(uids)::text[])
       AND process_permission(t.user_id, p.uid) >= sqlc.arg(min_perm)::smallint
   )
 RETURNING p.*;
+
+-- name: ListExpiredProcesses :many
+-- 끝난 지 오래된 process — K2(supervisor 정리, REF-process-keep.md)
+SELECT uid FROM processes
+WHERE status IN ('COMPLETED', 'FAILED')
+  AND COALESCE(finished_at, updated_at, created_at) < sqlc.arg(before)::timestamptz;
+
+-- name: DeleteProcesses :exec
+-- process_shares는 ON DELETE CASCADE
+DELETE FROM processes WHERE uid = ANY(sqlc.arg(uids)::text[]);

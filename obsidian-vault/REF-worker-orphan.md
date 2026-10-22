@@ -1,6 +1,7 @@
 # REF — worker 종료 시 고아 스크립트
 
 > 2026-10-15 신설. 진단 -> 결정 -> 구현 -> 고아-3(확인) -> **마감(2026-10-15, 커밋)**, 색인 → `INDEX-worker-orphan.md`. 이력 → `history/worker-orphan.md` / 현재 진행 → `CURRENT.md` / 발견 경위 → `REF-test-env.md` "끌 때 함정 — worker 자식"
+> **2026-10-22 개정 → `REF-process-keep.md`**: 안 다(정상 종료 정리) 폐기 — worker 종료 신호 = worker만 끝냄(K4(기본 종료 동작)), 스크립트는 보관 프로세스(`worker -hold`)에 남는다. 안 나(SIGHUP 복원)는 worker·보관 프로세스 둘 다 유지
 
 ## 발견 (2026-10-15)
 격리 확인(`pw/mid.mjs`)이 끝나 worker를 끈 뒤에도 `tick-A`·`tick-B`(무한 루프 `/bin/sh`) 4개가 몇 시간 동안 돌고 있었다(부모 = systemd user). 처음에는 "PTY `Setsid` 때문"이라고 적었는데, **재현해 보니 틀렸다.**

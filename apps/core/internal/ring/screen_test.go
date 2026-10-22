@@ -1,4 +1,4 @@
-package bind
+package ring
 
 import "testing"
 
@@ -41,5 +41,41 @@ func TestScreenOffset(t *testing.T) {
 	data, off, _ := s.Snapshot()
 	if string(data) != "cdef" || off != 6 {
 		t.Fatalf("got (%q, %d)", data, off)
+	}
+}
+
+func TestScreenWriteAt(t *testing.T) {
+	s := NewScreen(8)
+	if !s.WriteAt([]byte("abc"), 3) {
+		t.Fatal("first write rejected")
+	}
+	if s.WriteAt([]byte("bc"), 3) {
+		t.Fatal("duplicate accepted")
+	}
+	s.WriteAt([]byte("cde"), 5) // 겹친 앞부분 c는 버림
+	if data, off, _ := s.Snapshot(); string(data) != "abcde" || off != 5 {
+		t.Fatalf("overlap: got (%q, %d)", data, off)
+	}
+	s.WriteAt([]byte("xy"), 10) // 5..8 빠짐 -> 비우고 이어 씀
+	if data, off, _ := s.Snapshot(); string(data) != "xy" || off != 10 {
+		t.Fatalf("gap: got (%q, %d)", data, off)
+	}
+}
+
+func TestScreenSeed(t *testing.T) {
+	s := NewScreen(8)
+	s.Write([]byte("ab"))
+	if !s.Seed([]byte("cdef"), 6, true) {
+		t.Fatal("seed rejected")
+	}
+	if data, off, alt := s.Snapshot(); string(data) != "cdef" || off != 6 || !alt {
+		t.Fatalf("got (%q, %d, %v)", data, off, alt)
+	}
+	if s.Seed([]byte("ef"), 6, false) {
+		t.Fatal("stale seed accepted")
+	}
+	s.WriteAt([]byte("g"), 7)
+	if data, off, _ := s.Snapshot(); string(data) != "cdefg" || off != 7 {
+		t.Fatalf("after seed: got (%q, %d)", data, off)
 	}
 }

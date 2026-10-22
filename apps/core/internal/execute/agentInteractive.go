@@ -1,14 +1,21 @@
 package execute
 
 import (
-	"bytes"
 	"nexus/internal/syncProcess"
 	"sync"
 )
 
+// Chunk는 worker에서 온 출력 한 묶음이다. Off = 끝 offset(0 = 모름), Seed = 화면 스냅샷(MsgScreen)
+type Chunk struct {
+	Data []byte
+	Off  int64
+	Seed bool
+	Alt  bool
+}
+
 type AgentInteractive struct {
 	exitCode  int
-	output    *syncProcess.SyncData[[]byte]
+	output    *syncProcess.SyncData[Chunk]
 	status    *syncProcess.SyncData[CommandStatus]
 	onWrite   func(data []byte) error
 	onKill    func(force bool) error
@@ -24,7 +31,7 @@ func NewAgentInteractive(
 ) *AgentInteractive {
 	ai := &AgentInteractive{
 		exitCode: -1,
-		output:   syncProcess.NewSyncData([][]byte{}),
+		output:   syncProcess.NewSyncData([]Chunk{}),
 		status:   syncProcess.NewSyncData([]CommandStatus{}),
 		onWrite:  onWrite,
 		onKill:   onKill,
@@ -39,7 +46,18 @@ func (a *AgentInteractive) OutputAll() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return bytes.Join(batch, nil), nil
+	var out []byte
+	for _, c := range batch {
+		if !c.Seed {
+			out = append(out, c.Data...)
+		}
+	}
+	return out, nil
+}
+
+// OutputChunks는 대기 중인 묶음을 offset·스냅샷 구분과 함께 꺼낸다(relay용 — 순서 유지)
+func (a *AgentInteractive) OutputChunks() ([]Chunk, error) {
+	return a.output.ShiftAll()
 }
 
 func (a *AgentInteractive) Write(data []byte) error { return a.onWrite(data) }
@@ -52,9 +70,8 @@ func (a *AgentInteractive) Layout(cols, rows uint16) error {
 	return a.onLayout(cols, rows)
 }
 
-func (a *AgentInteractive) PushOutput(data []byte) {
-	// log.Printf("[AGENT_PUSH] %s", data)
-	a.output.Push(data)
+func (a *AgentInteractive) PushOutput(c Chunk) {
+	a.output.Push(c)
 }
 
 func (a *AgentInteractive) PushStatus(status CommandStatus) {

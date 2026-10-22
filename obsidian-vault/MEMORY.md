@@ -23,9 +23,9 @@
   - **관측용 roster는 DB 허용**: `worker_instances(main_key, sub_key, last_seen)` = UI에 main_key별 인스턴스 활성/비활성 표시용(+`first_seen`). online은 저장 말고 레지스트리로 **파생**(roster ≠ authority). 구현 마감 2026-10-12 (→ `REF-node-label.md` "roster 계획")
   - node의 device 결속 = FK 아닌 `device_key TEXT`(**= main_key**, 폴더는 장비 클래스에 묶임 / subkey는 실행 시 런타임 선택) (→ `REF-node-label.md`)
 - **agent 식별자: 사전 지정 메인키 + supervisor가 접속 시 부여하는 서브키.** 저장/조회는 `메인키#서브키`(`InstanceKey()`). MAC 폐기
-- **process 영속성**: worker 휘발(메모리) / supervisor 영속(PG, 재시작 복구)
+- **process 영속성**(2026-10-22 개정): process는 **worker 밖 보관 프로세스(`worker -hold`, process당 1개)** 가 PTY·화면 ring을 쥐고, worker는 sqlite 목록(살아 있는 것만)으로 다시 붙는다 → worker·supervisor 재시작에도 터미널·화면 유지 / supervisor 영속(PG, 끝난 지 24시간 지나면 주기 삭제) (→ `REF-process-keep.md` K1~K7). 옛 "worker 휘발(메모리)" 폐기
 - **재연결 reconciliation (2026-07-01 개정 — 구 `Done(502)` 비관 폐기)**: worker 끊김→관련 process **PENDING**(죽이지 않음) / 재접속→worker가 자기 live 상태 보고로 재동기화(낙관적). **모든 상태전이=process 라우터 `status` 단일 깔때기**(worker 보고 or 끊김 시 supervisor 합성). **frontend 끊김≠종료**(명시적 kill 전까진 실행 유지, 브라우저 종료 무시), **같은 세션 재접속=보던 화면 복원**(ring+세션원장) (→ "종료/재접속 모델")
-  - **worker 자체 종료 ≠ 끊김**(2026-10-15): worker가 종료 신호를 받으면 스크립트를 정리(TERM -> 5초 -> KILL)하고 끝난 상태를 보고 — PTY는 worker 메모리에만 있어 다시 붙을 수 없으므로 남기지 않는다. 새 플랫폼 worker(Windows 등)도 같은 원칙 (→ `INDEX-worker-orphan.md`)
+  - **worker 자체 종료 = process 살려 둠**(2026-10-22 개정, K4(기본 종료 동작)): 종료 신호를 받아도 worker만 끝나고 보관 프로세스·스크립트는 남는다. 옛 "종료 신호 = 스크립트 정리(TERM -> 5초 -> KILL)"(2026-10-15, `INDEX-worker-orphan.md`) 폐기. 전부 종료 수단은 BACKLOG
 - **worker는 Linux·Windows 둘 다**(2026-10-19): OS에 묶인 코드는 `internal/execute/pty`의 `_linux.go`/`_windows.go`(+ worker `script_windows.go`/`script_other.go`)에만 둔다. **스크립트 노드 문법 = 그 OS에서 그대로 실행되게 작성**(Windows는 노드 이름 확장자로 실행기, `#!` 안 씀). worker를 띄우는 방식이 남긴 신호 무시 속성(Linux SIGHUP·Windows Ctrl+C)은 자식에 상속되므로 worker가 되돌린다 (→ `INDEX-windows-worker.md`)
 - **에러 처리 = panic-style**(2026-06-26 재확정): 핸들러 `panic(web.Err(...))` → `PanicMiddleware` 렌더 (→)
 - **process 동기화 범위 = 계정**(2026-10-01, 1단계 코드·실행 확인·커밋 완료): 같은 계정이면 탭·브라우저·기기 무관 동기화. 인가 = 계정(DB) / 출력 라우팅 = 탭 소켓(메모리) / PTY 크기 우선권 = 서버 발급 탭 id(메모리) → `process_subscribers` 제거(`00005`). 공유는 계정 단위·소유자만 신청 (→ `REF-process-sync.md`, 구현·확인 → `REF-process-sync-impl.md`)
@@ -52,7 +52,7 @@
 - 컨테이너 env = supervisor env 일치: user `irony` / pass `!Fa1289` / 포트 `5432`. **단 기본 DB는 `workspace`(구 PortBridge)** → nexus용 `nexus` DB는 **수동 생성함**(`CREATE DATABASE nexus OWNER irony;`, 2026-06-26 1회)
 - supervisor 띄우면 `init()`의 mountStore가 goose 마이그레이션 자동 적용(멱등)
 - **포트(2026-10-13~)**: 외부 접속 설정 중 = supervisor 8012(0.0.0.0) · 프론트 8011 · worker -> localhost:8012. 옛 5050·3000으로 되돌리는 법 → `REF-external-access.md`
-- **빌드본 = 사용용(2026-10-22~)**: `build/<이름>`(`scripts/build.sh`) + 공통 `build/{supervisor,worker}.env`·`worker-sqlite.db`, **8013(test3) · DB `nexus_build`**. 개발(8011·8012, `nexus`)과 분리, 사용자 Claude 세션이 그 위에서 돎. **Claude는 8013을 끄지 않는다**. 빌드본 worker 교체 = 그 위 process 전부 종료(사용자 세션 포함, supervisor만 교체는 PENDING 뒤 이어짐). embed `cmd/*/env` = 배포 값 / **개발 실행 = `go run ./cmd/supervisor -env dev.env` 필수** (→ `INDEX-build.md` -> `REF-build.md`)
+- **빌드본 = 사용용(2026-10-22~)**: `build/<이름>`(`scripts/build.sh`) + 공통 `build/{supervisor,worker}.env`·`worker-sqlite.db`, **8013(test3) · DB `nexus_build`**. 개발(8011·8012, `nexus`)과 분리, 사용자 Claude 세션이 그 위에서 돎. **Claude는 8013을 끄지 않는다**. 재기동은 사용자 몫, Claude가 띄우면 `CLAUDE*` 변수를 지우고(상속되면 그 위 Claude가 transcript 저장 안 함, → `REF-build.md`). 빌드본 worker 교체 = 그 위 process 전부 종료(사용자 세션 포함, supervisor만 교체는 PENDING 뒤 이어짐). embed `cmd/*/env` = 배포 값 / **개발 실행 = `go run ./cmd/supervisor -env dev.env` 필수** (→ `INDEX-build.md` -> `REF-build.md`)
 - **함정**: 잔류 supervisor가 5050(지금은 8012) 점유 시 `bind: address already in use`(마이그레이션은 init서 정상, 바인드만 실패). `ss -ltnp | grep :5050`로 pid 찾아 kill
 
 ## apps/core 디렉토리
@@ -81,8 +81,8 @@ sqlc.yaml  README.md  .gitignore
 
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
-- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 3개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-worker-dir.md`(worker 폴더 타일, 다음)
+- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 3개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-worker-dir.md`(worker 폴더 타일, 진행 중)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
-- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록 = `HISTORY.md` "마감 파트"(최근 = 새 보드·IUTF8 `INDEX-fix-board-iutf8` · 빌드본 분리 `INDEX-build` · 리팩터링 `INDEX-refactor`)
+- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록 = `HISTORY.md` "마감 파트"(최근 = process 살려 두기 `INDEX-process-keep` · 새 보드·IUTF8 `INDEX-fix-board-iutf8` · 빌드본 분리 `INDEX-build` · 리팩터링 `INDEX-refactor`)
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md` / 나중에 할 것: `BACKLOG.md`(세션 시작 시 안 읽음)

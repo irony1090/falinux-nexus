@@ -14,20 +14,20 @@ import (
 )
 
 // WorkerState는 재접속 루프 동안 살아남는 worker 상태(main.go가 1회 생성)다. workerRouter는 접속마다 새로 만들어진다.
-// 이게 없으면 재접속 때 procs가 빈 채로 시작돼 끊기기 전 PTY를 잃고, pump 고루틴은 죽은 conn만 물게 된다(REF-process "재접속 재바인딩")
+// 이게 없으면 재접속 때 procs가 빈 채로 시작돼 보관 프로세스 연결을 잃고, forward 고루틴은 죽은 conn만 물게 된다(REF-process "재접속 재바인딩")
 type WorkerState struct {
-	procs *manager.KeyValManager[string, *procEntry]
-	conn  atomic.Pointer[transport.Conn]
-
-	mu      sync.Mutex // closing 보호 + admit과 Shutdown 직렬화(shutdown.go)
-	closing bool
+	procs   *manager.KeyValManager[string, *procEntry]
+	conn    atomic.Pointer[transport.Conn]
+	ready   atomic.Pointer[transport.Conn] // register·sync 보고를 마친 conn — 종료 보고(finish)는 이것으로만
+	store   *store.StorePool
+	holdDir string
 }
 
-func NewWorkerState() *WorkerState {
-	return &WorkerState{procs: manager.NewKeyValManager[string, *procEntry]()}
+func NewWorkerState(store *store.StorePool, holdDir string) *WorkerState {
+	return &WorkerState{procs: manager.NewKeyValManager[string, *procEntry](), store: store, holdDir: holdDir}
 }
 
-// currentConn: pump/teardown이 전송마다 읽는 "지금" conn. 끊긴 동안엔 죽은 conn이라 실패해도 로그만(재접속 때 교체됨)
+// currentConn: forward가 전송마다 읽는 "지금" conn. 끊긴 동안엔 죽은 conn이라 실패해도 로그만(재접속 때 교체됨)
 func (s *WorkerState) currentConn() *transport.Conn { return s.conn.Load() }
 
 // Result: 한 연결 세션의 종료 결과. Reached = register 성공까지 갔는지(main의 backoff reset 기준)
@@ -59,12 +59,13 @@ func NewWorkerRouter(supervisor url.URL, uniqueKey string, store *store.StorePoo
 	}
 	transport.KeepAlive(ws)
 	conn := transport.New(ws)
-	state.conn.Store(conn) // pump/teardown이 곧바로 이 conn을 참조하도록 먼저 교체
+	state.conn.Store(conn) // forward가 곧바로 이 conn을 참조하도록 먼저 교체
 
 	done := make(chan Result, 1)
 	var once sync.Once
 	finish := func(r Result) {
 		once.Do(func() {
+			state.ready.CompareAndSwap(conn, nil)
 			done <- r
 			conn.Close(r.Err)
 		})

@@ -31,6 +31,7 @@
 - 리팩터링(마감) → `INDEX-refactor.md` (refactor-socket·refactor-socket-batches·refactor-cleanup)
 - 빌드본 분리(마감) → `INDEX-build.md` (build)
 - 새 보드·IUTF8(마감) → `INDEX-fix-board-iutf8.md` (fix-board-iutf8)
+- process 살려 두기(마감) → `INDEX-process-keep.md` (process-keep)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.

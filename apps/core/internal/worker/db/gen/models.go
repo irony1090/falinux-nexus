@@ -4,6 +4,16 @@
 
 package workerdb
 
+type Hold struct {
+	Uid       string
+	Kind      string
+	EditPath  string
+	Sock      string
+	HolderPid int64
+	Pid       int64
+	CreatedAt int64
+}
+
 type Identity struct {
 	MainKey   string
 	SubKey    string

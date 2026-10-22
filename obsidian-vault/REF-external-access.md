@@ -5,7 +5,7 @@
 ## 경로 (2026-10-13 실측)
 | 도메인 | 이 장비 포트 | 쓰는 곳 |
 |---|---|---|
-| https://test1.falinux.com | 8011 | 프론트(vite 개발 서버) |
+| https://test1.falinux.com | 8011 | 프론트(vite 개발 서버) — 2026-10-22부터 시험 배포 `build/keep`(supervisor가 웹 직접 서빙, nginx 웹소켓 통과 확인) |
 | https://test2.falinux.com | 8012 | supervisor(REST + 소켓 `/subscribe`) |
 | https://test3.falinux.com | 8013 | **빌드본**(supervisor가 화면 + API, 2026-10-22~ → `REF-build.md`) |
 

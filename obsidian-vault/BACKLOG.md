@@ -13,6 +13,8 @@
 - **보드 미리보기 다른 안** · 마감한 시안 E 말고 A(카드 줄)·B(보드 타일)·C(출력 축소본)·D(헤더 메뉴 확장) 보류 → `REF-board-preview.md`
 - **사용자가 하려던 기능 추가** · 2026-10-16 · 내용이 기억나지 않아 보류, 떠오르면 다시
 
+- **worker "전부 종료" 수단** · 2026-10-22 · 파트(process 살려 두기)에서 기본 = 살려 둠(K4), 끌 때 process까지 정리하는 명령(예: `worker -stop-all`)은 필요해지면 → `REF-process-keep.md`
+
 ## 확인만 남은 것
 - **시연 순서 점검** · 2026-10-16 · 브라우저로 irony + test3 동시, Nexus 경유 실행 미확인(xterm.js 한글 정렬·24bit 색 사진, worker 카메라) → `REF-demo.md` "시연 순서"
 - **iPhone 실기기 확인** · 2026-10-01 · iPhone이 생기면(헤드리스로 iOS 키보드 재현 불가) → `REF-node-ui-overview.md` "모바일 가상 키보드"
@@ -25,6 +27,8 @@
 - **Hub 막힘 남은 한계** · 막힘 최대 약 25초, 줄이려면 write deadline / 소켓별 송신 큐 → `REF-realtime.md` "발견"
 - **고아 스크립트 남은 한계** · 스크립트가 HUP를 피하고 worker가 crash하면 남음 -> 안 마(시작 시 청소) 후보 → `REF-worker-orphan.md`
 - **저장 충돌 검사 없음** · 스크립트 내용 저장 때 나중에 저장한 쪽이 남음, 막으려면 백엔드 버전 검사 → `REF-node-ui-link.md`
+- **같은 메인키 worker 2개의 보관 소켓 폴더 공유** · 2026-10-22 · test1·test3이 `/tmp/nexus-hold-1000/<메인키>/`를 같이 씀. 지금은 sqlite 목록이 달라 무해, 폴더를 훑는 정리 코드를 넣거나 두 빌드를 계속 나란히 둘 때 다시 → `REF-process-keep.md` "test3 재배포"
+- **PTY 환경에서 `CLAUDE*` 빼기** · 2026-10-22 · Claude가 띄운 worker의 변수가 터미널로 넘어가 그 안의 Claude가 transcript 저장 안 함. worker가 PTY 환경을 만들 때 `CLAUDE*` 제거(코드 위치 미조사). 다음에 worker 실행 코드를 고칠 때 → `REF-build.md` "Claude가 띄운 빌드본"
 - **SendFile abort 구분** · 정상 중단 sentinel 에러는 필요해지면 → `REF-transfer.md`
 
 ## 보류한 설계 · 정리

@@ -128,7 +128,21 @@ func (r *supervisorRouter) output(ev protocol.Frame) {
 	if !ok || entry.Inter == nil {
 		return // 이미 정리된 엔트리 → 버림
 	}
-	entry.Inter.PushOutput(body.Data)
+	entry.Inter.PushOutput(execute.Chunk{Data: body.Data, Off: body.Off})
+}
+
+// screen: MsgScreen — 보관 프로세스 화면 스냅샷을 출력과 같은 줄로(relay가 순서대로 ring을 채움). 재접속 뒤 sync가 Rebind한 다음에 온다
+func (r *supervisorRouter) screen(ev protocol.Frame) {
+	var body protocol.ScreenEvent
+	if err := ev.Bind(&body); err != nil {
+		log.Printf("[process] screen 디코드 실패: %v", err)
+		return
+	}
+	entry, ok := r.processManager.Get(body.UID)
+	if !ok || entry.Inter == nil {
+		return
+	}
+	entry.Inter.PushOutput(execute.Chunk{Data: body.Data, Off: body.Off, Seed: true, Alt: body.Alt})
 }
 
 // status: MsgStatus — applyStatus로

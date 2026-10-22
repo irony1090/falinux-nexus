@@ -148,6 +148,19 @@ export const provideProcessTerm = () => {
     const writeNotice = (uid: string, text: string) =>
         handles.get(uid)?.term.write(`\r\n\x1b[2m[${text}]\x1b[0m\r\n`)
 
+    // 이 xterm에 쓴 마지막 off — 같은 출력이 다시 오면(재접속 뒤 보관 프로세스 스냅샷) 겹친 앞부분을 버린다(REF-process-keep.md 살리기-6)
+    const lastOff = new Map<string, number>()
+    const writeLive = (uid: string, term: Terminal, bytes: Uint8Array, off?: number) => {
+        if (off === undefined) return term.write(bytes)
+        const last = lastOff.get(uid)
+        if (last !== undefined && off <= last) return
+        lastOff.set(uid, off)
+        if (last === undefined) return term.write(bytes)
+        const start = off - bytes.length
+        if (start > last) writeNotice(uid, 'earlier output not shown')
+        term.write(start < last ? bytes.subarray(last - start) : bytes)
+    }
+
     // 보관분 중 from(스냅샷 off) 뒤만 — S1(이음매 처리). 스냅샷에 이미 든 묶음은 버리고 걸친 묶음은 뒷부분만.
     // from 뒤 첫 묶음이 from보다 뒤에서 시작하면(보관함이 넘쳐 버림) 그 자리에 안내 줄
     const writeHeld = (uid: string, term: Terminal, chunks: Chunk[], from?: number) => {
@@ -160,6 +173,8 @@ export const provideProcessTerm = () => {
             first = false
             term.write(start < from ? bytes.subarray(from - start) : bytes)
         })
+        const end = chunks.at(-1)?.off ?? from
+        if (end !== undefined) lastOff.set(uid, end)
     }
 
     // 소유권 이벤트(PROCESS:SIZE_OWNER)가 응답보다 먼저 왔으면 응답의 false로 덮지 않는다.
@@ -179,7 +194,7 @@ export const provideProcessTerm = () => {
         const bytes = base64ToBytes(ev.data)
         const h = handles.get(ev.uid)
         if (h) {
-            h.term.write(bytes)
+            writeLive(ev.uid, h.term, bytes, ev.off)
             return
         }
         const k = holdOf(ev.uid)
@@ -302,6 +317,7 @@ export const provideProcessTerm = () => {
         replaying.clear()
         handles.forEach(h => h.term.dispose())
         handles.clear()
+        lastOff.clear()
         held.clear()
         expired.clear()
         procs_.value = {}
@@ -367,6 +383,7 @@ export const provideProcessTerm = () => {
     const dispose = (uid: string) => {
         handles.get(uid)?.term.dispose()
         handles.delete(uid)
+        lastOff.delete(uid)
         delete procs_.value[uid]
         delete owners_.value[uid]
     }

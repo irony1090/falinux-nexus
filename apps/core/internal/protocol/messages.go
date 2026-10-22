@@ -114,6 +114,8 @@ const (
 	MsgEditResult MsgType = "EDIT_RESULT" // worker→sup REQ: EditResult → 빈 응답 (EDIT 전용)
 
 	MsgSync MsgType = "SYNC" // worker→sup EVENT: SyncEvent (재접속 직후 자기 procs 스냅샷 자발 보고)
+
+	MsgScreen MsgType = "SCREEN" // worker→sup EVENT: ScreenEvent (보관 프로세스 화면 스냅샷 — 재접속 뒤 supervisor ring 채우기)
 )
 
 // ExecType: EXEC = 실행 / EDIT = 미리 보낸 파일을 에디터로 열고 종료 때 내용 회수(MsgEditResult). 빈 값 = EXEC(Kind())
@@ -160,7 +162,15 @@ type ExecResponse struct {
 type DataEvent struct {
 	UID  string `json:"uid"`
 	Data []byte `json:"data"`
-	Off  int64  `json:"off,omitempty"` // sup→browser 출력만: 이 묶음까지의 누적 바이트(화면 복원 이음매용)
+	Off  int64  `json:"off,omitempty"` // 출력만: 이 묶음까지의 누적 바이트(보관 프로세스가 매김, 화면 복원 이음매용)
+}
+
+// ScreenEvent: 보관 프로세스 화면 스냅샷(MsgScreen). Off = Data 끝의 누적 바이트 — REF-process-keep.md 살리기-6(화면 내용 이전)
+type ScreenEvent struct {
+	UID  string `json:"uid"`
+	Data []byte `json:"data"`
+	Off  int64  `json:"off"`
+	Alt  bool   `json:"alt"`
 }
 
 // ResizeRequest: 터미널 창 크기(MsgResize REQ)

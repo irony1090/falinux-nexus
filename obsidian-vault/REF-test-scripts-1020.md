@@ -43,3 +43,12 @@
 - `iutf8_test.go`(package pty): `ExecInteractive("bash","-c", pre+"stty -a | grep -o -- '-\\?iutf8'; head -n1 | od -An -tx1; echo END")` -> 0.3초 뒤 `Write("가나\x7f\n")` -> `Status()`가 완료될 때까지 -> `OutputAll()`. pre = "" / "stty -iutf8; " 두 번. 실행 = `{"Replace":{"<repo>/apps/core/internal/execute/pty/iutf8_scratch_test.go":"<scratchpad>/iutf8_test.go"}}` overlay로 `go test -overlay ... -run TestIUTF8 -v ./internal/execute/pty/`. bash `read`로 하면 `-iutf8` 쪽이 멈춤(bash가 깨진 바이트 뒤를 기다림) -> `head` 사용
 - `newboard_test.py`(Python `requests`, 16개): 계정 만들기·로그인 -> `GET /tiles` 루트 아래 A(A1)·B 폴더 타일(`nodeId: null`)로 PUT -> `POST /workspaces {folderTileId:A}`(from 없음) -> `{from:b1, folderTileId:A1}` -> 거부 4개(루트 400·없는 from 404·옛 version 409·다른 계정 404) -> 목록 3개
 
+
+## 2026-10-22 process 살려 두기 (`keep/keep_test.py`, 40개) → `REF-process-keep.md`
+- 격리: `go build -o keep/sup/supervisor`·`keep/wrk/worker`, env는 `-env <절대 경로>`(scratchpad = dev 판정이라 `-env` 필수·경로는 절대로). supervisor `PORT=5051`·`IP=127.0.0.1`·`DB_NAME=nexus_keep_tmp`, worker `WS_HOST=localhost:5051`·`SQLITE=<keep>/wrk/worker.db`·`NAME=keep-dev`. **TMPDIR은 바꾸지 않음** — 소켓 폴더가 `$TMPDIR` 아래라 scratchpad로 바꾸면 unix 소켓 경로 108바이트를 넘음(소켓 = `/tmp/nexus-hold-<uid>/keep-dev`)
+- Python(`requests` + `websockets.sync`, `-I` 없이 — 사용자 site-packages) / sqlite는 Python `sqlite3`(CLI 없음) / DB = `docker exec postgres15 psql -U irony -d nexus_keep_tmp`
+- 브라우저 흉내 = `/subscribe` 소켓 DATA를 프론트 `writeLive`와 같은 규칙(lastOff)으로 쌓고 `tick N` 번호가 빈 곳 없이 이어지는지로 판정. 입력 = 소켓 `{"k":2,"t":"PROCESS:INPUT","d":{uid,data(base64)}}`, exec 응답 uid = 최상위 `uid`
+- worker는 스크립트가 `subprocess.Popen(start_new_session=True)`로 띄우고 끔(TERM·KILL). supervisor 재시작 = cwd·exe가 `keep/sup`인 프로세스만 끄고 다시 띄움 -> 세션이 메모리라 다시 로그인 + 소켓 다시 연결
+- 보관 프로세스 찾기 = `/proc/*/cmdline` 끝 두 개가 `-hold`, `.../<uid>.sock`
+- 스크립트: `tick.sh`(0.2초마다 `tick N`) · `exit7.sh`(3초 뒤 exit 7) · `io.sh`(`read` 뒤 `stty size` 반복) · `note.txt`(EDIT, 입력 `ggdGinew<Esc>:wq`)
+- 정리: cwd가 `keep/` 아래인 프로세스 kill, `DROP DATABASE nexus_keep_tmp`, 소켓 폴더 비었는지 확인

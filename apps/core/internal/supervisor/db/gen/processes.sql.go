@@ -86,6 +86,16 @@ func (q *Queries) CreateProcess(ctx context.Context, arg CreateProcessParams) (P
 	return i, err
 }
 
+const deleteProcesses = `-- name: DeleteProcesses :exec
+DELETE FROM processes WHERE uid = ANY($1::text[])
+`
+
+// process_shares는 ON DELETE CASCADE
+func (q *Queries) DeleteProcesses(ctx context.Context, uids []string) error {
+	_, err := q.db.Exec(ctx, deleteProcesses, uids)
+	return err
+}
+
 const forceAbandonedKills = `-- name: ForceAbandonedKills :many
 UPDATE processes p
 SET kill_forced = true,
@@ -225,6 +235,33 @@ func (q *Queries) ListActiveByDevice(ctx context.Context, deviceKey string) ([]P
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExpiredProcesses = `-- name: ListExpiredProcesses :many
+SELECT uid FROM processes
+WHERE status IN ('COMPLETED', 'FAILED')
+  AND COALESCE(finished_at, updated_at, created_at) < $1::timestamptz
+`
+
+// 끝난 지 오래된 process — K2(supervisor 정리, REF-process-keep.md)
+func (q *Queries) ListExpiredProcesses(ctx context.Context, before pgtype.Timestamptz) ([]string, error) {
+	rows, err := q.db.Query(ctx, listExpiredProcesses, before)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var uid string
+		if err := rows.Scan(&uid); err != nil {
+			return nil, err
+		}
+		items = append(items, uid)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
