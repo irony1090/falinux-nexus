@@ -1,6 +1,6 @@
 # REF — 확인 스크립트 재작성 명세 (2026-10-22 이후)
 
-> 2026-10-23 `REF-test-scripts-1020.md`에서 분할(10k자 기준, 2026-10-22 절부터 통째로). 그 전 날짜 → `REF-test-scripts-1020.md` / 환경·격리 실행·함정 → `REF-test-env.md` / 이력 → `history/test-scripts-1022.md` / 현재 진행 → `CURRENT.md`.
+> 2026-10-23 `REF-test-scripts-1020.md`에서 분할(10k자 기준, 2026-10-22 절부터 통째로). 그 전 날짜 → `REF-test-scripts-1020.md` / 환경·격리 실행·함정 → `REF-test-env.md` / 이력 → `history/test-scripts-1022.md` / 다음 → `REF-test-scripts-1023.md`(경로 직접 입력부터) / 현재 진행 → `CURRENT.md`.
 > scratchpad 스크립트는 재부팅하면 사라진다 — 여기 적힌 항목·선택자가 다시 쓸 때의 명세.
 
 ## 2026-10-22 새 보드·IUTF8 (→ `REF-fix-board-iutf8.md` "확인")

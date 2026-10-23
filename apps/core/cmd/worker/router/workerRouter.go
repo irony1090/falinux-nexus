@@ -94,6 +94,7 @@ func NewWorkerRouter(supervisor url.URL, uniqueKey string, store *store.StorePoo
 	conn.Handle(protocol.MsgFileClose, router.fileClose)
 	conn.Handle(protocol.MsgDirList, router.dirList)
 	conn.Handle(protocol.MsgDirExists, router.dirExists)
+	conn.Handle(protocol.MsgDirSuggest, router.dirSuggest)
 
 	conn.Handle(protocol.MsgExec, router.exec)
 	conn.On(protocol.MsgData, router.input)

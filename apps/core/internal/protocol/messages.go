@@ -225,6 +225,25 @@ type DirListResponse struct {
 	Reason  string     `json:"reason,omitempty"`
 }
 
+// 경로 자동완성 — 경로-1(후보 요청), REF-path-input.md. 폴더만, 앞글자 대소문자 무시(목록 캐시 없이 매번 읽음)
+const MsgDirSuggest MsgType = "DIR_SUGGEST" // sup→worker REQ: DirSuggestRequest → DirSuggestResponse
+
+// DirSuggestRequest: Max 0 = 후보 없이 Dir가 폴더인지만(Enter 검사)
+type DirSuggestRequest struct {
+	Dir    string `json:"dir"` // 빈 값 = 최상위(Linux `/`, Windows 드라이브 목록)
+	Prefix string `json:"prefix,omitempty"`
+	Max    int    `json:"max,omitempty"`
+}
+
+// DirSuggestResponse: Dir = worker가 정리한 경로. Items의 Path는 worker가 이은 전체 경로
+type DirSuggestResponse struct {
+	Dir    string     `json:"dir"`
+	Items  []DirCrumb `json:"items"`
+	More   bool       `json:"more,omitempty"` // Max를 넘어 잘림
+	Err    string     `json:"err,omitempty"`  // DirErr*
+	Reason string     `json:"reason,omitempty"`
+}
+
 const (
 	DirErrNotFound = "not_found"
 	DirErrDenied   = "denied"

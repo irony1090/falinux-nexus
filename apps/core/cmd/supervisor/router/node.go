@@ -21,6 +21,7 @@ func (router *supervisorRouter) mountNodes(e *echo.Echo) {
 	g := e.Group("/nodes")
 	g.POST("", router.createNode)
 	g.GET("", router.listChildren)
+	g.POST("/suggest", router.suggestNodes) // nodeSuggest.go
 	g.GET("/:id", router.getNode)
 	g.GET("/:id/runs", router.listNodeRuns)
 	g.PATCH("/:id", router.patchNode)

@@ -158,6 +158,15 @@ export const copyNode = (id: number, parentId: number | null) => BaseAxios.post(
 .then(res => res.nodes.map(toNodeResponse))
 .catch(throwCatch)
 
+// POST /nodes/suggest — 폴더 타일 경로 입력, 경로-6(폴더 후보 REST)·REF-path-input.md. baseId 0 = 기본 목록, max 0 = names 끝 폴더만 찾기(Enter)
+export type NodeSuggestResponse = { id: number | null; items: Array<{ id: number; name: string }>; more?: boolean }
+
+export const suggestNodes = (body: { baseId: number; names: string[]; prefix?: string; max?: number }) => BaseAxios.post(
+    '/nodes/suggest',
+    body
+).then(throwThen<NodeSuggestResponse>)
+.catch(throwCatch)
+
 const Q_KEY = {
     LIST: (parentId?: Ref<number | undefined> | number) =>
         parentId !== undefined

@@ -110,3 +110,15 @@ export const listWorkerDir = (instance: string, folderId: number, q: { path?: st
     ).then(throwThen<DirListResponse>)
     .catch(throwCatch)
 }
+
+// 경로 자동완성 — 경로-2(후보 REST), REF-path-input.md. 폴더만. max 0(생략) = dir가 폴더인지만(정리된 경로를 돌려줌)
+export type DirSuggestResponse = { dir: string; items: DirCrumb[]; more?: boolean }
+
+export const suggestWorkerDir = (instance: string, folderId: number, q: { dir: string; prefix?: string; max?: number }) => {
+    const i = instance.lastIndexOf('#')
+    return BaseAxios.get(
+        `/workers/${encodeURIComponent(instance.slice(0, i))}/${encodeURIComponent(instance.slice(i + 1))}/dir/suggest`,
+        { params: { folderId, ...q } }
+    ).then(throwThen<DirSuggestResponse>)
+    .catch(throwCatch)
+}

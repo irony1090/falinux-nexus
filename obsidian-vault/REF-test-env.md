@@ -1,7 +1,7 @@
 # REF — 테스트 환경 · 확인용 클라이언트 함정
 
 > 2026-10-06 CURRENT에서 분리(세션마다 읽을 필요 없는 재사용 지식). 이력 → `history/test-env.md` / 현재 진행 → `CURRENT.md`. 각 기능의 확인 항목은 해당 REF의 확인 절(예: `REF-process-snapshot-impl.md` "스냅샷-b/-d", `REF-node-ui-save-impl.md`, `REF-node-ui-sync.md`, `REF-process-input.md` "입력-a/입력-c").
-> 2026-10-14 날짜별 확인 스크립트 재작성 명세는 `REF-test-scripts.md`로 분할(2026-10-14 이후는 `REF-test-scripts-1014.md`, 2026-10-20 이후는 `REF-test-scripts-1020.md`, 2026-10-22 이후는 `REF-test-scripts-1022.md`)(이 파일 = 환경·격리 실행·클라이언트 함정·DB 상태).
+> 2026-10-14 날짜별 확인 스크립트 재작성 명세는 `REF-test-scripts.md`로 분할(2026-10-14 이후는 `REF-test-scripts-1014.md`, 2026-10-20 이후는 `REF-test-scripts-1020.md`, 2026-10-22 이후는 `REF-test-scripts-1022.md`, 2026-10-23 경로 직접 입력부터 `REF-test-scripts-1023.md`)(이 파일 = 환경·격리 실행·클라이언트 함정·DB 상태).
 
 ## 환경
 - 환경: supervisor·worker는 사용자가 띄움(`docker start postgres15` → supervisor → worker, dev 서버 3000). 테스트 로그인 = `pages/Login.vue` 기본값 계정. 헤드리스 = `~/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome` + `playwright-core`(scratchpad에 `npm i`). worker 연결만 끊는 재현 = `REF-process-reconnect.md` "재현 방법"
