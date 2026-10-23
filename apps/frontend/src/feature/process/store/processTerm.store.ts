@@ -1,6 +1,6 @@
 import { useTestSocket } from '@/common/websocket/websocket.hook'
 import {
-    execProcess, getProcessSnapshot, killProcess, listProcesses, resizeProcess, takeSizeOwner, toProcessResponse,
+    execProcess, execWorkerFile, getProcessSnapshot, killProcess, listProcesses, resizeProcess, takeSizeOwner, toProcessResponse,
     type ProcessResponse, type ProcessResponseDto, type ProcessSnapshot, type ProcessStatus, type ProcessType,
 } from '@/feature/process/api/process.api'
 import { muteQueries } from '@/feature/process/util/xtermQuery.util'
@@ -268,6 +268,13 @@ export const provideProcessTerm = () => {
             return res
         })
 
+    // 장비 디렉토리 파일 실행(폴더-4(실행)) — 등록은 exec와 같음
+    const execFile = (instance: string, folderId: number, cmd: string, cwd: string, place: ExecPlace) => execWorkerFile(instance, { folderId, cmd, cwd, ...place })
+        .then(res => {
+            register(res.proc)
+            return res
+        })
+
     // 스냅샷을 xterm에 쓴다 — PTY 크기로 맞춘 뒤에(커서 위치 지정 출력이 어긋나지 않게). C(ring + alt screen만 다시 그리기):
     // 안 잘렸으면(off = data 길이) 처음부터라 그대로 — alt screen 이전 일반 화면도 남는다.
     // 잘렸고 alt면 진입만(다시 그리기 출력이 off 뒤 DATA로 옴), 다시 그리기 못 함(worker 끊김)이면 data라도
@@ -429,6 +436,7 @@ export const provideProcessTerm = () => {
         refreshAccount,
         pruneGone,
         exec,
+        execFile,
         restore,
         reset,
         prune,

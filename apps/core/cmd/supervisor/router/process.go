@@ -3,6 +3,7 @@ package router
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -51,6 +52,23 @@ func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.E
 		r.failExec(uid)
 		return "", fmt.Errorf("content 선배치 실패: %w", err)
 	}
+	return uid, r.launch(worker, entry, tabID)
+}
+
+// ExecFile: 장비 디렉토리 파일 실행(폴더-4(실행)) — 본문 선배치 없이 Exec의 3~5단계만. 소유·실행 = userID
+func (r *supervisorRouter) ExecFile(userID int64, authKey, cmd, cwd string, dirNodeID int64, tabID string) (string, error) {
+	worker, _ := r.workers.Get(authKey)
+	entry, err := r.processManager.ExecFile(worker, authKey, cmd, cwd, dirNodeID, userID)
+	if err != nil {
+		return "", err
+	}
+	uid := entry.Record.Uid
+	return uid, r.launch(worker, entry, tabID)
+}
+
+// launch: 등록된 process를 worker에서 시작한다. 실패하면 FAILED로 닫는다
+func (r *supervisorRouter) launch(worker *transport.Conn, entry *process.ProcessEntry, tabID string) error {
+	uid := entry.Record.Uid
 
 	// 3. 순서 의존: 구독은 relay Start() 전에 — 늦으면 RUNNING 등 첫 이벤트를 놓친다
 	r.subscribeViewers(uid)
@@ -64,20 +82,22 @@ func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.E
 	res, err := worker.Call(ctx, protocol.MsgExec, entry.Spec())
 	if err != nil {
 		r.failExec(uid)
-		return "", fmt.Errorf("MsgExec 전송 실패: %w", err)
+		return fmt.Errorf("MsgExec 전송 실패: %w", err)
 	}
 	var execRes protocol.ExecResponse
 	if err := res.Bind(&execRes); err != nil {
 		r.failExec(uid)
-		return "", err
+		return err
 	}
 	if !execRes.Accept {
 		r.failExec(uid)
-		return "", fmt.Errorf("worker가 실행을 거부했습니다: %s", execRes.Reason)
+		return fmt.Errorf("%w: %s", errExecRejected, execRes.Reason)
 	}
 	r.setSizeOwner(uid, tabID) // 실행한 탭 = 크기 소유자
-	return uid, nil
+	return nil
 }
+
+var errExecRejected = errors.New("worker가 실행을 거부했습니다") // 파일 없음·실행 불가 등 = 요청 쪽 문제
 
 const exitExecFailed = 126 // 실행이 시작되지 못함(셸 관례 "실행 불가")
 

@@ -23,6 +23,9 @@ func (r *supervisorRouter) mountWorkers(e *echo.Echo) {
 	g.GET("", r.listWorkers)
 	g.GET("/instances", r.listWorkerInstances)
 	g.DELETE("/instances/:mainKey/:subKey", r.deleteWorkerInstance)
+	g.GET("/:mainKey/:subKey/dir", r.listWorkerDir)    // workerDir.go
+	g.POST("/:mainKey/:subKey/exec", r.execWorkerFile) // workerExec.go
+	g.GET("/:mainKey/runs", r.listDeviceRuns)          // nodeRuns.go
 }
 
 type workerResponse struct {

@@ -292,9 +292,6 @@ func (r *supervisorRouter) bindProcessTile(c echo.Context) error {
 	if err != nil {
 		panic(web.Err(404, "존재하지 않는 process입니다"))
 	}
-	if !rec.NodeID.Valid {
-		panic(web.Err(400, "타일을 만들 수 없는 process입니다"))
-	}
 	var body struct {
 		Hash   string `json:"hash"` // "" = 기본 보드
 		TileID string `json:"tileId"`
@@ -340,8 +337,7 @@ func (r *supervisorRouter) bindProcessTile(c echo.Context) error {
 		if rec.Status != execute.CommandPending.String() && rec.Status != execute.CommandProcess.String() {
 			panic(web.Err(400, "끝난 process는 열 수 없습니다"))
 		}
-		nodeID := rec.NodeID.Int64
-		tile = newTerminalTile(nil, nodeID, uid, defaultTileSize)
+		tile = newTerminalTile(nil, nullID(rec.NodeID), uid, defaultTileSize)
 	}
 	tile.Parent, tile.Minimized = &parentID, false
 	parent := dst.Tiles[parentID]
@@ -356,7 +352,7 @@ func (r *supervisorRouter) bindProcessTile(c echo.Context) error {
 		src := saveLockedTree(c, locked[from.Hash], docs[from.Hash])
 		saved.add(&src)
 	}
-	ev := protocol.TilesNoticeEvent{Kind: protocol.NoticeBind, UID: uid, NodeID: rec.NodeID.Int64, Name: nodeName(ctx, q, rec.NodeID.Int64),
+	ev := protocol.TilesNoticeEvent{Kind: protocol.NoticeBind, UID: uid, NodeID: rec.NodeID.Int64, Name: procName(ctx, q, rec),
 		From: from, To: &protocol.TileSpot{Hash: hash, TileID: tile.ID}}
 	AfterCommit(c, func() {
 		for _, t := range saved {

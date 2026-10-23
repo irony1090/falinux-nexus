@@ -3,12 +3,15 @@ package router
 import (
 	"context"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
 	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/supervisor/store"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // 타일 위치 알림 — 개편-5(알림 이벤트), REF-tile-binding-rework.md "위치 알림"
@@ -77,6 +80,27 @@ func nodeName(ctx context.Context, q *superdb.Queries, nodeID int64) string {
 		return ""
 	}
 	return n.Name
+}
+
+// procName: 알림·목록에 쓸 process 이름 — 스크립트면 노드 이름, 장비 파일 실행이면 파일 이름(폴더-4(실행))
+func procName(ctx context.Context, q *superdb.Queries, p superdb.Process) string {
+	if p.NodeID.Valid {
+		return nodeName(ctx, q, p.NodeID.Int64)
+	}
+	return fileBase(p.Cmd)
+}
+
+// fileBase: 경로 끝 이름 — worker가 Windows일 수 있어 `\`도 구분자로
+func fileBase(p string) string {
+	return p[strings.LastIndexAny(p, `/\`)+1:]
+}
+
+// nullID: NULL 가능 id -> 포인터(NULL = nil)
+func nullID(v pgtype.Int8) *int64 {
+	if !v.Valid {
+		return nil
+	}
+	return &v.Int64
 }
 
 // terminalSpot: 저장된 트리에서 그 uid 터미널 타일 위치

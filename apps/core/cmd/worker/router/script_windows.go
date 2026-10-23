@@ -37,12 +37,17 @@ func prepareExec(body protocol.ProcessSpec) (protocol.ProcessSpec, error) {
 	if err := applyScriptFormat(path); err != nil {
 		return body, err
 	}
-	if ext == ".ps1" {
+	return scriptRunner(body, path), nil
+}
+
+// scriptRunner: path를 .ps1이면 powershell로, 그 외는 cmd /c로 실행하는 명세
+func scriptRunner(body protocol.ProcessSpec, path string) protocol.ProcessSpec {
+	if strings.ToLower(filepath.Ext(path)) == ".ps1" {
 		body.Cmd = "powershell"
 		body.Args = append([]string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path}, body.Args...)
 	} else {
 		body.Cmd = "cmd"
 		body.Args = append([]string{"/c", path}, body.Args...)
 	}
-	return body, nil
+	return body
 }

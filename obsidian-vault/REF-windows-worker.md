@@ -50,7 +50,8 @@ flowchart LR
 | 폴더 | `/home/jh-bae/vm/nexus-win/` 아래 `storage`(VM 디스크, 저장소 밖) · `shared`(-> Windows 바탕화면 Shared·`Z:`, 교차 빌드 `worker.exe` 둠) · `oem/install.bat`(설치 끝에 OpenSSH 서버 켬, 로그 `C:\OEM\ssh-setup.log`) |
 | 포트(전부 127.0.0.1) | 8006 웹 화면 · 3389 RDP · 2222 -> VM 22(SSH) |
 | VM -> 이 장비 | docker0 `172.17.0.1`(supervisor 8012는 0.0.0.0, 격리 supervisor는 IP 바인드 주의) |
-- 마감 후(2026-10-19): VM은 남겨 둠. worker `win-dev`는 사용자 supervisor 8012에 연결(env `WS_HOST=172.17.0.1:8012`·`SQLITE=./worker-8012.db`, 옛 `worker.db` = 격리 5051용 서브키). 안 쓸 때 `docker stop nexus-win`(RAM 6G)
+- 마감 후(2026-10-19): VM은 남겨 둠. worker `win-dev`는 사용자 supervisor 8012에 연결(env `WS_HOST=172.17.0.1:8012`·`SQLITE=./worker-8012.db`, 옛 `worker.db` = 격리 5051용 서브키). 안 쓸 때 `docker stop nexus-win`(RAM 6G). **2026-10-23~ 규칙: 시험할 때만 켜고 작업 중엔 끈다**(MEMORY 로컬 개발 환경)
+- 2026-10-23 test3(8013)에 붙임: 교차 빌드 `shared/worker-test3.exe`(태그 `WORKERDIR-261023`) + `shared/start-test3.ps1`(env `C:\nexus\env-test3` = `WS_HOST=172.17.0.1:8013`·`SQLITE=./worker-8012.db`·`NAME=win-dev`, 로그 `C:\nexus\worker-test3.log`). 서브키 `6RFUUw2P` 그대로 이어짐(`nexus_build` = `nexus` 복사본). 실행 = vssh로 `powershell -File \\host.lan\Data\start-test3.ps1`. 사용자 확인 뒤 VM 끔(2026-10-23)
 - 지우기: `docker rm -f nexus-win` + `/home/jh-bae/vm/nexus-win` 삭제(이미지는 `docker rmi dockurr/windows`)
 
 ## VM 준비 (2026-10-15 조사)

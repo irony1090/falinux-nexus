@@ -50,6 +50,9 @@ const current = computed(() => path.value[path.value.length - 1]);
 const deviceOwner = computed(() => [...path.value].reverse().find(p => !!p.deviceKey));
 const deviceInherited = computed(() => !!deviceOwner.value && deviceOwner.value.id !== current.value?.id);
 
+// 장비 디렉토리 열기 — 폴더-3(여는 곳). 내 폴더 + 적용 장비(상속 포함)가 있을 때만(Q5·Q12)
+const canOpenDir = computed(() => !!current.value && current.value.kind === 'FOLDER' && current.value.permission === PERM_OWNER && !!deviceOwner.value);
+
 // 공유 걸기 — O1(경로 줄 공유 버튼). 내 폴더(소유자 단계)일 때만. 서버도 소유자만 허용(SH4(공유 대상 찾기))
 const canShare = computed(() => !!current.value && current.value.kind === 'FOLDER' && current.value.permission === PERM_OWNER);
 const shareOpen = ref(false);
@@ -268,6 +271,12 @@ const onDrop = (e: DragEvent) => {
                 @click="ops.editDevice(tileId, current)"
             >
                 <i /><span class="key">{{ deviceOwner?.deviceKey ?? '장비 없음' }}</span><span v-if="deviceCount(deviceOwner?.deviceKey)" class="cnt">{{ deviceCount(deviceOwner?.deviceKey) }}</span><span v-if="deviceInherited">(상속)</span>
+            </button>
+            <button v-if="canOpenDir" class="tool" :disabled="saving || !isOnline(deviceOwner?.deviceKey)"
+                :title="isOnline(deviceOwner?.deviceKey) ? '장비 디렉토리 열기' : '접속 중인 인스턴스 없음'"
+                @click="current && ops.openDir(tileId, current)"
+            >
+                <v-icon size="14" icon="mdi-folder-network" />
             </button>
             <button v-if="canShare" class="tool share" title="이 폴더 공유" @click="shareOpen = true">
                 <v-icon size="14" icon="mdi-account-multiple-plus" /><span v-if="shareCount" class="share-count">{{ shareCount }}</span>

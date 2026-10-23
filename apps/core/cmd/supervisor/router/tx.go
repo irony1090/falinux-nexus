@@ -84,6 +84,13 @@ func Tx(c echo.Context) *store.Transaction {
 	return c.Get(txContextKey).(*txScope).ensureTx()
 }
 
+// EndTx: 지금 커밋하고 닫는다(이후 Tx를 부르면 새로 연다) — 느린 worker 호출 전에 DB 연결을 돌려주려고
+func EndTx(c echo.Context) {
+	scope := c.Get(txContextKey).(*txScope)
+	scope.release()
+	scope.tx, scope.hooks = nil, nil
+}
+
 // TxQueries: 현재 요청 트랜잭션의 sqlc Queries
 func TxQueries(c echo.Context) *superdb.Queries {
 	return Tx(c).QueriesPanic()

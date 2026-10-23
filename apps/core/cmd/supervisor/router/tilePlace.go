@@ -17,7 +17,7 @@ import (
 // appendTerminalTile: exec 성공 직후 터미널 타일을 넣는다 — ⑪-4(타일 없는 실행 중 process)
 // 별도 트랜잭션으로 핸들러 안에서 커밋까지: 요청 트랜잭션은 응답 뒤 커밋돼 실패를 알 수 없고, 그러면 kill(보상)을 못 한다
 // 고아 안전망(adoptOrphans)이 먼저 붙였으면 그 타일을 돌려준다(uid 중복 방지)
-func appendTerminalTile(ctx context.Context, userID int64, hash, parentTileID string, size tileSize, nodeID int64, uid string) (tileItem, superdb.TileTree, error) {
+func appendTerminalTile(ctx context.Context, userID int64, hash, parentTileID string, size tileSize, nodeID *int64, uid string) (tileItem, superdb.TileTree, error) {
 	tx := store.GetStorePool().Transaction()
 	if err := tx.Begin(ctx); err != nil {
 		return tileItem{}, superdb.TileTree{}, err
@@ -135,7 +135,7 @@ func insertTerminal(ctx context.Context, q *superdb.Queries, userID, nodeID int6
 	}
 	doc := &docs[at]
 	parent := doc.Tiles[parentID]
-	tile := newTerminalTile(&parent.ID, nodeID, uid, defaultTileSize)
+	tile := newTerminalTile(&parent.ID, &nodeID, uid, defaultTileSize)
 	parent.Kids = append(parent.Kids, tile.ID)
 	doc.Tiles[parent.ID] = parent
 	doc.Tiles[tile.ID] = tile
@@ -252,8 +252,7 @@ func (r *supervisorRouter) adoptOrphans(c echo.Context, userID int64) {
 	root := doc.Tiles[doc.RootID]
 	uids := make([]string, 0, len(orphans))
 	for _, p := range orphans {
-		nodeID := p.NodeID.Int64
-		t := newTerminalTile(&root.ID, nodeID, p.Uid, defaultTileSize)
+		t := newTerminalTile(&root.ID, nullID(p.NodeID), p.Uid, defaultTileSize)
 		t.Adopted = true
 		doc.Tiles[t.ID] = t
 		root.Kids = append(root.Kids, t.ID)

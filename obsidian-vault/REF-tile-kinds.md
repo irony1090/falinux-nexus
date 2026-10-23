@@ -2,7 +2,7 @@
 
 > 2026-10-22 신설. 이력 → `history/tile-kinds.md` / 현재 진행 → `CURRENT.md` / 다음 파트 → `REF-worker-dir.md`(worker 폴더 타일, 장비 타일 규칙 장비-1~3·Q9·Q10)
 
-**상태: 정리-1~7 구현·확인 끝, 브랜치 `refactor/tile-kinds`에 커밋(2026-10-22, master 미머지). 남은 것 = 사용자 브라우저 확인 -> master `--no-ff` 머지·마감. 역할 = Claude 작성.**
+**상태: 마감(2026-10-23) — 사용자 확인 OK, `refactor/tile-kinds` master `--no-ff` 머지 → `INDEX-tile-kinds.md`. 역할 = Claude 작성.**
 
 ## 왜 (2026-10-22 사용자)
 터미널 타일만 process를 쓰다가 장비 타일이 추가됨 -> 앞으로도 타일 종류가 늘 수 있음(이미지·텍스트 보기 Q4, 장치파일 타일 Q7). 그 전에 구조를 정리. **동작 변경 없음**이 이 파트의 기준.
@@ -60,13 +60,14 @@
 - 종류 비교 남은 곳: 프론트 13곳(전부 폴더 노드 전용·터미널 전용 컴포넌트) / 서버 폴더 전용 10곳 / SQL `type == "terminal"` 3곳(`processes.sql`·`tileTrees.sql`, `tileKind.go` 주석에 포인터)
 - **함정(scoped CSS + slot)**: slot 내용은 종류 컴포넌트 scope라 틀의 `.TileFrame__head > *`가 안 닿음 -> 틀은 `> :deep(*) { flex: none }`, 줄어들 것(이름·경로·opener·실행자)은 종류 컴포넌트에서 `.TileFrame__head > .name`처럼 한 단계 높여 덮음(파일 간 CSS 순서에 기대지 않게)
 
-## 새 종류를 더할 때 (다음 파트 장비 타일 기준)
+## 새 종류를 더할 때 (첫 사례 = 장비 타일 `device`, 2026-10-22 → `REF-worker-dir-list.md` "폴더-2·3 구현")
 1. `tileKind.go` `tileKinds` 줄 + 그 종류만의 `check` / 프론트 `TILE_KINDS` 줄 + `tile.type.ts` `TileType` + `tileTree.store` 타입(능력에 맞게 `ParentTile`·`ProcTile` 합집합에 넣기)
 2. 종류 컴포넌트(`TileFrame` 채우기) + `TILE_COMPONENTS` 줄
 3. 폴더 전용으로 남긴 것 중 그 종류에도 필요한 것(루트 탭·opener·보드 메뉴 hook)을 골라 씀
 
 ## 확인 (2026-10-22, 정리-7)
 - `go build`·`go vet`·`go test`(router 9개) · `vue-tsc` · `vite build` 통과
-- 격리(supervisor 5051 + 임시 DB `nexus_tk_tmp` + worker `tk-dev`) 위에 **옛 프론트(HEAD, `git archive`) 3002 / 새 프론트 3001**을 띄워 같은 헤드리스 시나리오 -> 단계마다 타일 머리 줄 글자·버튼 title/disabled·클래스·자식 계산 CSS(flex·글자 크기·opacity·굵기) 비교: **11단계 + 보드 분리·이동 6항목 모두 같음**(명세 → `REF-test-scripts-1020.md` "2026-10-22 타일 종류 정리")
+- 격리(supervisor 5051 + 임시 DB `nexus_tk_tmp` + worker `tk-dev`) 위에 **옛 프론트(HEAD, `git archive`) 3002 / 새 프론트 3001**을 띄워 같은 헤드리스 시나리오 -> 단계마다 타일 머리 줄 글자·버튼 title/disabled·클래스·자식 계산 CSS(flex·글자 크기·opacity·굵기) 비교: **11단계 + 보드 분리·이동 6항목 모두 같음**(명세 → `REF-test-scripts-1022.md` "2026-10-22 타일 종류 정리")
 - 옛 쪽에만 403 3건 = 옛 트리 `node_modules` symlink라 Vite가 아이콘 글꼴을 막은 것(환경), 앱 차이 아님
+- **사용자 브라우저 확인 OK(2026-10-23)**: test3 `build/worker-dir`(이 브랜치 위 작업 트리)로 머리 줄·메뉴·최소화·닫기·보드 분리 + 헤드리스로 못 본 ① 공유받은 타일 ② 볼 수 없는 타일(공유 취소) ③ 모바일 키보드 타일 띄우기 — 셋 다 확인
 - 정리 끝: 격리 프로세스·보관 프로세스(`tk-dev`만)·소켓 폴더·임시 DB 삭제, test3 영향 없음 확인

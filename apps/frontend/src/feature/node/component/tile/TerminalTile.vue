@@ -9,7 +9,7 @@ import { useTerminalKill } from '../../hook/terminalKill.hook';
 import { useRemoteActive } from '../../store/remoteActive.store';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
-import { nodeLabel } from '../../util/tileLabel.util';
+import { fileLabel, nodeLabel, shortPath } from '../../util/tileLabel.util';
 import { isReadOnly, permInfo } from '../../util/shareView.util';
 import PresenceDialog from '../dialog/PresenceDialog.vue';
 import TerminalTileBody from './TerminalTileBody.vue';
@@ -34,16 +34,19 @@ const tile = computed(() => {
     return t?.type === 'terminal' ? t : undefined;
 })
 
+const proc = computed(() => tile.value ? procs.value[tile.value.uid] : undefined);
+
+// nodeId null = 장비 파일 실행(폴더-4(실행)) — 이름 = 파일 이름, 경로 = 실행한 폴더
 const { data: node } = useGetNode(computed(() => tile.value?.nodeId ?? NaN));
 const name = computed(() => {
     const t = tile.value;
     if (!t) return '';
+    if (t.nodeId === null) return proc.value ? fileLabel(proc.value.cmd) : '실행 파일';
     const no = instanceOf.value.get(t.id);
     return nodeLabel(t.nodeId, node.value?.name) + (no ? ` (${no})` : '');
 })
 
 // ---- 공유-e-1(받는 쪽 표시): 공유받은 터미널 = process 응답에 소유자 닉네임 ----
-const proc = computed(() => tile.value ? procs.value[tile.value.uid] : undefined);
 const shareOwner = computed(() => proc.value?.ownerNickname);
 const shareInfo = computed(() => shareOwner.value ? permInfo(proc.value?.permission) : undefined);
 const readOnly = computed(() => isReadOnly(proc.value?.permission));
@@ -52,7 +55,10 @@ const startedBy = computed(() => proc.value?.startedByMe ? '나' : proc.value?.s
 // 터미널 머리 줄 `[실행한 타일 위치 번호] 실행된 경로 / 이름` — 번호 = 소유(타일 트리), 경로 = 스크립트가 있는 폴더(노드 트리). REF-workspace.md "터미널 머리 줄"
 const ownerPos = computed(() => tile.value?.parent ? posOf.value.get(tile.value.parent) : undefined);
 const { data: scriptPath } = useNodePath(computed(() => tile.value?.nodeId ?? null));
-const pathText = computed(() => [shareOwner.value, ...(scriptPath.value ?? []).slice(0, -1).map(p => p.name)].filter(Boolean).join(' / '));
+const pathFull = computed(() => tile.value?.nodeId === null
+    ? proc.value?.cwd ?? ''
+    : [shareOwner.value, ...(scriptPath.value ?? []).slice(0, -1).map(p => p.name)].filter(Boolean).join(' / '));
+const pathText = computed(() => tile.value?.nodeId === null ? shortPath(pathFull.value) : pathFull.value);
 
 // 볼 수 없음 = 서버가 process를 안 돌려줌 — 실시간-6b
 const unavailable = computed(() => !!tile.value && !!gone.value[tile.value.uid]);
@@ -132,7 +138,7 @@ const onX = () => {
 
     <template #title>
         <span v-if="ownerPos" class="owner" title="이 터미널을 실행한 타일">[{{ ownerPos }}]</span>
-        <span v-if="pathText" class="path" :title="pathText">{{ pathText }} /</span>
+        <span v-if="pathText" class="path" :title="pathFull">{{ pathText }} /</span>
         <span class="name">{{ name }}</span>
         <span v-if="startedBy" class="by" :title="proc?.startedByMe ? '내가 실행' : `${startedBy}님이 실행`">실행: {{ startedBy }}</span>
         <v-icon v-if="shortcutsOff" class="keys-off" size="14" icon="mdi-keyboard-off-outline" title="단축키 꺼짐 — 이 타일이 active인 동안 Ctrl+Alt 단축키가 터미널로 갑니다" />

@@ -86,7 +86,7 @@ supervisor·worker를 다시 띄울 때 실행 중인 터미널이 사라져 곤
 - 보관 프로세스 stderr = 소켓 옆 `.log`, 정상 종료하면 지움
 
 ## 확인 (2026-10-22, 격리 supervisor 5051 + 임시 DB `nexus_keep_tmp` + worker `keep-dev`)
-scratchpad `keep/keep_test.py` **40/40**(명세 → `REF-test-scripts-1020.md` "2026-10-22 process 살려 두기")
+scratchpad `keep/keep_test.py` **40/40**(명세 → `REF-test-scripts-1022.md` "2026-10-22 process 살려 두기")
 | 시나리오 | 확인 |
 |---|---|
 | basic | 보관 프로세스·sqlite 행 생김, 출력에 off, kill -> FAILED 143, 보관 프로세스·행·소켓·로그 사라짐 |

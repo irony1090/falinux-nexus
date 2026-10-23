@@ -1,5 +1,6 @@
 import type { TileType } from '@/feature/widget/util/tile.type'
 import type { Component } from 'vue'
+import DeviceTile from './DeviceTile.vue'
 import FolderTile from './FolderTile.vue'
 import TerminalTile from './TerminalTile.vue'
 
@@ -7,4 +8,5 @@ import TerminalTile from './TerminalTile.vue'
 export const TILE_COMPONENTS: Record<TileType, Component> = {
     folder: FolderTile,
     terminal: TerminalTile,
+    device: DeviceTile,
 }

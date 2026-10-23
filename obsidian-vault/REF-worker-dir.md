@@ -1,6 +1,6 @@
 # REF — worker 폴더 타일 (worker의 실제 디렉토리 보기 + 업로드)
 
-> → `history/worker-dir.md` / → `CURRENT.md` / 업로드에 쓸 전송 모듈 → `REF-transfer.md`·`REF-transfer-e2e.md`(`INDEX-infra`·`INDEX-transfer-e2e`)
+> → `history/worker-dir.md` / 폴더-1·뒤로-1 상세 → `REF-worker-dir-list.md` / → `CURRENT.md` / 업로드에 쓸 전송 모듈 → `REF-transfer.md`·`REF-transfer-e2e.md`(`INDEX-infra`·`INDEX-transfer-e2e`)
 
 ## 목적
 계정 폴더 타일·터미널 타일과 같은 급의 **세 번째 타일 종류**. worker의 실제 디렉토리를 계정 폴더 타일과 거의 같은 UI로 보여 준다.
@@ -46,6 +46,9 @@
 | 폴더-9(worker 간 전송) | 파트(파일 전송 확장). 장비 디렉토리 타일 대 장비 디렉토리 타일(같은 장비 포함). supervisor가 한 worker에서 받은 조각을 다른 worker로 넘김 = 폴더-7 보내는 쪽 + 폴더-5 받는 쪽 | 위 둘 연결 |
 
 진행 순서(2026-10-22 개정) = 파트(worker 폴더 타일) 폴더-1 -> 2 -> 3 -> 4 -> 6 / 파트(파일 전송 확장) 폴더-8(전송 상태) -> 7(내려받기) -> 5(업로드) -> 9(worker 간 전송). 번호는 처음 붙인 이름 유지. 그 전에 파트(타일 종류 정리) → `REF-tile-kinds.md`
+
+## 폴더-1(목록 요청)·뒤로-1(타일 안 이동 기록) → `REF-worker-dir-list.md`
+- 폴더-1 구현 끝(2026-10-22 밤, 격리 18/18). 정해진 것: Q12(상속 장비 폴더) 하위 폴더도 연다 · Q13(큰 폴더 상한) 안 다(worker 캐시) 500개 페이지 · Q14(링크 폴더) 구분 + 원본 위치로 이동 · Q15(장비 디렉토리 id) 연 곳 기준 · 뒤로-1 Q16(기록 보관 위치)~Q19(단축키) Ctrl+Shift+←/→
 
 ## 남은 질문
 - **내려받기 추가 요청**(2026-10-22 밤 사용자 "내려받기도 필요할듯") -> 폴더-7(내려받기) 후보. 지금 전송 모듈은 supervisor -> worker만(`cmd/supervisor/router/transfer.go`) -> worker -> 브라우저 방향을 새로 만듦. 조율 중: 범위(파일 하나/여러 개/폴더)·방식(바로 흘려보냄 vs 전송 모듈 반대 방향)·순서, Q4(이미지·텍스트 보기)와 경로 공유

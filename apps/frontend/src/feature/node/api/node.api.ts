@@ -93,8 +93,9 @@ export const listChildren = (parentId?: number) => BaseAxios.get(
 // 폴더 자식 스크립트에서 실행 중인 process + 내 보드에서의 위치 — 실시간-6a(스크립트 행 "실행 중 N")
 export type RunResponse = {
     uid: string
-    nodeId: number
-    name: string           // 스크립트 이름 — 단독 공유 process는 노드를 못 봐도 이걸로
+    nodeId: number | null  // null = 장비 파일 실행(폴더-4(실행))
+    name: string           // 스크립트 이름 — 단독 공유 process는 노드를 못 봐도 이걸로. 장비 실행 = 파일 이름
+    cwd?: string           // 장비 실행만 — 경로 표시
     status: string
     permission: number     // 요청 계정의 process 단계
     startedBy: string      // 실행한 계정 닉네임
@@ -111,6 +112,13 @@ export type RunResponse = {
 export const listRuns = (folderId: number, deep = false) => BaseAxios.get(
     `/nodes/${folderId}/runs`,
     { params: deep ? { deep: 1 } : undefined },
+).then(throwThen<RunResponse[]>)
+.catch(throwCatch)
+
+// GET /workers/:mainKey/runs?folderId= — 루트 장비 타일 터미널 탭(이동-3(장비 목록 API)): 그 장비의 볼 수 있는 process 전부. 연 폴더 소유자만
+export const listDeviceRuns = (mainKey: string, folderId: number) => BaseAxios.get(
+    `/workers/${encodeURIComponent(mainKey)}/runs`,
+    { params: { folderId } },
 ).then(throwThen<RunResponse[]>)
 .catch(throwCatch)
 
@@ -284,6 +292,13 @@ export const useNodeRuns = (folderId: Ref<number | null>, deep = false, enabled:
     enabled,
     queryKey: [...RUNS_KEY, folderId, deep],
     queryFn: ({ queryKey }) => listRuns((queryKey[2] as number | null) ?? 0, deep),
+})
+
+// 장비(main_key)의 process — 무효화는 노드 목록과 같은 키(invalidateNodeRuns)
+export const useDeviceRuns = (mainKey: Ref<string>, folderId: Ref<number>, enabled: Ref<boolean>) => useQuery({
+    enabled,
+    queryKey: [...RUNS_KEY, 'DEVICE', mainKey, folderId],
+    queryFn: ({ queryKey }) => listDeviceRuns(queryKey[3] as string, queryKey[4] as number),
 })
 
 export const invalidateNodeRuns = (queryClient: QueryClient) => queryClient.invalidateQueries({ queryKey: RUNS_KEY })

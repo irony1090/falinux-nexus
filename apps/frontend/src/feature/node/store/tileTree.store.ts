@@ -10,12 +10,14 @@ import { createBoard, moveBoardFolder, type BoardChangeResult } from '../api/boa
 const TILE_TREE_STORE_KEY = Symbol('TileTreeStore')
 
 type TileBase = TileNode & { parent: string | null }    // parent = 이 타일을 연 폴더 타일 (노드 트리의 부모 아님)
-export type FolderTile = TileBase & { type: 'folder'; nodeId: number | null; uid?: string; bound?: boolean }  // null = 루트 목록, uid = 서버 발급(새 타일은 저장 뒤 생김), 공유로 받은 타일은 공유한 타일과 같음, bound = 수동 타일 고정(서버만 씀, 표시는 pins)
-export type TerminalTile = TileBase & { type: 'terminal'; nodeId: number; uid: string; shortcutsOff?: true }   // shortcutsOff = active인 동안 앱 단축키 끔(이동-3(타일별 단축키 끔))
-export type Tile = FolderTile | TerminalTile
+type NavBase = { back?: ReadonlyArray<string>; fwd?: ReadonlyArray<string> }   // 이동 기록(folder = 노드 id, "" = 루트 목록 / device = 경로) — 뒤로-1(타일 안 이동 기록)
+export type FolderTile = TileBase & NavBase & { type: 'folder'; nodeId: number | null; uid?: string; bound?: boolean }  // null = 루트 목록, uid = 서버 발급(새 타일은 저장 뒤 생김), 공유로 받은 타일은 공유한 타일과 같음, bound = 수동 타일 고정(서버만 씀, 표시는 pins)
+export type TerminalTile = TileBase & { type: 'terminal'; nodeId: number | null; uid: string; shortcutsOff?: true }   // nodeId null = 장비 파일 실행(폴더-4(실행)), shortcutsOff = active인 동안 앱 단축키 끔(이동-3(타일별 단축키 끔))
+export type DeviceTile = TileBase & NavBase & { type: 'device'; nodeId: number; instance: string; path?: string }    // nodeId = 연 폴더(Q15(장비 디렉토리 id)), instance = main#sub, path 없음 = 최상위
+export type Tile = FolderTile | TerminalTile | DeviceTile
 
 // 능력별 타일 — 가드가 TILE_KINDS를 믿으므로 종류를 더하면 이 두 타입도 같이 (REF-tile-kinds.md)
-export type ParentTile = FolderTile     // 능력-2(자식 가능)
+export type ParentTile = FolderTile | DeviceTile     // 능력-2(자식 가능)
 export type ProcTile = TerminalTile     // 능력-3(process 담음)
 export const isParentTile = (t: Tile | undefined): t is ParentTile => !!t && canParent(t)
 export const isProcTile = (t: Tile | undefined): t is ProcTile => !!t && holdsProc(t)
@@ -40,6 +42,12 @@ const folderIn = (tiles: Record<string, Tile>, id: string) => {
     return tile
 }
 
+const deviceIn = (tiles: Record<string, Tile>, id: string) => {
+    const tile = tiles[id]
+    if (tile?.type !== 'device') throw new Error(`[TILE_TREE] not a device tile: ${id}`)
+    return tile
+}
+
 const parentIn = (tiles: Record<string, Tile>, id: string) => {
     const tile = tiles[id]
     if (!isParentTile(tile)) throw new Error(`[TILE_TREE] not a parent tile: ${id}`)
@@ -60,11 +68,66 @@ const attachOp = (parentId: string, tile: Tile): Op => ({ tiles }) => {
     parent.kids = [...parent.kids, tile.id]
 }
 
-// 폴더 이름 클릭 = 타일 안에서 이동 (새 타일 아님)
-const navigateOp = (tileId: string, nodeId: number | null): Op => ({ tiles }) => {
-    const t = folderIn(tiles, tileId)
+// ---- 타일 안 위치 + 이동 기록(뒤로-1) ----
+const HIST_MAX = 20     // 뒤로·앞으로 합쳐서 — Q16(기록 보관 위치), 서버 tileHistMax와 같게
+export type NavTile = FolderTile | DeviceTile
+export const isNavTile = (t: Tile | undefined): t is NavTile => t?.type === 'folder' || t?.type === 'device'
+
+// 위치를 문자열로 — 기록에 쌓는 값
+export const locOf = (t: NavTile) => t.type === 'folder' ? (t.nodeId === null ? '' : String(t.nodeId)) : (t.path ?? '')
+
+const setLoc = (t: NavTile, loc: string) => {
+    if (t.type === 'device') {
+        if (loc) t.path = loc
+        else delete t.path
+        return
+    }
+    const nodeId = loc === '' ? null : Number(loc)
     if (t.nodeId !== nodeId) delete t.bound   // 다른 폴더로 가면 서버도 고정을 푼다 — BD3(저장 위치). 내 탭은 TILES:UPDATE를 거르므로 여기서 맞춤
     t.nodeId = nodeId
+}
+
+const setHist = (t: NavTile, back: string[], fwd: string[]) => {
+    if (back.length) t.back = back
+    else delete t.back
+    if (fwd.length) t.fwd = fwd
+    else delete t.fwd
+}
+
+// 새 위치로 가면 지금 위치를 뒤로 기록에 쌓고 앞으로 기록은 비운다. 같은 위치면 아무것도 안 함(재적용 멱등)
+const moveOp = (tileId: string, loc: string): Op => ({ tiles }) => {
+    const t = tiles[tileId]
+    if (!isNavTile(t)) throw new Error(`[TILE_TREE] not a nav tile: ${tileId}`)
+    const cur = locOf(t)
+    if (cur === loc) return
+    setHist(t, [...(t.back ?? []), cur].slice(-HIST_MAX), [])
+    setLoc(t, loc)
+}
+
+// 뒤로(-1)·앞으로(1). from = 누른 때의 위치 — 재적용 때 이미 옮겨졌으면(위치가 다름) 다시 옮기지 않는다
+const histOp = (tileId: string, dir: -1 | 1, from: string): Op => ({ tiles }) => {
+    const t = tiles[tileId]
+    if (!isNavTile(t) || locOf(t) !== from) return
+    const back = [...(t.back ?? [])]
+    const fwd = [...(t.fwd ?? [])]
+    const to = dir < 0 ? back.pop() : fwd.shift()
+    if (to === undefined) return
+    if (dir < 0) fwd.unshift(from)
+    else back.push(from)
+    setHist(t, back, fwd)
+    setLoc(t, to)
+}
+
+// 폴더 이름 클릭 = 타일 안에서 이동 (새 타일 아님)
+const navigateOp = (tileId: string, nodeId: number | null): Op => tree => {
+    folderIn(tree.tiles, tileId)
+    moveOp(tileId, nodeId === null ? '' : String(nodeId))(tree)
+}
+
+// 장비 타일 안 이동 — 폴더-2(장비 타일)
+const navigateDeviceOp = (tileId: string, path: string): Op => tree => {
+    deviceIn(tree.tiles, tileId)
+    moveOp(tileId, path)(tree)
 }
 
 // 폴더를 닫으면 그 폴더가 연 타일들이 부모 소속이 된다 (⑩ 타일 닫기 규칙):
@@ -308,7 +371,23 @@ export const provideTileTree = () => {
         return tile.id
     }
 
+    // 장비 타일 — 연 폴더의 자식, 최상위부터(Q6(처음 여는 위치)). 폴더-3(여는 곳)
+    const openDevice = (parentId: string, nodeId: number, instance: string, size: TileSize) => {
+        const tile: DeviceTile = { id: crypto.randomUUID(), type: 'device', parent: parentId, kids: [], size, nodeId, instance }
+        run(attachOp(parentId, tile))
+        return tile.id
+    }
+
     const navigate = (tileId: string, nodeId: number | null) => run(navigateOp(tileId, nodeId))
+
+    const navigateDevice = (tileId: string, path: string) => run(navigateDeviceOp(tileId, path))
+
+    // 뒤로·앞으로 — 기록이 없으면 아무것도 안 함
+    const goHistory = (tileId: string, dir: -1 | 1) => {
+        const t = tiles_.value[tileId]
+        if (!isNavTile(t) || !(dir < 0 ? t.back : t.fwd)?.length) return
+        run(histOp(tileId, dir, locOf(t)))
+    }
 
     const close = (tileId: string) => run(closeOp(tileId))
 
@@ -391,12 +470,16 @@ export const provideTileTree = () => {
         load,
         reset,
         openFolder,
+        openDevice,
         navigate,
+        navigateDevice,
+        goHistory,
         close,
         resize,
         setMinimized,
         setShortcutsOff,
         applyServerTile,
+        flush,
         detachToBoard,
         moveToBoard,
     }

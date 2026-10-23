@@ -92,6 +92,8 @@ func (r *workerRouter) exec(req protocol.Frame) (any, error) {
 	var err error
 	if kind == protocol.ExecTypeEdit {
 		body, editPath, err = prepareEdit(body)
+	} else if body.Direct {
+		body, err = prepareDirect(body)
 	} else {
 		body, err = prepareExec(body)
 	}

@@ -2,7 +2,7 @@
 import { TILE_KINDS } from '@/feature/widget/util/tileKind.util';
 import { computed } from 'vue';
 import { VBtn, VChip, VIcon, VListItem, VListSubheader } from 'vuetify/components';
-import { useGetNode, useNodeRuns } from '../../api/node.api';
+import { useGetNode } from '../../api/node.api';
 import { bindTile } from '../../api/tile.api';
 import { useTerminalKill } from '../../hook/terminalKill.hook';
 import { useTileBoard } from '../../hook/tileBoard.hook';
@@ -14,8 +14,10 @@ import { nodeLabel } from '../../util/tileLabel.util';
 import { permInfo } from '../../util/shareView.util';
 import NodeNameDialog from '../dialog/NodeNameDialog.vue';
 import FolderTileBody from './FolderTileBody.vue';
+import RootTabs from './RootTabs.vue';
 import RootTerminalList from './RootTerminalList.vue';
 import TileFrame from './TileFrame.vue';
+import TileNavButtons from './TileNavButtons.vue';
 
 // 폴더 타일 — 계정 폴더 노드 목록. 루트면 탭 `[파일] [터미널 N · 최소화 n]`
 const props = defineProps({
@@ -54,11 +56,6 @@ const icon = computed(() => shareOwner.value ? 'mdi-folder-account' : TILE_KINDS
 
 // 볼 수 없음 = 노드 404 — 실시간-6b
 const unavailable = computed(() => !!tile.value && tile.value.nodeId !== null && (nodeError.value as { status?: number } | null)?.status === 404);
-
-// 탭 숫자 = 터미널 탭 목록(루트 경로 하위, RootTerminalList와 같은 조회 — 개편-6(목록 UI)). 갱신은 폴더 타일의 useScriptRuns가 무효화
-const { data: rootRuns } = useNodeRuns(computed(() => tile.value?.nodeId ?? null), true, isRoot);
-const runCount = computed(() => rootRuns.value?.length ?? 0);
-const minCount = computed(() => rootRuns.value?.filter(r => r.minimized).length ?? 0);
 
 // ---- 보드: 폴더 타일(루트 제외)을 하위째 새 보드로 분리(어느 보드에서든) / 다른 보드로 이동 — W1(분리 범위)·W3(이동 범위) ----
 const board = useTileBoard(() => props.tileId);
@@ -100,6 +97,10 @@ const remoteUsers = computed(() => {
         <span v-if="opener" class="opener text-warning">← {{ opener }}</span>
     </template>
 
+    <template #controls>
+        <tile-nav-buttons v-if="!unavailable" :tile-id="tile.id" />
+    </template>
+
     <template #menu>
         <v-list-item v-if="canPin" title="여기로 타일 고정" prepend-icon="mdi-pin-outline" @click="onPin" />
         <template v-if="boardMenu">
@@ -115,14 +116,8 @@ const remoteUsers = computed(() => {
         </template>
     </template>
 
-    <!-- 루트 타일 탭 `[파일] [터미널 N · 최소화 n]` -->
     <template #tabs>
-        <div v-if="isRoot" class="root-tabs" :inert="overview">
-            <button :class="{ on: rootTab === 'files' }" @click="rootTab = 'files'">파일</button>
-            <button :class="{ on: rootTab === 'terminals' }" @click="rootTab = 'terminals'">
-                터미널 {{ runCount }}<template v-if="minCount"> · 최소화 {{ minCount }}</template>
-            </button>
-        </div>
+        <root-tabs v-if="isRoot" />
     </template>
 
     <template v-if="isRoot" #unavailable>
@@ -155,25 +150,5 @@ const remoteUsers = computed(() => {
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 11px;
-}
-.root-tabs {
-    flex: none;
-    display: flex;
-    border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    font-size: 11.5px;
-    > button {
-        padding: 4px vars.$spacing-md;
-        border: 0;
-        border-bottom: 2px solid transparent;
-        background: none;
-        color: inherit;
-        opacity: 0.65;
-        cursor: pointer;
-        &.on {
-            opacity: 1;
-            border-bottom-color: rgb(var(--v-theme-primary));
-            font-weight: vars.$weight-md;
-        }
-    }
 }
 </style>

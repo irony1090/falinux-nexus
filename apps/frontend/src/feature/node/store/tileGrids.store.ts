@@ -58,7 +58,7 @@ export const provideTileGrids = () => {
     const instanceOf = computed(() => {
         const byNode = new Map<number, Array<string>>()
         flat.value.forEach(({ tile }) => {
-            if (!isProcTile(tile)) return
+            if (!isProcTile(tile) || tile.nodeId === null) return   // 장비 파일 실행은 번호 없음
             byNode.set(tile.nodeId, [...(byNode.get(tile.nodeId) ?? []), tile.id])
         })
         const rst = new Map<string, number>()

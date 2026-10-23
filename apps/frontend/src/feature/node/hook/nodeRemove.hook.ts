@@ -8,10 +8,10 @@ export const useNodeRemove = () => {
     const { tiles, rootId, close, navigate } = useTileTree()
     const { invalidateAll, fetchPath } = useNodeQueryClient(useQueryClient())
 
-    // nodeId 폴더나 그 하위를 보고 있는 폴더 타일
+    // nodeId 폴더나 그 하위를 보고 있는 폴더 타일 + 그 폴더에서 연 장비 타일
     const tilesUnder = async (nodeId: number) => {
         const folders = Object.values(tiles.value).flatMap(t =>
-            t.type === 'folder' && t.nodeId !== null ? [{ id: t.id, nodeId: t.nodeId }] : []
+            (t.type === 'folder' || t.type === 'device') && t.nodeId !== null ? [{ id: t.id, nodeId: t.nodeId }] : []
         )
         const paths = await Promise.all(folders.map(f => fetchPath(f.nodeId).catch(() => [])))
         return folders.filter((_, i) => paths[i]?.some(p => p.id === nodeId)).map(f => f.id)
@@ -23,8 +23,11 @@ export const useNodeRemove = () => {
     const removeNode = async (node: NodeResponse) => {
         const targets = node.kind === 'FOLDER' ? await tilesUnder(node.id) : []
         await deleteNode(node.id)
-        // 루트 타일은 닫을 수 없어 기본 목록으로 돌린다
-        targets.forEach(id => id === rootId.value ? navigate(id, null) : close(id))
+        // 루트 타일은 닫을 수 없다 — 폴더 = 기본 목록으로 / 장비 = 그대로 두고 "볼 수 없음"(Q26(연 폴더 삭제 때))
+        targets.forEach(id => {
+            if (id !== rootId.value) close(id)
+            else if (tiles.value[id]?.type === 'folder') navigate(id, null)
+        })
         await nextTick()
         invalidateAll(node.id, node.parentId ?? undefined)
     }

@@ -10,6 +10,7 @@ import { computed, onBeforeUnmount, onMounted, type CSSProperties } from 'vue';
 import { useRouter } from 'vue-router';
 import type { BoardItem } from '../api/board.api';
 import { useTileShortcut } from '../hook/tileShortcut.hook';
+import { useTileNavShortcut } from '../hook/tileNav.hook';
 import { boardLabel, focusPath, useBoards } from '../store/boards.store';
 import { TILE_GAP as GAP, useTileGrids, type BoardGrids } from '../store/tileGrids.store';
 import { isProcTile, useTileTree } from '../store/tileTree.store';
@@ -21,6 +22,7 @@ const {
     overview, ovScale, ovDir, otherBoards, leaveOverview, activate, scrubbing,
 } = useTileGrids();
 useTileShortcut();
+useTileNavShortcut();
 const { hash } = useTileTree();
 const { byHash } = useBoards();
 const { procs } = useProcessTerm();

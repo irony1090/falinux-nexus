@@ -124,17 +124,7 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 	if err := c.Validate(&body); err != nil {
 		panic(web.Err(400, "%v", err))
 	}
-	size := tileSize{W: 0.5, H: 0.5}
-	if body.Size != nil {
-		size = *body.Size
-	}
-	if !validSpan(size.W) || !validSpan(size.H) {
-		panic(web.Err(400, "타일 크기가 올바르지 않습니다"))
-	}
-
-	if body.Workspace != "" {
-		requestWorkspace(c, sess.Data.ID, body.Workspace) // 실행 전에 확인 — 없는 작업 공간이면 실행하지 않음
-	}
+	size := execTileSize(c, sess.Data.ID, body.Workspace, body.Size)
 
 	min := superdb.PermOperate
 	if protocol.ExecType(body.Type) == protocol.ExecTypeEdit {
@@ -157,25 +147,47 @@ func (r *supervisorRouter) execProcess(c echo.Context) error {
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
-	entry, _ := r.processManager.Get(uid)
 	// 새 process엔 process 공유 행이 없어 단계 = 노드 단계
-	res := execResponse{processResponse: withPermission(withSizeOwner(newProcessResponse(*entry.Record), r.sizeOwnerOf(uid) == tabID), perm)}
-	res.processResponse = withProcessNames(c, sess.Data.ID, []processResponse{res.processResponse}, []superdb.Process{*entry.Record})[0]
+	res := r.execTile(c, sess.Data.ID, tabID, uid, perm, body.Workspace, body.ParentTileID, size)
+	r.attachViewerTiles(sess.Data.ID, node.ID, uid)
+	return c.JSON(200, res)
+}
+
+// execTileSize: 실행 요청의 타일 크기(없으면 0.5×0.5). 작업 공간은 실행 전에 확인 — 없는 작업 공간이면 실행하지 않음
+func execTileSize(c echo.Context, userID int64, workspace string, req *tileSize) tileSize {
+	size := tileSize{W: 0.5, H: 0.5}
+	if req != nil {
+		size = *req
+	}
+	if !validSpan(size.W) || !validSpan(size.H) {
+		panic(web.Err(400, "타일 크기가 올바르지 않습니다"))
+	}
+	if workspace != "" {
+		requestWorkspace(c, userID, workspace)
+	}
+	return size
+}
+
+// execTile: 시작한 process의 응답 + 실행한 계정의 트리에 터미널 타일. 스크립트 실행·장비 파일 실행(workerExec.go) 공용
+func (r *supervisorRouter) execTile(c echo.Context, userID int64, tabID, uid string, perm int16, workspace, parentTileID string, size tileSize) execResponse {
+	entry, _ := r.processManager.Get(uid)
+	rec := *entry.Record
+	res := execResponse{processResponse: withPermission(withSizeOwner(newProcessResponse(rec), r.sizeOwnerOf(uid) == tabID), perm)}
+	res.processResponse = withProcessNames(c, userID, []processResponse{res.processResponse}, []superdb.Process{rec})[0]
 	// 타일을 못 넣으면 실행을 되돌린다 — 보이지도 kill되지도 않는 process를 남기지 않기 위해. kill도 실패하면 3-d 안전망이 받음
 	// 요청 컨텍스트를 쓰면 브라우저가 응답 전에 끊을 때 저장이 취소돼 멀쩡한 process가 kill된다
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	tile, tree, err := appendTerminalTile(ctx, sess.Data.ID, body.Workspace, body.ParentTileID, size, node.ID, uid)
+	tile, tree, err := appendTerminalTile(ctx, userID, workspace, parentTileID, size, nullID(rec.NodeID), uid)
 	if err != nil {
 		if kErr := entry.Inter.Kill(true); kErr != nil {
 			log.Printf("[process] 타일 저장 실패 후 kill 실패 uid=%s: %v", uid, kErr)
 		}
 		panic(web.Err(500, "터미널 타일 저장에 실패해 실행을 중단했습니다: %v", err))
 	}
-	r.publishTiles(sess.Data.ID, tree, tabID) // 별도 트랜잭션이 이미 커밋됨
-	r.attachViewerTiles(sess.Data.ID, node.ID, uid)
+	r.publishTiles(userID, tree, tabID) // 별도 트랜잭션이 이미 커밋됨
 	res.Tile, res.TileVersion = &tile, tree.Version
-	return c.JSON(200, res)
+	return res
 }
 
 // killRequest: POST /processes/kill/:processId — force = SIGKILL, 아니면 SIGTERM

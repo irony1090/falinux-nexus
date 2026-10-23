@@ -285,7 +285,7 @@ ORDER BY u.nickname, n.name, n.id;
 -- 단계 판정은 process_permission만.
 SELECT p.uid, p.node_id, p.status, process_permission(sqlc.arg(user_id), p.uid)::smallint AS permission,
        p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
-       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name, p.cmd, p.cwd
 FROM processes p
 JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by
@@ -297,7 +297,7 @@ ORDER BY p.created_at ASC;
 
 -- name: ListVisibleRunsInSubtree :many
 -- 터미널 탭(개편-3(목록 API)): 폴더와 그 하위 전체 스크립트의 process — 위와 같은 조건. folder_id NULL = 기본 루트 = 볼 수 있는 process 전부
--- (단독 공유 process 포함, R3(경로 없는 process))
+-- (단독 공유 process 포함, R3(경로 없는 process)). 장비 실행(node_id NULL)은 dir_node_id가 하위면 — Q10(루트가 아닐 때), 이름은 router가 cmd로
 WITH RECURSIVE sub AS (
     SELECT id FROM nodes WHERE id = sqlc.narg(folder_id)::bigint
     UNION ALL
@@ -305,12 +305,27 @@ WITH RECURSIVE sub AS (
 )
 SELECT p.uid, p.node_id, p.status, process_permission(sqlc.arg(user_id), p.uid)::smallint AS permission,
        p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
-       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, COALESCE(n.name, '')::text AS name, p.cmd, p.cwd
 FROM processes p
-JOIN nodes n ON n.id = p.node_id
+LEFT JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by
-WHERE (sqlc.narg(folder_id)::bigint IS NULL OR p.node_id IN (SELECT id FROM sub))
-  AND n.kind = 'SCRIPT'
+WHERE (sqlc.narg(folder_id)::bigint IS NULL OR p.node_id IN (SELECT id FROM sub) OR p.dir_node_id IN (SELECT id FROM sub))
+  AND (n.kind = 'SCRIPT' OR p.node_id IS NULL)
+  AND (p.status IN ('PENDING','PROCESS') OR p.uid = ANY(sqlc.arg(tile_uids)::text[]))
+  AND process_permission(sqlc.arg(user_id), p.uid) > 0
+ORDER BY p.created_at ASC;
+
+-- name: ListVisibleRunsOnDevice :many
+-- 루트 장비 타일 터미널 탭(이동-3(장비 목록 API), Q25(루트 장비 탭 범위)): 그 장비(main_key, 인스턴스 전부)의 process — 위와 같은 조건.
+-- 어느 타일·폴더에서 띄웠든, 단독 공유 포함. 서브키는 마지막 '#' 뒤(splitInstanceKey와 같게)
+SELECT p.uid, p.node_id, p.status, process_permission(sqlc.arg(user_id), p.uid)::smallint AS permission,
+       p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, COALESCE(n.name, '')::text AS name, p.cmd, p.cwd
+FROM processes p
+LEFT JOIN nodes n ON n.id = p.node_id
+LEFT JOIN users u ON u.id = p.started_by
+WHERE regexp_replace(p.device_key, '#[^#]*$', '') = sqlc.arg(main_key)::text
+  AND (n.kind = 'SCRIPT' OR p.node_id IS NULL)
   AND (p.status IN ('PENDING','PROCESS') OR p.uid = ANY(sqlc.arg(tile_uids)::text[]))
   AND process_permission(sqlc.arg(user_id), p.uid) > 0
 ORDER BY p.created_at ASC;
