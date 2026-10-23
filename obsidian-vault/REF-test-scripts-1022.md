@@ -39,3 +39,14 @@
 - **함정: 페이지는 `http://localhost:3001`로 연다** — `127.0.0.1:3001`로 열면 localhost:5051 쿠키가 교차 사이트라 안 실려 로그인 안 됨(장비 타일이 안 뜸)
 - 장비 타일 = REST로 `PUT /tiles`(루트 kids에 `{type:'device', size:{w:0.5,h:1}, nodeId, instance, path:<iso>/recv2}`) — `w:1`로 넣으면 화면보다 넓어 막대 오른쪽이 잘려 보임
 - 항목: W0(올리기 버튼 켜짐·전송 없으면 푸터 버튼 없음) · W1(`setInputFiles` 2개 -> 목록에 자동으로 뜸·sha·푸터 목록 2줄 완료·받을 곳·끝난 것은 타일 막대에 없음) · W2(같은 이름 + 새 이름 -> 창 "이미 있는 파일 1개: a.bin" -> 건너뛰기 -> 원본 유지·새 파일만) · W3(모두 덮어쓰기) · W4(같은 이름 폴더만 -> 안내 창) · W5(합성 `DataTransfer`로 dragover·drop, 클래스 확인은 `requestAnimationFrame` 한 번 뒤) · W6(150MB -> 타일 막대 진행·푸터 배지 1 -> 막대의 중단 -> 파일·.part 없음·푸터 목록 중단됨)
+
+## 2026-10-23 전송-7~10(서버: worker 송신·내려받기·zip·worker 간 중계) (`iso/dl_test.py`, 42개) → `REF-transfer-down.md` "구현"
+- 격리 supervisor 5051 + `nexus_xferdown_tmp`(supervisor만 `TMPDIR=<iso>/tmp`) + worker 2개 `xd-a`·`xd-b`(`-env <절대 경로>`, 각자 `worker.db`). 원본 폴더 `<iso>/srcA`(한글 이름 파일·`sub/deep`·읽을 수 없는 `sub/secret`(0 권한)·파일 링크·빈 파일·200MB `big.bin`), 받을 폴더 `<iso>/recvB`
+- Python `requests` + `websockets.sync.client`(`TRANSFER:*` 모음). 계정 2개, 폴더 FA(`xd-a`)·FB(`xd-b`)·P(장비 없음)·남 계정 F2
+- 항목: D1(파일 하나 sha·Content-Length·`filename*=utf-8''` 한글) · D2(두 번째 GET 409) · D3(zip: 항목·내용·testzip, 0 권한 파일 빠짐, Content-Length 없음, size -1, 이름 `srcA.zip`) · D4(폴더 하나 = `sub.zip`, 앞에 `sub/`) · D5(없는 파일 404·폴더를 파일로 400·`../x` 400·장비 없는 폴더 403·남 폴더 404·남 항목 GET 404·빈 파일) · D6(받는 중 DELETE -> aborted) · D7(클라이언트가 끊음 -> aborted) · D9(zip 중단 = 정상 종료 아닌 연결 오류) · C1(복사 sha·`.part` 없음·fromKey) · C2(같은 이름 exists·overwrite) · C3(없는 원본 404·없는 받을 폴더 no_parent·받는 쪽 403 두 가지·빈 파일) · C7(같은 장비 안) · C4(큰 파일 중단 -> B에 `.part` 없음) · C5(복사 중 보내는 worker kill -> 1.5초 뒤 다시 띄움 -> 다시 열어 이어서 done·sha) · C6(6개 동시) · P(push) · D8(`--slow`: GET 없이 1분 -> aborted)
+
+## 2026-10-23 전송-11·12(화면: 선택·메뉴·끌어 놓기) (`pw/dl.mjs`, 26개) → `REF-transfer-down.md` "구현"
+- 위 격리 + vite 3001(`iso/iso.mts`, 앞 절과 같은 방식) + `playwright-core@1.56`(scratchpad `pw/`), `acceptDownloads: true`. 장비 타일 2개를 `PUT /tiles`로(루트 kids = A(`srcA`)·B(`recvB/ui`), 각 `w:0.5`)
+- **함정: 헤드리스 Playwright의 HTML5 drag(`dragTo`·마우스 단계 이동)는 첫 drag에서 dragstart가 안 나거나 drop이 빠짐** -> `page.evaluateHandle(() => new DataTransfer())` 하나로 dragstart -> dragover -> drop -> dragend를 `dispatchEvent`(실제 drag 동작은 사용자 브라우저 확인 몫)
+- 내려받기는 숨은 iframe에서 받아도 `page.waitForEvent('download')`로 잡힘
+- 항목: W1(체크박스 숨음 -> 올리면 보임 -> 선택 = "1개" -> 다른 줄도 보임 -> 해제) · W2(파일 하나 이름·sha·선택 해제·푸터 완료) · W3(여러 개 = `srcA.zip`, PK) · W4(폴더만 선택 = 보내기 꺼짐, 받을 곳 메뉴 = B 타일 경로, 두 파일 도착·sha·B 목록 다시 읽힘) · W5(같은 이름 창 -> 건너뛰기) · W6(끌어 놓기 1개·선택 2개) · W7(같은 폴더에 놓기 무시) · W8(200MB 끌기 -> B 타일 막대 -> 중단 -> 파일·`.part` 없음) · W9(폴더 이동 = 선택 비움) · W10(업로드 회귀: 같은 이름 창 -> 건너뛰기)

@@ -21,6 +21,7 @@ var dirErrStatus = map[string]int{
 	protocol.DirErrNotDir:   400,
 	protocol.DirErrBadPath:  400,
 	protocol.DirErrExpired:  410,
+	protocol.DirErrIsDir:    400,
 }
 
 // listWorkerDir: worker 디렉토리 한 페이지 — 폴더-1(목록 요청), REF-worker-dir.md

@@ -118,6 +118,48 @@ type FileAbortRequest struct {
 	Reason     string `json:"reason,omitempty"`
 }
 
+// ===== 파일 읽기 (worker -> supervisor, supervisor가 끌어옴) — REF-transfer-down.md 전송-7(worker 송신) =====
+// FileOpen -> FileRead × N -> FileClose. 다음 조각은 supervisor가 요청할 때만 읽으므로 받는 쪽 속도에 맞춰진다
+const (
+	MsgFileOpen  MsgType = "FILE_OPEN"  // sup→worker REQ: FileOpenRequest → FileOpenResponse
+	MsgFileRead  MsgType = "FILE_READ"  // sup→worker REQ: FileReadRequest → FileReadResponse
+	MsgFileClose MsgType = "FILE_CLOSE" // sup→worker REQ: FileCloseRequest → 빈 응답
+)
+
+// FileOpenRequest: Names가 비면 Path = 파일 하나(그대로) / 있으면 Path = 폴더, 그 안의 Names(파일·폴더)를 zip 하나로
+type FileOpenRequest struct {
+	ReadID string   `json:"readId"`
+	Path   string   `json:"path"`
+	Names  []string `json:"names,omitempty"`
+}
+
+// FileOpenResponse: Err가 있으면 나머지는 빈 값(DirErr*). Size = -1이면 모름(zip)
+type FileOpenResponse struct {
+	Name    string `json:"name"`
+	Size    int64  `json:"size"`
+	Mode    uint32 `json:"mode"`
+	ModTime int64  `json:"modTime"` // Unix 초(zip = 0)
+	Err     string `json:"err,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+}
+
+// FileReadRequest: zip은 순서대로만 — Offset = 지금 위치 또는 바로 앞 조각의 시작(응답이 끊겨 다시 묻는 경우)
+type FileReadRequest struct {
+	ReadID string `json:"readId"`
+	Offset int64  `json:"offset"`
+	Max    int    `json:"max"`
+}
+
+// FileReadResponse: EOF = 이 조각 뒤로 더 없음(Data가 있어도 됨)
+type FileReadResponse struct {
+	Data []byte `json:"data"`
+	EOF  bool   `json:"eof,omitempty"`
+}
+
+type FileCloseRequest struct {
+	ReadID string `json:"readId"`
+}
+
 // ===== worker 디렉토리 목록 (supervisor -> worker) — REF-worker-dir.md 폴더-1(목록 요청) =====
 // 첫 요청(Path)에 worker가 전부 읽어 정렬해 보관하고 Cursor를 준다. 다음 페이지 = Cursor + Offset(안 다(worker 캐시))
 const MsgDirList MsgType = "DIR_LIST" // sup→worker REQ: DirListRequest → DirListResponse
@@ -189,6 +231,7 @@ const (
 	DirErrNotDir   = "not_dir"
 	DirErrBadPath  = "bad_path"
 	DirErrExpired  = "expired" // 보관 목록이 만료됨 -> 처음부터 다시
+	DirErrIsDir    = "is_dir"  // FILE_OPEN: 파일 하나를 열려는데 폴더
 	DirErrOther    = "other"
 )
 
@@ -446,10 +489,13 @@ const (
 )
 
 const (
-	TransferKindUpload = "upload"
+	TransferKindUpload   = "upload"
+	TransferKindDownload = "download" // 전송-8·9(내려받기)
+	TransferKindCopy     = "copy"     // 전송-10(worker 간 중계)
 
-	TransferPhaseUpload = "upload" // 브라우저 -> supervisor — Q25(진행률 구간)
-	TransferPhaseSend   = "send"   // supervisor -> worker
+	TransferPhaseUpload   = "upload"   // 브라우저 -> supervisor — Q25(진행률 구간)
+	TransferPhaseSend     = "send"     // supervisor -> worker(worker 간 중계도 이 단계 하나)
+	TransferPhaseDownload = "download" // worker -> 브라우저
 
 	TransferRunning = "running"
 	TransferDone    = "done"
@@ -462,14 +508,16 @@ type TransferInfo struct {
 	ID          string `json:"id"`
 	Kind        string `json:"kind"`
 	TileID      string `json:"tileId,omitempty"` // 시작한 장비 타일 — Q27(타일 막대 범위)
-	InstanceKey string `json:"instanceKey"`
-	Dir         string `json:"dir"`
+	InstanceKey string `json:"instanceKey"`      // 받는 장비(내려받기 = 보내는 장비)
+	Dir         string `json:"dir"`              // 받을 폴더(내려받기 = 내려받는 폴더)
 	Name        string `json:"name"`
-	Size        int64  `json:"size"`
-	Done        int64  `json:"done"`           // 지금 단계에서 옮긴 바이트
-	Phase       string `json:"phase"`          // TransferPhase*
-	State       string `json:"state"`          // TransferRunning | Done | Failed | Aborted
-	Code        string `json:"code,omitempty"` // 실패 코드(FileErr* 등)
+	Size        int64  `json:"size"`               // -1 = 모름(zip)
+	FromKey     string `json:"fromKey,omitempty"`  // worker 간 중계: 보내는 장비
+	FromPath    string `json:"fromPath,omitempty"` // worker 간 중계: 보내는 파일
+	Done        int64  `json:"done"`               // 지금 단계에서 옮긴 바이트
+	Phase       string `json:"phase"`              // TransferPhase*
+	State       string `json:"state"`              // TransferRunning | Done | Failed | Aborted
+	Code        string `json:"code,omitempty"`     // 실패 코드(FileErr* 등)
 	Reason      string `json:"reason,omitempty"`
 	StartedAt   int64  `json:"startedAt"` // unix ms
 }

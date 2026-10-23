@@ -1,20 +1,23 @@
 import { BaseAxios, throwCatch, throwThen } from '@/common/api/api.util'
 import type { DirEntry } from './worker.api'
 
-// 백엔드: apps/core/cmd/supervisor/router/upload.go·transferList.go — 파트(파일 전송 확장), REF-transfer-ext.md
+// 백엔드: apps/core/cmd/supervisor/router/upload.go·transferList.go·download.go·copy.go — REF-transfer-ext.md, REF-transfer-down.md
 
-export type TransferPhase = 'upload' | 'send'      // 브라우저 -> supervisor / supervisor -> worker — Q25(진행률 구간)
+export type TransferKind = 'upload' | 'download' | 'copy'
+export type TransferPhase = 'upload' | 'send' | 'download'     // 브라우저 -> supervisor / supervisor -> worker / worker -> 브라우저 — Q25(진행률 구간)
 export type TransferState = 'running' | 'done' | 'failed' | 'aborted'
 
 export type TransferInfo = {
     id: string
-    kind: 'upload'
-    tileId?: string         // 시작한 장비 타일 — Q27(타일 막대 범위)
-    instanceKey: string
-    dir: string
+    kind: TransferKind
+    tileId?: string         // 시작한 장비 타일(worker 간 = 받는 타일) — Q27(타일 막대 범위)
+    instanceKey: string     // 받는 장비(내려받기 = 보내는 장비)
+    dir: string             // 받을 폴더(내려받기 = 내려받는 폴더)
     name: string
-    size: number
+    size: number            // -1 = 모름(zip)
     done: number            // 지금 단계에서 옮긴 바이트
+    fromKey?: string        // worker 간: 보내는 장비
+    fromPath?: string       // worker 간: 보내는 파일
     phase: TransferPhase
     state: TransferState
     code?: string           // exists | is_dir | no_parent | bad_path ...
@@ -65,4 +68,31 @@ export const abortTransfer = (id: string) => BaseAxios.delete(
 export const listTransfers = () => BaseAxios.get(
     '/transfers'
 ).then(throwThen<TransferInfo[]>)
+.catch(throwCatch)
+
+// 내려받기 = 전송-8·9 — path가 있으면 그 파일 하나, 없으면 dir 안의 names를 zip으로(Q33(내려받기 범위))
+export type DownloadStart = { folderId: number; dir: string; names: string[]; path?: string; tileId: string }
+
+export const startDownload = (instance: string, body: DownloadStart) => BaseAxios.post(
+    `${workerPath(instance)}/downloads`,
+    body
+).then(throwThen<TransferInfo>)
+.catch(throwCatch)
+
+// 브라우저 기본 다운로드가 받는 주소(한 번만, 쿠키 세션)
+export const downloadUrl = (id: string) => `${BaseAxios.defaults.baseURL}/transfers/${encodeURIComponent(id)}/data`
+
+// worker 간 전송 = 전송-10, 파일 하나 = 요청 하나(Q36(worker 간 폴더))
+type DeviceRef = { folderId: number; mainKey: string; subKey: string }
+export type CopyStart = { from: DeviceRef & { path: string }; to: DeviceRef & { dir: string }; overwrite: boolean; tileId: string }
+
+export const deviceRef = (instance: string, folderId: number): DeviceRef => {
+    const i = instance.lastIndexOf('#')
+    return { folderId, mainKey: instance.slice(0, i), subKey: instance.slice(i + 1) }
+}
+
+export const startCopy = (body: CopyStart) => BaseAxios.post(
+    '/transfers/copies',
+    body
+).then(throwThen<TransferInfo>)
 .catch(throwCatch)

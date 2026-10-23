@@ -3,7 +3,7 @@ import { computed, type PropType } from 'vue';
 import { VIcon, VProgressLinear } from 'vuetify/components';
 import type { TransferInfo } from '../api/transfer.api';
 import { useTransfers } from '../store/transfers.store';
-import { transferColor, transferLabel, transferPercent } from '../util/transfer.util';
+import { KIND_ICON, transferColor, transferLabel, transferPercent } from '../util/transfer.util';
 import { sizeText } from '../util/workerDir.util';
 
 // 전송 한 줄 — 푸터 목록(받을 곳까지)·장비 타일 막대(Q24(전송 상태 위치)) 공용
@@ -19,19 +19,22 @@ const { abort } = useTransfers();
 const t = computed(() => props.item);
 const running = computed(() => t.value.state === 'running');
 const pct = computed(() => transferPercent(t.value));
+// 크기를 모르면(zip) 옮긴 양만
+const sizeLabel = computed(() => t.value.size < 0 ? sizeText(t.value.done) : sizeText(t.value.size));
+const dest = computed(() => t.value.fromKey ? `${t.value.fromKey} → ${t.value.instanceKey} : ${t.value.dir}` : `${t.value.instanceKey} : ${t.value.dir}`);
 </script>
 
 <template>
 <div class="TransferRow" :class="t.state">
     <div class="line">
-        <v-icon size="13" icon="mdi-upload" class="kind" />
-        <span class="nm" :title="`${t.dir} / ${t.name}`">{{ t.name }}</span>
-        <span class="st" :title="t.reason">{{ transferLabel(t) }}{{ running ? ` ${pct}%` : '' }}</span>
-        <span class="size">{{ sizeText(t.size) }}</span>
+        <v-icon size="13" :icon="KIND_ICON[t.kind]" class="kind" />
+        <span class="nm" :title="t.fromPath ?? `${t.dir} / ${t.name}`">{{ t.name }}</span>
+        <span class="st" :title="t.reason">{{ transferLabel(t) }}{{ running && pct !== undefined ? ` ${pct}%` : '' }}</span>
+        <span class="size">{{ sizeLabel }}</span>
         <button v-if="running" class="x" title="중단" @click.stop="abort(t.id)"><v-icon size="13" icon="mdi-close" /></button>
     </div>
-    <div v-if="showDest" class="dest" :title="t.dir">{{ t.instanceKey }} : {{ t.dir }}</div>
-    <v-progress-linear v-if="running" :model-value="pct" height="2" :color="transferColor(t)" />
+    <div v-if="showDest" class="dest" :title="dest">{{ dest }}</div>
+    <v-progress-linear v-if="running" :model-value="pct" :indeterminate="pct === undefined" height="2" :color="transferColor(t)" />
 </div>
 </template>
 

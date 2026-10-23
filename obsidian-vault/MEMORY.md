@@ -39,7 +39,7 @@
 - **앱 단축키 = 검사 한 곳 `appShortcutsOff`(`tileGrids.store`)를 맨 앞에서 거친다**(2026-10-21): 터미널 타일마다 "단축키 끄기"(타일 트리 `shortcutsOff`) — 그 타일이 active면 앱 단축키 전부 꺼짐. **새 단축키도 반드시 이 검사를 넣는다**. 터미널 자체 동작(Ctrl+C 복사·Ctrl+V 붙여넣기)은 대상 아님 (→ `REF-tile-move.md` 이동-3)
 - **타일 종류 = 능력으로 묻는다**(2026-10-22, 파트(타일 종류 정리)): 여러 종류가 같이 쓰는 로직은 `type` 비교 대신 능력-1(루트 가능)·2(자식 가능)·3(process 담음) — 서버 `router/tileKind.go` `tileKinds` / 프론트 `widget/util/tileKind.util.ts` `TILE_KINDS`(두 표를 같게). 화면 = 공통 틀 `TileFrame` + 종류 컴포넌트(`tileComponents.ts`). 새 종류 추가 절차 → `REF-tile-kinds.md` "새 종류를 더할 때"(첫 사례 = 장비 타일 `device`, `INDEX-worker-dir`)
 
-- **전송 = supervisor 전송 목록(메모리) + 계정 토픽 `TRANSFER:*` push**(2026-10-23, 파트(파일 전송 확장)): 업로드·내려받기·worker 간 전송이 같은 목록을 쓴다(Kind만 추가). 브라우저 -> supervisor 본문은 **HTTP 조각 512KB**(앞단 nginx `client_max_body_size` 기본 1MB). 장비 디렉토리 인가 = `requireDeviceDir` (→ `REF-transfer-ext.md`, `INDEX-transfer-ext`)
+- **전송 = supervisor 전송 목록(메모리) + 계정 토픽 `TRANSFER:*` push**(2026-10-23, 파트(파일 전송 확장)): 업로드·내려받기·worker 간 전송이 같은 목록을 쓴다(Kind만 추가). 브라우저 -> supervisor 본문은 **HTTP 조각 512KB**(앞단 nginx `client_max_body_size` 기본 1MB). worker -> supervisor 읽기는 끌어오기(`FILE_OPEN`·`READ`·`CLOSE`). 장비 디렉토리 인가 = `requireDeviceDir` (→ `REF-transfer-ext.md`·`REF-transfer-down.md`)
 
 ## 기술 스택 (확정)
 - **레포**: `nexus` / 모노레포 `apps/core`(Go) + `apps/frontend`(프론트, 스캐폴딩 완료 2026-06-30)
@@ -85,8 +85,8 @@ sqlc.yaml  README.md  .gitignore
 
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
-- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 4개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-worker-dir.md`(worker 폴더 타일 전체 계획, 폴더-7(내려받기)·9(worker 간 전송) 원래 표 = 다음 파트 후보)
+- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 4개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-worker-dir.md`(worker 폴더 타일 전체 계획, 폴더-7(내려받기)·9(worker 간 전송) 원래 표)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
-- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록 = `HISTORY.md` "마감 파트"(최근 = 파일 전송 확장 `INDEX-transfer-ext` · worker 폴더 타일 `INDEX-worker-dir` · 타일 종류 정리 `INDEX-tile-kinds` · process 살려 두기 `INDEX-process-keep` · 새 보드·IUTF8 `INDEX-fix-board-iutf8` · 빌드본 분리 `INDEX-build` · 리팩터링 `INDEX-refactor`)
+- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록 = `HISTORY.md` "마감 파트"(최근 = 내려받기·worker 간 전송 `INDEX-transfer-down` · 파일 전송 확장 `INDEX-transfer-ext` · worker 폴더 타일 `INDEX-worker-dir` · 타일 종류 정리 `INDEX-tile-kinds` · process 살려 두기 `INDEX-process-keep` · 새 보드·IUTF8 `INDEX-fix-board-iutf8` · 빌드본 분리 `INDEX-build` · 리팩터링 `INDEX-refactor`)
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md` / 나중에 할 것: `BACKLOG.md`(세션 시작 시 안 읽음)
