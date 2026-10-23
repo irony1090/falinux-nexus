@@ -3,6 +3,7 @@ package protocol
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"nexus/internal/execute"
 )
@@ -55,13 +56,15 @@ func NewRegisterRequest(key, subKey string) RegisterRequest {
 
 // FileInitRequest: 전송 통보. (REQ → FileInitResponse)
 type FileInitRequest struct {
-	TransferID string `json:"transferId"`       // 전송마다 새로 발급된 유일 토큰
-	Name       string `json:"name"`             // 원본 파일명(표시/로그용)
-	DestPath   string `json:"destPath"`         // 수신측 저장 상대경로(루트 기준 — traversal 검증 대상)
-	Size       int64  `json:"size"`             // 전체 바이트 수
-	Mode       uint32 `json:"mode"`             // 권한 비트(수신측에서 os.FileMode로 변환)
-	Hash       string `json:"hash,omitempty"`   // 전체 무결성 해시(sha256 hex 등)
-	Resume     bool   `json:"resume,omitempty"` // 송신자의 이어받기 의향
+	TransferID string `json:"transferId"`          // 전송마다 새로 발급된 유일 토큰
+	Name       string `json:"name"`                // 원본 파일명(표시/로그용). Abs면 DestPath 안에 만들 파일 이름
+	DestPath   string `json:"destPath"`            // 수신측 저장 상대경로(루트 기준 — traversal 검증 대상). Abs면 받을 폴더의 절대 경로
+	Size       int64  `json:"size"`                // 전체 바이트 수
+	Mode       uint32 `json:"mode"`                // 권한 비트(수신측에서 os.FileMode로 변환)
+	Hash       string `json:"hash,omitempty"`      // 전체 무결성 해시(sha256 hex 등)
+	Resume     bool   `json:"resume,omitempty"`    // 송신자의 이어받기 의향
+	Abs        bool   `json:"abs,omitempty"`       // 장비 디렉토리 업로드: DestPath(폴더) + Name을 worker가 합침(OS 경로 규칙), ProcessRoot 검사 안 함, 폴더가 있어야 함
+	Exclusive  bool   `json:"exclusive,omitempty"` // 이미 있으면 거절(Code = FileErrExists) — Q23(같은 이름 파일)
 }
 
 // FileInitResponse: 수락 여부 + ResumeOffset(받는 쪽이 이미 가진 바이트 수, 0 = 처음부터)
@@ -69,6 +72,20 @@ type FileInitResponse struct {
 	Accept       bool   `json:"accept"`
 	ResumeOffset int64  `json:"resumeOffset"`
 	Reason       string `json:"reason,omitempty"` // 거부 사유(accept=false일 때)
+	Code         string `json:"code,omitempty"`   // 거부 코드 FileErr*(빈 값 = 그 밖의 거부)
+}
+
+// FileInitResponse.Code
+const (
+	FileErrExists   = "exists"    // 같은 이름 파일이 있음(Exclusive)
+	FileErrIsDir    = "is_dir"    // 같은 이름 폴더가 있음
+	FileErrNoParent = "no_parent" // 받을 폴더 없음(Abs)
+	FileErrBadPath  = "bad_path"  // 경로 이탈·절대 경로 아님·잘못된 파일 이름
+)
+
+// ValidFileName: 장비 디렉토리에 만들 파일 이름 — 경로 구분자(`/`·`\`)·`.`·`..`·빈 값 금지(OS 공통 규칙)
+func ValidFileName(name string) bool {
+	return name != "" && name != "." && name != ".." && !strings.ContainsAny(name, `/\`)
 }
 
 // FileChunkRequest: 데이터 한 조각(REQ -> FileChunkResponse). Data는 json 봉투라 base64(~33% 증가)
@@ -137,6 +154,21 @@ const (
 	DirKindLink  = "link"
 	DirKindOther = "other"
 )
+
+// 같은 이름 확인 — 올리기 전 Q28(여러 파일 겹침) 창의 근거(목록은 500개씩 페이지라 화면 목록으로는 모자람)
+const MsgDirExists MsgType = "DIR_EXISTS" // sup→worker REQ: DirExistsRequest → DirExistsResponse
+
+type DirExistsRequest struct {
+	Path  string   `json:"path"` // 절대 폴더
+	Names []string `json:"names"`
+}
+
+// DirExistsResponse: Found = 이미 있는 이름만(Kind = DirKindDir | DirKindFile, 링크는 원본 기준). 잘못된 이름은 빠짐(올릴 때 거절됨)
+type DirExistsResponse struct {
+	Err    string     `json:"err,omitempty"` // DirErr*
+	Reason string     `json:"reason,omitempty"`
+	Found  []DirEntry `json:"found"`
+}
 
 // DirListResponse: Err가 있으면 나머지는 빈 값. Parent = nil이면 위가 없음(Linux `/`), ""이면 최상위(Windows 드라이브 목록)
 type DirListResponse struct {
@@ -405,4 +437,43 @@ type WorkspaceItem struct {
 
 type WorkspacesUpdateEvent struct {
 	Workspaces []WorkspaceItem `json:"workspaces"`
+}
+
+// 전송 목록 — USER:<userId> 토픽, 파트(파일 전송 확장) 폴더-8(전송 상태) (REF-transfer-ext.md)
+const (
+	MsgTransferUpdate MsgType = "TRANSFER:UPDATE" // sup→browser EVENT: TransferInfo(새로 생김·진행·끝 모두)
+	MsgTransferGone   MsgType = "TRANSFER:GONE"   // sup→browser EVENT: TransferGoneEvent(목록에서 빠짐)
+)
+
+const (
+	TransferKindUpload = "upload"
+
+	TransferPhaseUpload = "upload" // 브라우저 -> supervisor — Q25(진행률 구간)
+	TransferPhaseSend   = "send"   // supervisor -> worker
+
+	TransferRunning = "running"
+	TransferDone    = "done"
+	TransferFailed  = "failed"
+	TransferAborted = "aborted"
+)
+
+// TransferInfo: 전송 항목 하나. GET /transfers 응답 항목과 같은 모양
+type TransferInfo struct {
+	ID          string `json:"id"`
+	Kind        string `json:"kind"`
+	TileID      string `json:"tileId,omitempty"` // 시작한 장비 타일 — Q27(타일 막대 범위)
+	InstanceKey string `json:"instanceKey"`
+	Dir         string `json:"dir"`
+	Name        string `json:"name"`
+	Size        int64  `json:"size"`
+	Done        int64  `json:"done"`           // 지금 단계에서 옮긴 바이트
+	Phase       string `json:"phase"`          // TransferPhase*
+	State       string `json:"state"`          // TransferRunning | Done | Failed | Aborted
+	Code        string `json:"code,omitempty"` // 실패 코드(FileErr* 등)
+	Reason      string `json:"reason,omitempty"`
+	StartedAt   int64  `json:"startedAt"` // unix ms
+}
+
+type TransferGoneEvent struct {
+	ID string `json:"id"`
 }

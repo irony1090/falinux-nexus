@@ -8,6 +8,7 @@ type DirError = { message: string; status?: number }
 // 대상(인스턴스·폴더·경로)이 바뀌면 처음부터. 늦게 온 옛 응답은 gen으로 버린다
 export const useWorkerDir = (instance: Ref<string | undefined>, folderId: Ref<number | undefined>, path: Ref<string>) => {
     const entries = ref<DirEntry[]>([])
+    const cur = ref<string | null>(null)    // worker가 푼 지금 폴더(올리기 대상). 실패 = null, "" = Windows 드라이브 목록
     const crumbs = ref<DirCrumb[]>([])
     const parent = ref<string | null>(null)
     const total = ref(0)
@@ -26,6 +27,7 @@ export const useWorkerDir = (instance: Ref<string | undefined>, folderId: Ref<nu
             const res = await listWorkerDir(inst, fid, { path: path.value })
             if (my !== gen) return
             cursor = res.cursor
+            cur.value = res.path
             entries.value = res.entries
             crumbs.value = res.crumbs
             parent.value = res.parent
@@ -34,6 +36,7 @@ export const useWorkerDir = (instance: Ref<string | undefined>, folderId: Ref<nu
             if (my !== gen) return
             // 실패하면 직전 폴더의 경로 줄·상위가 남지 않게 — 요청한 경로 기준으로
             const p = path.value, up = parentPathOf(p)
+            cur.value = null
             crumbs.value = p ? [{ name: p, path: p }] : []
             parent.value = p && up !== p ? up : null
             entries.value = []
@@ -68,5 +71,5 @@ export const useWorkerDir = (instance: Ref<string | undefined>, folderId: Ref<nu
 
     watch([instance, folderId, path], () => void reload(), { immediate: true })
 
-    return { entries, crumbs, parent, total, loading, error, reload, loadMore }
+    return { entries, cur, crumbs, parent, total, loading, error, reload, loadMore }
 }

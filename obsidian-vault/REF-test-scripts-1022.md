@@ -27,3 +27,15 @@
 ## 2026-10-23 폴더-6(보드 이동) (`iso/mv_test.py`·`pw/mv.mjs`) → `REF-worker-dir-board.md` "확인"
 - 격리 supervisor 5051 + `nexus_mv_tmp` + worker `mv-dev` + vite 3001(`iso/iso.mts` = 저장소 설정을 정적 import해 함수 호출 후 root·cacheDir·server만 덮음). 픽스처 `iso/fx/long.sh`
 - 장비 타일은 화면 대신 REST(`PUT /tiles`)로 트리에 넣음: `{type:'device', nodeId, instance, path}` + 터미널 타일의 parent를 바꿈. 쿠키는 playwright `storageState`에 `expires: -1` 등 필드를 다 채워야 함(없으면 `expected float`)
+
+## 2026-10-23 전송-2(업로드 REST)+전송-3(전송 목록) (`iso/up_test.py`, 26개) → `REF-transfer-ext.md` "전송-2·3 구현"
+- 격리 supervisor 5051 + `nexus_xferext_tmp`(supervisor만 `TMPDIR=<iso>/tmp` -> 업로드 임시 폴더 `<iso>/tmp/nexus-upload-*`) + worker `xe-dev`(`-env <절대 경로>`, TMPDIR 그대로 — 보관 소켓 경로 108바이트). 받을 폴더 = `<iso>/recv`
+- Python `requests` + `websockets.sync.client`(쿠키 헤더로 `/subscribe`, `TRANSFER:*` 프레임만 모음). 계정 -> `POST /nodes` 폴더 F(`deviceKey=xe-dev`)·P(장비 없음) -> instanceKey = `GET /workers`
+- 올리기 도우미 = `POST /workers/:m/:s/uploads` -> 512KB씩 `PUT /transfers/:id/data?offset=` -> `POST .../finish` -> `GET /transfers`를 0.1초마다 보며 끝날 때까지
+- 항목: U1(3조각+α, sha 일치·.part 없음) · U2(`dir/exists`, `../x`는 빠짐) · U3(같은 이름 = failed/exists, 원본 유지) · U4(overwrite) · U5(offset 건너뜀 409·1MB+1 413·덜 받고 finish 409·같은 offset 멱등) · U6(올리는 중 DELETE -> aborted·임시 파일 삭제·뒤 조각 409) · U7(없는 폴더 no_parent·이름 `x/y` 400·같은 이름 폴더 is_dir) · U8(남 계정 404·목록 빔·장비 없는 폴더 403) · U9(빈 파일) · U10(200MB, send 단계 done>0에서 DELETE -> aborted·worker `.part` 없음) · U11(push 순서 upload/running -> send/running -> send/done, tileId)
+
+## 2026-10-23 전송-4(화면: 올리기)·전송-5(화면: 전송 상태) (`pw/up.mjs`, 18개) → `REF-transfer-ext.md` "전송-4·5 구현"
+- 위 절의 격리 supervisor·worker + vite 3001(`iso/iso.mts` = 저장소 `vite.config.mts`를 import해 `base({mode:'development',command:'serve'})` 펼치고 root·cacheDir·server(127.0.0.1:3001, strictPort, hmr 없음)만 덮음, `VITE_API_URL=http://localhost:5051`) + `playwright-core@1.56`(scratchpad `pw/`에 npm i)
+- **함정: 페이지는 `http://localhost:3001`로 연다** — `127.0.0.1:3001`로 열면 localhost:5051 쿠키가 교차 사이트라 안 실려 로그인 안 됨(장비 타일이 안 뜸)
+- 장비 타일 = REST로 `PUT /tiles`(루트 kids에 `{type:'device', size:{w:0.5,h:1}, nodeId, instance, path:<iso>/recv2}`) — `w:1`로 넣으면 화면보다 넓어 막대 오른쪽이 잘려 보임
+- 항목: W0(올리기 버튼 켜짐·전송 없으면 푸터 버튼 없음) · W1(`setInputFiles` 2개 -> 목록에 자동으로 뜸·sha·푸터 목록 2줄 완료·받을 곳·끝난 것은 타일 막대에 없음) · W2(같은 이름 + 새 이름 -> 창 "이미 있는 파일 1개: a.bin" -> 건너뛰기 -> 원본 유지·새 파일만) · W3(모두 덮어쓰기) · W4(같은 이름 폴더만 -> 안내 창) · W5(합성 `DataTransfer`로 dragover·drop, 클래스 확인은 `requestAnimationFrame` 한 번 뒤) · W6(150MB -> 타일 막대 진행·푸터 배지 1 -> 막대의 중단 -> 파일·.part 없음·푸터 목록 중단됨)
