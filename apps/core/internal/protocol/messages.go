@@ -101,6 +101,65 @@ type FileAbortRequest struct {
 	Reason     string `json:"reason,omitempty"`
 }
 
+// ===== worker 디렉토리 목록 (supervisor -> worker) — REF-worker-dir.md 폴더-1(목록 요청) =====
+// 첫 요청(Path)에 worker가 전부 읽어 정렬해 보관하고 Cursor를 준다. 다음 페이지 = Cursor + Offset(안 다(worker 캐시))
+const MsgDirList MsgType = "DIR_LIST" // sup→worker REQ: DirListRequest → DirListResponse
+
+// DirListRequest: Cursor가 있으면 Path는 무시
+type DirListRequest struct {
+	Path   string `json:"path,omitempty"` // 빈 값 = 최상위(Linux `/`, Windows 드라이브 목록)
+	Cursor string `json:"cursor,omitempty"`
+	Offset int    `json:"offset,omitempty"`
+}
+
+// DirEntry: 항목 하나. Path는 worker가 이은 전체 경로(프론트는 구분자를 다루지 않음)
+type DirEntry struct {
+	Name       string `json:"name"`
+	Path       string `json:"path"`
+	Kind       string `json:"kind"` // DirKind*
+	Size       int64  `json:"size"`
+	ModTime    int64  `json:"modTime"`              // Unix 초
+	Exec       bool   `json:"exec,omitempty"`       // 실행 비트(Linux)
+	LinkTarget string `json:"linkTarget,omitempty"` // 링크에 적힌 원문
+	TargetPath string `json:"targetPath,omitempty"` // 링크 원본 절대 경로(끊긴 링크면 빈 값)
+	TargetDir  bool   `json:"targetDir,omitempty"`  // 링크 원본이 폴더
+}
+
+// DirCrumb: 경로 줄 한 칸. Path "" = 최상위(Windows 드라이브 목록)
+type DirCrumb struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+const (
+	DirKindDir   = "dir"
+	DirKindFile  = "file"
+	DirKindLink  = "link"
+	DirKindOther = "other"
+)
+
+// DirListResponse: Err가 있으면 나머지는 빈 값. Parent = nil이면 위가 없음(Linux `/`), ""이면 최상위(Windows 드라이브 목록)
+type DirListResponse struct {
+	Path    string     `json:"path"`
+	Parent  *string    `json:"parent"`
+	Crumbs  []DirCrumb `json:"crumbs"` // 최상위부터 지금 폴더까지(경로 줄)
+	Cursor  string     `json:"cursor"`
+	Total   int        `json:"total"`
+	Offset  int        `json:"offset"`
+	Entries []DirEntry `json:"entries"`
+	Err     string     `json:"err,omitempty"` // DirErr*
+	Reason  string     `json:"reason,omitempty"`
+}
+
+const (
+	DirErrNotFound = "not_found"
+	DirErrDenied   = "denied"
+	DirErrNotDir   = "not_dir"
+	DirErrBadPath  = "bad_path"
+	DirErrExpired  = "expired" // 보관 목록이 만료됨 -> 처음부터 다시
+	DirErrOther    = "other"
+)
+
 // ===== process 실행 (supervisor <-> worker) =====
 // 제어(REQ/RES) = EXEC·RESIZE·KILL / 스트림(EVENT) = DATA(양방향)·STATUS(worker -> sup)
 // UID = supervisor가 발급하는 전체 식별자(OS PID와 별개, PID는 STATUS로 보고)
@@ -142,6 +201,8 @@ type ProcessSpec struct {
 	Env  []string `json:"env,omitempty"`  // "KEY=VALUE" 형식
 	Rows uint16   `json:"rows,omitempty"` // 초기 터미널 창 크기
 	Cols uint16   `json:"cols,omitempty"`
+
+	Direct bool `json:"direct,omitempty"` // 장비 파일을 그대로 실행(형식 변환·확장자 강제 없음, 실행 가능한 파일만) — 폴더-4(실행)
 }
 
 // Kind: 빈 값 = EXEC

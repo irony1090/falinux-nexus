@@ -13,6 +13,7 @@ export interface TileKind {
 export const TILE_KINDS: Record<TileType, TileKind> = {
 	folder: { canRoot: true, canParent: true, holdsProc: false, icon: 'mdi-folder', color: 'warning' },
 	terminal: { canRoot: false, canParent: false, holdsProc: true, icon: 'mdi-console', color: 'primary' },
+	device: { canRoot: true, canParent: true, holdsProc: false, icon: 'mdi-folder-network', color: 'info' },   // 장비 타일 — worker 디렉토리(폴더-2(장비 타일))
 };
 
 type Typed = { type: TileType };

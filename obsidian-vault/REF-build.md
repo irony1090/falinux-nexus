@@ -64,6 +64,11 @@ embed된 `cmd/*/env` = **배포 값**으로 단정. 빌드 전에 이 파일을 
 - 개발 env 파일 이름: 사용자가 `env.dev` -> **`dev.env`**로 바꿈. 코드 주석·panic 메시지·README 2곳·`.gitignore` 주석도 맞춤. 개발 실행 = `go run ./cmd/supervisor -env dev.env`
 - 남긴 것: 옛 확인용 `build/_check` 폴더 — 지울지 사용자 판단
 
+## 빌드 태그 (2026-10-23)
+- 사용자 관례: embed되는 `cmd/supervisor/env`·`cmd/worker/env` **첫 줄 = `# SUPERVISOR-<작업명>-<YYMMDD>` / `# WORKER-<작업명>-<YYMMDD>`** -> 내뱉은 env로 어느 빌드인지 앎. 바이너리에서 직접 = `grep -aoE '# (SUPERVISOR|WORKER)-[A-Za-z0-9_-]+' <바이너리>`
+- **빌드 전에 태그를 바꿀 것**(2026-10-23 `build/worker-dir`를 옛 태그 `IUTF-261022`로 빌드함 — `build/keep`도 같은 태그)
+- `build.sh`(2026-10-23): 빌드 전에 태그 출력 + 경고(supervisor·worker 태그 뒷부분이 다름 / 같은 태그로 빌드한 `build/*/supervisor`가 있음), 완료 줄에도 태그. 경고만 하고 멈추지 않음. 바이너리 안에서는 env 첫 줄 앞에 줄바꿈이 없어 `grep -x`가 안 맞음 -> 줄 끝만 고정(`"# 태그$"`)
+
 ## 두 빌드 나란히 (2026-10-22, 파트(process 살려 두기) 시험 배포 때)
 쓰는 빌드(8013)를 둔 채 새 빌드를 다른 포트로 시험할 때. 예: `build/keep` = 8011(test1)
 | 항목 | 방법 |

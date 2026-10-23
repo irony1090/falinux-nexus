@@ -51,5 +51,7 @@ func (e *ProcessEntry) Spec() protocol.ProcessSpec {
 		Env:  r.Env,
 		Rows: uint16(r.Rows),
 		Cols: uint16(r.Cols),
+		// 노드 없는 EXEC = 장비 파일 그대로(폴더-4(실행))
+		Direct: !r.NodeID.Valid && protocol.ExecType(r.Type) == protocol.ExecTypeExec,
 	}
 }

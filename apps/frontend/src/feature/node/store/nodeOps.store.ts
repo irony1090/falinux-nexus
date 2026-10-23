@@ -40,10 +40,10 @@ export const nodeActItems = (node: NodeResponse, viDisabled: boolean): NodeActIt
 type NameTarget = { kind: NodeKind; parentId: number | null } | { node: NodeResponse }
 
 export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
-    const { tiles, hash: boardHash, openFolder, applyServerTile } = useTileTree()
+    const { tiles, hash: boardHash, openFolder, openDevice, applyServerTile, flush } = useTileTree()
     const { newSize, activate } = grids
     const { open: appDialogOpen, openDialog } = useAppDialog()
-    const { exec: execTerm } = useProcessTerm()
+    const { exec: execTerm, execFile: execTermFile } = useProcessTerm()
     const { devices } = useWorkerRoster()
     const { create, patch } = useNodeActions()
     const { removeNode } = useNodeRemove()
@@ -71,12 +71,13 @@ export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
         tileId: '',
         node: undefined as NodeResponse | undefined,
         type: 'EXEC' as ProcessType,
+        dir: false,                 // 장비 디렉토리 열기(폴더-3(여는 곳)) — 아니면 실행
         workers: [] as WorkerResponse[],
         offline: [] as WorkerInstanceResponse[],
     })
 
-    // 터미널 타일은 서버가 exec 때 트리에 넣는다 — ⑪-4(타일 없는 실행 중 process)
-    const start = (tileId: string, node: NodeResponse, instanceKey: string, type: ProcessType) => run(tileId, execTerm(node.id, instanceKey, { workspace: boardHash.value, parentTileId: tileId, size: newSize.value }, type), res => {
+    // 터미널 타일은 서버가 exec 때 트리에 넣는다 — ⑪-4(타일 없는 실행 중 process). 저장 대기분 먼저(execFile과 같은 이유)
+    const start = (tileId: string, node: NodeResponse, instanceKey: string, type: ProcessType) => run(tileId, flush().then(() => execTerm(node.id, instanceKey, { workspace: boardHash.value, parentTileId: tileId, size: newSize.value }, type)), res => {
         pick.value.open = false
         if (res.tile && res.tileVersion) activate(applyServerTile(res.tile, res.tileVersion))
     })
@@ -90,11 +91,39 @@ export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
             start(tileId, node, workers[0]!.instanceKey, type)
             return
         }
-        // 끊긴 것 = 명부(최대 10초 전) 중 방금 받은 접속 목록에 없는 것
-        const live = new Set(workers.map(w => w.instanceKey))
-        const offline = (devices.value.get(workers[0]!.mainKey)?.instances ?? []).filter(i => !live.has(i.instanceKey))
-        pick.value = { open: true, tileId, node, type, workers, offline }
+        pick.value = { open: true, tileId, node, type, dir: false, workers, offline: offlineOf(workers) }
     })
+
+    // 끊긴 것 = 명부(최대 10초 전) 중 방금 받은 접속 목록에 없는 것
+    const offlineOf = (workers: WorkerResponse[]) => {
+        const live = new Set(workers.map(w => w.instanceKey))
+        return (devices.value.get(workers[0]!.mainKey)?.instances ?? []).filter(i => !live.has(i.instanceKey))
+    }
+
+    // ---- 장비 디렉토리 열기 — 폴더-3(여는 곳). 인스턴스 고르기는 실행과 같은 규칙, 연 폴더의 자식으로 ----
+    const startDir = (tileId: string, node: NodeResponse, instanceKey: string) => {
+        pick.value.open = false
+        activate(openDevice(tileId, node.id, instanceKey, newSize.value))
+    }
+
+    const openDir = (tileId: string, node: NodeResponse) => run(tileId, listWorkers(node.id), workers => {
+        if (!workers.length) {
+            openDialog({ type: 'warning', title: `'${node.name}' 장비 디렉토리`, content: '이 폴더의 장비가 접속해 있지 않습니다.' })
+            return
+        }
+        if (workers.length === 1) {
+            startDir(tileId, node, workers[0]!.instanceKey)
+            return
+        }
+        pick.value = { open: true, tileId, node, type: 'EXEC', dir: true, workers, offline: offlineOf(workers) }
+    })
+
+    // 장비 타일 행 "실행"(폴더-4(실행), Q23(누르는 방식)) — 인스턴스는 장비 타일 것. 터미널 타일은 장비 타일의 자식
+    // 저장 대기분을 먼저 보낸다 — 막 열거나 옮긴 부모 타일이 서버 트리에 없으면 서버가 루트에 붙인다(2026-10-23 확인)
+    const execFile = (tileId: string, folderId: number, instance: string, cmd: string, cwd: string) =>
+        run(tileId, flush().then(() => execTermFile(instance, folderId, cmd, cwd, { workspace: boardHash.value, parentTileId: tileId, size: newSize.value })), res => {
+            if (res.tile && res.tileVersion) activate(applyServerTile(res.tile, res.tileVersion))
+        })
 
     // ---- 이름(새로 만들기 / 이름 변경) — 닫히는 동안 제목이 비지 않도록 열림 여부와 대상을 따로 둔다 ----
     const name = ref({ open: false, tileId: '', target: { kind: 'FOLDER', parentId: null } as NameTarget })
@@ -204,6 +233,9 @@ export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
         typeLabel,
         pick,
         start,
+        startDir,
+        openDir,
+        execFile,
         name,
         nameTitle,
         nameInitial,

@@ -54,6 +54,7 @@ type Process struct {
 	StartedBy       int64
 	KillRequestedAt pgtype.Timestamptz
 	KillForced      bool
+	DirNodeID       pgtype.Int8
 }
 
 type ProcessShare struct {

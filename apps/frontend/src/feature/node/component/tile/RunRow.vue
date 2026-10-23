@@ -12,6 +12,7 @@ import { useTerminalKill } from '../../hook/terminalKill.hook';
 import { boardLabel, focusPath, useBoards } from '../../store/boards.store';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { isProcTile, useTileTree } from '../../store/tileTree.store';
+import { shortPath } from '../../util/tileLabel.util';
 
 // 터미널 탭·노드의 상태 리스트의 한 행 — 명령 = 보기/보드로 이동 + 현재 타일에 바인딩 + 종료·닫기(REF-tile-binding-rework.md "목록 행 명령")
 const props = defineProps({
@@ -53,7 +54,7 @@ const pill = computed(() => pillOf(props.run.status as ProcessStatus, props.run.
 
 // 단독 공유 process는 노드를 못 봐 경로 조회가 404 — 이름만(R3(경로 없는 process))
 const { data: scriptPath } = useNodePath(computed(() => props.showName ? props.run.nodeId : null));
-const pathText = computed(() => (scriptPath.value ?? []).slice(0, -1).map(p => p.name).join(' / '));
+const pathText = computed(() => props.run.nodeId === null ? shortPath(props.run.cwd ?? '') : (scriptPath.value ?? []).slice(0, -1).map(p => p.name).join(' / '));   // 장비 실행 = 실행한 폴더(끝 두 단계)
 
 const onOpen = () => {
     if (local.value) {
@@ -87,7 +88,7 @@ const onKill = () => {
     <span v-else class="pos none">-</span>
     <span class="where">
         <template v-if="showName">
-            <span v-if="pathText" class="path">{{ pathText }} / </span>{{ run.name }}
+            <span v-if="pathText" class="path" :title="run.cwd">{{ pathText }} / </span>{{ run.name }}
             <span class="by"> · </span>
         </template>
         <template v-if="local">이 보드</template>

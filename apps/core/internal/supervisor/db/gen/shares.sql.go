@@ -735,7 +735,7 @@ func (q *Queries) ListSharedRoots(ctx context.Context, userID int64) ([]ListShar
 }
 
 const listVisibleLiveProcesses = `-- name: ListVisibleLiveProcesses :many
-SELECT p.uid, p.type, p.owner_user_id, p.node_id, p.device_key, p.cmd, p.args, p.env, p.cwd, p.rows, p.cols, p.status, p.pid, p.exit_code, p.created_at, p.started_at, p.finished_at, p.updated_at, p.started_by, p.kill_requested_at, p.kill_forced, process_permission($1, p.uid)::smallint AS permission
+SELECT p.uid, p.type, p.owner_user_id, p.node_id, p.device_key, p.cmd, p.args, p.env, p.cwd, p.rows, p.cols, p.status, p.pid, p.exit_code, p.created_at, p.started_at, p.finished_at, p.updated_at, p.started_by, p.kill_requested_at, p.kill_forced, p.dir_node_id, process_permission($1, p.uid)::smallint AS permission
 FROM processes p
 WHERE p.status IN ('PENDING','PROCESS')
   AND process_permission($1, p.uid) > 0
@@ -779,6 +779,7 @@ func (q *Queries) ListVisibleLiveProcesses(ctx context.Context, userID int64) ([
 			&i.Process.StartedBy,
 			&i.Process.KillRequestedAt,
 			&i.Process.KillForced,
+			&i.Process.DirNodeID,
 			&i.Permission,
 		); err != nil {
 			return nil, err
@@ -792,7 +793,7 @@ func (q *Queries) ListVisibleLiveProcesses(ctx context.Context, userID int64) ([
 }
 
 const listVisibleProcessesByUids = `-- name: ListVisibleProcessesByUids :many
-SELECT p.uid, p.type, p.owner_user_id, p.node_id, p.device_key, p.cmd, p.args, p.env, p.cwd, p.rows, p.cols, p.status, p.pid, p.exit_code, p.created_at, p.started_at, p.finished_at, p.updated_at, p.started_by, p.kill_requested_at, p.kill_forced, process_permission($1, p.uid)::smallint AS permission
+SELECT p.uid, p.type, p.owner_user_id, p.node_id, p.device_key, p.cmd, p.args, p.env, p.cwd, p.rows, p.cols, p.status, p.pid, p.exit_code, p.created_at, p.started_at, p.finished_at, p.updated_at, p.started_by, p.kill_requested_at, p.kill_forced, p.dir_node_id, process_permission($1, p.uid)::smallint AS permission
 FROM processes p
 WHERE p.uid = ANY($2::text[])
   AND process_permission($1, p.uid) > 0
@@ -841,6 +842,7 @@ func (q *Queries) ListVisibleProcessesByUids(ctx context.Context, arg ListVisibl
 			&i.Process.StartedBy,
 			&i.Process.KillRequestedAt,
 			&i.Process.KillForced,
+			&i.Process.DirNodeID,
 			&i.Permission,
 		); err != nil {
 			return nil, err
@@ -857,7 +859,7 @@ const listVisibleRunsInFolder = `-- name: ListVisibleRunsInFolder :many
 
 SELECT p.uid, p.node_id, p.status, process_permission($1, p.uid)::smallint AS permission,
        p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
-       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name, p.cmd, p.cwd
 FROM processes p
 JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by
@@ -884,6 +886,8 @@ type ListVisibleRunsInFolderRow struct {
 	Terminating       bool
 	KillForced        bool
 	Name              string
+	Cmd               string
+	Cwd               string
 }
 
 // ===== 스크립트 행 "실행 중 N"(실시간-6a) =====
@@ -908,6 +912,8 @@ func (q *Queries) ListVisibleRunsInFolder(ctx context.Context, arg ListVisibleRu
 			&i.Terminating,
 			&i.KillForced,
 			&i.Name,
+			&i.Cmd,
+			&i.Cwd,
 		); err != nil {
 			return nil, err
 		}
@@ -927,12 +933,12 @@ WITH RECURSIVE sub AS (
 )
 SELECT p.uid, p.node_id, p.status, process_permission($1, p.uid)::smallint AS permission,
        p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
-       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, COALESCE(n.name, '')::text AS name, p.cmd, p.cwd
 FROM processes p
-JOIN nodes n ON n.id = p.node_id
+LEFT JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by
-WHERE ($2::bigint IS NULL OR p.node_id IN (SELECT id FROM sub))
-  AND n.kind = 'SCRIPT'
+WHERE ($2::bigint IS NULL OR p.node_id IN (SELECT id FROM sub) OR p.dir_node_id IN (SELECT id FROM sub))
+  AND (n.kind = 'SCRIPT' OR p.node_id IS NULL)
   AND (p.status IN ('PENDING','PROCESS') OR p.uid = ANY($3::text[]))
   AND process_permission($1, p.uid) > 0
 ORDER BY p.created_at ASC
@@ -954,10 +960,12 @@ type ListVisibleRunsInSubtreeRow struct {
 	Terminating       bool
 	KillForced        bool
 	Name              string
+	Cmd               string
+	Cwd               string
 }
 
 // 터미널 탭(개편-3(목록 API)): 폴더와 그 하위 전체 스크립트의 process — 위와 같은 조건. folder_id NULL = 기본 루트 = 볼 수 있는 process 전부
-// (단독 공유 process 포함, R3(경로 없는 process))
+// (단독 공유 process 포함, R3(경로 없는 process)). 장비 실행(node_id NULL)은 dir_node_id가 하위면 — Q10(루트가 아닐 때), 이름은 router가 cmd로
 func (q *Queries) ListVisibleRunsInSubtree(ctx context.Context, arg ListVisibleRunsInSubtreeParams) ([]ListVisibleRunsInSubtreeRow, error) {
 	rows, err := q.db.Query(ctx, listVisibleRunsInSubtree, arg.UserID, arg.FolderID, arg.TileUids)
 	if err != nil {
@@ -977,6 +985,76 @@ func (q *Queries) ListVisibleRunsInSubtree(ctx context.Context, arg ListVisibleR
 			&i.Terminating,
 			&i.KillForced,
 			&i.Name,
+			&i.Cmd,
+			&i.Cwd,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleRunsOnDevice = `-- name: ListVisibleRunsOnDevice :many
+SELECT p.uid, p.node_id, p.status, process_permission($1, p.uid)::smallint AS permission,
+       p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, COALESCE(n.name, '')::text AS name, p.cmd, p.cwd
+FROM processes p
+LEFT JOIN nodes n ON n.id = p.node_id
+LEFT JOIN users u ON u.id = p.started_by
+WHERE regexp_replace(p.device_key, '#[^#]*$', '') = $2::text
+  AND (n.kind = 'SCRIPT' OR p.node_id IS NULL)
+  AND (p.status IN ('PENDING','PROCESS') OR p.uid = ANY($3::text[]))
+  AND process_permission($1, p.uid) > 0
+ORDER BY p.created_at ASC
+`
+
+type ListVisibleRunsOnDeviceParams struct {
+	UserID   int64
+	MainKey  string
+	TileUids []string
+}
+
+type ListVisibleRunsOnDeviceRow struct {
+	Uid               string
+	NodeID            pgtype.Int8
+	Status            string
+	Permission        int16
+	StartedBy         int64
+	StartedByNickname string
+	Terminating       bool
+	KillForced        bool
+	Name              string
+	Cmd               string
+	Cwd               string
+}
+
+// 루트 장비 타일 터미널 탭(이동-3(장비 목록 API), Q25(루트 장비 탭 범위)): 그 장비(main_key, 인스턴스 전부)의 process — 위와 같은 조건.
+// 어느 타일·폴더에서 띄웠든, 단독 공유 포함. 서브키는 마지막 '#' 뒤(splitInstanceKey와 같게)
+func (q *Queries) ListVisibleRunsOnDevice(ctx context.Context, arg ListVisibleRunsOnDeviceParams) ([]ListVisibleRunsOnDeviceRow, error) {
+	rows, err := q.db.Query(ctx, listVisibleRunsOnDevice, arg.UserID, arg.MainKey, arg.TileUids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListVisibleRunsOnDeviceRow
+	for rows.Next() {
+		var i ListVisibleRunsOnDeviceRow
+		if err := rows.Scan(
+			&i.Uid,
+			&i.NodeID,
+			&i.Status,
+			&i.Permission,
+			&i.StartedBy,
+			&i.StartedByNickname,
+			&i.Terminating,
+			&i.KillForced,
+			&i.Name,
+			&i.Cmd,
+			&i.Cwd,
 		); err != nil {
 			return nil, err
 		}

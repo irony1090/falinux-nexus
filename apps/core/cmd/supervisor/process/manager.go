@@ -11,6 +11,8 @@ import (
 	"nexus/internal/supervisor/store"
 	"nexus/internal/transport"
 	"nexus/internal/util"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type ProcessManager struct {
@@ -83,8 +85,7 @@ func (p *ProcessManager) ExecEdit(
 	return p.execScript(worker, workerKey, protocol.ExecTypeEdit, node, ownerID, startedBy)
 }
 
-// execScript는 SCRIPT의 EXEC/EDIT 공통 경로다. UID 발급 → AgentInteractive 생성 →
-// memory 등록 → pool 영속(재시작 복구·프론트 목록). pool 실패 시 memory 롤백.
+// execScript는 SCRIPT의 EXEC/EDIT 공통 경로다. UID 발급 → 명세 작성 → register.
 // ownerID = 노드 소유자, startedBy = 실행한 계정 — SH9(받은 쪽이 실행한 process의 소유)
 func (p *ProcessManager) execScript(
 	worker *transport.Conn,
@@ -100,13 +101,6 @@ func (p *ProcessManager) execScript(
 	uid, err := p.createKey()
 	if err != nil {
 		return nil, err
-	}
-
-	inter := newWorkerInteractive(worker, uid)
-	entry := &ProcessEntry{Inter: inter}
-
-	if !p.memory.Append(uid, entry) {
-		return nil, fmt.Errorf("중복되는 키가 존재합니다: %s", uid)
 	}
 	// spec 필드는 node로부터 내부 작성한다(파라미터 아님). content 자체는 router가 파일로
 	// 선배치(WorkerNodePath)하므로 여기선 그 경로만 가리킨다. 초기 Rows/Cols는 요청시점
@@ -141,13 +135,47 @@ func (p *ProcessManager) execScript(
 		StartedBy:   startedBy,
 	}
 	params.NodeID.Valid, params.NodeID.Int64 = true, node.ID
+	return p.register(worker, params)
+}
+
+// ExecFile은 장비 디렉토리의 파일을 그대로 실행하도록 등록한다(폴더-4(실행)) — 노드 없음, 본문 선배치 없음.
+// cmd = 파일 전체 경로, cwd = 보고 있던 폴더, dirNodeID = 장비 타일을 연 폴더(Q15(장비 디렉토리 id)). 소유·실행 = 같은 계정(Q5)
+func (p *ProcessManager) ExecFile(worker *transport.Conn, workerKey, cmd, cwd string, dirNodeID, userID int64) (*ProcessEntry, error) {
+	if worker == nil {
+		return nil, fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", workerKey)
+	}
+	uid, err := p.createKey()
+	if err != nil {
+		return nil, err
+	}
+	params := superdb.CreateProcessParams{
+		Uid:         uid,
+		Type:        string(protocol.ExecTypeExec),
+		OwnerUserID: userID,
+		DeviceKey:   workerKey,
+		Cmd:         cmd,
+		Args:        []string{},
+		Env:         []string{},
+		Cwd:         cwd,
+		StartedBy:   userID,
+		DirNodeID:   pgtype.Int8{Int64: dirNodeID, Valid: true},
+	}
+	return p.register(worker, params)
+}
+
+// register: memory 등록 -> pool 영속(재시작 복구·프론트 목록). pool 실패 시 memory 롤백
+func (p *ProcessManager) register(worker *transport.Conn, params superdb.CreateProcessParams) (*ProcessEntry, error) {
+	entry := &ProcessEntry{Inter: newWorkerInteractive(worker, params.Uid)}
+	if !p.memory.Append(params.Uid, entry) {
+		return nil, fmt.Errorf("중복되는 키가 존재합니다: %s", params.Uid)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	rec, err := p.pool.Queries().CreateProcess(ctx, params)
 	if err != nil {
-		p.memory.Remove(uid) // 영속 실패 → 메모리 등록 롤백(고아 엔트리 방지)
+		p.memory.Remove(params.Uid) // 영속 실패 → 메모리 등록 롤백(고아 엔트리 방지)
 		return nil, err
 	}
 	entry.SetRecord(&rec)

@@ -1,20 +1,19 @@
 # CURRENT
 
 ## 현재 날짜
-2026-10-22
+2026-10-23
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`, 마감 파트는 `INDEX-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **2026-10-23 출근 후 사용자와 같이 정리**(2026-10-22 밤 결정): ① 사용자가 test3를 자기 터미널에서 다시 켬(`CLAUDE*` 변수 상속 제거) ② test1 내릴지 결정 — 내리면 `kill 4124134 4112207`(PID 지정, `pkill` 금지), `build/keep` 폴더·바이너리는 test3가 써서 남김(env·sqlite·`nexus_keep`만) → `REF-build.md` "두 빌드 나란히" ③ `build/iutf` 삭제·시험 계정 정리 여부 (재배포-6(마감) 커밋은 2026-10-22 밤에 끝냄). 그때까지 `build/iutf`·시험 계정·test1 전부 그대로 둠
-- **2026-10-22 밤 세션 = test3(8013)에서 접속 확인**(조상 worker 4178326 `-env ../worker.env`). 이 세션은 `CLAUDE*` 변수 상속으로 **transcript 저장 안 됨**(`/resume` 불가) -> 사용자가 변수 지우고 Claude를 다시 띄울 수 있음. 근본 해결 = test3 worker를 사용자 터미널에서 다시 띄우기 → `REF-build.md` "Claude가 띄운 빌드본". **사용자가 2026-10-23에 직접 다시 켜기로 함**(Claude는 띄우지 않음)
-- 지금 떠 있는 것(2026-10-22 21:36~): test1 = supervisor 4124134·worker 4112207(`build/keep`, `-env ./*.env`, DB `nexus_keep`, sqlite `build/keep/worker-sqlite.db`) / test3 = supervisor 4178138·worker 4178326(`build/keep`, `-env ../*.env`, DB `nexus_build`, sqlite `build/worker-sqlite.db`, 로그 `build/keep/log/*-8013.log`). 옛 `build/iutf` 프로세스는 없음
-- **지금: 파트(타일 종류 정리)(2026-10-22)** → `REF-tile-kinds.md`. 정리-1(종류 명세)~7(확인) 구현·옛·새 헤드리스 비교 같음. **브랜치 `refactor/tile-kinds`에 커밋(master 미머지)**. 남은 것: ① 2026-10-23 사용자 브라우저 확인(타일 머리 줄·메뉴·최소화·닫기·보드 분리 + 헤드리스로 못 본 **공유받은 타일·볼 수 없는 타일·모바일 키보드 타일 띄우기**) ② 고칠 게 나오면 `refactor/tile-kinds`에 수정 커밋 -> `feat/worker-dir`에 머지 ③ 확인 끝나면 master에 `--no-ff` 머지 + `INDEX-tile-kinds.md`로 접기. 확인 장소: test1 정리 뒤 개발 환경, 또는 격리 실행(→ `REF-test-scripts-1020.md` "2026-10-22 타일 종류 정리")
-- **다음 세션 시작점: 파트(worker 폴더 타일)** → `REF-worker-dir.md`. ① `refactor/tile-kinds`에서 **`feat/worker-dir` 브랜치를 만들고** 시작(2026-10-22 사용자 승인한 브랜치 흐름) ② **폴더-1(목록 요청) 세부 설계**(worker REQ 모양·인가·Windows 드라이브 목록)를 먼저 제시하고 확인받은 뒤 작성. 큰 계획 폴더-1·2·3·4·6, 그다음 파트(파일 전송 확장) 폴더-8·7·5·9. 장비 타일 추가 방법 → `REF-tile-kinds.md` "새 종류를 더할 때"
+- **2026-10-23 파트 2개 마감·master 머지**: 파트(타일 종류 정리) → `INDEX-tile-kinds.md` / 파트(worker 폴더 타일) → `INDEX-worker-dir.md`. 브랜치 `refactor/tile-kinds`·`feat/worker-dir` 남겨 둠, push 안 함
+- **다음 파트 고르기 = 사용자에게 물을 것**: ① BACKLOG의 2026-10-23 항목 3개(supervisor 주소 실시간 변경 · 페이지 표시에 타일 크기 조절 · 터미널 글자 크기·터치 스크롤 양 — 사용자 "장비 타일을 완전히 끝내면 진행") ② 파트(파일 전송 확장) 폴더-8(전송 상태) -> 7(내려받기) -> 5(업로드) -> 9(worker 간 전송) → `REF-worker-dir.md`(사용자가 업로드를 물어봄, 순서 바꿀 수 있음)
+- **지금 떠 있는 것**: test3(8013) = `build/worker-dir`(태그 `WORKERDIR-261023`, supervisor 281076·worker 282039, 사용자 터미널). 보관 프로세스 19096(이 세션)·19684·61491 = `build/keep/worker -hold` -> **`build/keep` 지우지 말 것**. test1(8011)·개발(8012) 꺼짐. VM `nexus-win` 꺼짐(켜면 `start-test3.ps1`로 VM worker `win-dev`를 test3에 붙임 → `REF-windows-worker.md` "VM 실행")
+- 빌드 = 태그(`apps/core/cmd/*/env` 첫 줄) 바꾸고 `scripts/build.sh <이름>`(태그 출력·같은 태그 경고) → `REF-build.md` "빌드 태그"
 - **파트(process 살려 두기) 2026-10-22 마감·커밋**(→ `INDEX-process-keep.md`): 보관 프로세스(`worker -hold`)로 worker·supervisor 재시작에도 터미널·화면 유지. 미확인 K7(끝난 뒤 기다림) 10분 경과·K6(Windows)
-- 남은 흔적: `nexus_keep`에 시험 계정 `smoke<시각>` 1개 · `nexus_build`에 `smoke1792672658797`·`smoke1792672663267`(폴더 233·스크립트 234) / test1에서 띄운 터미널은 보관 프로세스(`worker -hold`)로 남음(정리 = 해당 타일에서 종료, 일괄은 `pkill -f 'worker -hold'`인데 **test1 세션도 같이 죽으니 금지**)
+- 남은 흔적(정리 여부 사용자 미정): test1용 DB `nexus_keep`(시험 계정 `smoke<시각>` 1개)·`build/keep`의 env·sqlite(test1 = 재부팅 뒤 안 켬) · `nexus_build`에 `smoke1792672658797`·`smoke1792672663267`(폴더 233·스크립트 234). 보관 프로세스 일괄 종료 `pkill -f 'worker -hold'`는 **이 Claude 세션도 죽으니 금지**
 - 두 빌드를 나란히 띄우는 법(env 분리·DB 복사) → `REF-build.md` "두 빌드 나란히"
 - **파트(새 보드·IUTF8) 2026-10-22 마감·커밋**(→ `INDEX-fix-board-iutf8.md`): 어느 보드에서든 새 보드로 분리 + worker PTY `IUTF8`. 빌드본 브라우저 확인 OK
 - **나중에 할 것 = `BACKLOG.md`**(2026-10-22 신설, 세션 시작 시 안 읽음): 다음 파트 후보·알려진 버그·보류 설계·열린 질문·답 대기 / PC 재부팅은 다음 작업이 없을 때 확인
@@ -27,7 +26,7 @@
 - **외부 접속 설정 사용 중**: 프론트 https://test1.falinux.com(8011) · supervisor https://test2.falinux.com(8012) · worker -> localhost:8012 → `REF-external-access.md`. 로컬 전용(5050·3000)으로 되돌리는 법도 거기
 - 남은 주의: 개발 DB에 테스트 계정 `active-<시각>` 3개(폴더 11개씩) / 개발용 로그인 기본값 = `apps/frontend/.env.development.local`(git 제외) / worker는 종료 정책 이후 빌드여야 force를 앎
 - 커밋 상태(2026-10-22 밤): master 최신 = `1ef8a97` 파트(process 살려 두기) 마감 커밋(master에 바로). 그 위 브랜치 **`refactor/tile-kinds`** = 파트(타일 종류 정리) 코드 + vault(미머지, 브라우저 확인 대기). 옛 브랜치 `refactor/socket` 남겨 둠. **push는 한 번도 안 함**(분기 태그 `checkpoint/before-folder-tile-uid` = `d50f153`, 태그는 push 때 따로 `git push origin <tag>`). 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치). 커밋은 파트 단위(중간 커밋은 사용자가 요청할 때). user vault 전체 git 제외
-- 이전 세션(2026-10-12~15)의 scratchpad 스크립트는 이미 사라짐 — 명세는 `REF-test-scripts.md`(~10-13)·`REF-test-scripts-1014.md`(10-14~)·`REF-test-scripts-1020.md`(10-20~) 날짜별 절. 그때 격리 프로세스·임시 DB는 전부 정리됨. PC 재부팅 뒤라면 `docker start postgres15` -> supervisor -> worker -> `npm run dev`(→ MEMORY "로컬 개발 환경")
+- 이전 세션(2026-10-12~15)의 scratchpad 스크립트는 이미 사라짐 — 명세는 `REF-test-scripts.md`(~10-13)·`REF-test-scripts-1014.md`(10-14~)·`REF-test-scripts-1020.md`(10-20~)·`REF-test-scripts-1022.md`(10-22~) 날짜별 절. 그때 격리 프로세스·임시 DB는 전부 정리됨. PC 재부팅 뒤라면 `docker start postgres15` -> supervisor -> worker -> `npm run dev`(→ MEMORY "로컬 개발 환경")
 - 테스트·확인 준비(환경, 헤드리스, 함정, **격리 실행 = 임시 DB + 5051**) → `REF-test-env.md`
 - 역할 분담(2026-09-29 개정): node 타일 UI·process 작업은 코드 대부분을 Claude가 작성하고, 로직 구조는 사용자와 먼저 맞춘 뒤 쓴다
 

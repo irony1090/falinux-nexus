@@ -73,3 +73,40 @@ export const useWorkerRoster = () => {
 
     return { devices, refetch: query.refetch }
 }
+
+// ---- worker 디렉토리 — 폴더-1(목록 요청), REF-worker-dir-list.md ----
+export type DirKind = 'dir' | 'file' | 'link' | 'other'
+
+export type DirEntry = {
+    name: string
+    path: string            // worker가 이은 전체 경로
+    kind: DirKind
+    size: number
+    modTime: number         // Unix 초
+    exec?: boolean
+    linkTarget?: string     // 링크에 적힌 원문
+    targetPath?: string     // 링크 원본 절대 경로(끊긴 링크면 없음)
+    targetDir?: boolean
+}
+
+export type DirCrumb = { name: string; path: string }   // path "" = 최상위(Windows 드라이브 목록)
+
+export type DirListResponse = {
+    path: string
+    parent: string | null   // null = 위가 없음
+    crumbs: DirCrumb[]
+    cursor: string
+    total: number
+    offset: number
+    entries: DirEntry[]
+}
+
+// GET /workers/:mainKey/:subKey/dir — 첫 페이지 = path / 다음 = cursor + offset. 410 = 보관 목록 만료(처음부터 다시)
+export const listWorkerDir = (instance: string, folderId: number, q: { path?: string; cursor?: string; offset?: number }) => {
+    const i = instance.lastIndexOf('#')
+    return BaseAxios.get(
+        `/workers/${encodeURIComponent(instance.slice(0, i))}/${encodeURIComponent(instance.slice(i + 1))}/dir`,
+        { params: { folderId, ...q } }
+    ).then(throwThen<DirListResponse>)
+    .catch(throwCatch)
+}

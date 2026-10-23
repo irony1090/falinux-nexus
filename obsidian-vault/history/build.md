@@ -21,3 +21,7 @@
 - 사용자: test3 터미널에서 연 Claude에 "transcript saving is off - inherited CLAUDE_CODE_CHILD_SESSION marker"
 - Claude가 조상 프로세스 추적: claude -> bash -> `worker -hold` -> test3 worker 4178326(`-env ../worker.env`). worker·supervisor 환경에 이전 세션 `bb6187d5`의 `CLAUDE*` 변수 -> 재배포-3(새 것 띄우기)을 Claude Bash 도구로 띄운 탓
 - 규칙·해결 방법 → `REF-build.md` "Claude가 띄운 빌드본", 코드 수정은 BACKLOG
+
+## 2026-10-23 test3 운영 (CURRENT에서 내림)
+- 오전: 사용자가 test3를 자기 터미널에서 다시 켬(`CLAUDE*` 변수 0개) -> 계획한 PC 재부팅 -> test1(8011)은 다시 안 켬(test1.falinux.com 502), `build/iutf`는 사용자가 지움
+- `build/worker-dir`를 옛 태그(`IUTF-261022`)로 빌드한 것을 사용자가 짚음 -> `build.sh`에 태그 출력·경고 추가(→ `REF-build.md` "빌드 태그") -> 사용자가 태그 `WORKERDIR-261023`으로 다시 빌드·재실행(supervisor 281076·worker 282039). 보관 프로세스(`build/keep/worker -hold`)는 남고 새 worker가 다시 붙음, 첫 시작 때 `nexus_build`에 00012 적용

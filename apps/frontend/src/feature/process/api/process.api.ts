@@ -85,7 +85,7 @@ export type ExecTile = {
     parent: string
     kids: string[]
     size: TileSize
-    nodeId: number
+    nodeId: number | null   // null = 장비 파일 실행
     uid: string
 }
 
@@ -104,6 +104,26 @@ export const execProcess = (param: ExecProcessRequest) => BaseAxios.post(
 ).then(throwThen<ExecProcessResponseDto>)
 .then(({ tile, tileVersion, ...proc }): ExecProcessResponse => ({ proc: toProcessResponse(proc), tile, tileVersion }))
 .catch(throwCatch)
+
+export type ExecFileRequest = {
+    folderId: number    // 장비 타일을 연 폴더(Q15(장비 디렉토리 id))
+    cmd: string         // 파일 전체 경로(worker 기준)
+    cwd: string         // 보고 있던 폴더
+    workspace?: string
+    parentTileId?: string   // 장비 타일
+    size?: TileSize
+}
+
+// POST /workers/:mainKey/:subKey/exec — 장비 디렉토리 파일 실행(폴더-4(실행)). 응답은 노드 실행과 같음. X-Tab-Id 필수
+export const execWorkerFile = (instance: string, param: ExecFileRequest) => {
+    const i = instance.lastIndexOf('#')
+    return BaseAxios.post(
+        `/workers/${encodeURIComponent(instance.slice(0, i))}/${encodeURIComponent(instance.slice(i + 1))}/exec`,
+        param
+    ).then(throwThen<ExecProcessResponseDto>)
+    .then(({ tile, tileVersion, ...proc }): ExecProcessResponse => ({ proc: toProcessResponse(proc), tile, tileVersion }))
+    .catch(throwCatch)
+}
 
 // POST /processes/kill/:processId — 종료 요청(force = SIGKILL, 아니면 SIGTERM). 장비가 끊겨 있으면 기록해 두고 재접속 때 전달
 export const killProcess = (processId: string, force = false) => BaseAxios.post(

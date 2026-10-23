@@ -2,6 +2,7 @@ package router
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -11,7 +12,11 @@ import (
 const (
 	tileFolder   = "folder"
 	tileTerminal = "terminal"
+	tileDevice   = "device" // 장비 타일 — worker 디렉토리(폴더-2(장비 타일), REF-worker-dir-list.md)
 )
+
+// tileHistMax: 이동 기록 뒤로·앞으로 합친 수 — Q16(기록 보관 위치)
+const tileHistMax = 20
 
 type tileKind struct {
 	canRoot   bool                   // 능력-1(루트 가능): 보드 루트·새 보드로 분리
@@ -21,13 +26,31 @@ type tileKind struct {
 }
 
 var tileKinds = map[string]tileKind{
-	tileFolder: {canRoot: true, canParent: true},
+	tileFolder: {canRoot: true, canParent: true, check: noDeviceFields},
+	// nodeId = 스크립트 노드, 장비 파일 실행이면 null(폴더-4(실행))
 	tileTerminal: {holdsProc: true, check: func(t tileItem) error {
-		if t.UID == "" || t.NodeID == nil {
-			return errors.New("터미널 타일에 uid·nodeId가 없습니다")
+		if t.UID == "" {
+			return errors.New("터미널 타일에 uid가 없습니다")
+		}
+		return noDeviceFields(t)
+	}},
+	// nodeId = 연 폴더(Q15(장비 디렉토리 id)), instance = main#sub, path = 지금 경로("" = 최상위)
+	tileDevice: {canRoot: true, canParent: true, check: func(t tileItem) error {
+		if t.NodeID == nil || !strings.Contains(t.Instance, "#") {
+			return errors.New("장비 타일에 nodeId·instance가 없습니다")
+		}
+		if t.UID != "" {
+			return errors.New("장비 타일에는 uid가 없습니다")
 		}
 		return nil
 	}},
+}
+
+func noDeviceFields(t tileItem) error {
+	if t.Instance != "" || t.Path != "" {
+		return errors.New("장비 타일이 아닌데 instance·path가 있습니다")
+	}
+	return nil
 }
 
 var defaultTileSize = tileSize{W: 0.5, H: 0.5}
@@ -47,8 +70,8 @@ func (t tileItem) procUID() string {
 }
 
 // newTerminalTile: 서버만 터미널 타일을 만든다(WS5(터미널 타일 추가 주체)) — parent·kids 연결은 호출부
-func newTerminalTile(parent *string, nodeID int64, uid string, size tileSize) tileItem {
-	return tileItem{ID: uuid.NewString(), Type: tileTerminal, Parent: parent, Kids: []string{}, Size: size, NodeID: &nodeID, UID: uid}
+func newTerminalTile(parent *string, nodeID *int64, uid string, size tileSize) tileItem {
+	return tileItem{ID: uuid.NewString(), Type: tileTerminal, Parent: parent, Kids: []string{}, Size: size, NodeID: nodeID, UID: uid}
 }
 
 func newFolderTile(parent *string, nodeID *int64, uid string) tileItem {

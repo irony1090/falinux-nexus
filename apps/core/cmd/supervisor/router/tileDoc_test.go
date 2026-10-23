@@ -86,11 +86,6 @@ func TestValidateRejects(t *testing.T) {
 			x.UID = ""
 			d.Tiles["t1"] = x
 		},
-		"terminal without nodeId": func(d *tileDoc) {
-			x := d.Tiles["t1"]
-			x.NodeID = nil
-			d.Tiles["t1"] = x
-		},
 		"terminal with kids": func(d *tileDoc) {
 			x := d.Tiles["t1"]
 			x.Kids = []string{"t2"}
@@ -137,6 +132,17 @@ func TestValidateRejects(t *testing.T) {
 				t.Fatal("validate passed, want error")
 			}
 		})
+	}
+}
+
+// 장비 파일 실행 터미널은 nodeId가 없다 — 폴더-4(실행)
+func TestValidateTerminalWithoutNode(t *testing.T) {
+	d := sampleDoc()
+	x := d.Tiles["t1"]
+	x.NodeID = nil
+	d.Tiles["t1"] = x
+	if err := d.validate(); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -343,5 +349,64 @@ func TestDetachFolder(t *testing.T) {
 	d.attachUnderRoot(sub)
 	if err := d.validate(); err != nil {
 		t.Errorf("reattached invalid: %v", err)
+	}
+}
+
+// 폴더-2(장비 타일): f1 아래 장비 타일 d1 -> [t4] — REF-worker-dir-list.md
+func deviceDoc() tileDoc {
+	d := sampleDoc()
+	f1, d1 := "f1", "d1"
+	x := d.Tiles["f1"]
+	x.Kids = append(slices.Clone(x.Kids), d1)
+	d.Tiles["f1"] = x
+	d.Tiles[d1] = tileItem{ID: d1, Type: tileDevice, Parent: &f1, Kids: []string{"t4"}, Size: half(), NodeID: i64(10), Instance: "dev#ab", Path: "/usr", Back: []string{"", "/"}}
+	d.Tiles["t4"] = tileItem{ID: "t4", Type: "terminal", Parent: &d1, Kids: []string{}, Size: half(), NodeID: i64(41), UID: "p4"}
+	return d
+}
+
+func TestValidateDevice(t *testing.T) {
+	ok := deviceDoc()
+	if err := ok.validate(); err != nil {
+		t.Fatal(err)
+	}
+	cases := map[string]func(d *tileDoc){
+		"device without nodeId":   func(d *tileDoc) { x := d.Tiles["d1"]; x.NodeID = nil; d.Tiles["d1"] = x },
+		"device without instance": func(d *tileDoc) { x := d.Tiles["d1"]; x.Instance = "dev"; d.Tiles["d1"] = x },
+		"device with uid":         func(d *tileDoc) { x := d.Tiles["d1"]; x.UID = "u"; d.Tiles["d1"] = x },
+		"folder with path":        func(d *tileDoc) { x := d.Tiles["f2"]; x.Path = "/"; d.Tiles["f2"] = x },
+		"terminal with instance":  func(d *tileDoc) { x := d.Tiles["t1"]; x.Instance = "dev#ab"; d.Tiles["t1"] = x },
+		"history too long": func(d *tileDoc) {
+			x := d.Tiles["d1"]
+			x.Back, x.Fwd = make([]string, 15), make([]string, 6)
+			d.Tiles["d1"] = x
+		},
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			d := deviceDoc()
+			mutate(&d)
+			if err := d.validate(); err == nil {
+				t.Fatal("validate passed, want error")
+			}
+		})
+	}
+}
+
+// 장비 타일은 폴더 전용(uid 발급·folderTiles)에 안 잡힌다
+func TestDeviceNotFolder(t *testing.T) {
+	d := deviceDoc()
+	b, err := d.marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back tileDoc
+	if err := json.Unmarshal(b, &back); err != nil {
+		t.Fatal(err)
+	}
+	if x := back.Tiles["d1"]; x.UID != "" || x.Instance != "dev#ab" || x.Path != "/usr" || len(x.Back) != 2 {
+		t.Fatalf("device tile changed: %+v", x)
+	}
+	if ids := back.folderTilesOf(10); !slices.Equal(ids, []string{"f1"}) {
+		t.Fatalf("folderTilesOf(10) = %v", ids)
 	}
 }

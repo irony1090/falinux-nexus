@@ -24,9 +24,10 @@ INSERT INTO processes (
     cwd,
     rows,
     cols,
-    started_by
-) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12 )
-RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced
+    started_by,
+    dir_node_id
+) VALUES ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13 )
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced, dir_node_id
 `
 
 type CreateProcessParams struct {
@@ -42,6 +43,7 @@ type CreateProcessParams struct {
 	Rows        int16
 	Cols        int16
 	StartedBy   int64
+	DirNodeID   pgtype.Int8
 }
 
 func (q *Queries) CreateProcess(ctx context.Context, arg CreateProcessParams) (Process, error) {
@@ -58,6 +60,7 @@ func (q *Queries) CreateProcess(ctx context.Context, arg CreateProcessParams) (P
 		arg.Rows,
 		arg.Cols,
 		arg.StartedBy,
+		arg.DirNodeID,
 	)
 	var i Process
 	err := row.Scan(
@@ -82,6 +85,7 @@ func (q *Queries) CreateProcess(ctx context.Context, arg CreateProcessParams) (P
 		&i.StartedBy,
 		&i.KillRequestedAt,
 		&i.KillForced,
+		&i.DirNodeID,
 	)
 	return i, err
 }
@@ -109,7 +113,7 @@ WHERE p.uid = ANY($1::text[])
     WHERE jsonb_path_exists(t.tree, '$.tiles.* ? (@.type == "terminal" && @.uid == $uid)', jsonb_build_object('uid', p.uid))
       AND process_permission(t.user_id, p.uid) >= $2::smallint
   )
-RETURNING p.uid, p.type, p.owner_user_id, p.node_id, p.device_key, p.cmd, p.args, p.env, p.cwd, p.rows, p.cols, p.status, p.pid, p.exit_code, p.created_at, p.started_at, p.finished_at, p.updated_at, p.started_by, p.kill_requested_at, p.kill_forced
+RETURNING p.uid, p.type, p.owner_user_id, p.node_id, p.device_key, p.cmd, p.args, p.env, p.cwd, p.rows, p.cols, p.status, p.pid, p.exit_code, p.created_at, p.started_at, p.finished_at, p.updated_at, p.started_by, p.kill_requested_at, p.kill_forced, p.dir_node_id
 `
 
 type ForceAbandonedKillsParams struct {
@@ -150,6 +154,7 @@ func (q *Queries) ForceAbandonedKills(ctx context.Context, arg ForceAbandonedKil
 			&i.StartedBy,
 			&i.KillRequestedAt,
 			&i.KillForced,
+			&i.DirNodeID,
 		); err != nil {
 			return nil, err
 		}
@@ -162,7 +167,7 @@ func (q *Queries) ForceAbandonedKills(ctx context.Context, arg ForceAbandonedKil
 }
 
 const getProcess = `-- name: GetProcess :one
-SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced FROM processes WHERE uid = $1
+SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced, dir_node_id FROM processes WHERE uid = $1
 `
 
 func (q *Queries) GetProcess(ctx context.Context, uid string) (Process, error) {
@@ -190,12 +195,13 @@ func (q *Queries) GetProcess(ctx context.Context, uid string) (Process, error) {
 		&i.StartedBy,
 		&i.KillRequestedAt,
 		&i.KillForced,
+		&i.DirNodeID,
 	)
 	return i, err
 }
 
 const listActiveByDevice = `-- name: ListActiveByDevice :many
-SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced FROM processes
+SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced, dir_node_id FROM processes
 WHERE device_key = $1
   AND status IN ('PENDING','PROCESS')
 `
@@ -231,6 +237,7 @@ func (q *Queries) ListActiveByDevice(ctx context.Context, deviceKey string) ([]P
 			&i.StartedBy,
 			&i.KillRequestedAt,
 			&i.KillForced,
+			&i.DirNodeID,
 		); err != nil {
 			return nil, err
 		}
@@ -274,7 +281,6 @@ SELECT uid, node_id
 FROM processes
 WHERE started_by = $1
   AND status IN ('PENDING','PROCESS')
-  AND node_id IS NOT NULL
   AND kill_requested_at IS NULL
 ORDER BY created_at ASC
 `
@@ -285,7 +291,7 @@ type ListOwnLiveProcessesRow struct {
 }
 
 // 고아 안전망 대상 = 내가 실행한 살아 있는 process — WS3(고아 안전망 위치). 내 소유라도 남이 실행한 것은 받는 타일 규칙을 따른다 — BD8(고아 안전망).
-// 종료 요청된 것은 빼야 닫기가 유지된다 — KP3(자동으로 다시 붙이기)
+// 종료 요청된 것은 빼야 닫기가 유지된다 — KP3(자동으로 다시 붙이기). node_id NULL(장비 실행, 폴더-4(실행))도 터미널 타일이 받는다
 func (q *Queries) ListOwnLiveProcesses(ctx context.Context, startedBy int64) ([]ListOwnLiveProcessesRow, error) {
 	rows, err := q.db.Query(ctx, listOwnLiveProcesses, startedBy)
 	if err != nil {
@@ -307,7 +313,7 @@ func (q *Queries) ListOwnLiveProcesses(ctx context.Context, startedBy int64) ([]
 }
 
 const listProcessesByOwner = `-- name: ListProcessesByOwner :many
-SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced FROM processes
+SELECT uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced, dir_node_id FROM processes
 WHERE owner_user_id = $1
 ORDER BY created_at DESC
 `
@@ -343,6 +349,7 @@ func (q *Queries) ListProcessesByOwner(ctx context.Context, ownerUserID int64) (
 			&i.StartedBy,
 			&i.KillRequestedAt,
 			&i.KillForced,
+			&i.DirNodeID,
 		); err != nil {
 			return nil, err
 		}
@@ -361,7 +368,7 @@ SET status      = $2,
     finished_at = NOW(),
     updated_at  = NOW()
 WHERE uid = $1
-RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced, dir_node_id
 `
 
 type MarkProcessDoneParams struct {
@@ -395,6 +402,7 @@ func (q *Queries) MarkProcessDone(ctx context.Context, arg MarkProcessDoneParams
 		&i.StartedBy,
 		&i.KillRequestedAt,
 		&i.KillForced,
+		&i.DirNodeID,
 	)
 	return i, err
 }
@@ -404,7 +412,7 @@ UPDATE processes
 SET status     = 'PENDING',
     updated_at = NOW()
 WHERE uid = $1
-RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced, dir_node_id
 `
 
 func (q *Queries) MarkProcessPending(ctx context.Context, uid string) (Process, error) {
@@ -432,6 +440,7 @@ func (q *Queries) MarkProcessPending(ctx context.Context, uid string) (Process, 
 		&i.StartedBy,
 		&i.KillRequestedAt,
 		&i.KillForced,
+		&i.DirNodeID,
 	)
 	return i, err
 }
@@ -443,7 +452,7 @@ SET status     = 'PROCESS',
     started_at = NOW(),
     updated_at = NOW()
 WHERE uid = $1
-RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced, dir_node_id
 `
 
 type MarkProcessRunningParams struct {
@@ -476,6 +485,7 @@ func (q *Queries) MarkProcessRunning(ctx context.Context, arg MarkProcessRunning
 		&i.StartedBy,
 		&i.KillRequestedAt,
 		&i.KillForced,
+		&i.DirNodeID,
 	)
 	return i, err
 }
@@ -487,7 +497,7 @@ SET kill_requested_at = COALESCE(kill_requested_at, NOW()),
     updated_at        = NOW()
 WHERE uid = $2
   AND status IN ('PENDING','PROCESS')
-RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced, dir_node_id
 `
 
 type RequestProcessKillParams struct {
@@ -521,6 +531,7 @@ func (q *Queries) RequestProcessKill(ctx context.Context, arg RequestProcessKill
 		&i.StartedBy,
 		&i.KillRequestedAt,
 		&i.KillForced,
+		&i.DirNodeID,
 	)
 	return i, err
 }
@@ -531,7 +542,7 @@ SET rows       = $2,
     cols       = $3,
     updated_at = NOW()
 WHERE uid = $1
-RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced
+RETURNING uid, type, owner_user_id, node_id, device_key, cmd, args, env, cwd, rows, cols, status, pid, exit_code, created_at, started_at, finished_at, updated_at, started_by, kill_requested_at, kill_forced, dir_node_id
 `
 
 type UpdateProcessLayoutParams struct {
@@ -565,6 +576,7 @@ func (q *Queries) UpdateProcessLayout(ctx context.Context, arg UpdateProcessLayo
 		&i.StartedBy,
 		&i.KillRequestedAt,
 		&i.KillForced,
+		&i.DirNodeID,
 	)
 	return i, err
 }
