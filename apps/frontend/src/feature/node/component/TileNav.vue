@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { VBtn, VIcon } from 'vuetify/components';
+import { holdsProc } from '@/feature/widget/util/tileKind.util';
 import { OV_PERCENT, useTileGrids } from '../store/tileGrids.store';
 import FootPill from './FootPill.vue';
 import GridPager from './GridPager.vue';
@@ -13,7 +14,7 @@ const { cap, grids, overview, ovPercent, zoomOverview, enterOverview, leaveOverv
 const phone = computed(() => cap.value.x === 1);
 
 // 전체보기 중: 같은 자리 알약에 요약 + 축소 비율 조절 + 돌아가기 — ⑫(전체보기 세부)
-const procCount = computed(() => grids.value.reduce((n, g) => n + g.items.filter(it => it.tile.type === 'terminal').length, 0));
+const procCount = computed(() => grids.value.reduce((n, g) => n + g.items.filter(it => holdsProc(it.tile)).length, 0));
 </script>
 
 <template>

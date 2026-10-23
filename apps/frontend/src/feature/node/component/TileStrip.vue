@@ -12,9 +12,9 @@ import type { BoardItem } from '../api/board.api';
 import { useTileShortcut } from '../hook/tileShortcut.hook';
 import { boardLabel, focusPath, useBoards } from '../store/boards.store';
 import { TILE_GAP as GAP, useTileGrids, type BoardGrids } from '../store/tileGrids.store';
-import { useTileTree } from '../store/tileTree.store';
+import { isProcTile, useTileTree } from '../store/tileTree.store';
 import OverviewTile from './tile/OverviewTile.vue';
-import TileFrame from './tile/TileFrame.vue';
+import { TILE_COMPONENTS } from './tile/tileComponents';
 
 const {
     grids, cap, area, stripEl, scrollX, viewW,
@@ -94,7 +94,7 @@ const currentName = computed(() => boardLabel(byHash(hash.value)) || '기본 보
 
 // 보드 줄 요약 — 배치된 터미널 수 + 실행 중 수
 const summaryOf = (b: BoardGrids) => {
-    const uids = b.grids.flatMap(g => g.items.flatMap(it => it.tile.type === 'terminal' ? [it.tile.uid] : []));
+    const uids = b.grids.flatMap(g => g.items.flatMap(it => isProcTile(it.tile) ? [it.tile.uid] : []));
     const running = uids.filter(u => isRunning(procs.value[u]?.status)).length;
     return uids.length ? `터미널 ${uids.length} · 실행 중 ${running}` : '터미널 없음';
 }
@@ -140,7 +140,7 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
                     @click="overview && activate(it.tile.id)"
                     @keydown="onTileKey($event, it.tile.id)"
                 >
-                    <tile-frame :tile-id="it.tile.id" />
+                    <component :is="TILE_COMPONENTS[it.tile.type]" :tile-id="it.tile.id" />
                 </tile>
                 <tile v-for="(e, ei) in g.empty" :key="`empty-${ei}`" :cell="e" empty />
 

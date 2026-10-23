@@ -236,7 +236,7 @@ func (r *supervisorRouter) bindTile(c echo.Context) error {
 		hash = def.Hash
 	}
 	target := mustParseDoc(mustWorkspace(locked, hash).Tree).Tiles[body.TileID]
-	if target.Type != "folder" || target.NodeID == nil {
+	if target.Type != tileFolder || target.NodeID == nil {
 		panic(web.Err(400, "타일 고정할 수 없는 타일입니다"))
 	}
 	saved := savedTrees{}
@@ -244,7 +244,7 @@ func (r *supervisorRouter) bindTile(c echo.Context) error {
 		doc := mustParseDoc(rec.Tree)
 		changed := false
 		for key, t := range doc.Tiles {
-			if t.Type != "folder" || !sameNode(t.NodeID, target.NodeID) {
+			if t.Type != tileFolder || !sameNode(t.NodeID, target.NodeID) {
 				continue
 			}
 			if want := h == hash && key == body.TileID; t.Bound != want {

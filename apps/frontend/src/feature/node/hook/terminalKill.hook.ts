@@ -1,7 +1,7 @@
 import { useAppDialog } from '@/feature/layout/store/appDialog.store'
 import { isRunning, useProcessTerm } from '@/feature/process/store/processTerm.store'
 import { ref, watch } from 'vue'
-import { useTileTree } from '../store/tileTree.store'
+import { isProcTile, useTileTree } from '../store/tileTree.store'
 
 const CLOSE_WAIT = 10_000   // 종료하고 닫기: 이만큼 기다린 뒤 닫는다
 
@@ -30,7 +30,7 @@ export const useTerminalKill = () => {
         const t = tiles.value[tileId]
         if (!t) return
         close(t.id)
-        if (t.type === 'terminal') dispose(t.uid)
+        if (isProcTile(t)) dispose(t.uid)
     }
 
     // kill은 신호만 보내고 종료는 STATUS로 비동기로 온다
@@ -91,7 +91,7 @@ export const useTerminalKill = () => {
     // choices 생략 = 상태에 맞춘 기본: 처음 = 종료·종료하고 닫기 / 종료 요청됨 = 강제 종료·닫기(두 번째 종료 = 강제)
     const confirmKill = (tileId: string, name: string, choices?: ReadonlyArray<KillChoice>) => {
         const t = tiles.value[tileId]
-        if (t?.type !== 'terminal') return
+        if (!isProcTile(t)) return
         const terminating = !!procs.value[t.uid]?.terminating
         openKillDialog(tileId, t.uid, name, choices ?? (terminating ? ['force', 'close'] : ['kill', 'killClose']), terminating)
     }

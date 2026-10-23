@@ -63,14 +63,14 @@ func bindBody[T any](c echo.Context) T {
 	return body
 }
 
-// detachFolder: 폴더 타일과 그 하위를 d에서 떼어 새 문서로 돌려준다. 떼어낸 폴더 타일이 새 문서의 루트
+// detachFolder: 루트가 될 수 있는 타일(능력-1(루트 가능))과 그 하위를 d에서 떼어 새 문서로 돌려준다. 떼어낸 타일이 새 문서의 루트
 func (d *tileDoc) detachFolder(id string) tileDoc {
 	t, ok := d.Tiles[id]
 	if !ok {
 		panic(web.Err(404, "타일을 찾을 수 없습니다"))
 	}
-	if t.Type != "folder" {
-		panic(web.Err(400, "폴더 타일만 옮길 수 있습니다"))
+	if !t.canRoot() {
+		panic(web.Err(400, "보드 루트가 될 수 없는 타일은 옮길 수 없습니다"))
 	}
 	if id == d.RootID {
 		panic(web.Err(400, "보드의 루트 폴더 타일은 옮길 수 없습니다"))

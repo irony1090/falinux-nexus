@@ -102,7 +102,7 @@ func (r *supervisorRouter) purgeTiles(ctx context.Context, userID int64, uids ma
 		}
 		removed := false
 		for id, t := range doc.Tiles {
-			if t.Type == "terminal" && uids[t.UID] {
+			if t.holdsProc() && uids[t.UID] {
 				doc.removeLeaf(id)
 				removed = true
 			}

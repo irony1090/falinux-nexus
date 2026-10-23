@@ -9,8 +9,6 @@ import (
 
 	"nexus/internal/util"
 	"nexus/internal/web"
-
-	"github.com/google/uuid"
 )
 
 // 타일 트리 문서(tileDoc) — 모양 검사·직렬화·타일 찾기
@@ -23,7 +21,7 @@ type tileSize struct {
 
 type tileItem struct {
 	ID           string   `json:"id"`
-	Type         string   `json:"type"` // folder | terminal
+	Type         string   `json:"type"` // tileKinds의 키(tileKind.go)
 	Parent       *string  `json:"parent"`
 	Kids         []string `json:"kids"`
 	Size         tileSize `json:"size"`
@@ -42,18 +40,16 @@ type tileDoc struct {
 }
 
 func newRootDoc() tileDoc {
-	id := uuid.NewString()
-	return tileDoc{RootID: id, Tiles: map[string]tileItem{
-		id: {ID: id, Type: "folder", Kids: []string{}, Size: tileSize{W: 0.5, H: 0.5}},
-	}}
+	root := newFolderTile(nil, nil, "")
+	return tileDoc{RootID: root.ID, Tiles: map[string]tileItem{root.ID: root}}
 }
 
 func validSpan(v float64) bool { return v == 0.5 || v == 1 }
 
-// validate: 루트 1개 · parent/kids 쌍 일치 · 루트에서 전부 닿음(고아·순환 없음) · type/size/terminal 필드
+// validate: 루트 1개 · parent/kids 쌍 일치 · 루트에서 전부 닿음(고아·순환 없음) · type/size · 능력(tileKind)과 필드
 func (d *tileDoc) validate() error {
 	root, ok := d.Tiles[d.RootID]
-	if !ok || root.Parent != nil || root.Type != "folder" {
+	if !ok || root.Parent != nil || !root.canRoot() {
 		return errors.New("루트 타일이 없거나 올바르지 않습니다")
 	}
 	for key, t := range d.Tiles {
@@ -63,17 +59,20 @@ func (d *tileDoc) validate() error {
 		if !validSpan(t.Size.W) || !validSpan(t.Size.H) {
 			return fmt.Errorf("타일 크기가 올바르지 않습니다: %s", key)
 		}
-		switch t.Type {
-		case "folder":
-			if t.Adopted || t.Minimized || t.ShortcutsOff {
-				return fmt.Errorf("폴더 타일에 터미널 필드가 있습니다: %s", key)
-			}
-		case "terminal":
-			if t.UID == "" || t.NodeID == nil || len(t.Kids) > 0 {
-				return fmt.Errorf("터미널 타일이 올바르지 않습니다: %s", key)
-			}
-		default:
+		k, ok := tileKinds[t.Type]
+		if !ok {
 			return fmt.Errorf("타일 type이 올바르지 않습니다: %s", key)
+		}
+		if !k.holdsProc && (t.Adopted || t.Minimized || t.ShortcutsOff) {
+			return fmt.Errorf("process를 담지 않는 타일에 터미널 필드가 있습니다: %s", key)
+		}
+		if !k.canParent && len(t.Kids) > 0 {
+			return fmt.Errorf("자식을 가질 수 없는 타일입니다: %s", key)
+		}
+		if k.check != nil {
+			if err := k.check(t); err != nil {
+				return fmt.Errorf("%w: %s", err, key)
+			}
 		}
 		if t.Parent == nil {
 			if key != d.RootID {
@@ -82,8 +81,8 @@ func (d *tileDoc) validate() error {
 			continue
 		}
 		p, ok := d.Tiles[*t.Parent]
-		if !ok || p.Type != "folder" {
-			return fmt.Errorf("parent가 없거나 폴더가 아닙니다: %s", key)
+		if !ok || !p.canParent() {
+			return fmt.Errorf("parent가 없거나 자식을 가질 수 없는 타일입니다: %s", key)
 		}
 		n := 0
 		for _, k := range p.Kids {
@@ -123,14 +122,14 @@ func (d *tileDoc) marshal() ([]byte, error) {
 		if t.Kids == nil {
 			t.Kids = []string{}
 		}
-		if t.Type == "folder" && t.UID == "" {
+		if t.Type == tileFolder && t.UID == "" {
 			uid, err := util.RandomKey(16, "", "")
 			if err != nil {
 				return nil, err
 			}
 			t.UID = uid
 		}
-		if t.Type == "folder" && t.ShownAt == 0 {
+		if t.Type == tileFolder && t.ShownAt == 0 {
 			t.ShownAt = now
 		}
 		d.Tiles[key] = t
@@ -143,9 +142,9 @@ func (d *tileDoc) marshal() ([]byte, error) {
 func (d *tileDoc) keepFolderMeta(stored *tileDoc) {
 	for key, t := range d.Tiles {
 		t.ShownAt, t.Bound = 0, false
-		if t.Type == "folder" {
+		if t.Type == tileFolder {
 			t.UID = ""
-			if s, ok := stored.Tiles[key]; ok && s.Type == "folder" {
+			if s, ok := stored.Tiles[key]; ok && s.Type == tileFolder {
 				t.UID = s.UID
 				if sameNode(s.NodeID, t.NodeID) {
 					t.ShownAt, t.Bound = s.ShownAt, s.Bound
@@ -180,13 +179,13 @@ func mustParseDoc(tree []byte) tileDoc {
 func checkTerminalUIDs(next, stored *tileDoc) error {
 	had := map[string]bool{}
 	for _, t := range stored.Tiles {
-		if t.Type == "terminal" {
+		if t.holdsProc() {
 			had[t.UID] = true
 		}
 	}
 	seen := map[string]bool{}
 	for _, t := range next.Tiles {
-		if t.Type != "terminal" {
+		if !t.holdsProc() {
 			continue
 		}
 		if !had[t.UID] {
@@ -215,7 +214,7 @@ func closedTerminals(next, stored *tileDoc) []string {
 	return out
 }
 
-// removeLeaf: 자식 없는 타일(터미널)을 부모 kids와 트리에서 뺀다
+// removeLeaf: 자식 없는 타일(process 타일)을 부모 kids와 트리에서 뺀다
 func (d *tileDoc) removeLeaf(id string) {
 	t := d.Tiles[id]
 	if t.Parent != nil {
@@ -228,7 +227,7 @@ func (d *tileDoc) removeLeaf(id string) {
 
 func (d *tileDoc) hasFolderUID(uid string) bool {
 	for _, t := range d.Tiles {
-		if t.Type == "folder" && t.UID == uid {
+		if t.Type == tileFolder && t.UID == uid {
 			return true
 		}
 	}
@@ -262,7 +261,7 @@ func (d *tileDoc) folderTiles() []tileItem {
 	for len(queue) > 0 {
 		t := d.Tiles[queue[0]]
 		queue = queue[1:]
-		if t.Type == "folder" && t.NodeID != nil {
+		if t.Type == tileFolder && t.NodeID != nil {
 			out = append(out, t)
 		}
 		queue = append(queue, t.Kids...)
@@ -270,22 +269,22 @@ func (d *tileDoc) folderTiles() []tileItem {
 	return out
 }
 
-// terminalOf: uid의 터미널 타일
+// terminalOf: uid의 process 타일(능력-3(process 담음))
 func (d *tileDoc) terminalOf(uid string) (tileItem, bool) {
 	for _, t := range d.Tiles {
-		if t.Type == "terminal" && t.UID == uid {
+		if t.holdsProc() && t.UID == uid {
 			return t, true
 		}
 	}
 	return tileItem{}, false
 }
 
-// terminalUIDs: 문서 안 터미널 uid 전부
+// terminalUIDs: 문서 안 process uid 전부
 func (d *tileDoc) terminalUIDs() []string {
 	var uids []string
 	for _, t := range d.Tiles {
-		if t.Type == "terminal" {
-			uids = append(uids, t.UID)
+		if uid := t.procUID(); uid != "" {
+			uids = append(uids, uid)
 		}
 	}
 	return uids

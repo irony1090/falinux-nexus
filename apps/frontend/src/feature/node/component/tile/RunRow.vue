@@ -11,7 +11,7 @@ import { bindProcessTile } from '../../api/share.api';
 import { useTerminalKill } from '../../hook/terminalKill.hook';
 import { boardLabel, focusPath, useBoards } from '../../store/boards.store';
 import { useTileGrids } from '../../store/tileGrids.store';
-import { useTileTree } from '../../store/tileTree.store';
+import { isProcTile, useTileTree } from '../../store/tileTree.store';
 
 // 터미널 탭·노드의 상태 리스트의 한 행 — 명령 = 보기/보드로 이동 + 현재 타일에 바인딩 + 종료·닫기(REF-tile-binding-rework.md "목록 행 명령")
 const props = defineProps({
@@ -43,7 +43,7 @@ const { killing, closeTile, confirmKill, confirmKillUid } = useTerminalKill();
 const local = computed(() => {
     const r = props.run;
     const t = r.hash === boardHash.value && r.tileId ? tiles.value[r.tileId] : undefined;
-    return t?.type === 'terminal' ? t : undefined;
+    return isProcTile(t) ? t : undefined;
 })
 const board = computed(() => props.run.hash && !local.value ? boards.value.find(b => b.hash === props.run.hash) : undefined);
 const minimized = computed(() => local.value ? !!local.value.minimized : !!props.run.minimized);

@@ -4,7 +4,9 @@ import { pillOf, useProcessTerm } from '@/feature/process/store/processTerm.stor
 import { computed, type PropType } from 'vue';
 import { VChip, VIcon } from 'vuetify/components';
 import { useGetNode } from '../../api/node.api';
-import type { Tile } from '../../store/tileTree.store';
+import { TILE_KINDS } from '@/feature/widget/util/tileKind.util';
+import { isProcTile, type Tile } from '../../store/tileTree.store';
+import { nodeLabel } from '../../util/tileLabel.util';
 
 // 전체보기의 다른 보드 타일 — 읽기 전용(조작·입력 없음, 누르면 그 보드로). TileFrame은 지금 보드 스토어를 inject하므로 따로 둔다 — 미리보기-4(그리기)
 const props = defineProps({
@@ -21,8 +23,8 @@ const props = defineProps({
 const { procs } = useProcessTerm();
 const { data: node } = useGetNode(computed(() => props.tile.nodeId ?? NaN));
 
-const name = computed(() => props.tile.nodeId === null ? '기본' : node.value?.name ?? `node ${props.tile.nodeId}`);
-const proc = computed(() => props.tile.type === 'terminal' ? procs.value[props.tile.uid] : undefined);
+const name = computed(() => nodeLabel(props.tile.nodeId, node.value?.name));
+const proc = computed(() => isProcTile(props.tile) ? procs.value[props.tile.uid] : undefined);
 const pill = computed(() => pillOf(proc.value?.status, proc.value?.terminating));
 </script>
 
@@ -31,11 +33,11 @@ const pill = computed(() => pillOf(proc.value?.status, proc.value?.terminating))
     <div class="ov-name">
         <span v-if="pos" class="pos">{{ pos }}</span>
         <v-icon size="14"
-            :icon="tile.type === 'folder' ? 'mdi-folder' : 'mdi-console'"
-            :color="tile.type === 'folder' ? 'warning' : 'primary'"
+            :icon="TILE_KINDS[tile.type].icon"
+            :color="TILE_KINDS[tile.type].color"
         />
         <span class="name">{{ name }}</span>
-        <v-chip v-if="tile.type === 'terminal'" size="x-small" variant="tonal" class="pill" :color="pill.color">{{ pill.text }}</v-chip>
+        <v-chip v-if="isProcTile(tile)" size="x-small" variant="tonal" class="pill" :color="pill.color">{{ pill.text }}</v-chip>
     </div>
     <div v-if="tile.type === 'terminal'" class="body bg-terminal" inert>
         <process-terminal :uid="tile.uid" />
