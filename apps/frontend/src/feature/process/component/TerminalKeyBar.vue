@@ -81,7 +81,7 @@ const style = computed(() => ({ top: `${kb.bottom - KEY_BAR_HEIGHT}px`, height: 
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    @include vars.font('label-large');
     color: rgb(var(--v-theme-on-surface));
     cursor: pointer;
     &:active { background: rgba(var(--v-theme-on-surface), 0.12); }

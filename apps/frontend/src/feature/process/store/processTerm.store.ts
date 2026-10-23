@@ -43,6 +43,9 @@ const bytesToBase64 = (bytes: Uint8Array) => {
 
 const utf8 = new TextEncoder()
 
+// 터미널 글자 = body-medium(0.875rem)을 px로 — html font-size(글자 배율)를 따름, REF-typography.md
+const termFontSize = () => parseFloat(getComputedStyle(document.documentElement).fontSize) * 0.875
+
 export const isRunning = (status?: ProcessStatus) => status === 'PROCESS' || status === 'PENDING'
 
 // 상태 칩. PENDING = worker 연결이 끊겨 기다리는 중(프로세스는 살아 있음)
@@ -132,7 +135,7 @@ export const provideProcessTerm = () => {
         }
         const term = new Terminal({
             convertEol: true,
-            fontSize: 12,
+            fontSize: termFontSize(),
             theme: { background: color('terminal'), foreground: color('on-terminal') },
         })
         const fit = new FitAddon()

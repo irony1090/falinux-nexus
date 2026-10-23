@@ -1,0 +1,8 @@
+html {
+	font-size: calc(100% * #{vars.$font-scale});
+}
+
+// x-small 버튼 글자 = label-medium(12) — Vuetify 기본 10px이 본문보다 작음, 높이 20px은 그대로(layer 밖이라 Vuetify보다 이김)
+.v-btn.v-btn--size-x-small:not(.v-btn--icon, .v-btn--stacked) {
+	@include vars.font('label-medium');
+}

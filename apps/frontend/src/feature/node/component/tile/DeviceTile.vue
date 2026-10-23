@@ -113,7 +113,7 @@ const boardMenu = computed(() => !!tile.value?.parent && !unavailable.value);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 11px;
+    @include vars.font('body-small');
 }
 .TileFrame__head > .inst { opacity: 0.6; font-family: monospace; }
 </style>

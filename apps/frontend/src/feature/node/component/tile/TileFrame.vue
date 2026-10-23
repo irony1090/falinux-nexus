@@ -196,8 +196,8 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
     gap: 4px;
     padding: vars.$spacing-md;
     text-align: center;
-    font-size: 12px;
-    :deep(.sub) { font-size: 11px; opacity: 0.7; }
+    @include vars.font('body-medium');
+    :deep(.sub) { @include vars.font('body-small'); opacity: 0.7; }
 }
 // 전체보기: 안쪽 조작 막음(inert + 클릭은 Tile로)
 .TileFrame--overview {
@@ -231,7 +231,7 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
     align-items: center;
     gap: vars.$spacing-sm;
     padding: 3px 6px;
-    font-size: 11.5px;
+    @include vars.font('body-small');
     background: rgb(var(--v-theme-surface));
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     pointer-events: none;
@@ -246,7 +246,7 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
     gap: vars.$spacing-sm;
     padding: 0 vars.$spacing-xs 0 vars.$spacing-md;
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    font-size: 12px;
+    @include vars.font('body-medium');
     min-width: 0;
     > :deep(*) { flex: none; }
 }
@@ -257,7 +257,7 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
     border-radius: 4px;
     display: inline-grid;
     place-items: center;
-    font-size: 10px;
+    @include vars.font('label-small');
     font-weight: vars.$weight-lg;
     background: rgb(var(--v-theme-on-surface));
     color: rgb(var(--v-theme-surface));
@@ -274,7 +274,7 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
     display: inline-flex;
     align-items: center;
     gap: 2px;
-    font-size: 11px;
+    @include vars.font('body-small');
     color: rgb(var(--v-theme-share));
 }
 // ① 공유 색 — 왼쪽 띠 + 머리 줄 바탕 (테마 색 이름 share)
@@ -309,7 +309,7 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
     flex-direction: column;
     gap: vars.$spacing-sm;
     padding: vars.$spacing-md vars.$spacing-lg;
-    font-size: 12px;
+    @include vars.font('body-medium');
 }
 .size-row {
     display: flex;
@@ -320,13 +320,13 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
 .size-now {
     margin: 0;
     font-family: monospace;
-    font-size: 10.5px;
+    @include vars.font('label-small');
     opacity: 0.7;
 }
 .size-hint {
     max-width: 180px;
     margin: 0;
-    font-size: 10.5px;
+    @include vars.font('label-small');
     opacity: 0.7;
 }
 </style>

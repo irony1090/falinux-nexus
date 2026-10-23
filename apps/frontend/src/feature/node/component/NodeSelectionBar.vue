@@ -119,7 +119,7 @@ const clipText = computed(() => {
     align-items: center;
     gap: vars.$spacing-sm vars.$spacing-md;
     padding: vars.$spacing-xs vars.$spacing-md;
-    font-size: 12px;
+    @include vars.font('body-medium');
     background: rgba(var(--v-theme-primary), 0.08);
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }

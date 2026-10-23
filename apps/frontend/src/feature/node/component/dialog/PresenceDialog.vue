@@ -59,12 +59,12 @@ const tabText = (t: { connected: boolean, viewing: boolean, sizeOwner: boolean, 
 </template>
 
 <style scoped lang="scss">
-.note { font-size: 13px; opacity: 0.7; &.err { color: rgb(var(--v-theme-error)); opacity: 1; } }
+.note { @include vars.font('body-medium'); opacity: 0.7; &.err { color: rgb(var(--v-theme-error)); opacity: 1; } }
 .acc + .acc { margin-top: vars.$spacing-md; padding-top: vars.$spacing-md; border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
-.head { display: flex; align-items: center; gap: vars.$spacing-sm; small { font-size: 11.5px; opacity: 0.7; } }
-.perm { font-size: 11px; padding: 0 6px; border-radius: 8px; color: rgb(var(--v-theme-share)); background: rgba(var(--v-theme-share), 0.12); }
+.head { display: flex; align-items: center; gap: vars.$spacing-sm; small { @include vars.font('body-small'); opacity: 0.7; } }
+.perm { @include vars.font('body-small'); padding: 0 6px; border-radius: 8px; color: rgb(var(--v-theme-share)); background: rgba(var(--v-theme-share), 0.12); }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(var(--v-theme-on-surface), 0.3); &.on { background: rgb(var(--v-theme-share)); } }
-.sess { margin: 4px 0 0 16px; font-size: 12.5px; }
+.sess { margin: 4px 0 0 16px; @include vars.font('body-medium'); }
 .ua { display: flex; align-items: center; gap: 4px; }
-.tab { margin-left: 18px; font-size: 11.5px; opacity: 0.8; &.off { opacity: 0.5; } }
+.tab { margin-left: 18px; @include vars.font('body-small'); opacity: 0.8; &.off { opacity: 0.5; } }
 </style>

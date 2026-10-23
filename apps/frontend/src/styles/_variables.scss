@@ -1,5 +1,7 @@
+@use 'sass:map';
+@use 'typography';
+
 $base-spacing: 4px;
-$base-font: 1rem;
 
 
 $spacing-xs: $base-spacing * 0.5; 	// 2px
@@ -18,8 +20,15 @@ $weight-md: 500;
 $weight-lg: 700;
 $weight-xl: 900;
 
-@function fontLevel($level) {
-	@return $base-font + (($level * 0.125) - 0.625 )
+// 글자 배율 = 전체 글자 크기 손잡이(html font-size). Vuetify 단계가 rem이라 같이 움직임 — REF-typography.md
+$font-scale: 1;
+
+// Vuetify(MD3) 단계 이름: body-small/medium/large · label-* · title-* (값 = _typography.scss)
+@mixin font($name) {
+	$t: map.get(typography.$typography, $name);
+	@if $t == null { @error "unknown typography: #{$name}"; }
+	font-size: map.get($t, 'size');
+	line-height: map.get($t, 'line-height');
 }
 
 $alpha-sm: 0.875;

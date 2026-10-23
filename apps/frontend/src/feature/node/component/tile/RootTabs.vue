@@ -23,7 +23,7 @@ const minCount = computed(() => runs.value.filter(r => r.minimized).length);
     flex: none;
     display: flex;
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    font-size: 11.5px;
+    @include vars.font('body-small');
     > button {
         padding: 4px vars.$spacing-md;
         border: 0;

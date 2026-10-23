@@ -209,7 +209,7 @@ onBeforeUnmount(() => {
     cursor: pointer;
     &.hi, &:hover { background: rgba(var(--v-theme-primary), 0.12); }
     .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .hint { margin-left: auto; opacity: 0.6; font-size: 10px; }
+    .hint { margin-left: auto; opacity: 0.6; @include vars.font('label-small'); }
 }
-.more { padding: 3px 6px; opacity: 0.6; font-size: 10px; }
+.more { padding: 3px 6px; opacity: 0.6; @include vars.font('label-small'); }
 </style>

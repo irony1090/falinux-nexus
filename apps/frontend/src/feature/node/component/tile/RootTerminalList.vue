@@ -24,7 +24,7 @@ const runs = computed(() => [...list.value.filter(r => r.minimized), ...list.val
     flex: 1;
     min-height: 0;
     overflow: auto;
-    font-size: 12px;
+    @include vars.font('body-medium');
 }
 .empty { margin: vars.$spacing-md; opacity: 0.6; }
 </style>

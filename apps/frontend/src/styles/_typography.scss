@@ -1,0 +1,14 @@
+// 글자 단계 = 한 곳. settings.scss(Vuetify)와 _variables.scss(vars.font)가 같이 읽는다 — 값 = Vuetify 4.1.2 기본(MD3)
+// 재발 방지: 여기서 vuetify/settings를 @use하면 안 된다. additionalData로 Vuetify 컴포넌트 sass에도 주입되어
+// settings.scss의 `with`보다 먼저 로드됨 -> "already loaded, so it can't be configured" (dev 서버에서만 남)
+$typography: (
+	'title-large': ('size': 1.375rem, 'line-height': 1.2727272727),
+	'title-medium': ('size': 1rem, 'line-height': 1.5),
+	'title-small': ('size': .875rem, 'line-height': 1.4285714286),
+	'body-large': ('size': 1rem, 'line-height': 1.5),
+	'body-medium': ('size': .875rem, 'line-height': 1.4285714286),
+	'body-small': ('size': .75rem, 'line-height': 1.3333333333),
+	'label-large': ('size': .875rem, 'line-height': 1.4285714286),
+	'label-medium': ('size': .75rem, 'line-height': 1.3333333333),
+	'label-small': ('size': .6875rem, 'line-height': 1.4545454545),
+);

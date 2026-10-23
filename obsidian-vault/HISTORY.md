@@ -37,6 +37,7 @@
 - 파일 전송 확장(마감, 업로드·전송 상태) → `INDEX-transfer-ext.md` (transfer-ext)
 - 내려받기·worker 간 전송(마감) → `INDEX-transfer-down.md` (transfer-down)
 - 경로 직접 입력(마감) → `INDEX-path-input.md` (path-input)
+- 글자 크기 규칙(마감) → `INDEX-typography.md` (typography)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.
@@ -55,5 +56,5 @@
 | `history/util.md` | 범용 유틸(반복 주제) | 08-07 GroupedSet · 공유 리사이즈 관측 그룹 |
 | `history/util-drag.md` | 드래그 인프라 | 10-12 보류 결정 |
 | `history/test-env.md` | 테스트 환경 · 확인용 클라이언트 | 10-15 고아 스크립트 격리 정리 절차 |
-| `history/test-scripts.md` · `-1014.md` · `-1020.md` · `-1022.md` · `-1023.md` | 확인 스크립트 명세(날짜별) | 10-23 경로 직접 입력 `pi_test.py`·`pi.mjs` |
+| `history/test-scripts.md` · `-1014.md` · `-1020.md` · `-1022.md` · `-1023.md` | 확인 스크립트 명세(날짜별) | 10-23 글자-5 전후 스크린샷 `ty/pw` |
 | `history/external-access.md` | 외부 접속 · HTTPS 프록시 | 10-13 마감·커밋 |

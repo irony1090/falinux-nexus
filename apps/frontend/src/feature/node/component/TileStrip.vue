@@ -323,13 +323,13 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     display: flex;
     align-items: baseline;
     gap: 6px;
-    font-size: 12px;
+    @include vars.font('body-medium');
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    b { font-size: 13px; color: rgb(var(--v-theme-on-surface)); }
+    b { @include vars.font('title-small'); color: rgb(var(--v-theme-on-surface)); }
     .now { color: rgb(var(--v-theme-primary)); }
 }
 .cap {
-    font-size: 11px;
+    @include vars.font('body-small');
     font-family: monospace;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     b { color: rgb(var(--v-theme-on-surface)); }

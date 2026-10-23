@@ -67,12 +67,12 @@ const release = (s: MyShare) => {
 </template>
 
 <style scoped lang="scss">
-.note { font-size: 13px; opacity: 0.7; &.err { color: rgb(var(--v-theme-error)); opacity: 1; } }
+.note { @include vars.font('body-medium'); opacity: 0.7; &.err { color: rgb(var(--v-theme-error)); opacity: 1; } }
 .group + .group { margin-top: vars.$spacing-md; }
 .head { display: flex; align-items: center; gap: 6px; font-weight: vars.$weight-lg; min-width: 0; }
 .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tag { font-size: 10.5px; padding: 0 6px; border-radius: 8px; color: rgb(var(--v-theme-share)); background: rgba(var(--v-theme-share), 0.12); white-space: nowrap; }
-.row { display: flex; align-items: center; gap: vars.$spacing-sm; padding: 2px 0 2px 22px; font-size: 13px; }
+.tag { @include vars.font('label-small'); padding: 0 6px; border-radius: 8px; color: rgb(var(--v-theme-share)); background: rgba(var(--v-theme-share), 0.12); white-space: nowrap; }
+.row { display: flex; align-items: center; gap: vars.$spacing-sm; padding: 2px 0 2px 22px; @include vars.font('body-medium'); }
 .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lv { color: rgb(var(--v-theme-share)); &.block { color: rgb(var(--v-theme-error)); } }
 </style>

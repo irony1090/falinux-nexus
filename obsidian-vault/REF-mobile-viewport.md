@@ -49,6 +49,13 @@
 - 수정 키(Ctrl·Alt): 탭 = 다음 글자 하나, 누른 채 = 뗄 때 해제 둘 다 지원. 누르는 중 가상 키보드를 치면 `pointercancel`이 올 수 있어 걸린 채 남겨 다음 글자에 적용 — Android(Fold 8, 삼성 키보드)에서 누른 채 c 동작 확인
 - 한글 자판 상태 Ctrl + 자모: 두벌식 자리 -> 영문으로 바꿈(ㅊ -> c). 삼성 키보드에서 바로 나감(조합 지연 없음) 확인
 
+## 5-1. 입력 중 목록을 눌러도 키보드 유지 (2026-10-23 Nexus 실기기 확인)
+| 문제 | 입력칸 아래 자동완성 목록을 누르면 입력칸이 blur -> 모바일 키보드가 내려감(다시 올라오며 화면이 출렁임) |
+|---|---|
+| 방법 | 목록 상자에 `@mousedown.prevent`(= `mousedown`에서 `preventDefault`). 터치 뒤 호환 `mousedown`의 기본 동작(포커스 이동)이 막혀 입력칸이 포커스 유지, `click`은 그대로 옴 -> 고른 뒤 바로 다음 글자 입력 |
+| 확인 | 사용자 폰 "자동완성을 눌러도 키보드 안 내려가서 좋더라"(Nexus 파트(경로 직접 입력), `PathInput.vue`) |
+| 주의 | 목록의 버튼은 `tabindex="-1"`(Tab이 목록으로 안 감). blur로 닫는 입력칸이면 이게 없으면 목록을 누르기도 전에 닫힘 |
+
 ## 6. 확인 방법 (헤드리스)
 - resizes-visual·iOS 흉내: `addInitScript`로 `window.visualViewport`를 가짜 EventTarget(높이 = 실제 - 키보드)로 바꾸고 `resize` 이벤트 발행
 - resizes-content 흉내: `page.setViewportSize`로 창 높이를 키보드만큼 줄임(레이아웃·보이는 영역이 같이 줄어듦)

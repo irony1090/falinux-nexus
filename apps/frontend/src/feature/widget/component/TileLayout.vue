@@ -72,7 +72,7 @@ const tileStyle = computed<CSSProperties>(() => {
     min-width: 0;
     overflow: hidden;
     white-space: nowrap;
-    font-size: 11px;
+    @include vars.font('body-small');
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>
