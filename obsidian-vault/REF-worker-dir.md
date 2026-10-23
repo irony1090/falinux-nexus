@@ -1,6 +1,6 @@
 # REF — worker 폴더 타일 (worker의 실제 디렉토리 보기 + 업로드)
 
-> → `history/worker-dir.md` / 폴더-1·뒤로-1 상세 → `REF-worker-dir-list.md` / → `CURRENT.md` / 업로드에 쓸 전송 모듈 → `REF-transfer.md`·`REF-transfer-e2e.md`(`INDEX-infra`·`INDEX-transfer-e2e`)
+> → `history/worker-dir.md` / 파트(파일 전송 확장) → `REF-transfer-ext.md` / 폴더-1·뒤로-1 상세 → `REF-worker-dir-list.md` / → `CURRENT.md` / 업로드에 쓸 전송 모듈 → `REF-transfer.md`·`REF-transfer-e2e.md`(`INDEX-infra`·`INDEX-transfer-e2e`)
 
 ## 목적
 계정 폴더 타일·터미널 타일과 같은 급의 **세 번째 타일 종류**. worker의 실제 디렉토리를 계정 폴더 타일과 거의 같은 UI로 보여 준다.
@@ -45,7 +45,11 @@
 | 폴더-7(내려받기) | 파트(파일 전송 확장). worker -> supervisor 바로 흘려보냄 -> 브라우저 응답(임시 파일 없음, 이어받기 없음). 파일 하나 -> 여러 개 -> 폴더 zip | worker 송신(새 방향), supervisor 다운로드 REST |
 | 폴더-9(worker 간 전송) | 파트(파일 전송 확장). 장비 디렉토리 타일 대 장비 디렉토리 타일(같은 장비 포함). supervisor가 한 worker에서 받은 조각을 다른 worker로 넘김 = 폴더-7 보내는 쪽 + 폴더-5 받는 쪽 | 위 둘 연결 |
 
-진행 순서(2026-10-22 개정) = 파트(worker 폴더 타일) 폴더-1 -> 2 -> 3 -> 4 -> 6 / 파트(파일 전송 확장) 폴더-8(전송 상태) -> 7(내려받기) -> 5(업로드) -> 9(worker 간 전송). 번호는 처음 붙인 이름 유지. 그 전에 파트(타일 종류 정리) → `REF-tile-kinds.md`
+**상태(2026-10-23)**: 파트(타일 종류 정리)·파트(worker 폴더 타일) 마감(`INDEX-tile-kinds`·`INDEX-worker-dir`). 파트(파일 전송 확장) 2026-10-23 마감(폴더-5(업로드)·폴더-8(전송 상태), `INDEX-transfer-ext`). **남은 것 = 폴더-7(내려받기)·폴더-9(worker 간 전송) — 다음 파트 후보**
+
+파트(파일 전송 확장) 결정·계획(Q20(진행 순서)~) → `REF-transfer-ext.md`
+
+진행 순서(2026-10-22 개정) = 파트(worker 폴더 타일) 폴더-1 -> 2 -> 3 -> 4 -> 6 / 파트(파일 전송 확장)는 Q20(진행 순서)으로 개정. 번호는 처음 붙인 이름 유지. 그 전에 파트(타일 종류 정리) → `REF-tile-kinds.md`
 
 ## 폴더-1(목록 요청)·뒤로-1(타일 안 이동 기록) → `REF-worker-dir-list.md`
 - 폴더-1 구현 끝(2026-10-22 밤, 격리 18/18). 정해진 것: Q12(상속 장비 폴더) 하위 폴더도 연다 · Q13(큰 폴더 상한) 안 다(worker 캐시) 500개 페이지 · Q14(링크 폴더) 구분 + 원본 위치로 이동 · Q15(장비 디렉토리 id) 연 곳 기준 · 뒤로-1 Q16(기록 보관 위치)~Q19(단축키) Ctrl+Shift+←/→
@@ -59,4 +63,4 @@
 - 단계별 세부(업로드 덮어쓰기, 인스턴스가 끊겼을 때 표시, 터미널 타일 이름 = 파일 이름 등)는 그 단계 착수 때
 
 ## 나중에 (2026-10-22 사용자: "나중에 처리")
-- **SFTP 접근 아이디어**: supervisor에 SFTP 서버(`x/crypto/ssh` + `pkg/sftp` request server, 가상 파일 시스템) -> 경로 첫 단계 = worker 인스턴스, 작업마다 worker에 중계. 걸리는 점 = ① test3 nginx는 HTTP만 넘김 -> 별도 TCP 포트(예: 2222) 포워딩 필요 ② `#`는 URL fragment -> `/{메인키}/{서브키}/...` 두 단계 ③ 로그인 = Nexus 계정, Q5(소유자만)로 거름 ④ 쓰기·mkdir·rename·삭제·**다운로드(worker -> 밖 방향 없음)** 새로 만듦. 답 대기: 폴더-5(업로드)를 대신? 추가? / "디바이스 명칭" = 메인키? 폴더 이름? / 외부 포트 열 수 있나
+- **SFTP 접근 아이디어**: supervisor에 SFTP 서버(`x/crypto/ssh` + `pkg/sftp` request server, 가상 파일 시스템) -> 경로 첫 단계 = worker 인스턴스, 작업마다 worker에 중계. 걸리는 점 = ① test3 nginx는 HTTP만 넘김 -> 별도 TCP 포트(예: 2222) 포워딩 필요 ② `#`는 URL fragment -> `/{메인키}/{서브키}/...` 두 단계 ③ 로그인 = Nexus 계정, Q5(소유자만)로 거름 ④ 쓰기·mkdir·rename·삭제·**다운로드(worker -> 밖 방향 없음)** 새로 만듦. 답 대기: 폴더-5(업로드)를 대신? 추가? / "디바이스 명칭" = 메인키? 폴더 이름? / 외부 포트 열 수 있나. **Q21(SFTP): 진행할 작업이 전혀 없을 때 이야기**(2026-10-23)

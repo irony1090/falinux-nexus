@@ -23,9 +23,11 @@ func (r *supervisorRouter) mountWorkers(e *echo.Echo) {
 	g.GET("", r.listWorkers)
 	g.GET("/instances", r.listWorkerInstances)
 	g.DELETE("/instances/:mainKey/:subKey", r.deleteWorkerInstance)
-	g.GET("/:mainKey/:subKey/dir", r.listWorkerDir)    // workerDir.go
-	g.POST("/:mainKey/:subKey/exec", r.execWorkerFile) // workerExec.go
-	g.GET("/:mainKey/runs", r.listDeviceRuns)          // nodeRuns.go
+	g.GET("/:mainKey/:subKey/dir", r.listWorkerDir)           // workerDir.go
+	g.POST("/:mainKey/:subKey/dir/exists", r.workerDirExists) // workerDir.go
+	g.POST("/:mainKey/:subKey/uploads", r.startUpload)        // upload.go
+	g.POST("/:mainKey/:subKey/exec", r.execWorkerFile)        // workerExec.go
+	g.GET("/:mainKey/runs", r.listDeviceRuns)                 // nodeRuns.go
 }
 
 type workerResponse struct {

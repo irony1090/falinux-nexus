@@ -42,11 +42,13 @@ type supervisorRouter struct {
 	readers        *manager.KeyValManager[string, *sendJob]
 	sessions       *session.SessionManager[superdb.User]
 	subscribeHub   *subscribe.Hub[*transport.Conn, protocol.MsgType]
-	processManager *process.ProcessManager // 실행 상태 레지스트리(UID→entry). 라우팅은 여기 router가.
-	sizeOwners     *sizeOwners             // uid -> PTY 크기 소유 탭(sizeOwner.go)
-	screens        *screens                // uid -> 화면 복원 버퍼(screen.go)
-	accessMu       sync.Mutex              // 출력 구독 재계산·연결 구독을 한 줄로(subscribe.go)
-	pins           *pinState               // 계정별 마지막 고정 지도(tileNotice.go)
+	processManager *process.ProcessManager                       // 실행 상태 레지스트리(UID→entry). 라우팅은 여기 router가.
+	sizeOwners     *sizeOwners                                   // uid -> PTY 크기 소유 탭(sizeOwner.go)
+	screens        *screens                                      // uid -> 화면 복원 버퍼(screen.go)
+	accessMu       sync.Mutex                                    // 출력 구독 재계산·연결 구독을 한 줄로(subscribe.go)
+	pins           *pinState                                     // 계정별 마지막 고정 지도(tileNotice.go)
+	transfers      *manager.KeyValManager[string, *transferItem] // 전송 목록(transferList.go)
+	uploadDir      string                                        // 업로드 임시 파일(upload.go)
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -80,8 +82,11 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 		sizeOwners:     newSizeOwners(),
 		screens:        newScreens(),
 		pins:           newPinState(),
+		transfers:      manager.NewKeyValManager[string, *transferItem](),
+		uploadDir:      newUploadDir(),
 	}
 	go router.runPurge() // 끝난 process 주기 삭제(K2(supervisor 정리))
+	go router.runTransferSweep()
 
 	e := echo.New()
 	e.Validator = &CustomValidator{validator: validator.New()}
@@ -119,6 +124,7 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 	router.mountWorkers(e)
 	router.mountTiles(e)
 	router.mountWorkspaces(e)
+	router.mountTransfers(e)
 
 	return e, router
 }

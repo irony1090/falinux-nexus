@@ -9,6 +9,8 @@ import { useTileNotices } from '../store/tileNotice.store';
 import BoardMenu from './BoardMenu.vue';
 import FootPill from './FootPill.vue';
 import TileNav from './TileNav.vue';
+import TransferButton from '@/feature/worker/component/TransferButton.vue';
+import { useTransfers } from '@/feature/worker/store/transfers.store';
 
 // 푸터 높이·알약 높이 — 폰(가로 1칸)은 손가락 크기
 const SIZE = { pc: { h: 44, pill: 34 }, phone: { h: 56, pill: 44 } } as const;
@@ -20,6 +22,7 @@ const GAP = 8;
 const { cap } = useTileGrids();
 const kb = useVirtualKeyboard();
 const { unread, drawerOpen } = useTileNotices();
+const { running } = useTransfers();
 const { auth, toggleAuth, canFullscreen, fullscreen, toggleFullscreen } = useAppActions();
 
 const phone = computed(() => cap.value.x === 1);
@@ -57,6 +60,7 @@ const style = computed(() => ({ height: `${size.value.h}px`, '--pill-h': `${size
     </div>
     <div ref="rightEl" class="side right">
         <foot-pill v-if="!phone">
+            <transfer-button />
             <v-btn size="small" density="comfortable" variant="text" icon title="위치 알림" @click="drawerOpen = !drawerOpen">
                 <v-badge v-if="unread" :content="unreadText" color="error" floating>
                     <v-icon icon="mdi-bell-outline" />
@@ -74,12 +78,13 @@ const style = computed(() => ({ height: `${size.value.h}px`, '--pill-h': `${size
         <foot-pill v-else>
             <v-menu location="top center" offset="10">
                 <template #activator="{ props: act, isActive }">
-                    <v-btn v-bind="act" density="comfortable" variant="text" icon :active="isActive" title="더 보기" aria-label="더 보기 - 알림, 전체 화면, 로그아웃">
+                    <v-btn v-bind="act" density="comfortable" variant="text" icon :active="isActive" title="더 보기" aria-label="더 보기 - 전송, 알림, 전체 화면, 로그아웃">
                         <v-icon icon="mdi-dots-horizontal" />
-                        <span v-if="unread && !isActive" class="dot" />
+                        <span v-if="(unread || running) && !isActive" class="dot" />
                     </v-btn>
                 </template>
                 <foot-pill class="stack">
+                    <transfer-button dense />
                     <v-btn density="comfortable" variant="text" icon title="위치 알림" @click="drawerOpen = true">
                         <v-badge v-if="unread" :content="unreadText" color="error" floating>
                             <v-icon icon="mdi-bell-outline" />

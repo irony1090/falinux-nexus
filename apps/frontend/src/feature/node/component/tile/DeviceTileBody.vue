@@ -3,6 +3,9 @@ import { tabReady } from '@/common/util/tabId.util';
 import type { DirEntry } from '@/feature/worker/api/worker.api';
 import { useWorkerRoster } from '@/feature/worker/api/worker.api';
 import { useWorkerDir } from '@/feature/worker/hook/workerDir.hook';
+import TransferRow from '@/feature/worker/component/TransferRow.vue';
+import { useTransfers } from '@/feature/worker/store/transfers.store';
+import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { entryIcon, isDirLike, linkDest, parentPathOf, sizeText, timeText } from '@/feature/worker/util/workerDir.util';
 import { computed, ref, watch } from 'vue';
 import { VBtn, VIcon, VProgressLinear } from 'vuetify/components';
@@ -27,7 +30,7 @@ const tile = computed(() => {
 
 const instance = computed(() => tile.value?.instance);
 const dir = useWorkerDir(instance, computed(() => tile.value?.nodeId), computed(() => tile.value?.path ?? ''));
-const { entries, crumbs, parent, total, loading, error } = dir;
+const { entries, cur, crumbs, parent, total, loading, error } = dir;
 
 // 접속 여부 = 명부 주기 조회. 다시 접속하면 다시 읽는다
 const { devices } = useWorkerRoster();
@@ -62,10 +65,60 @@ const onScroll = () => {
 }
 // 다른 폴더로 가면 맨 위부터
 watch(() => tile.value?.path, () => bodyEl.value?.scrollTo({ top: 0 }));
+
+// 폴더-5(업로드): 지금 폴더로. Windows 드라이브 목록("")·읽기 실패·끊김이면 못 올림. REF-transfer-ext.md
+const { upload, byTile, lastDone } = useTransfers();
+const { openDialog } = useAppDialog();
+const canUpload = computed(() => online.value && !!cur.value && !error.value);
+const mine = computed(() => byTile(props.tileId).filter(t => t.state === 'running' || t.state === 'failed'));  // 끝난 것은 푸터 목록에만
+const send = (files: File[]) => {
+    const t = tile.value;
+    if (t && cur.value) void upload({ tileId: props.tileId, instance: t.instance, folderId: t.nodeId, dir: cur.value }, files);
+}
+
+const fileEl = ref<HTMLInputElement>();
+const onPick = () => {
+    const el = fileEl.value;
+    if (!el?.files) return;
+    send(Array.from(el.files));
+    el.value = '';     // 같은 파일을 다시 고를 수 있게
+}
+
+// OS 파일 끌어 놓기 — 파일만(Q26(폴더째 올리기) = 나중에)
+const dropping = ref(false);
+const hasFiles = (e: DragEvent) => !!e.dataTransfer?.types.includes('Files');
+const onDragOver = (e: DragEvent) => {
+    if (!hasFiles(e) || !canUpload.value) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    dropping.value = true;
+}
+const onDragLeave = (e: DragEvent) => {
+    if (!bodyEl.value?.contains(e.relatedTarget as Node | null)) dropping.value = false;
+}
+const onDrop = (e: DragEvent) => {
+    if (!hasFiles(e) || !canUpload.value) return;
+    e.preventDefault();
+    dropping.value = false;
+    const files: File[] = [], dirs: string[] = [];
+    for (const item of Array.from(e.dataTransfer?.items ?? [])) {
+        const f = item.getAsFile();
+        if (!f) continue;
+        if (item.webkitGetAsEntry?.()?.isDirectory) dirs.push(f.name);
+        else files.push(f);
+    }
+    if (dirs.length) openDialog({ type: 'warning', content: `폴더는 아직 올릴 수 없습니다(파일만): ${dirs.join(', ')}` });
+    send(files);
+}
+
+// 이 폴더로 올린 전송이 끝나면(어느 탭에서든) 목록을 다시 읽는다
+watch(lastDone, d => {
+    if (d && d.instanceKey === instance.value && d.dir === cur.value) void dir.reload();
+});
 </script>
 
 <template>
-<div ref="bodyEl" class="DeviceTileBody" @scroll.passive="onScroll">
+<div ref="bodyEl" class="DeviceTileBody" :class="{ dropping }" @scroll.passive="onScroll" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
     <div class="crumbs">
         <template v-for="(c, i) in crumbs" :key="c.path">
             <span v-if="i > 0 && sepAfter(crumbs[i - 1]!.name)" class="sep">/</span>
@@ -78,6 +131,10 @@ watch(() => tile.value?.path, () => bodyEl.value?.scrollTo({ top: 0 }));
         </template>
         <span class="tools">
             <span class="dev" :class="{ on: online }" :title="online ? '접속 중' : '접속 끊김'"><i /></span>
+            <button class="tool" title="이 폴더에 올리기" :disabled="!canUpload" @click="fileEl?.click()">
+                <v-icon size="14" icon="mdi-upload" />
+            </button>
+            <input ref="fileEl" type="file" multiple hidden @change="onPick">
             <button class="tool" title="새로고침" :disabled="loading" @click="dir.reload()">
                 <v-icon size="14" icon="mdi-refresh" />
             </button>
@@ -114,6 +171,10 @@ watch(() => tile.value?.path, () => bodyEl.value?.scrollTo({ top: 0 }));
             <v-btn size="x-small" variant="text" :disabled="loading" @click="dir.loadMore()">더 보기</v-btn>
         </p>
     </template>
+    <!-- 이 타일에서 시작한 전송 — Q27(타일 막대 범위) -->
+    <div v-if="mine.length" class="xfer">
+        <transfer-row v-for="t in mine" :key="t.id" :item="t" />
+    </div>
 </div>
 </template>
 
@@ -215,5 +276,13 @@ watch(() => tile.value?.path, () => bodyEl.value?.scrollTo({ top: 0 }));
     &.on i { background: rgb(var(--v-theme-success)); }
 }
 .empty, .more { margin: vars.$spacing-md; opacity: 0.6; }
+.DeviceTileBody.dropping { outline: 2px dashed rgb(var(--v-theme-primary)); outline-offset: -2px; }
+.xfer {
+    position: sticky;
+    bottom: 0;
+    padding: 2px vars.$spacing-md;
+    background: rgb(var(--v-theme-surface));
+    border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
 .more { display: flex; align-items: center; gap: vars.$spacing-sm; }
 </style>

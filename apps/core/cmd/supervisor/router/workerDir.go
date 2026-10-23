@@ -69,6 +69,49 @@ func (r *supervisorRouter) listWorkerDir(c echo.Context) error {
 	return c.JSON(200, body)
 }
 
+type dirExistsRequest struct {
+	FolderID int64    `json:"folderId" validate:"required"`
+	Path     string   `json:"path" validate:"required"`
+	Names    []string `json:"names" validate:"required"`
+}
+
+// workerDirExists: 받을 폴더에 이미 있는 이름 — Q28(여러 파일 겹침) 확인 창의 근거
+func (r *supervisorRouter) workerDirExists(c echo.Context) error {
+	sess := r.requireSession(c)
+	mainKey, subKey := pathParam(c, "mainKey"), pathParam(c, "subKey")
+	var body dirExistsRequest
+	if err := c.Bind(&body); err != nil {
+		panic(web.Err(400, "%v", err))
+	}
+	if err := c.Validate(&body); err != nil {
+		panic(web.Err(400, "%v", err))
+	}
+	conn := r.requireDeviceDir(c, sess.Data.ID, body.FolderID, mainKey, subKey)
+	EndTx(c)
+
+	ctx, cancel := context.WithTimeout(c.Request().Context(), sendCallTimeout)
+	defer cancel()
+	res, err := conn.Call(ctx, protocol.MsgDirExists, protocol.DirExistsRequest{Path: body.Path, Names: body.Names})
+	if errors.Is(err, context.DeadlineExceeded) {
+		panic(web.Err(504, "worker 응답이 없습니다"))
+	}
+	if err != nil {
+		panic(web.Err(502, "%v", err))
+	}
+	var out protocol.DirExistsResponse
+	if err := res.Bind(&out); err != nil {
+		panic(web.Err(502, "%v", err))
+	}
+	if out.Err != "" {
+		status, ok := dirErrStatus[out.Err]
+		if !ok {
+			status = 500
+		}
+		panic(web.Err(status, "%s", out.Reason))
+	}
+	return c.JSON(200, out.Found)
+}
+
 // requireDeviceDir: 장비 디렉토리 인가 = requireDeviceFolder + 인스턴스 접속 중
 func (r *supervisorRouter) requireDeviceDir(c echo.Context, userID, folderID int64, mainKey, subKey string) *transport.Conn {
 	requireDeviceFolder(c, userID, folderID, mainKey)

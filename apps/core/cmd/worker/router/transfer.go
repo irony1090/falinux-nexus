@@ -47,6 +47,45 @@ func (r *workerRouter) resolveDest(destPath string) (string, error) {
 	return final, nil
 }
 
+// resolveAbsDest: 장비 디렉토리 업로드 = 디스크 전체(Q2(볼 수 있는 범위)), 인가는 supervisor가 끝냄. 이름에 경로가 섞이면 거절
+func resolveAbsDest(dir, name string) (string, error) {
+	if !filepath.IsAbs(dir) {
+		return "", fmt.Errorf("절대 경로가 아님: %q", dir)
+	}
+	if !protocol.ValidFileName(name) {
+		return "", fmt.Errorf("잘못된 파일 이름: %q", name)
+	}
+	return filepath.Join(dir, name), nil
+}
+
+// dirExists: DIR_EXISTS 핸들러 — 이미 있는 이름만 돌려준다(Q28(여러 파일 겹침))
+func (r *workerRouter) dirExists(req protocol.Frame) (any, error) {
+	var body protocol.DirExistsRequest
+	if err := req.Bind(&body); err != nil {
+		return nil, err
+	}
+	if !filepath.IsAbs(body.Path) {
+		return protocol.DirExistsResponse{Err: protocol.DirErrBadPath, Reason: "절대 경로가 아닙니다"}, nil
+	}
+	found := []protocol.DirEntry{}
+	for _, name := range body.Names {
+		if !protocol.ValidFileName(name) {
+			continue
+		}
+		p := filepath.Join(body.Path, name)
+		st, err := os.Stat(p)
+		if err != nil {
+			continue
+		}
+		kind := protocol.DirKindFile
+		if st.IsDir() {
+			kind = protocol.DirKindDir
+		}
+		found = append(found, protocol.DirEntry{Name: name, Path: p, Kind: kind, Size: st.Size(), ModTime: st.ModTime().Unix()})
+	}
+	return protocol.DirExistsResponse{Found: found}, nil
+}
+
 // fileInit: 전송 통보를 받아 수락 여부와 이어받기 시작 위치를 정한다.
 func (r *workerRouter) fileInit(req protocol.Frame) (any, error) {
 	var body protocol.FileInitRequest
@@ -54,9 +93,18 @@ func (r *workerRouter) fileInit(req protocol.Frame) (any, error) {
 		return nil, err
 	}
 
-	final, err := r.resolveDest(body.DestPath)
+	var final string
+	var err error
+	if body.Abs {
+		final, err = resolveAbsDest(body.DestPath, body.Name)
+	} else {
+		final, err = r.resolveDest(body.DestPath)
+	}
 	if err != nil {
-		return protocol.FileInitResponse{Accept: false, Reason: err.Error()}, nil
+		return protocol.FileInitResponse{Accept: false, Reason: err.Error(), Code: protocol.FileErrBadPath}, nil
+	}
+	if res, ok := checkDest(final, body.Abs, body.Exclusive); !ok {
+		return res, nil
 	}
 	part := final + ".part"
 
@@ -98,6 +146,24 @@ func (r *workerRouter) fileInit(req protocol.Frame) (any, error) {
 	save.OnClose = func() { r.saves.Remove(body.TransferID) }
 
 	return protocol.FileInitResponse{Accept: true, ResumeOffset: resumeOffset}, nil
+}
+
+// checkDest: 받을 자리 검사 — 같은 이름 폴더는 항상, 파일은 Exclusive일 때 거절. Abs면 받을 폴더가 있어야 함(MkdirAll로 아무 데나 만들지 않게)
+func checkDest(final string, abs, exclusive bool) (protocol.FileInitResponse, bool) {
+	if st, err := os.Stat(final); err == nil {
+		if st.IsDir() {
+			return protocol.FileInitResponse{Reason: "같은 이름의 폴더가 있습니다", Code: protocol.FileErrIsDir}, false
+		}
+		if exclusive {
+			return protocol.FileInitResponse{Reason: "같은 이름의 파일이 있습니다", Code: protocol.FileErrExists}, false
+		}
+	}
+	if abs {
+		if st, err := os.Stat(filepath.Dir(final)); err != nil || !st.IsDir() {
+			return protocol.FileInitResponse{Reason: "받을 폴더가 없습니다", Code: protocol.FileErrNoParent}, false
+		}
+	}
+	return protocol.FileInitResponse{}, true
 }
 
 // fileChunk: 한 조각을 offset 위치에 멱등 쓰기(WriteAt)한다.
