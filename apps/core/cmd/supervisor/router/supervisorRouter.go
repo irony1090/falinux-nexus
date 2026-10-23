@@ -49,6 +49,7 @@ type supervisorRouter struct {
 	pins           *pinState                                     // 계정별 마지막 고정 지도(tileNotice.go)
 	transfers      *manager.KeyValManager[string, *transferItem] // 전송 목록(transferList.go)
 	uploadDir      string                                        // 업로드 임시 파일(upload.go)
+	copySlots      chan struct{}                                 // worker 간 중계 동시 수(copy.go)
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -84,6 +85,7 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 		pins:           newPinState(),
 		transfers:      manager.NewKeyValManager[string, *transferItem](),
 		uploadDir:      newUploadDir(),
+		copySlots:      make(chan struct{}, copyParallel),
 	}
 	go router.runPurge() // 끝난 process 주기 삭제(K2(supervisor 정리))
 	go router.runTransferSweep()

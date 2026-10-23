@@ -4,11 +4,11 @@ import type { DirEntry } from '@/feature/worker/api/worker.api';
 import { useWorkerRoster } from '@/feature/worker/api/worker.api';
 import { useWorkerDir } from '@/feature/worker/hook/workerDir.hook';
 import TransferRow from '@/feature/worker/component/TransferRow.vue';
-import { useTransfers } from '@/feature/worker/store/transfers.store';
+import { useTransfers, type UploadSource } from '@/feature/worker/store/transfers.store';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
-import { entryIcon, isDirLike, linkDest, parentPathOf, sizeText, timeText } from '@/feature/worker/util/workerDir.util';
-import { computed, ref, watch } from 'vue';
-import { VBtn, VIcon, VProgressLinear } from 'vuetify/components';
+import { entryIcon, isDirLike, isFileLike, linkDest, parentPathOf, sizeText, timeText } from '@/feature/worker/util/workerDir.util';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { VBtn, VIcon, VList, VListItem, VMenu, VProgressLinear } from 'vuetify/components';
 import { useNodeOps } from '../../store/nodeOps.store';
 import { useTileTree } from '../../store/tileTree.store';
 
@@ -21,6 +21,7 @@ const props = defineProps({
 })
 
 const LOAD_MORE_PX = 300    // 바닥까지 이만큼 남으면 다음 페이지
+const DRAG_MIME = 'application/x-nexus-device-files'   // 장비 타일 항목 끌기(OS 파일 끌어 놓기와 구분) — 전송-12
 
 const { tiles, navigateDevice } = useTileTree();
 const tile = computed(() => {
@@ -63,17 +64,67 @@ const onScroll = () => {
     const el = bodyEl.value;
     if (el && el.scrollTop + el.clientHeight >= el.scrollHeight - LOAD_MORE_PX) void dir.loadMore();
 }
-// 다른 폴더로 가면 맨 위부터
-watch(() => tile.value?.path, () => bodyEl.value?.scrollTo({ top: 0 }));
+// 다른 폴더로 가면 맨 위부터, 선택은 비움
+watch(() => tile.value?.path, () => {
+    bodyEl.value?.scrollTo({ top: 0 });
+    selected.value = new Set();
+});
+
+// 항목 선택 — Q37(항목 선택 방식) 체크박스. 줄 클릭 동작은 그대로
+const selected = ref(new Set<string>());
+const selEntries = computed(() => entries.value.filter(e => selected.value.has(e.path)));
+const toggle = (e: DirEntry) => {
+    const next = new Set(selected.value);
+    if (!next.delete(e.path)) next.add(e.path);
+    selected.value = next;
+}
+const clearSel = () => { selected.value = new Set(); };
 
 // 폴더-5(업로드): 지금 폴더로. Windows 드라이브 목록("")·읽기 실패·끊김이면 못 올림. REF-transfer-ext.md
-const { upload, byTile, lastDone } = useTransfers();
+const { upload, download, copyTo, spots, setSpot, dragging, byTile, lastDone } = useTransfers();
 const { openDialog } = useAppDialog();
 const canUpload = computed(() => online.value && !!cur.value && !error.value);
 const mine = computed(() => byTile(props.tileId).filter(t => t.state === 'running' || t.state === 'failed'));  // 끝난 것은 푸터 목록에만
+// 이 타일이 지금 보는 폴더 = 올리기·내려받기·worker 간 전송의 출발·도착
+const spot = computed<UploadSource | undefined>(() => {
+    const t = tile.value, d = cur.value;
+    return t && d && canUpload.value ? { tileId: props.tileId, instance: t.instance, folderId: t.nodeId, dir: d } : undefined;
+});
+watch(spot, sp => setSpot(props.tileId, sp), { immediate: true });
+onBeforeUnmount(() => setSpot(props.tileId, undefined));
+
 const send = (files: File[]) => {
-    const t = tile.value;
-    if (t && cur.value) void upload({ tileId: props.tileId, instance: t.instance, folderId: t.nodeId, dir: cur.value }, files);
+    if (spot.value) void upload(spot.value, files);
+}
+
+// 전송-11(화면: 선택·메뉴): 내려받기(Q33(내려받기 범위)) · 다른 장비로 보내기(받을 곳 = 보드에 열린 다른 장비 타일, Q34)
+const onDownload = () => {
+    if (!spot.value) return;
+    void download(spot.value, selEntries.value);
+    clearSel();
+}
+const selFiles = computed(() => selEntries.value.filter(isFileLike));
+const targets = computed(() => Object.values(spots.value).filter(sp => sp.tileId !== props.tileId));
+const onSendTo = (dst: UploadSource) => {
+    if (!spot.value) return;
+    void copyTo(spot.value, selEntries.value, dst);
+    clearSel();
+}
+
+// 전송-12(화면: 끌어 놓기): 파일 줄을 끌어 다른 장비 타일에 놓기. 선택한 줄을 끌면 선택한 파일 전부
+const onRowDragStart = (ev: DragEvent, e: DirEntry) => {
+    if (!spot.value || !ev.dataTransfer) return;
+    const list = selected.value.has(e.path) ? selFiles.value : [e];
+    dragging.value = { src: spot.value, entries: list };
+    ev.dataTransfer.setData(DRAG_MIME, String(list.length));
+    ev.dataTransfer.effectAllowed = 'copy';
+}
+const onRowDragEnd = () => { dragging.value = null; };
+const isDeviceDrag = (e: DragEvent) => !!e.dataTransfer?.types.includes(DRAG_MIME);
+// 같은 장비의 같은 폴더(자기 자신 포함)에는 놓지 않음
+const canTakeDrag = () => {
+    const d = dragging.value, sp = spot.value;
+    return !!d && !!sp && !(d.src.instance === sp.instance && d.src.dir === sp.dir);
 }
 
 const fileEl = ref<HTMLInputElement>();
@@ -88,7 +139,7 @@ const onPick = () => {
 const dropping = ref(false);
 const hasFiles = (e: DragEvent) => !!e.dataTransfer?.types.includes('Files');
 const onDragOver = (e: DragEvent) => {
-    if (!hasFiles(e) || !canUpload.value) return;
+    if (isDeviceDrag(e) ? !canTakeDrag() : (!hasFiles(e) || !canUpload.value)) return;
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
     dropping.value = true;
@@ -97,6 +148,14 @@ const onDragLeave = (e: DragEvent) => {
     if (!bodyEl.value?.contains(e.relatedTarget as Node | null)) dropping.value = false;
 }
 const onDrop = (e: DragEvent) => {
+    if (isDeviceDrag(e)) {
+        e.preventDefault();
+        dropping.value = false;
+        const d = dragging.value;
+        if (d && spot.value && canTakeDrag()) void copyTo(d.src, d.entries, spot.value);
+        dragging.value = null;
+        return;
+    }
     if (!hasFiles(e) || !canUpload.value) return;
     e.preventDefault();
     dropping.value = false;
@@ -118,7 +177,7 @@ watch(lastDone, d => {
 </script>
 
 <template>
-<div ref="bodyEl" class="DeviceTileBody" :class="{ dropping }" @scroll.passive="onScroll" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
+<div ref="bodyEl" class="DeviceTileBody" :class="{ dropping, selecting: selEntries.length > 0 }" @scroll.passive="onScroll" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
     <div class="crumbs">
         <template v-for="(c, i) in crumbs" :key="c.path">
             <span v-if="i > 0 && sepAfter(crumbs[i - 1]!.name)" class="sep">/</span>
@@ -130,6 +189,27 @@ watch(lastDone, d => {
             </button>
         </template>
         <span class="tools">
+            <template v-if="selEntries.length">
+                <span class="sel">{{ selEntries.length }}개</span>
+                <button class="tool" title="내려받기(여러 개·폴더는 zip)" :disabled="!canUpload" @click="onDownload">
+                    <v-icon size="14" icon="mdi-download" />
+                </button>
+                <v-menu location="bottom end">
+                    <template #activator="{ props: act }">
+                        <button v-bind="act" class="tool" title="다른 장비로 보내기(파일만)" :disabled="!canUpload || !selFiles.length">
+                            <v-icon size="14" icon="mdi-content-copy" />
+                        </button>
+                    </template>
+                    <v-list density="compact" class="targets">
+                        <v-list-item v-for="sp in targets" :key="sp.tileId" :title="sp.instance" :subtitle="sp.dir" @click="onSendTo(sp)" />
+                        <v-list-item v-if="!targets.length" disabled title="보드에 받을 장비 타일이 없습니다" />
+                    </v-list>
+                </v-menu>
+                <button class="tool" title="선택 해제" @click="clearSel">
+                    <v-icon size="14" icon="mdi-close" />
+                </button>
+                <span class="split" />
+            </template>
             <span class="dev" :class="{ on: online }" :title="online ? '접속 중' : '접속 끊김'"><i /></span>
             <button class="tool" title="이 폴더에 올리기" :disabled="!canUpload" @click="fileEl?.click()">
                 <v-icon size="14" icon="mdi-upload" />
@@ -152,7 +232,9 @@ watch(lastDone, d => {
         </span>
     </div>
     <template v-else>
-        <div v-for="e in entries" :key="e.path" class="row" :class="{ dir: isDirLike(e) }" @click="onRow(e)">
+        <div v-for="e in entries" :key="e.path" class="row" :class="{ dir: isDirLike(e), picked: selected.has(e.path) }"
+            :draggable="isFileLike(e) && canUpload" @click="onRow(e)" @dragstart="onRowDragStart($event, e)" @dragend="onRowDragEnd">
+            <input type="checkbox" class="pick" :checked="selected.has(e.path)" :aria-label="`${e.name} 선택`" @click.stop="toggle(e)">
             <v-icon size="14" :icon="entryIcon(e)" :class="isDirLike(e) ? 'folder' : 'file'" />
             <span class="nm" :title="e.path">{{ e.name }}</span>
             <span class="tail">
@@ -215,9 +297,12 @@ watch(lastDone, d => {
         gap: vars.$spacing-md;
     }
     .tool {
+        display: inline-flex;
         opacity: 0.7;
         &:disabled { cursor: default; opacity: 0.3; }
     }
+    .sel { color: rgb(var(--v-theme-primary)); font-weight: vars.$weight-md; }
+    .split { width: 1px; height: 12px; background: rgba(var(--v-border-color), var(--v-border-opacity)); }
 }
 .bar { height: 2px; }
 .state {
@@ -231,7 +316,7 @@ watch(lastDone, d => {
 }
 .row {
     display: grid;
-    grid-template-columns: 16px minmax(0, 1fr) auto;
+    grid-template-columns: 14px 16px minmax(0, 1fr) auto;
     align-items: center;
     gap: 6px;
     min-height: 26px;
@@ -239,6 +324,18 @@ watch(lastDone, d => {
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     &.dir { cursor: pointer; }
     &.dir:hover .nm { color: rgb(var(--v-theme-primary)); }
+    &.picked { background: rgba(var(--v-theme-primary), 0.08); }
+}
+// Q37(항목 선택 방식): 마우스를 올린 줄·선택 중이면 전부·터치 기기는 늘 보임
+.pick {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: rgb(var(--v-theme-primary));
+    opacity: 0;
+    .row:hover &, .selecting &, &:focus-visible { opacity: 1; }
+    @media (hover: none) { opacity: 1; }
 }
 .folder { color: rgb(var(--v-theme-warning)); }
 .file { opacity: 0.7; }

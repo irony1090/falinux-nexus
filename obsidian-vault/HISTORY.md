@@ -35,6 +35,7 @@
 - 타일 종류 정리(마감) → `INDEX-tile-kinds.md` (tile-kinds)
 - worker 폴더 타일(마감) → `INDEX-worker-dir.md` (worker-dir-list·worker-dir-exec·worker-dir-board)
 - 파일 전송 확장(마감, 업로드·전송 상태) → `INDEX-transfer-ext.md` (transfer-ext)
+- 내려받기·worker 간 전송(마감) → `INDEX-transfer-down.md` (transfer-down)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.

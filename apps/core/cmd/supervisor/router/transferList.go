@@ -33,7 +33,9 @@ type transferItem struct {
 	ctx       context.Context
 	tmp       *os.File // 올리는 중 단계의 임시 파일(supervisor)
 	tmpPath   string
-	touched   time.Time // 마지막 조각 시각(uploadIdle)
+	src       *workerReader // 내려받기: 시작 전에 연 worker 읽기
+	started   bool          // 내려받기: GET이 한 번 왔음(한 번만)
+	touched   time.Time     // 마지막 조각 시각(uploadIdle)
 	lastPush  time.Time
 }
 
@@ -49,6 +51,8 @@ func (r *supervisorRouter) mountTransfers(e *echo.Echo) {
 	g.DELETE("/:id", r.abortTransfer)
 	g.PUT("/:id/data", r.uploadData)      // upload.go
 	g.POST("/:id/finish", r.finishUpload) // upload.go
+	g.GET("/:id/data", r.downloadData)    // download.go
+	g.POST("/copies", r.startCopy)        // copy.go
 }
 
 // pushTransfer: 진행률은 progressEvery마다, force(상태·단계 변화)는 바로
@@ -77,7 +81,12 @@ func (r *supervisorRouter) endTransfer(it *transferItem, state, code, reason str
 		it.tmp = nil
 	}
 	tmpPath := it.tmpPath
+	pending := it.src != nil && !it.started // 시작한 내려받기는 GET 핸들러가 닫음
 	it.mu.Unlock()
+
+	if pending {
+		it.src.Close()
+	}
 
 	it.cancel()
 	if tmpPath != "" {

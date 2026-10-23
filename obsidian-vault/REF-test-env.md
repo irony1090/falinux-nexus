@@ -15,7 +15,7 @@
 - 절차: `go build -o <dir>/sup/supervisor ./cmd/supervisor` + 옆에 `env`(`PORT=5051`, `DB_NAME=nexus_authz_tmp`, 나머지 기존 값) / worker도 같은 방식(`WS_HOST="localhost:5051"`, `SQLITE=<dir>/wrk/worker.db`, `NAME="authz-dev"`) / `CREATE DATABASE nexus_authz_tmp OWNER irony;`(기본 DB `workspace`로 접속해서) → 실행 → 확인 뒤 프로세스 종료 + `DROP DATABASE`
 - 소켓 클라이언트: Python `websockets`(user site에 있음 → `python3 -I`로 돌리면 못 찾음). 프레임 = JSON `{k,id,t,d}`, k: 0 REQ / 1 RES / 2 EVENT, 입력 `PROCESS:INPUT` `{uid, data(base64)}`. 입력 확인용 스크립트 = `#!/bin/sh\ncat`(받은 입력이 출력으로 돌아옴)
 - 크기 우선권 넘김 확인은 `tabGrace` 60초를 기다려야 함
-- 끌 때는 **실행 위치(`/proc/<pid>/cwd`)가 격리 폴더인 프로세스만** 끈다(`pgrep -f '^\./supervisor$'`만으로 끄면 사용자가 띄운 것까지 끌 수 있음. 2026-10-19 `pgrep -x worker`도 사용자 worker를 먼저 잡음)
+- 끌 때는 **실행 위치(`/proc/<pid>/cwd`)가 격리 폴더인 프로세스만** 끈다(`pgrep -f '^\./supervisor$'`만으로 끄면 사용자가 띄운 것까지 끌 수 있음. 2026-10-19 `pgrep -x worker`도 사용자 worker를 먼저 잡음). **명령줄(cmdline)에 격리 경로가 있는지로 고르면 그 정리 명령을 돌리는 셸 자신도 걸려 죽는다**(2026-10-23, 뒤 단계가 실행 안 됨) -> `$$` 제외 또는 cwd만 보고, vite처럼 cwd가 저장소인 것은 `--config <iso 경로>`로 따로 고른다
 - 확인 스크립트(세션 scratchpad, 재부팅 시 사라짐): `authz_test.py`(공유-b) · `share_test.py`(공유-c, 앞 것을 import) · `ws_test.py`(작업공간-b) · `wsc_test.py`(작업공간-c, worker 포함) — 여기까지 지난 세션 것, 사라짐 / 작업공간-e: `pw/lib.mjs`·`pw/board.mjs`(헤드리스 보드) · `reg/share_reg.py`(공유-b·c 회귀 합본 59개, 공유 행은 공유-c API로)
 - worker도 격리: `go build -o <dir>/wrk/worker ./cmd/worker` + 옆 `env`(`WS_HOST="localhost:5051"`, `SQLITE=<dir>/wrk/worker.db`, `NAME="ws-dev"`) → 노드 폴더 `deviceKey`를 그 NAME으로, authKey = `GET /workers?nodeId=` 의 `instanceKey`
 - 소켓 확인은 `websockets.sync.client.connect`(17.1)가 편함: 스레드에서 프레임 읽기 + `ws.send(json.dumps({"k":2,"t":"TAB:VIEW","d":{...}}).encode())`(브라우저 → 서버 EVENT, binary)

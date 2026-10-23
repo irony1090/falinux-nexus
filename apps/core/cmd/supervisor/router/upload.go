@@ -187,6 +187,11 @@ func (r *supervisorRouter) runUpload(it *transferItem) {
 			r.pushTransfer(it, false)
 		},
 	})
+	r.endSend(it, err)
+}
+
+// endSend: send 결과를 항목에 적는다(업로드·worker 간 중계 공통)
+func (r *supervisorRouter) endSend(it *transferItem, err error) {
 	var rej *rejectedError
 	switch {
 	case err == nil:

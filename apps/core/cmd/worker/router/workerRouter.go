@@ -42,6 +42,7 @@ type workerRouter struct {
 	store     *store.StorePool
 	uniqueKey string
 	saves     *manager.KeyValManager[string, *fileRecv]
+	reads     *manager.KeyValManager[string, *fileRead]  // FILE_OPEN으로 연 읽기(연결마다 새로)
 	dirs      *dirCache                                  // DIR_LIST 보관 목록(연결마다 새로 — 재접속 뒤 cursor는 expired)
 	procs     *manager.KeyValManager[string, *procEntry] // = state.procs(동일 identity, 재접속 간 유지)
 
@@ -78,6 +79,7 @@ func NewWorkerRouter(supervisor url.URL, uniqueKey string, store *store.StorePoo
 		store:     store,
 		uniqueKey: uniqueKey,
 		saves:     manager.NewKeyValManager[string, *fileRecv](),
+		reads:     manager.NewKeyValManager[string, *fileRead](),
 		dirs:      newDirCache(),
 		procs:     state.procs,
 	}
@@ -87,6 +89,9 @@ func NewWorkerRouter(supervisor url.URL, uniqueKey string, store *store.StorePoo
 	conn.Handle(protocol.MsgFileChunk, router.fileChunk)
 	conn.Handle(protocol.MsgFileResult, router.fileResult)
 	conn.Handle(protocol.MsgFileAbort, router.fileAbort)
+	conn.Handle(protocol.MsgFileOpen, router.fileOpen)
+	conn.Handle(protocol.MsgFileRead, router.fileReadChunk)
+	conn.Handle(protocol.MsgFileClose, router.fileClose)
 	conn.Handle(protocol.MsgDirList, router.dirList)
 	conn.Handle(protocol.MsgDirExists, router.dirExists)
 

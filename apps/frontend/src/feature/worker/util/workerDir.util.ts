@@ -22,6 +22,8 @@ export const timeText = (sec: number) => {
 }
 
 export const isDirLike = (e: DirEntry) => e.kind === 'dir' || (e.kind === 'link' && !!e.targetDir)
+// 파일 하나로 옮길 수 있는 것(파일 링크는 원본 기준, 끊긴 링크 제외) — 전송-10(worker 간 중계)
+export const isFileLike = (e: DirEntry) => e.kind === 'file' || (e.kind === 'link' && !!e.targetPath && !e.targetDir)
 
 // 경로의 상위 폴더(구분자 `/`·`\` 둘 다). `/x` -> `/`, `C:\x` -> `C:\`
 export const parentPathOf = (p: string) => {
