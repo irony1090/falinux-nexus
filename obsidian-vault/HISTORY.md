@@ -38,6 +38,7 @@
 - 내려받기·worker 간 전송(마감) → `INDEX-transfer-down.md` (transfer-down)
 - 경로 직접 입력(마감) → `INDEX-path-input.md` (path-input)
 - 글자 크기 규칙(마감) → `INDEX-typography.md` (typography)
+- Ctrl+Alt 팝업 버튼·터치 스크롤 양(마감) → `INDEX-pager-tools.md` (pager-tools)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.

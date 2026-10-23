@@ -4,6 +4,7 @@ const TAP_SLOP = 10           // px — 이보다 덜 움직이면 탭(포커스
 const VELOCITY_WINDOW = 100   // ms — 손 뗄 때 속도를 이 구간으로 잰다
 const FRICTION = 0.95         // 관성: 16ms마다 속도에 곱한다
 const MIN_SPEED = 0.05        // px/ms — 이보다 느리면 관성을 멈춘다
+const TERM_GAIN = 2           // 터미널로 넘기는 양 = 손가락 이동 × 이 값(크기 고정 상자는 손가락 그대로) — 팝업-4(터치 스크롤 배율), Q48 실기기로 정함
 
 // bindTouchScroll은 터미널 화면을 쓸어 스크롤하게 한다(REF-term-touch.md 안 나(쓸어서 스크롤)). 반환 = 해제 함수.
 // 세로 이동은 scrollBox()면 el 상자 스크롤을 먼저 쓰고, 남은 양을 터미널에 넘긴다:
@@ -34,6 +35,7 @@ export const bindTouchScroll = (el: HTMLElement, getTerm: () => Terminal | undef
         }
         const term = getTerm()
         if (dy === 0 || !term?.element) return
+        dy *= TERM_GAIN
         if (term.buffer.active.type === 'normal' && term.modes.mouseTrackingMode === 'none') {
             const cell = (term.element.querySelector('.xterm-screen')?.clientHeight ?? 0) / term.rows
             if (!(cell > 0)) return

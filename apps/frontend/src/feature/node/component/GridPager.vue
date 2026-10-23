@@ -22,7 +22,10 @@ const wrapEl = ref<HTMLElement>();
 const barEl = ref<HTMLElement>();
 const width = ref(0);
 useResizeCallback(wrapEl, () => width.value = wrapEl.value?.clientWidth ?? 0);
-// 알약 오른쪽 끝 슬롯(전체보기 버튼) 폭 — 도트 자리에서 뺀다
+// 알약 양 끝 슬롯(왼쪽 = 크기 버튼, 오른쪽 = 전체보기 버튼) 폭 — 도트 자리에서 뺀다
+const startEl = ref<HTMLElement>();
+const startW = ref(0);
+useResizeCallback(startEl, () => startW.value = startEl.value?.offsetWidth ?? 0);
 const endEl = ref<HTMLElement>();
 const endW = ref(0);
 useResizeCallback(endEl, () => endW.value = endEl.value?.offsetWidth ?? 0);
@@ -30,7 +33,7 @@ useResizeCallback(endEl, () => endW.value = endEl.value?.offsetWidth ?? 0);
 // 보이는 도트 수 — 폭이 모자라면 숫자부터 빼고(도트 5개 기준), 그래도 넘치면 현재 위치 주변만
 const fit = computed(() => {
     const n = grids.value.length;
-    const w = width.value - PAD - endW.value;
+    const w = width.value - PAD - startW.value - endW.value;
     const count = w - COUNT_W >= Math.min(n, 5) * SP;
     const k = Math.max(3, Math.floor((w - (count ? COUNT_W : 0)) / SP));
     return { count, k: Math.min(n, k) };
@@ -83,6 +86,7 @@ const onKey = (e: KeyboardEvent) => {
 <template>
 <div ref="wrapEl" class="GridPager">
     <foot-pill class="shell">
+        <span v-if="$slots.start" ref="startEl" class="end"><slot name="start" /></span>
         <nav ref="barEl" class="bar" :class="{ held: mode !== 'idle' }" aria-label="보드 Grid 위치"
             @pointerdown="down"
             @pointermove="move"
@@ -121,7 +125,7 @@ const onKey = (e: KeyboardEvent) => {
     display: flex;
     justify-content: center;
 }
-// 오른쪽 끝 버튼이 알약 끝까지 채우게
+// 양 끝 버튼이 알약 끝까지 채우게
 .shell {
     padding: 0;
     overflow: hidden;

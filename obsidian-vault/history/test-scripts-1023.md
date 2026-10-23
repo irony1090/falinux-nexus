@@ -8,3 +8,6 @@
 
 ## 2026-10-23 글자-5(깨지는 곳 맞추기) 전후 스크린샷
 - master worktree(3002) vs `feat/typography`(3001) 비교 스크립트 작성·실행 → `REF-test-scripts-1023.md` 같은 절
+
+## 2026-10-23 팝업-5 헤드리스
+- `pt.mjs`(PC 21)·`tt.mjs`(터치 17) 작성·통과 → `REF-test-scripts-1023.md` 같은 절
