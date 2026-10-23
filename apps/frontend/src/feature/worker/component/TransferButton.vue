@@ -43,7 +43,7 @@ const icon = computed(() => running.value ? 'mdi-swap-vertical-bold' : 'mdi-swap
 }
 .head {
     padding-bottom: 4px;
-    font-size: 11px;
+    @include vars.font('body-small');
     font-weight: vars.$weight-md;
     opacity: 0.7;
 }

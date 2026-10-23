@@ -54,7 +54,7 @@ const onClick = (t: NoticeToast) => {
     background: rgb(var(--v-theme-surface));
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-    font-size: 12.5px;
+    @include vars.font('body-medium');
     cursor: pointer;
 }
 .body { min-width: 0; }

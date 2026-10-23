@@ -235,7 +235,7 @@ const onAdd = () => {
 </template>
 
 <style scoped lang="scss">
-.sub { font-size: 12px; opacity: 0.7; }
+.sub { @include vars.font('body-medium'); opacity: 0.7; }
 .empty { padding: vars.$spacing-lg 0; text-align: center; opacity: 0.7; }
 .who {
     display: grid;
@@ -245,8 +245,8 @@ const onAdd = () => {
     padding: vars.$spacing-md 0;
     border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     &.inherited { border-top-style: dashed; }
-    .id small { display: block; font-size: 11.5px; opacity: 0.7; }
-    .blk { margin-left: vars.$spacing-sm; font-size: 12px; font-weight: vars.$weight-md; }
+    .id small { display: block; @include vars.font('body-small'); opacity: 0.7; }
+    .blk { margin-left: vars.$spacing-sm; @include vars.font('body-medium'); font-weight: vars.$weight-md; }
 }
 .who .id small.seen { display: flex; align-items: center; gap: 4px; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(var(--v-theme-on-surface), 0.3); &.on { background: rgb(var(--v-theme-share)); } }
@@ -258,8 +258,8 @@ const onAdd = () => {
     justify-content: flex-end;
 }
 .lvsel { width: 104px; }
-.inh-lv { font-size: 12.5px; opacity: 0.7; }
-.note { margin-top: vars.$spacing-md; font-size: 12px; color: rgb(var(--v-theme-share)); }
+.inh-lv { @include vars.font('body-medium'); opacity: 0.7; }
+.note { margin-top: vars.$spacing-md; @include vars.font('body-medium'); color: rgb(var(--v-theme-share)); }
 .found {
     display: flex;
     align-items: center;
@@ -272,6 +272,6 @@ const onAdd = () => {
     flex-direction: column;
     small { opacity: 0.7; }
 }
-.msg { font-size: 12px; margin-top: vars.$spacing-sm; }
+.msg { @include vars.font('body-medium'); margin-top: vars.$spacing-sm; }
 .done { font-weight: vars.$weight-md; }
 </style>

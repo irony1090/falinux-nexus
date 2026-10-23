@@ -19,3 +19,8 @@
 - **화면도 172.17.0.1로**: vite `host: 172.17.0.1`(`pi/iso-win.mts`) + `VITE_API_URL=http://172.17.0.1:5051`, 페이지 `http://172.17.0.1:3001`(쿠키 같은 사이트). 타일은 `w:0.5`(1이면 도구 자리가 화면 밖)
 - 서버 항목: W1(빈 dir = 드라이브, `c` -> `C:\`, Enter = dir "") · W2(`C:\` + `win` -> Windows) · W3(`C:/nexus/...` 슬래시도) · W4(같은 대소문자 먼저) · W5(파일·`.` 빠짐, junction 포함) · W6(한글) · W7(max 0 정리) · W8(`C:`만 = `C:\`) · W9(없음 404·파일 400) · W10(`Documents and Settings`)
 - 화면 항목: K1(역슬래시 경로) · K2(`\d059` 10개) · K3(고르면 `\`까지·이동) · K4(`C:` -> 후보 `C:\`·Tab) · K5(Tab `C:\nexus\`) · K6(`c:/nexus/fx` Enter) · K7(`C:` Enter = 드라이브 루트) · K8(빈 칸 = 드라이브 목록) · K9(파일 = 오류)
+
+## 2026-10-23 글자-5(깨지는 곳 맞추기) 전후 스크린샷 (`ty/pw/*.mjs`) → `REF-typography.md`
+- 격리 supervisor 5051(`IP=127.0.0.1`) + `nexus_typo_tmp` + worker `ty-dev` / vite 둘: **이 브랜치 3001 · master 3002**(`git worktree add --detach <ty>/master master` + `node_modules` 심볼릭 링크 + `.env` 복사). iso 설정은 `vite.config.mts`가 함수형이라 `await base(e)` 뒤 `root`·`cacheDir`(둘이 따로)·`server.port/host`를 덮음, 실행 env `VITE_API_URL=http://localhost:5051 HMR_CLIENT_PORT=`. 페이지는 `http://localhost:300x`(쿠키 = localhost)
+- 데이터(`seed.py`): 계정 `ty1`·`ty2`(pw123456), 폴더 `생산지그-라인A 검사장비`(ty-dev, ty2에 permission 20 공유 — 본문 필드 이름 `permission`) + 하위 폴더·스크립트 3개(`tick.sh` = 1초마다 한글 줄) + 폴더 하나 더. 타일 트리 `PUT /tiles` = 루트 폴더 + 폴더 타일 + 장비 타일(`instance` = `GET /workers?nodeId=`, `path` = 픽스처 `ty/fx`). 터미널은 화면에서 행 우클릭 아닌 `실행` 클릭(`exec.mjs`)
+- 찍는 것: `shoot.mjs`(보드·공유 다이얼로그·폰 390×844) · `zoom.mjs`(DPR 2로 폴더 타일·장비 타일·터미널 헤더·푸터 잘라 위아래로 붙임) · `more.mjs`(행 메뉴·스크립트 편집·장비 지정·전체 보기)

@@ -25,3 +25,4 @@
 ## 2026-10-23 마감
 - 사용자 "window 확인했어. VM 종료해도돼. 경로 기능 확인 끝" -> `docker stop nexus-win` -> 파트(경로 직접 입력) 마감, `INDEX-path-input.md`로 접음
 - 커밋: `feat/path-input`에 파트 마감 커밋 -> master `--no-ff` 머지. push 안 함
+- 마감 뒤 사용자 모바일 확인 "자동완성을 눌러도 키보드 안내려가서 좋더라" -> 반복 주제 `REF-mobile-viewport.md` 5-1절에 기록

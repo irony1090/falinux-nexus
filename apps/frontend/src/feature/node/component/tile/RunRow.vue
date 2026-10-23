@@ -115,7 +115,7 @@ const onKill = () => {
     gap: 6px;
     min-height: 28px;
     padding: vars.$spacing-xs vars.$spacing-xs vars.$spacing-xs 36px;
-    font-size: 11.5px;
+    @include vars.font('body-small');
     &.named {
         padding-left: vars.$spacing-md;
         border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
@@ -128,7 +128,7 @@ const onKill = () => {
     border-radius: 4px;
     display: inline-grid;
     place-items: center;
-    font-size: 10px;
+    @include vars.font('label-small');
     font-weight: vars.$weight-lg;
 }
 .pos {

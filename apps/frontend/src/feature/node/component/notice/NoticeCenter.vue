@@ -43,7 +43,7 @@ const onItem = (it: NoticeItem) => {
     font-weight: vars.$weight-lg;
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
-.empty { margin: vars.$spacing-md; opacity: 0.6; font-size: 12.5px; }
+.empty { margin: vars.$spacing-md; opacity: 0.6; @include vars.font('body-medium'); }
 .item {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
@@ -51,7 +51,7 @@ const onItem = (it: NoticeItem) => {
     width: 100%;
     text-align: left;
     padding: vars.$spacing-sm vars.$spacing-md;
-    font-size: 12.5px;
+    @include vars.font('body-medium');
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     &:hover { background: rgba(var(--v-theme-on-surface), 0.04); }
 }

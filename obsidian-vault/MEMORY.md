@@ -43,7 +43,7 @@
 
 ## 기술 스택 (확정)
 - **레포**: `nexus` / 모노레포 `apps/core`(Go) + `apps/frontend`(프론트, 스캐폴딩 완료 2026-06-30)
-- **프론트**: Vue3 + TS + Vuetify4 (scratch preset, Router=standard / **Pinia 미사용**, CSS framework 없음). 상태공유=provide/inject(+컴포넌트 밖 필요 시 reactive 모듈 패턴). 기본폰트=Noto Sans Korean. **색 = Vuetify 테마 색 이름 의존, hex 금지**(2026-09-29), 공유 표시 = 테마 `share`(청록) (→ `REF-frontend.md`)
+- **프론트**: Vue3 + TS + Vuetify4 (scratch preset, Router=standard / **Pinia 미사용**, CSS framework 없음). 상태공유=provide/inject(+컴포넌트 밖 필요 시 reactive 모듈 패턴). 기본폰트=Noto Sans Korean. **색 = Vuetify 테마 색 이름 의존, hex 금지**(2026-09-29), 공유 표시 = 테마 `share`(청록). **글자 크기 = Vuetify(MD3) 단계 이름 `@include vars.font('body-small')`, px 금지**(2026-10-23, 단계 값 한 곳 `styles/_typography.scss`·전체 배율 `$font-scale`, → `INDEX-typography`) (→ `REF-frontend.md`)
 - **Go**: 단일 모듈 `nexus`, 멀티 cmd(`cmd/supervisor`, `cmd/worker`), Go 1.26
 - **DB**: worker → SQLite(`modernc.org/sqlite`, CGO 없음) / supervisor → PostgreSQL(`pgx/v5`)
 - **sqlc**: 두 엔진 한 `sqlc.yaml` → `workerdb`/`superdb` 분리 생성
@@ -87,6 +87,6 @@ sqlc.yaml  README.md  .gitignore
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
 - 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-worker-dir.md`(worker 폴더 타일 전체 계획, 폴더-7(내려받기)·9(worker 간 전송) 원래 표)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
-- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록 = `HISTORY.md` "마감 파트"(최근 = 경로 직접 입력 `INDEX-path-input` · 내려받기·worker 간 전송 `INDEX-transfer-down` · 파일 전송 확장 `INDEX-transfer-ext` · worker 폴더 타일 `INDEX-worker-dir` · 타일 종류 정리 `INDEX-tile-kinds` · process 살려 두기 `INDEX-process-keep` · 새 보드·IUTF8 `INDEX-fix-board-iutf8` · 빌드본 분리 `INDEX-build` · 리팩터링 `INDEX-refactor`)
+- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"(최근 = 글자 크기 규칙 `INDEX-typography`)
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md` / 나중에 할 것: `BACKLOG.md`(세션 시작 시 안 읽음)

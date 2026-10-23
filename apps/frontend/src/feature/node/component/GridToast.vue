@@ -79,7 +79,7 @@ onBeforeUnmount(() => {
     border-radius: 999px;
     background: rgba(var(--v-theme-on-surface), 0.86);
     color: rgb(var(--v-theme-surface));
-    font-size: 12px;
+    @include vars.font('body-medium');
     white-space: nowrap;
     cursor: pointer;
 }
@@ -88,7 +88,7 @@ onBeforeUnmount(() => {
     border-radius: 999px;
     background: rgb(var(--v-theme-primary));
     color: rgb(var(--v-theme-on-primary));
-    font-size: 11px;
+    @include vars.font('body-small');
 }
 .GridToast-enter-active, .GridToast-leave-active { transition: opacity 0.25s, transform 0.25s; }
 .GridToast-enter-from, .GridToast-leave-to {

@@ -136,8 +136,8 @@ const onSubmit = () => emit('submit', trimmed.value || null);
     flex-direction: column;
     gap: vars.$spacing-sm;
     margin-top: vars.$spacing-lg;
-    font-size: 12px;
-    button {
+    @include vars.font('body-medium');
+    button:where(:not(.v-btn)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
         padding: 0;
         border: 0;
         background: none;
@@ -183,7 +183,7 @@ const onSubmit = () => emit('submit', trimmed.value || null);
     &:hover { color: rgb(var(--v-theme-primary)); }
 }
 .cnt {
-    font-size: 11px;
+    @include vars.font('body-small');
     opacity: 0.7;
     &.on { color: rgb(var(--v-theme-success)); opacity: 1; }
 }
@@ -194,7 +194,7 @@ const onSubmit = () => emit('submit', trimmed.value || null);
     gap: vars.$spacing-sm;
     min-height: 26px;
     padding: 2px 6px 2px 22px;
-    font-size: 11.5px;
+    @include vars.font('body-small');
     &.off .inst__key { opacity: 0.7; }
 }
 .inst__key { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }

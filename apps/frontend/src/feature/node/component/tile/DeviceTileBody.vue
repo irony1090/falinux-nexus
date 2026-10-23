@@ -307,8 +307,8 @@ watch(lastDone, d => {
     flex: 1;
     min-height: 0;
     overflow: auto;
-    font-size: 12px;
-    button {
+    @include vars.font('body-medium');
+    button:where(:not(.v-btn)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
         padding: 0;
         border: 0;
         background: none;
@@ -326,7 +326,7 @@ watch(lastDone, d => {
     align-items: center;
     gap: 2px;
     padding: 5px vars.$spacing-md;
-    font-size: 11px;
+    @include vars.font('body-small');
     background: rgb(var(--v-theme-surface));
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     button { display: inline-flex; align-items: center; gap: 2px; color: rgb(var(--v-theme-primary)); }
@@ -393,7 +393,7 @@ watch(lastDone, d => {
     display: flex;
     align-items: center;
     gap: vars.$spacing-sm;
-    font-size: 10.5px;
+    @include vars.font('label-small');
     white-space: nowrap;
     .link {
         max-width: 160px;

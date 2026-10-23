@@ -46,7 +46,7 @@ const style = computed<CSSProperties>(() => {
     justify-content: center;
     border: 1.5px dashed rgba(var(--v-border-color), 0.3);
     border-radius: 6px;
-    font-size: 11px;
+    @include vars.font('body-small');
     color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 </style>

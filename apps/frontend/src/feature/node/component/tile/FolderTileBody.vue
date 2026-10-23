@@ -443,8 +443,8 @@ const onDrop = (e: DragEvent) => {
     flex: 1;
     min-height: 0;
     overflow: auto;
-    font-size: 12px;
-    button {
+    @include vars.font('body-medium');
+    button:where(:not(.v-btn)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
         padding: 0;
         border: 0;
         background: none;
@@ -459,7 +459,7 @@ const onDrop = (e: DragEvent) => {
     align-items: center;
     gap: 2px;
     padding: 5px vars.$spacing-md;
-    font-size: 11px;
+    @include vars.font('body-small');
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     button { color: rgb(var(--v-theme-primary)); }
     button.dev { color: inherit; }
@@ -477,7 +477,7 @@ const onDrop = (e: DragEvent) => {
         opacity: 0.7;
         &:disabled { cursor: default; opacity: 0.3; }
         &.share { display: inline-flex; align-items: center; gap: 3px; color: rgb(var(--v-theme-share)); opacity: 1; }
-        .share-count { font-size: 11px; }
+        .share-count { @include vars.font('body-small'); }
     }
     .paste {
         display: inline-flex;
@@ -485,7 +485,7 @@ const onDrop = (e: DragEvent) => {
         gap: 2px;
         .tool:first-child { display: inline-flex; align-items: center; gap: 2px; opacity: 1; &:disabled { opacity: 0.3; } }
         &.wide .tool:first-child { padding: 0 6px; border-radius: 8px; color: rgb(var(--v-theme-primary)); background: rgba(var(--v-theme-primary), 0.12); }
-        .paste-count { font-size: 11px; font-family: monospace; }
+        .paste-count { @include vars.font('body-small'); font-family: monospace; }
     }
 }
 .bar { height: 2px; }
@@ -513,7 +513,7 @@ const onDrop = (e: DragEvent) => {
 }
 .FolderTileBody.drop { box-shadow: inset 0 0 0 1px rgb(var(--v-theme-primary)); }
 .check { color: rgb(var(--v-theme-primary)); }
-.ord { font-family: monospace; font-size: 10px; opacity: 0.6; }
+.ord { font-family: monospace; @include vars.font('label-small'); opacity: 0.6; }
 .folder { color: rgb(var(--v-theme-warning)); }
 .script { color: rgb(var(--v-theme-primary)); }
 .nm {
@@ -526,7 +526,7 @@ const onDrop = (e: DragEvent) => {
 button.nm:hover { color: rgb(var(--v-theme-primary)); }
 // 공유받은 루트 폴더의 소유자
 .by {
-    font-size: 10.5px;
+    @include vars.font('label-small');
     white-space: nowrap;
     color: rgb(var(--v-theme-warning));
 }
@@ -536,7 +536,7 @@ button.nm:hover { color: rgb(var(--v-theme-primary)); }
     gap: 2px;
     padding: 0 6px;
     border-radius: 8px;
-    font-size: 10.5px;
+    @include vars.font('label-small');
     white-space: nowrap;
     color: rgb(var(--v-theme-share));
     background: rgba(var(--v-theme-share), 0.12);
@@ -544,7 +544,7 @@ button.nm:hover { color: rgb(var(--v-theme-primary)); }
 button.runs {
     padding: 0 6px;
     border-radius: 8px;
-    font-size: 10.5px;
+    @include vars.font('label-small');
     white-space: nowrap;
     color: rgb(var(--v-theme-success));
     background: rgba(var(--v-theme-success), 0.12);
@@ -562,7 +562,7 @@ button.runs {
     gap: 3px;
     max-width: 140px;
     white-space: nowrap;
-    font-size: 10.5px;
+    @include vars.font('label-small');
     opacity: 0.75;
     .key {
         min-width: 0;

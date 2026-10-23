@@ -16,6 +16,7 @@ import App from './App.vue'
 // Styles
 // import 'unfonts.css'
 import "@/styles/noto-sans-korean.scss"
+import "@/styles/global.scss"
 
 const app = createApp(App)
 

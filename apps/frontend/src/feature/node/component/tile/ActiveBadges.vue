@@ -35,14 +35,14 @@ const initial = (u: ActiveUser) => [...u.nickname][0] ?? '?';
     border-radius: 50%;
     display: inline-grid;
     place-items: center;
-    font-size: 10px;
+    @include vars.font('label-small');
     font-weight: vars.$weight-lg;
     line-height: 1;
     box-shadow: 0 0 0 1.5px rgb(var(--v-theme-surface));
     cursor: default;
 }
 .more {
-    font-size: 9px;
+    @include vars.font('label-small');
     background: rgba(var(--v-theme-on-surface), 0.12);
     color: rgb(var(--v-theme-on-surface));
 }

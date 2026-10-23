@@ -74,7 +74,7 @@ const pill = computed(() => pillOf(proc.value?.status, proc.value?.terminating))
     align-items: center;
     gap: vars.$spacing-sm;
     padding: 3px 6px;
-    font-size: 11.5px;
+    @include vars.font('body-small');
     background: rgb(var(--v-theme-surface));
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     > * { flex: none; }
@@ -93,7 +93,7 @@ const pill = computed(() => pillOf(proc.value?.status, proc.value?.terminating))
     border-radius: 4px;
     display: inline-grid;
     place-items: center;
-    font-size: 10px;
+    @include vars.font('label-small');
     font-weight: vars.$weight-lg;
     background: rgb(var(--v-theme-on-surface));
     color: rgb(var(--v-theme-surface));

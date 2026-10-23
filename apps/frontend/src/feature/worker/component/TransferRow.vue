@@ -41,7 +41,7 @@ const dest = computed(() => t.value.fromKey ? `${t.value.fromKey} → ${t.value.
 <style scoped lang="scss">
 .TransferRow {
     padding: 3px 0;
-    font-size: 11.5px;
+    @include vars.font('body-small');
     button {
         padding: 0;
         border: 0;
@@ -64,11 +64,11 @@ const dest = computed(() => t.value.fromKey ? `${t.value.fromKey} → ${t.value.
     white-space: nowrap;
 }
 .st { white-space: nowrap; opacity: 0.8; }
-.size { font-family: monospace; font-size: 10.5px; opacity: 0.6; }
+.size { font-family: monospace; @include vars.font('label-small'); opacity: 0.6; }
 .x { display: inline-flex; opacity: 0.7; }
 .dest {
     padding-left: 20px;
-    font-size: 10.5px;
+    @include vars.font('label-small');
     opacity: 0.55;
     overflow: hidden;
     text-overflow: ellipsis;

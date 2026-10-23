@@ -149,6 +149,6 @@ const remoteUsers = computed(() => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 11px;
+    @include vars.font('body-small');
 }
 </style>

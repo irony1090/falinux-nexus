@@ -133,7 +133,7 @@ const onTab = (e: KeyboardEvent) => {
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    .dirty { flex: none; font-size: 12px; }
+    .dirty { flex: none; @include vars.font('body-medium'); }
 }
 // 입력 영역이 카드의 남는 높이를 전부 차지하게 한다(Vuetify 기본은 rows 기준 높이)
 .editor {
@@ -147,7 +147,7 @@ const onTab = (e: KeyboardEvent) => {
     :deep(textarea) {
         height: 100%;
         font-family: monospace;
-        font-size: 13px;
+        @include vars.font('body-medium');
         line-height: 1.5;
         tab-size: 4;
         white-space: pre;
@@ -157,7 +157,7 @@ const onTab = (e: KeyboardEvent) => {
 .hint {
     margin-right: auto;
     padding-left: vars.$spacing-md;
-    font-size: 11px;
+    @include vars.font('body-small');
     opacity: 0.6;
 }
 </style>

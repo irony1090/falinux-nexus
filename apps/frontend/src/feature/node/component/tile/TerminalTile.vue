@@ -191,7 +191,7 @@ const onX = () => {
 }
 .owner {
     font-family: monospace;
-    font-size: 11px;
+    @include vars.font('body-small');
     opacity: 0.75;
 }
 .TileFrame__head > .path {
@@ -200,7 +200,7 @@ const onX = () => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 11px;
+    @include vars.font('body-small');
     opacity: 0.7;
 }
 .TileFrame__head > .by {
@@ -209,7 +209,7 @@ const onX = () => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 11px;
+    @include vars.font('body-small');
     opacity: 0.7;
 }
 .ro {
@@ -218,7 +218,7 @@ const onX = () => {
     bottom: 8px;
     z-index: 2;
     padding: 0 6px;
-    font-size: 11px;
+    @include vars.font('body-small');
     border: 1px solid rgba(var(--v-theme-on-terminal), 0.35);
     border-radius: 4px;
     background: rgba(var(--v-theme-terminal), 0.7);

@@ -9,8 +9,10 @@
 //   $color-pack: false
 // );
 
+@use 'typography';
 @use 'vuetify/settings' with (
-    $body-font-family: ('Noto Sans Korean', sans-serif)
+    $body-font-family: ('Noto Sans Korean', sans-serif),
+    $typography: typography.$typography
 );
 
 .wk-scollbar {
