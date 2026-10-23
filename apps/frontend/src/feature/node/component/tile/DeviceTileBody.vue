@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import type { CatchErrorResponse } from '@/common/api/api.util';
 import { tabReady } from '@/common/util/tabId.util';
 import type { DirEntry } from '@/feature/worker/api/worker.api';
-import { useWorkerRoster } from '@/feature/worker/api/worker.api';
+import { suggestWorkerDir, useWorkerRoster } from '@/feature/worker/api/worker.api';
 import { useWorkerDir } from '@/feature/worker/hook/workerDir.hook';
 import TransferRow from '@/feature/worker/component/TransferRow.vue';
 import { useTransfers, type UploadSource } from '@/feature/worker/store/transfers.store';
@@ -9,8 +10,10 @@ import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { entryIcon, isDirLike, isFileLike, linkDest, parentPathOf, sizeText, timeText } from '@/feature/worker/util/workerDir.util';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { VBtn, VIcon, VList, VListItem, VMenu, VProgressLinear } from 'vuetify/components';
+import { usePathEditKey } from '../../hook/pathEdit.hook';
 import { useNodeOps } from '../../store/nodeOps.store';
 import { useTileTree } from '../../store/tileTree.store';
+import PathInput, { type PathCand } from './PathInput.vue';
 
 // 장비 타일 본문 — 경로 줄 + 목록(스크롤 끝에서 다음 페이지). 폴더-2(장비 타일), REF-worker-dir-list.md
 const props = defineProps({
@@ -48,6 +51,44 @@ watch(online, (on, was) => {
 const sepAfter = (name: string) => !/[\\/]$/.test(name);
 
 const go = (path: string) => navigateDevice(props.tileId, path);
+
+// 경로 직접 입력 — 경로-3(화면: 입력칸)·4(화면: 자동완성), REF-path-input.md. 경로 줄 빈 곳 클릭(Q39) 또는 Ctrl+L
+const SUGGEST_MAX = 50
+const editing = ref(false);
+const openEdit = () => { if (tile.value) editing.value = true; };
+usePathEditKey(() => props.tileId, openEdit);
+const onCrumbsClick = (e: MouseEvent) => {
+    if (!editing.value && !(e.target as Element).closest('button, input, .tools')) openEdit();
+}
+// Windows = 드라이브 경로이거나 드라이브 목록(""). `\`는 Windows에서만 구분자(Linux에선 이름 글자)
+const here = computed(() => cur.value ?? tile.value?.path ?? '');    // 읽기 실패면 요청한 경로
+const win = computed(() => cur.value === '' || /^[A-Za-z]:[\\/]/.test(here.value));
+const sepEnd = (p: string) => (win.value ? /[\\/]$/ : /\/$/).test(p) ? p : p + (win.value ? '\\' : '/');
+const splitPath = (t: string) => {
+    const i = win.value ? Math.max(t.lastIndexOf('/'), t.lastIndexOf('\\')) : t.lastIndexOf('/');
+    return i < 0 ? { dir: '', prefix: t } : { dir: t.slice(0, i + 1), prefix: t.slice(i + 1) };
+}
+const suggestPath = async (t: string) => {
+    const d = tile.value;
+    if (!d) return { items: [] };
+    const { dir: at, prefix } = splitPath(t);
+    const r = await suggestWorkerDir(d.instance, d.nodeId, { dir: at, prefix, max: SUGGEST_MAX });
+    return { items: r.items.map<PathCand>(i => ({ key: i.path, label: i.name, fill: sepEnd(i.path) })), more: r.more };
+}
+// Enter: worker가 폴더인지 보고 정리한 경로로. 옛 worker(DIR_SUGGEST 모름 = 502)면 확인 없이 이동
+const submitPath = async (t: string) => {
+    const d = tile.value;
+    if (!d) return;
+    const target = t.trim() || (win.value ? '' : '/');
+    try {
+        go((await suggestWorkerDir(d.instance, d.nodeId, { dir: target })).dir);
+    } catch (e) {
+        const err = e as CatchErrorResponse;
+        if (err.status !== 502) return err.message || '이동할 수 없습니다';
+        go(target);
+    }
+    return undefined;
+}
 
 // 폴더-4(실행): 실행 가능한 파일(Q24(실행 대상), 판정 = worker)만 "실행"(Q23(누르는 방식)). cwd = 그 파일이 든 폴더
 const { saving, busyTile, execFile } = useNodeOps();
@@ -178,8 +219,9 @@ watch(lastDone, d => {
 
 <template>
 <div ref="bodyEl" class="DeviceTileBody" :class="{ dropping, selecting: selEntries.length > 0 }" @scroll.passive="onScroll" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
-    <div class="crumbs">
-        <template v-for="(c, i) in crumbs" :key="c.path">
+    <div class="crumbs" :class="{ editing }" @click="onCrumbsClick">
+        <path-input v-if="editing" :value="here" :suggest="suggestPath" :submit="submitPath" @close="editing = false" />
+        <template v-for="(c, i) in (editing ? [] : crumbs)" :key="c.path">
             <span v-if="i > 0 && sepAfter(crumbs[i - 1]!.name)" class="sep">/</span>
             <span v-if="i === crumbs.length - 1" class="cur">
                 <v-icon v-if="!c.name" size="13" icon="mdi-harddisk" />{{ c.name || '드라이브' }}
@@ -290,7 +332,9 @@ watch(lastDone, d => {
     button { display: inline-flex; align-items: center; gap: 2px; color: rgb(var(--v-theme-primary)); }
     .cur { display: inline-flex; align-items: center; gap: 2px; font-weight: vars.$weight-md; }
     .sep { opacity: 0.5; }
+    &:not(.editing) { cursor: text; }
     .tools {
+        cursor: default;
         margin-left: auto;
         display: flex;
         align-items: center;

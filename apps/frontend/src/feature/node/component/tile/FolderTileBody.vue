@@ -6,9 +6,10 @@ import { useWorkerRoster } from '@/feature/worker/api/worker.api';
 import { osName } from '@/feature/worker/util/workerOs.util';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { VBtn, VIcon, VList, VListItem, VMenu, VProgressLinear } from 'vuetify/components';
-import { useListChildren, useNodePath, type NodeResponse } from '../../api/node.api';
+import { suggestNodes, useListChildren, useNodePath, type NodeResponse } from '../../api/node.api';
 import { useNodeShares } from '../../api/share.api';
 import { dragging, pasteBlock, useNodePaste, type PasteDest } from '../../hook/nodePaste.hook';
+import { usePathEditKey } from '../../hook/pathEdit.hook';
 import { useScriptRuns } from '../../hook/scriptRuns.hook';
 import { toClip, useNodeClipboard, type ClipMode, type ClipNode } from '../../store/nodeClipboard.store';
 import { nodeActItems, useNodeOps, type NodeAct, type NodeActItem } from '../../store/nodeOps.store';
@@ -18,6 +19,7 @@ import { agoText } from '../../util/presenceView.util';
 import { PERM_OWNER } from '../../util/shareView.util';
 import ShareDialog from '../dialog/ShareDialog.vue';
 import NodeRowMenu from './NodeRowMenu.vue';
+import PathInput, { type PathCand } from './PathInput.vue';
 import ScriptRunList from './ScriptRunList.vue';
 
 const props = defineProps({
@@ -49,6 +51,81 @@ const error = computed(() => listQuery.error.value ?? pathQuery.error.value);
 const current = computed(() => path.value[path.value.length - 1]);
 const deviceOwner = computed(() => [...path.value].reverse().find(p => !!p.deviceKey));
 const deviceInherited = computed(() => !!deviceOwner.value && deviceOwner.value.id !== current.value?.id);
+
+// 경로 직접 입력 — 경로-7(화면: 폴더 타일 입력), REF-path-input.md. 시작 = 기본 목록(앞의 `기본/`은 있어도 없어도)
+// 이름 속 `/`·`\`는 `\/`·`\\`로 적는다(Q44(이름 속 /) = 목록에서 골라야 들어감). 같은 이름은 첫 번째(Q43(같은 이름 폴더))
+const SUGGEST_MAX = 50
+const ROOT_NAME = '기본'
+const editing = ref(false);
+const openEdit = () => { editing.value = true; };
+usePathEditKey(() => props.tileId, openEdit);
+const onCrumbsClick = (e: MouseEvent) => {
+    if (!editing.value && !(e.target as Element).closest('button, input, .tools')) openEdit();
+}
+const escName = (n: string) => n.replace(/\\/g, '\\\\').replace(/\//g, '\\/');
+// 고른 단계 = 그 글자(끝 `/` 없이) -> 폴더 id. 그 앞을 고치면 글자가 안 맞아 저절로 안 쓰임
+let picks = new Map<string, number>();
+const pathText = computed(() => [ROOT_NAME, ...path.value.map(p => escName(p.name))].join('/'));
+watch(editing, on => {
+    if (!on) return;
+    picks = new Map();
+    path.value.forEach((p, i) => picks.set([ROOT_NAME, ...path.value.slice(0, i + 1).map(q => escName(q.name))].join('/'), p.id));
+});
+// 글자 -> 단계(`\x` = 글자 x). 마지막 칸 = 아직 끝나지 않은 앞글자, head = 그 앞까지의 글자
+const splitNames = (t: string) => {
+    const names = [''];
+    let head = 0;
+    for (let i = 0; i < t.length; i++) {
+        const ch = t[i]!;
+        if (ch === '\\' && i + 1 < t.length) names[names.length - 1] += t[++i];
+        else if (ch === '/') { names.push(''); head = i + 1; }
+        else names[names.length - 1] += ch;
+    }
+    return { names, head };
+}
+// 가장 긴 고른 단계에서 출발(exact = 그 단계 글자 그대로도). 없으면 기본 목록에서(맨 앞 빈 칸·`기본` 칸은 뺀다)
+const resolveBase = (t: string, exact: boolean) => {
+    let key = '', baseId = 0;
+    for (const [k, id] of picks) {
+        if (k.length > key.length && ((exact && t === k) || t.startsWith(k + '/'))) { key = k; baseId = id; }
+    }
+    if (baseId) return { baseId, names: t === key ? [] : splitNames(t.slice(key.length + 1)).names };
+    const { names } = splitNames(t);
+    if (names[0] === '' && names.length > 1) names.shift();
+    if (names[0] === ROOT_NAME && names.length > 1) names.shift();
+    return { baseId, names };
+}
+const suggestPath = async (t: string) => {
+    const { baseId, names } = resolveBase(t, false);
+    const prefix = names.pop() ?? '';
+    const r = await suggestNodes({ baseId, names, prefix, max: SUGGEST_MAX });
+    const head = t.slice(0, splitNames(t).head);
+    const seen = new Map<string, number>();
+    const items = r.items.map<PathCand & { id: number }>(i => {
+        const k = (seen.get(i.name) ?? 0) + 1;
+        seen.set(i.name, k);
+        return { key: String(i.id), id: i.id, label: i.name, fill: head + escName(i.name) + '/', hint: k > 1 ? `같은 이름 ${k}번째` : undefined };
+    });
+    return { items, more: r.more };
+}
+const onPick = (c: PathCand) => {
+    const id = (c as PathCand & { id?: number }).id;
+    if (id !== undefined) picks.set(c.fill.slice(0, -1), id);
+}
+const submitPath = async (t: string) => {
+    const { baseId, names } = resolveBase(t.trim(), true);
+    if (names[names.length - 1] === '') names.pop();     // 끝 `/`
+    if (!baseId && (!names.length || (names.length === 1 && names[0] === ROOT_NAME))) {
+        navigate(props.tileId, null);
+        return undefined;
+    }
+    try {
+        navigate(props.tileId, (await suggestNodes({ baseId, names })).id);
+    } catch (e) {
+        return (e as { message?: string }).message || '이동할 수 없습니다';
+    }
+    return undefined;
+}
 
 // 장비 디렉토리 열기 — 폴더-3(여는 곳). 내 폴더 + 적용 장비(상속 포함)가 있을 때만(Q5·Q12)
 const canOpenDir = computed(() => !!current.value && current.value.kind === 'FOLDER' && current.value.permission === PERM_OWNER && !!deviceOwner.value);
@@ -254,15 +331,18 @@ const onDrop = (e: DragEvent) => {
     @dragleave="onDragLeave"
     @drop="onDrop"
 >
-    <div class="crumbs">
-        <button v-if="nodeId !== null" @click="navigate(tileId, null)">기본</button>
+    <div class="crumbs" :class="{ editing }" @click="onCrumbsClick">
+        <path-input v-if="editing" :value="pathText" :suggest="suggestPath" :submit="submitPath" @pick="onPick" @close="editing = false" />
+        <template v-else-if="nodeId !== null">
+            <button @click="navigate(tileId, null)">기본</button>
+        </template>
         <span v-else class="cur">기본</span>
-        <template v-for="(p, i) in path" :key="p.id">
+        <template v-for="(p, i) in (editing ? [] : path)" :key="p.id">
             <span>/</span>
             <span v-if="i === path.length - 1" class="cur">{{ p.name }}</span>
             <button v-else @click="navigate(tileId, p.id)">{{ p.name }}</button>
         </template>
-        <span v-if="nodeId !== null && !path.length">/ …</span>
+        <span v-if="!editing && nodeId !== null && !path.length">/ …</span>
         <span class="tools">
             <button v-if="current" class="dev"
                 :class="{ on: isOnline(deviceOwner?.deviceKey) }"
@@ -384,7 +464,9 @@ const onDrop = (e: DragEvent) => {
     button { color: rgb(var(--v-theme-primary)); }
     button.dev { color: inherit; }
     .cur { font-weight: vars.$weight-md; }
+    &:not(.editing) { cursor: text; }
     .tools {
+        cursor: default;
         margin-left: auto;
         display: flex;
         align-items: center;

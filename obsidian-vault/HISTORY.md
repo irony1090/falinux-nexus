@@ -36,6 +36,7 @@
 - worker 폴더 타일(마감) → `INDEX-worker-dir.md` (worker-dir-list·worker-dir-exec·worker-dir-board)
 - 파일 전송 확장(마감, 업로드·전송 상태) → `INDEX-transfer-ext.md` (transfer-ext)
 - 내려받기·worker 간 전송(마감) → `INDEX-transfer-down.md` (transfer-down)
+- 경로 직접 입력(마감) → `INDEX-path-input.md` (path-input)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.
@@ -43,6 +44,7 @@
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
 | `history/worker-dir.md` | worker 폴더 타일 전체 계획(2026-10-22 신설) — 파트(worker 폴더 타일)·파트(파일 전송 확장) 마감(`INDEX-worker-dir`·`INDEX-transfer-ext`), 폴더-7·9 계획이 남음 | 10-22 구상·조율 Q1~Q11, 큰 계획 폴더-1~9 |
+| `history/windows-vm.md` | Windows VM `nexus-win`(2026-10-23 `windows-worker`에서 분할) | 10-23 경로 직접 입력 확인, win-dev를 test3에 다시 붙임 |
 | `history/demo.md` | 시연 데이터(2026-10-16 신설) | 10-16 안 C(생산 지그 시나리오) 등록, 브라우저 경유 실행 미확인 |
 | `history/worker-screen.md` | worker 화면 송출(아이디어) | 10-15 나(VNC 터널 + noVNC) 추천, 기록만 |
 | `history/node-ui.md` | node 카탈로그 UI 컨셉 | 08-10 그리드 직접 제작 확정, termspace 영감 피벗 |
@@ -53,5 +55,5 @@
 | `history/util.md` | 범용 유틸(반복 주제) | 08-07 GroupedSet · 공유 리사이즈 관측 그룹 |
 | `history/util-drag.md` | 드래그 인프라 | 10-12 보류 결정 |
 | `history/test-env.md` | 테스트 환경 · 확인용 클라이언트 | 10-15 고아 스크립트 격리 정리 절차 |
-| `history/test-scripts.md` · `-1014.md` · `-1020.md` · `-1022.md` | 확인 스크립트 명세(날짜별) | 10-23 전송-2·3 `up_test.py`·전송-4·5 `up.mjs` |
+| `history/test-scripts.md` · `-1014.md` · `-1020.md` · `-1022.md` · `-1023.md` | 확인 스크립트 명세(날짜별) | 10-23 경로 직접 입력 `pi_test.py`·`pi.mjs` |
 | `history/external-access.md` | 외부 접속 · HTTPS 프록시 | 10-13 마감·커밋 |

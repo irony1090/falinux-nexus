@@ -6,7 +6,7 @@
 worker가 Windows에서 빌드조차 안 되던 문제(막히는 곳 = `internal/execute/pty` 하나). `pty`를 공통 + `_linux.go` + `_windows.go`로 나누고 Windows판을 ConPTY + Job Object로 구현. EXEC는 노드 이름 확장자로 실행기를 고름(`.ps1` = powershell, 그 외 = `cmd /c` 파일 연결, `#!` 안 씀), 실행 전 env `SCRIPT_FORMAT`으로 인코딩·줄 끝 손질(`.ps1` BOM, `.bat` CP949·CRLF 기본). 에디터 = `$VISUAL` > `EDITOR` > PATH 탐색(`edit` 등) + 인자 분리(Linux도 개선). worker OS를 등록·명부(`00011`)에 남기고 프론트에 L/W 표시. VM `nexus-win`(dockurr/windows)에서 17/17 확인 — 확인 중 WMI로 띄운 worker의 Ctrl+C 무시 속성이 스크립트로 상속되는 문제를 찾아 `SetConsoleCtrlHandler(NULL, FALSE)`로 수정. 재접속은 사용자 확인
 
 ## REF / history 목록 (MEMORY 인덱스에서 옮김)
-- `REF-windows-worker.md`(계획·결정 WW1(실행 규칙)~WW5(OS 표시)·작업 단위 윈도-0~윈도-6·VM 실행/준비·위험·마감 때 미확인 목록) / `history/windows-worker.md`
+- `REF-windows-worker.md`(계획·결정 WW1(실행 규칙)~WW5(OS 표시)·작업 단위 윈도-0~윈도-6·위험·(VM 실행/준비는 2026-10-23 `REF-windows-vm.md`로 분할)·위험·마감 때 미확인 목록) / `history/windows-worker.md`
 - `REF-windows-conpty.md`(윈도-0(빌드 분리) 결과 · ConPTY 시작/끝날 때 순서 · 윈도-6 ConPTY·종료 결과 · Ctrl+C 상속 수정) / `history/windows-conpty.md`
 - `REF-windows-exec.md`(스크립트 형식 손질 · 윈도-4(에디터) 메모 · 윈도-5(OS 표시) · 윈도-6 실행 규칙 결과) / `history/windows-exec.md`
 - 확인 스크립트 명세: `REF-test-scripts-1014.md` "2026-10-19 확인 스크립트 (Windows worker 윈도-6(확인), VM)" · 윈도-5 격리 `iso5/os_test.py` 줄

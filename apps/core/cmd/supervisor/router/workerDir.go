@@ -70,6 +70,50 @@ func (r *supervisorRouter) listWorkerDir(c echo.Context) error {
 	return c.JSON(200, body)
 }
 
+// suggestWorkerDir: 경로 자동완성 후보 — 경로-2(후보 REST), REF-path-input.md. ?folderId &dir &prefix &max(0 = 폴더인지만)
+func (r *supervisorRouter) suggestWorkerDir(c echo.Context) error {
+	sess := r.requireSession(c)
+	mainKey, subKey := pathParam(c, "mainKey"), pathParam(c, "subKey")
+	folderID, err := strconv.ParseInt(c.QueryParam("folderId"), 10, 64)
+	if err != nil {
+		panic(web.Err(400, "잘못된 folderId입니다"))
+	}
+	max := 0
+	if s := c.QueryParam("max"); s != "" {
+		if max, err = strconv.Atoi(s); err != nil {
+			panic(web.Err(400, "잘못된 max입니다"))
+		}
+	}
+	conn := r.requireDeviceDir(c, sess.Data.ID, folderID, mainKey, subKey)
+	EndTx(c)
+
+	ctx, cancel := context.WithTimeout(c.Request().Context(), sendCallTimeout)
+	defer cancel()
+	res, err := conn.Call(ctx, protocol.MsgDirSuggest, protocol.DirSuggestRequest{
+		Dir:    c.QueryParam("dir"),
+		Prefix: c.QueryParam("prefix"),
+		Max:    max,
+	})
+	if errors.Is(err, context.DeadlineExceeded) {
+		panic(web.Err(504, "worker 응답이 없습니다"))
+	}
+	if err != nil {
+		panic(web.Err(502, "%v", err)) // 옛 worker(DIR_SUGGEST 모름)도 여기
+	}
+	var out protocol.DirSuggestResponse
+	if err := res.Bind(&out); err != nil {
+		panic(web.Err(502, "%v", err))
+	}
+	if out.Err != "" {
+		status, ok := dirErrStatus[out.Err]
+		if !ok {
+			status = 500
+		}
+		panic(web.Err(status, "%s", out.Reason))
+	}
+	return c.JSON(200, out)
+}
+
 type dirExistsRequest struct {
 	FolderID int64    `json:"folderId" validate:"required"`
 	Path     string   `json:"path" validate:"required"`

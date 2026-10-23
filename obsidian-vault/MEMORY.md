@@ -56,7 +56,7 @@
 - supervisor 띄우면 `init()`의 mountStore가 goose 마이그레이션 자동 적용(멱등)
 - **포트(2026-10-13~)**: 외부 접속 설정 중 = supervisor 8012(0.0.0.0) · 프론트 8011 · worker -> localhost:8012. 옛 5050·3000으로 되돌리는 법 → `REF-external-access.md`
 - **빌드본 = 사용용(2026-10-22~)**: `build/<이름>`(`scripts/build.sh`) + 공통 `build/{supervisor,worker}.env`·`worker-sqlite.db`, **8013(test3) · DB `nexus_build`**. 개발(8011·8012, `nexus`)과 분리, 사용자 Claude 세션이 그 위에서 돎. **Claude는 8013을 끄지 않는다**. 재기동은 사용자 몫, Claude가 띄우면 `CLAUDE*` 변수를 지우고(상속되면 그 위 Claude가 transcript 저장 안 함, → `REF-build.md`). 빌드본 worker 교체 = 그 위 process 전부 종료(사용자 세션 포함, supervisor만 교체는 PENDING 뒤 이어짐). embed `cmd/*/env` = 배포 값 / **개발 실행 = `go run ./cmd/supervisor -env dev.env` 필수** (→ `INDEX-build.md` -> `REF-build.md`)
-- **Windows VM `nexus-win`(RAM 6G) = 시험할 때만 켠다(2026-10-23 사용자)**: 작업(코드 작성) 중엔 `docker stop nexus-win`, Windows 확인 단계에서 `docker start` -> 확인 끝나면 바로 끈다 (→ `REF-windows-worker.md` "VM 실행")
+- **Windows VM `nexus-win`(RAM 6G) = 시험할 때만 켠다(2026-10-23 사용자)**: 작업(코드 작성) 중엔 `docker stop nexus-win`, Windows 확인 단계에서 `docker start` -> 확인 끝나면 바로 끈다 (→ `REF-windows-vm.md`)
 - **함정**: 잔류 supervisor가 5050(지금은 8012) 점유 시 `bind: address already in use`(마이그레이션은 init서 정상, 바인드만 실패). `ss -ltnp | grep :5050`로 pid 찾아 kill
 
 ## apps/core 디렉토리
@@ -85,8 +85,8 @@ sqlc.yaml  README.md  .gitignore
 
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
-- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 4개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-worker-dir.md`(worker 폴더 타일 전체 계획, 폴더-7(내려받기)·9(worker 간 전송) 원래 표)
+- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-worker-dir.md`(worker 폴더 타일 전체 계획, 폴더-7(내려받기)·9(worker 간 전송) 원래 표)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
-- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록 = `HISTORY.md` "마감 파트"(최근 = 내려받기·worker 간 전송 `INDEX-transfer-down` · 파일 전송 확장 `INDEX-transfer-ext` · worker 폴더 타일 `INDEX-worker-dir` · 타일 종류 정리 `INDEX-tile-kinds` · process 살려 두기 `INDEX-process-keep` · 새 보드·IUTF8 `INDEX-fix-board-iutf8` · 빌드본 분리 `INDEX-build` · 리팩터링 `INDEX-refactor`)
+- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록 = `HISTORY.md` "마감 파트"(최근 = 경로 직접 입력 `INDEX-path-input` · 내려받기·worker 간 전송 `INDEX-transfer-down` · 파일 전송 확장 `INDEX-transfer-ext` · worker 폴더 타일 `INDEX-worker-dir` · 타일 종류 정리 `INDEX-tile-kinds` · process 살려 두기 `INDEX-process-keep` · 새 보드·IUTF8 `INDEX-fix-board-iutf8` · 빌드본 분리 `INDEX-build` · 리팩터링 `INDEX-refactor`)
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md` / 나중에 할 것: `BACKLOG.md`(세션 시작 시 안 읽음)
