@@ -24,3 +24,8 @@
 - 격리 supervisor 5051(`IP=127.0.0.1`) + `nexus_typo_tmp` + worker `ty-dev` / vite 둘: **이 브랜치 3001 · master 3002**(`git worktree add --detach <ty>/master master` + `node_modules` 심볼릭 링크 + `.env` 복사). iso 설정은 `vite.config.mts`가 함수형이라 `await base(e)` 뒤 `root`·`cacheDir`(둘이 따로)·`server.port/host`를 덮음, 실행 env `VITE_API_URL=http://localhost:5051 HMR_CLIENT_PORT=`. 페이지는 `http://localhost:300x`(쿠키 = localhost)
 - 데이터(`seed.py`): 계정 `ty1`·`ty2`(pw123456), 폴더 `생산지그-라인A 검사장비`(ty-dev, ty2에 permission 20 공유 — 본문 필드 이름 `permission`) + 하위 폴더·스크립트 3개(`tick.sh` = 1초마다 한글 줄) + 폴더 하나 더. 타일 트리 `PUT /tiles` = 루트 폴더 + 폴더 타일 + 장비 타일(`instance` = `GET /workers?nodeId=`, `path` = 픽스처 `ty/fx`). 터미널은 화면에서 행 우클릭 아닌 `실행` 클릭(`exec.mjs`)
 - 찍는 것: `shoot.mjs`(보드·공유 다이얼로그·폰 390×844) · `zoom.mjs`(DPR 2로 폴더 타일·장비 타일·터미널 헤더·푸터 잘라 위아래로 붙임) · `more.mjs`(행 메뉴·스크립트 편집·장비 지정·전체 보기)
+
+## 2026-10-23 팝업-5(Ctrl+Alt 팝업 버튼·길게 누르기) (`ty/pw/pt.mjs` 21개 · `tt.mjs` 17개) → `REF-pager-tools.md`
+- 위 글자-5 격리를 재사용(DB만 `nexus_pager_tmp`, `seed.py`는 공유 필드 `permission`으로 고침, worker.db 지움). vite 3001만
+- PC: `keyboard.down('Control')`·`down('Alt')` 누른 채 `.PagerPopup .size` 클릭, 크기 확인은 `fetch('http://localhost:5051/tiles')`의 `tree.tiles[id].size`. active 만들기 = 머리 줄 `.pos` 클릭(`.spacer`는 폭 0)
+- 터치: CDP `Input.dispatchTouchEvent`(touchStart -> 기다림 -> touchEnd)로 길게·짧게·움직이기. 빈 곳은 **터치 대상 보정** 때문에 CDP로 안 됨 -> `elementFromPoint`에 `PointerEvent(pointerType 'touch')` 직접. 팝업 위치 판정은 가장자리 당김(16 + 19px) 반영

@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import type { TileSpan } from '@/feature/widget/util/tile.type';
-import { effectiveSize } from '@/feature/widget/util/tileSplit.util';
-import { computed, ref, type PropType } from 'vue';
+import { computed, ref, toRef, type PropType } from 'vue';
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
-import { VBtn, VCard, VIcon, VList, VMenu } from 'vuetify/components';
+import { VBtn, VIcon, VList, VMenu } from 'vuetify/components';
 import { useTileFloat } from '../../hook/tileFloat.hook';
+import { useTileSize } from '../../hook/tileSize.hook';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
 import type { ActiveUser } from '../../store/remoteActive.store';
 import ActiveBadges from './ActiveBadges.vue';
+import TileSizeCard from './TileSizeCard.vue';
 
 // 타일 공통 틀 — 머리 줄(위치 번호·아이콘·이름 자리·공유 단계·active 배지·메뉴·[최소화 | 크기 | ×])·볼 수 없음 표시·전체보기 라벨.
 // 종류별 내용은 종류 컴포넌트(TILE_COMPONENTS)가 slot과 props로 채운다 — 정리-5(TileFrame 나누기), REF-tile-kinds.md
@@ -58,21 +58,12 @@ const emit = defineEmits<{
     minimize: []
 }>()
 
-const { tiles, resize } = useTileTree();
-const { cap, posOf, reveal, overview, activeId, setActive } = useTileGrids();
+const { tiles } = useTileTree();
+const { posOf, overview, activeId, setActive } = useTileGrids();
+const { shownText, sizeTitle } = useTileSize(toRef(props, 'tileId'));
 
 const tile = computed(() => tiles.value[props.tileId]);
 const isRoot = computed(() => !tile.value?.parent);
-
-const fmt = (v: TileSpan) => v === 1 ? '1' : '.5';
-const sizeText = computed(() => tile.value ? `${fmt(tile.value.size.w)}×${fmt(tile.value.size.h)}` : '');
-// 이 화면에서 실제로 보이는 크기가 다를 때만
-const shownText = computed(() => {
-    if (!tile.value) return '';
-    const s = effectiveSize(tile.value.size, cap.value);
-    const text = `${fmt(s.w)}×${fmt(s.h)}`;
-    return text === sizeText.value ? '' : text;
-})
 
 // 크기를 바꾸면 버튼이 옮겨지는데 v-menu는 이를 감지 못함 → 프레임 크기 변화·크기 변경 직후에 위치 재계산
 const frameEl = ref<HTMLElement>();
@@ -82,14 +73,6 @@ useResizeCallback(frameEl, relocateSizeMenu);
 
 // 맞춤-1(타일 띄우기) — 키보드가 열린 동안 포커스된 터미널 타일만 띄운다
 const floatStyle = useTileFloat(frameEl, computed(() => props.floatUid), overview);
-
-const setSize = (axis: 'w' | 'h', v: TileSpan) => {
-    if (!tile.value) return;
-    resize(tile.value.id, { ...tile.value.size, [axis]: v });
-    reveal(tile.value.id);
-    relocateSizeMenu();
-}
-const sizeTitle = computed(() => `크기 ${sizeText.value}` + (shownText.value ? ` (이 화면에서는 ${shownText.value})` : ''));
 
 // active 표시 — AT3(표시). active가 있을 때만 나머지를 흐린다
 const activeClass = computed(() => activeId.value ? (activeId.value === props.tileId ? 'TileFrame--active' : 'TileFrame--dim') : undefined);
@@ -141,20 +124,7 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
                         <v-icon size="14" icon="mdi-resize" />
                     </button>
                 </template>
-                <v-card class="size-pop">
-                    <p class="size-now">{{ sizeTitle }}</p>
-                    <div v-for="axis in (['w', 'h'] as const)" :key="axis" class="size-row">
-                        <span>{{ axis === 'w' ? '가로' : '세로' }}</span>
-                        <v-btn v-for="v in ([0.5, 1] as const)" :key="v"
-                            size="x-small"
-                            :variant="tile.size[axis] === v ? 'flat' : 'outlined'"
-                            :color="tile.size[axis] === v ? 'primary' : undefined"
-                            :disabled="v === 0.5 && cap[axis === 'w' ? 'x' : 'y'] === 1"
-                            @click="setSize(axis, v)"
-                        >{{ v.toFixed(1) }}</v-btn>
-                    </div>
-                    <p v-if="cap.x === 1 || cap.y === 1" class="size-hint">1칸인 축의 0.5는 이 화면에선 1.0으로 보임</p>
-                </v-card>
+                <tile-size-card :tile-id="tile.id" @changed="relocateSizeMenu" />
             </v-menu>
             <button v-if="!isRoot" :disabled="closeDisabled" :title="closeTitle" @click="emit('close')">
                 <v-icon size="14" icon="mdi-close" />
@@ -249,6 +219,12 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
     @include vars.font('body-medium');
     min-width: 0;
     > :deep(*) { flex: none; }
+    // 터치 길게 누르기 = Ctrl+Alt 팝업(팝업-6) — 글자 선택·기본 메뉴 대신
+    @media (pointer: coarse) {
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+    }
 }
 .pos {
     min-width: 16px;
@@ -303,30 +279,5 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
         &:hover:not(:disabled) { background: rgba(var(--v-theme-on-surface), 0.08); }
         &:disabled { cursor: default; opacity: 0.3; }
     }
-}
-.size-pop {
-    display: flex;
-    flex-direction: column;
-    gap: vars.$spacing-sm;
-    padding: vars.$spacing-md vars.$spacing-lg;
-    @include vars.font('body-medium');
-}
-.size-row {
-    display: flex;
-    align-items: center;
-    gap: vars.$spacing-sm;
-    > span { width: 30px; opacity: 0.7; }
-}
-.size-now {
-    margin: 0;
-    font-family: monospace;
-    @include vars.font('label-small');
-    opacity: 0.7;
-}
-.size-hint {
-    max-width: 180px;
-    margin: 0;
-    @include vars.font('label-small');
-    opacity: 0.7;
 }
 </style>
