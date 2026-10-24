@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, toRef, type PropType } from 'vue';
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
-import { VBtn, VIcon, VList, VMenu } from 'vuetify/components';
+import { VIcon, VList, VMenu, VProgressCircular } from 'vuetify/components';
 import { useTileFloat } from '../../hook/tileFloat.hook';
 import { useTileSize } from '../../hook/tileSize.hook';
 import { useTileGrids } from '../../store/tileGrids.store';
@@ -102,33 +102,39 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
             <v-icon size="14" :icon="shareInfo.icon" />{{ shareInfo.text }}
         </span>
         <active-badges :users="remoteUsers" />
-        <slot name="controls" />
-
-        <v-menu v-if="menu" location="bottom end">
-            <template #activator="{ props: act }">
-                <v-btn v-bind="act" size="x-small" variant="text" icon="mdi-dots-vertical" title="메뉴" :loading="menuBusy" />
-            </template>
-            <v-list density="compact" min-width="180">
-                <slot name="menu" />
-            </v-list>
-        </v-menu>
-
-        <!-- 창 버튼 묶음 [최소화 | 크기 | ×] — SD3(실행 중 터미널 치우기). × 동작(kill 확인 등)은 종류 컴포넌트가 정한다 -->
-        <span class="win">
-            <button v-if="minimizable && !unavailable" title="최소화" @click="emit('minimize')">
-                <v-icon size="14" icon="mdi-window-minimize" />
-            </button>
-            <v-menu v-if="!unavailable" ref="sizeMenu" location="bottom end" :close-on-content-click="false">
+        <!-- 버튼 = 공통 모양(styles/tile-buttons.scss). 오른쪽 끝 창 묶음만 타일 쪽 면이 직각 -->
+        <span class="TileFrame__btns tile-btn-row-end">
+            <slot name="controls" />
+            <span v-if="$slots.controls && menu" class="tile-btn-sep" />
+            <v-menu v-if="menu" location="bottom end">
                 <template #activator="{ props: act }">
-                    <button v-bind="act" :class="{ 'text-warning': shownText }" :title="sizeTitle">
-                        <v-icon size="14" icon="mdi-resize" />
+                    <button v-bind="act" class="tile-btn" title="메뉴" :disabled="menuBusy">
+                        <v-progress-circular v-if="menuBusy" indeterminate size="14" width="2" />
+                        <v-icon v-else size="16" icon="mdi-dots-vertical" />
                     </button>
                 </template>
-                <tile-size-card :tile-id="tile.id" @changed="relocateSizeMenu" />
+                <v-list density="compact" min-width="180">
+                    <slot name="menu" />
+                </v-list>
             </v-menu>
-            <button v-if="!isRoot" :disabled="closeDisabled" :title="closeTitle" @click="emit('close')">
-                <v-icon size="14" icon="mdi-close" />
-            </button>
+
+            <!-- 창 버튼 묶음 [최소화 | 크기 | ×] — SD3(실행 중 터미널 치우기). × 동작(kill 확인 등)은 종류 컴포넌트가 정한다 -->
+            <span class="tile-btn-end" :class="{ 'tile-btn-end--primary': activeId === tileId }">
+                <button v-if="minimizable && !unavailable" class="tile-btn" title="최소화" @click="emit('minimize')">
+                    <v-icon size="16" icon="mdi-window-minimize" />
+                </button>
+                <v-menu v-if="!unavailable" ref="sizeMenu" location="bottom end" :close-on-content-click="false">
+                    <template #activator="{ props: act }">
+                        <button v-bind="act" class="tile-btn" :class="{ 'text-warning': shownText }" :title="sizeTitle">
+                            <v-icon size="16" icon="mdi-resize" />
+                        </button>
+                    </template>
+                    <tile-size-card :tile-id="tile.id" @changed="relocateSizeMenu" />
+                </v-menu>
+                <button v-if="!isRoot" class="tile-btn" :disabled="closeDisabled" :title="closeTitle" @click="emit('close')">
+                    <v-icon size="16" icon="mdi-close" />
+                </button>
+            </span>
         </span>
     </div>
 
@@ -178,7 +184,7 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
 .TileFrame.TileFrame--active {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: 1px;
-    > .TileFrame__head { border-bottom-color: rgb(var(--v-theme-primary)); }
+    > .TileFrame__head { border-bottom-color: rgba(var(--v-theme-primary), 0.4); }   // 끝 블록(진한 파랑)과 구분되는 옅은 파랑
     // 전체보기 상자(overflow hidden)에 잘리지 않게 안쪽으로, 축소 배율을 거꾸로 곱해 화면에서 2px
     &.TileFrame--overview {
         outline-width: calc(2px / var(--s));
@@ -214,7 +220,7 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
     display: flex;
     align-items: center;
     gap: vars.$spacing-sm;
-    padding: 0 vars.$spacing-xs 0 vars.$spacing-md;
+    padding: 0 0 0 vars.$spacing-md;
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     @include vars.font('body-medium');
     min-width: 0;
@@ -259,25 +265,10 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
     box-shadow: inset 3px 0 0 rgb(var(--v-theme-share));
     > .TileFrame__head { background: rgba(var(--v-theme-share), 0.12); }
 }
-// 창 버튼 묶음 [최소화 | 크기 | ×] — kill은 여기서 떼어 RUN▾ 칩에(오클릭 방지)
-.win {
-    display: inline-flex;
-    height: 20px;
-    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 4px;
-    overflow: hidden;
-    > button {
-        width: 22px;
-        display: grid;
-        place-items: center;
-        padding: 0;
-        border: 0;
-        background: none;
-        color: inherit;
-        cursor: pointer;
-        & + button { border-left: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
-        &:hover:not(:disabled) { background: rgba(var(--v-theme-on-surface), 0.08); }
-        &:disabled { cursor: default; opacity: 0.3; }
-    }
+// 버튼 자리 — 높이를 꽉 채우고 버튼 사이 간격 없음. kill은 창 묶음에서 떼어 RUN▾에(오클릭 방지)
+.TileFrame__btns {
+    align-self: stretch;
+    display: flex;
+    align-items: stretch;
 }
 </style>

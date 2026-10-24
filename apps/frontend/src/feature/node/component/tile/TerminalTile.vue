@@ -3,7 +3,7 @@ import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { isRunning, pillOf, useProcessTerm } from '@/feature/process/store/processTerm.store';
 import { TILE_KINDS } from '@/feature/widget/util/tileKind.util';
 import { computed, ref } from 'vue';
-import { VBtn, VChip, VIcon, VList, VListItem, VMenu } from 'vuetify/components';
+import { VChip, VIcon, VList, VListItem, VMenu, VProgressCircular } from 'vuetify/components';
 import { useGetNode, useNodePath } from '../../api/node.api';
 import { useTerminalKill } from '../../hook/terminalKill.hook';
 import { useRemoteActive } from '../../store/remoteActive.store';
@@ -80,6 +80,7 @@ const onTakeSize = () => {
 }
 
 const pill = computed(() => pillOf(proc.value?.status, proc.value?.terminating));
+const pillStyle = computed(() => pill.value.color ? { '--c': `var(--v-theme-${pill.value.color})` } : undefined);
 // 복원 전엔 상태를 몰라 X를 막는다 — 3-d②(복원 전 닫기)
 const unknown = computed(() => !proc.value && !restored.value);
 
@@ -145,11 +146,19 @@ const onX = () => {
     </template>
 
     <template v-if="!unavailable" #controls>
-        <v-btn v-if="canTakeSize" size="x-small" variant="text" icon="mdi-arrow-expand-all" title="이 화면 크기로 가져오기" :loading="taking" @click="onTakeSize" />
-        <v-btn size="x-small" variant="text" icon="mdi-account-multiple-outline" title="접속 상태" @click="presenceOpen = true" />
+        <button v-if="canTakeSize" class="tile-btn" title="이 화면 크기로 가져오기" :disabled="taking" @click="onTakeSize">
+            <v-progress-circular v-if="taking" indeterminate size="14" width="2" />
+            <v-icon v-else size="16" icon="mdi-arrow-expand-all" />
+        </button>
+        <button class="tile-btn" title="접속 상태" @click="presenceOpen = true">
+            <v-icon size="16" icon="mdi-account-multiple-outline" />
+        </button>
+        <span class="tile-btn-sep" />
         <v-menu v-if="running && !readOnly" location="bottom end">
             <template #activator="{ props: act }">
-                <v-chip v-bind="act" size="x-small" variant="tonal" class="pill" :color="pill.color" append-icon="mdi-menu-down" :disabled="!!killing[tile.uid]">{{ pill.text }}</v-chip>
+                <button v-bind="act" class="tile-btn tile-btn--text tile-btn--tonal pill" :style="pillStyle" :disabled="!!killing[tile.uid]">
+                    {{ pill.text }}<v-icon size="14" icon="mdi-menu-down" />
+                </button>
             </template>
             <v-list v-if="terminating" density="compact">
                 <v-list-item prepend-icon="mdi-stop-circle" title="강제 종료…" @click="confirmKill(tile.id, name, ['force'])" />
@@ -159,7 +168,7 @@ const onX = () => {
                 <v-list-item prepend-icon="mdi-close-box-outline" title="종료하고 닫기…" @click="confirmKill(tile.id, name, ['killClose'])" />
             </v-list>
         </v-menu>
-        <v-chip v-else size="x-small" variant="tonal" class="pill" :color="pill.color" :title="proc?.exitCode != null ? `exit ${proc.exitCode}` : undefined">{{ pill.text }}</v-chip>
+        <span v-else class="tile-btn tile-btn--text tile-btn--tonal pill" :style="pillStyle" :title="proc?.exitCode != null ? `exit ${proc.exitCode}` : undefined">{{ pill.text }}</span>
     </template>
 
     <template #menu>
@@ -195,7 +204,7 @@ const onX = () => {
     opacity: 0.75;
 }
 .TileFrame__head > .path {
-    flex: 0 3 auto;     // 좁으면 경로부터 줄어든다
+    flex: 0 1000 auto;  // 이름보다 먼저 줄어든다
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -204,7 +213,7 @@ const onX = () => {
     opacity: 0.7;
 }
 .TileFrame__head > .by {
-    flex: 0 1 auto;
+    flex: 0 1000 auto;  // 이름보다 먼저 줄어든다
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -221,46 +221,56 @@ watch(lastDone, d => {
 <div ref="bodyEl" class="DeviceTileBody" :class="{ dropping, selecting: selEntries.length > 0 }" @scroll.passive="onScroll" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
     <div class="crumbs" :class="{ editing }" @click="onCrumbsClick">
         <path-input v-if="editing" :value="here" :suggest="suggestPath" :submit="submitPath" @close="editing = false" />
-        <template v-for="(c, i) in (editing ? [] : crumbs)" :key="c.path">
-            <span v-if="i > 0 && sepAfter(crumbs[i - 1]!.name)" class="sep">/</span>
-            <span v-if="i === crumbs.length - 1" class="cur">
-                <v-icon v-if="!c.name" size="13" icon="mdi-harddisk" />{{ c.name || '드라이브' }}
-            </span>
-            <button v-else @click="go(c.path)">
-                <v-icon v-if="!c.name" size="13" icon="mdi-harddisk" />{{ c.name || '드라이브' }}
-            </button>
-        </template>
-        <span class="tools">
-            <template v-if="selEntries.length">
-                <span class="sel">{{ selEntries.length }}개</span>
-                <button class="tool" title="내려받기(여러 개·폴더는 zip)" :disabled="!canUpload" @click="onDownload">
-                    <v-icon size="14" icon="mdi-download" />
-                </button>
-                <v-menu location="bottom end">
-                    <template #activator="{ props: act }">
-                        <button v-bind="act" class="tool" title="다른 장비로 보내기(파일만)" :disabled="!canUpload || !selFiles.length">
-                            <v-icon size="14" icon="mdi-content-copy" />
+        <!-- 입력 중엔 도구를 숨겨 입력칸이 줄 전체를 쓴다(좁은 타일에서 자동완성 목록 폭 확보) -->
+        <template v-else>
+            <!-- [경로·새로고침] / [도구] — 경로 자리가 최소 폭보다 좁아지면 도구가 둘째 줄(오른쪽 끝)로 -->
+            <span class="lead">
+                <span class="path">
+                    <template v-for="(c, i) in crumbs" :key="c.path">
+                        <span v-if="i > 0 && sepAfter(crumbs[i - 1]!.name)" class="sep">/</span>
+                        <span v-if="i === crumbs.length - 1" class="cur">
+                            <v-icon v-if="!c.name" size="13" icon="mdi-harddisk" />{{ c.name || '드라이브' }}
+                        </span>
+                        <button v-else @click="go(c.path)">
+                            <v-icon v-if="!c.name" size="13" icon="mdi-harddisk" />{{ c.name || '드라이브' }}
                         </button>
                     </template>
-                    <v-list density="compact" class="targets">
-                        <v-list-item v-for="sp in targets" :key="sp.tileId" :title="sp.instance" :subtitle="sp.dir" @click="onSendTo(sp)" />
-                        <v-list-item v-if="!targets.length" disabled title="보드에 받을 장비 타일이 없습니다" />
-                    </v-list>
-                </v-menu>
-                <button class="tool" title="선택 해제" @click="clearSel">
-                    <v-icon size="14" icon="mdi-close" />
+                </span>
+                <button class="tile-btn refresh" title="새로고침" :disabled="loading" @click="dir.reload()">
+                    <v-icon size="15" icon="mdi-refresh" />
                 </button>
-                <span class="split" />
-            </template>
-            <span class="dev" :class="{ on: online }" :title="online ? '접속 중' : '접속 끊김'"><i /></span>
-            <button class="tool" title="이 폴더에 올리기" :disabled="!canUpload" @click="fileEl?.click()">
-                <v-icon size="14" icon="mdi-upload" />
-            </button>
-            <input ref="fileEl" type="file" multiple hidden @change="onPick">
-            <button class="tool" title="새로고침" :disabled="loading" @click="dir.reload()">
-                <v-icon size="14" icon="mdi-refresh" />
-            </button>
-        </span>
+            </span>
+            <span class="tools tile-btn-row-end">
+                <template v-if="selEntries.length">
+                    <span class="sel">{{ selEntries.length }}개</span>
+                    <button class="tile-btn" title="내려받기(여러 개·폴더는 zip)" :disabled="!canUpload" @click="onDownload">
+                        <v-icon size="16" icon="mdi-download" />
+                    </button>
+                    <v-menu location="bottom end">
+                        <template #activator="{ props: act }">
+                            <button v-bind="act" class="tile-btn" title="다른 장비로 보내기(파일만)" :disabled="!canUpload || !selFiles.length">
+                                <v-icon size="16" icon="mdi-content-copy" />
+                            </button>
+                        </template>
+                        <v-list density="compact" class="targets">
+                            <v-list-item v-for="sp in targets" :key="sp.tileId" :title="sp.instance" :subtitle="sp.dir" @click="onSendTo(sp)" />
+                            <v-list-item v-if="!targets.length" disabled title="보드에 받을 장비 타일이 없습니다" />
+                        </v-list>
+                    </v-menu>
+                    <button class="tile-btn" title="선택 해제" @click="clearSel">
+                        <v-icon size="16" icon="mdi-close" />
+                    </button>
+                    <span class="tile-btn-sep" />
+                </template>
+                <span class="dev" :class="{ on: online }" :title="online ? '접속 중' : '접속 끊김'"><i /></span>
+                <span class="tile-btn-end tile-btn-end--primary">
+                    <button class="tile-btn tile-btn--text" title="이 폴더에 올리기" :disabled="!canUpload" @click="fileEl?.click()">
+                        <v-icon size="15" icon="mdi-upload" />올리기
+                    </button>
+                </span>
+            </span>
+        </template>
+        <input ref="fileEl" type="file" multiple hidden @change="onPick">
     </div>
     <div class="bar">
         <v-progress-linear v-if="loading || busyTile === tileId" indeterminate height="2" color="primary" />
@@ -308,7 +318,7 @@ watch(lastDone, d => {
     min-height: 0;
     overflow: auto;
     @include vars.font('body-medium');
-    button:where(:not(.v-btn)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
+    button:where(:not(.v-btn, .tile-btn)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
         padding: 0;
         border: 0;
         background: none;
@@ -317,6 +327,7 @@ watch(lastDone, d => {
         cursor: pointer;
     }
 }
+// 경로 줄 = 28px 한 줄, 좁은 타일은 두 줄. 경로는 앞쪽부터 줄어든다
 .crumbs {
     position: sticky;
     top: 0;
@@ -324,29 +335,47 @@ watch(lastDone, d => {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 2px;
-    padding: 5px vars.$spacing-md;
+    gap: 0 2px;
+    min-height: 28px;
+    padding: 0 0 0 vars.$spacing-md;
     @include vars.font('body-small');
     background: rgb(var(--v-theme-surface));
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    button { display: inline-flex; align-items: center; gap: 2px; color: rgb(var(--v-theme-primary)); }
-    .cur { display: inline-flex; align-items: center; gap: 2px; font-weight: vars.$weight-md; }
-    .sep { opacity: 0.5; }
+    .lead {
+        flex: 1 1 160px;
+        min-width: 160px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+    }
+    .path {
+        flex: 0 1 auto;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        overflow: hidden;
+        white-space: nowrap;
+        > * { flex: 0 1000 auto; min-width: 2.2em; overflow: hidden; }   // 앞쪽 경로는 글자 하나 + …까지만 줄어든다
+        > .sep { flex: none; min-width: 0; opacity: 0.5; }
+        > .cur { flex-shrink: 1; min-width: 0; }
+        button { color: rgb(var(--v-theme-primary)); }
+    }
+    .path > button, .cur { display: inline-flex; align-items: center; gap: 2px; }
+    .cur { font-weight: vars.$weight-md; }
     &:not(.editing) { cursor: text; }
+    .refresh { min-width: 38px; margin-left: 2px; }
     .tools {
+        flex: none;
+        height: 28px;
         cursor: default;
         margin-left: auto;
         display: flex;
-        align-items: center;
-        gap: vars.$spacing-md;
+        align-items: stretch;
+        > .tile-btn { min-width: 42px; }
     }
-    .tool {
-        display: inline-flex;
-        opacity: 0.7;
-        &:disabled { cursor: default; opacity: 0.3; }
-    }
-    .sel { color: rgb(var(--v-theme-primary)); font-weight: vars.$weight-md; }
-    .split { width: 1px; height: 12px; background: rgba(var(--v-border-color), var(--v-border-opacity)); }
+    .sel { align-self: center; margin-right: 2px; color: rgb(var(--v-theme-primary)); font-weight: vars.$weight-md; }
+    .dev { align-self: center; padding: 0 vars.$spacing-sm; }
 }
 .bar { height: 2px; }
 .state {

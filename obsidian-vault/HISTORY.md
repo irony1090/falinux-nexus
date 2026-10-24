@@ -39,12 +39,14 @@
 - 경로 직접 입력(마감) → `INDEX-path-input.md` (path-input)
 - 글자 크기 규칙(마감) → `INDEX-typography.md` (typography)
 - Ctrl+Alt 팝업 버튼·터치 스크롤 양(마감) → `INDEX-pager-tools.md` (pager-tools)
+- 타일 머리 줄 버튼(마감) → `INDEX-tile-head.md` (tile-head)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.
 
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
+| `history/supervisor-move.md` | supervisor 주소 실시간 변경(2026-10-24 착수, 진행 중) | 10-24 구현·격리 확인(서버 29/29·화면 8/8), 브랜치 중간 커밋, 사용자 확인 대기 |
 | `history/worker-dir.md` | worker 폴더 타일 전체 계획(2026-10-22 신설) — 파트(worker 폴더 타일)·파트(파일 전송 확장) 마감(`INDEX-worker-dir`·`INDEX-transfer-ext`), 폴더-7·9 계획이 남음 | 10-22 구상·조율 Q1~Q11, 큰 계획 폴더-1~9 |
 | `history/windows-vm.md` | Windows VM `nexus-win`(2026-10-23 `windows-worker`에서 분할) | 10-23 경로 직접 입력 확인, win-dev를 test3에 다시 붙임 |
 | `history/demo.md` | 시연 데이터(2026-10-16 신설) | 10-16 안 C(생산 지그 시나리오) 등록, 브라우저 경유 실행 미확인 |
