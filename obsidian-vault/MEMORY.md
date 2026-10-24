@@ -86,7 +86,8 @@ sqlc.yaml  README.md  .gitignore
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
 - 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-worker-dir.md`(worker 폴더 타일 전체 계획, 폴더-7(내려받기)·9(worker 간 전송) 원래 표)
+- **진행 중 파트**: supervisor 주소 실시간 변경 `REF-supervisor-move.md`(브랜치 중간 커밋, 사용자 확인 대기)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
-- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"(최근 = Ctrl+Alt 팝업 버튼·터치 스크롤 양 `INDEX-pager-tools` · 글자 크기 규칙 `INDEX-typography`)
+- **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
 - 현재 진행: `CURRENT.md` / 나중에 할 것: `BACKLOG.md`(세션 시작 시 안 읽음)

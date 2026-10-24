@@ -97,8 +97,8 @@ const remoteUsers = computed(() => {
         <span v-if="opener" class="opener text-warning">← {{ opener }}</span>
     </template>
 
-    <template #controls>
-        <tile-nav-buttons v-if="!unavailable" :tile-id="tile.id" />
+    <template v-if="!unavailable" #controls>
+        <tile-nav-buttons :tile-id="tile.id" />
     </template>
 
     <template #menu>
@@ -144,7 +144,7 @@ const remoteUsers = computed(() => {
     font-weight: vars.$weight-md;
 }
 .TileFrame__head > .opener {
-    flex: 0 1 auto;
+    flex: 0 1000 auto;  // 이름보다 먼저 줄어든다
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;

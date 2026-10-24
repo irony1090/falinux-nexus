@@ -1,0 +1,74 @@
+// 타일 머리 줄·경로 줄 버튼 — 파트(타일 머리 줄 버튼), REF-tile-head.md
+// 기본 = 줄 높이를 꽉 채운 알약(양끝 반원). 타일 왼쪽·오른쪽 끝에 닿는 면만 직각(.tile-btn-row-*)
+.tile-btn {
+	flex: none;
+	align-self: stretch;
+	min-width: 40px;
+	padding: 0 vars.$spacing-sm;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	border: 0;
+	border-radius: 999px;
+	background: none;
+	color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+	font: inherit;
+	white-space: nowrap;
+	cursor: pointer;
+	&:is(button):hover:not(:disabled) { background: rgba(var(--v-theme-on-surface), 0.08); }
+	&:disabled { cursor: default; opacity: 0.3; }
+}
+.tile-btn--text {
+	padding: 0 10px;
+	@include vars.font('label-medium');
+	font-weight: vars.$weight-md;
+}
+// 기능 색 바탕 — 색은 style의 --c(테마 색 변수)로 받는다
+.tile-btn--tonal {
+	--c: var(--v-theme-on-surface);
+	color: rgb(var(--c));
+	background: rgba(var(--c), 0.14);
+	&:is(button):hover:not(:disabled) { background: rgba(var(--c), 0.24); }
+}
+
+// 묶음 나누기
+.tile-btn-sep {
+	flex: none;
+	align-self: center;
+	width: 1px;
+	height: 16px;
+	margin: 0 3px;
+	background: rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+// 끝 블록 — 바탕을 칠한 묶음. 안쪽 버튼끼리는 1px 선
+.tile-btn-end {
+	flex: none;
+	align-self: stretch;
+	display: flex;
+	margin-left: 3px;
+	border-radius: 999px;
+	overflow: hidden;
+	background: rgba(var(--v-theme-on-surface), 0.07);
+	> .tile-btn { min-width: 38px; border-radius: 0; }
+	> .tile-btn:first-child:not(.tile-btn--text) { min-width: 42px; padding-left: vars.$spacing-sm * 2; }
+	> .tile-btn--text { padding: 0 12px 0 14px; }
+	> .tile-btn + .tile-btn { box-shadow: inset 1px 0 0 rgba(var(--v-border-color), var(--v-border-opacity)); }
+}
+.tile-btn-end--primary {
+	background: rgb(var(--v-theme-primary));
+	> .tile-btn { color: rgb(var(--v-theme-on-primary)); }
+	> .tile-btn:hover:not(:disabled) { background: rgba(var(--v-theme-on-primary), 0.16); }
+	> .tile-btn + .tile-btn { box-shadow: inset 1px 0 0 rgba(var(--v-theme-on-primary), 0.28); }
+}
+
+// 타일 끝에 닿는 줄 — 그 끝의 버튼(묶음)만 닿는 면을 직각으로(위쪽 모서리는 타일이 둥글게 자른다)
+.tile-btn-row-end > :last-child {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
+.tile-btn-row-start > :first-child {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
