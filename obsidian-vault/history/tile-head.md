@@ -29,3 +29,4 @@
 
 ## 2026-10-24 마감
 - 사용자: 마감 + test3 web 교체 + test1 임시 대비용 유지 → INDEX-tile-head로 접음, 커밋·master 머지, `build/ctrl_panel/web` 교체(옛 것 `web.bak`)
+- test3 새 화면 사용자 확인 "잘된다" -> test1(8011) 닫음, vault 정리·커밋, 세션 재시작
