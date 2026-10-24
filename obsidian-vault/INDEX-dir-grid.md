@@ -9,7 +9,7 @@
 - 누르기 규칙(두 타일 공통): 한 번 = 고름(테두리) · 더블클릭·더블탭 = 열기·실행 · Ctrl+클릭·길게 누르기 = 체크(선택 모드에선 왼쪽 위가 체크박스, ⋮ 숨김)
 - 추가: 칸에서 공유(⋮ "공유"·공유 수 라벨, 내 폴더만)·장비 지정(장비 라벨)
 - 코드: `hook/itemPress.hook.ts` · `DirGridCell.vue` · `styles/dir-grid.scss` · `NodeRowMenu.vue`(제네릭 + `#head`) · `FolderTileBody.vue` · `DeviceTileBody.vue`
-- 확인: 격리(PC 1280·폰 390 터치, 계정 2개 공유) + **사용자 test1(8011 개발 서버 -> test3 API) 확인 OK**(2026-10-24). 배포 = test3 `build/ctrl_panel/web`만 교체(백엔드 변경 없음)
+- 확인: 격리(PC 1280·폰 390 터치, 계정 2개 공유) + **사용자 test1(8011 개발 서버 -> test3 API) 확인 OK**(2026-10-24). 배포 = test3 `build/ctrl_panel/web`만 교체(백엔드 변경 없음, 옛 것 `web.bak`) — 사용자 확인 OK(2026-10-25)
 - 커밋: 브랜치 `feat/dir-grid`에 파트 마감 커밋 1개 -> master `--no-ff` 머지
 
 ## REF / history 목록

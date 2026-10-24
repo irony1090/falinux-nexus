@@ -30,3 +30,4 @@
 
 ## 2026-10-24 마감
 - 사용자 test1 확인 "확인했어 마감하자" + 문제없으면 웹 빌드만 최신화 -> INDEX-dir-grid로 접음, 커밋·master 머지, test3 `build/ctrl_panel/web` 교체(옛 것 `web.bak`, 그 전 `web.bak` -> `web.bak.tile-head-전`)
+- test3 새 화면 사용자 확인 OK(2026-10-25) -> test1(8011) 닫음, vault 정리·커밋
