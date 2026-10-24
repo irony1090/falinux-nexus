@@ -43,3 +43,9 @@
 - 데이터(`seed.py`, 표준 라이브러리만): 계정 `th1`(pw123456), 폴더 `생산지그-라인A`(th-dev) > 긴 이름 폴더 > `tick.sh`·`하위폴더`. 타일은 `PUT /tiles` 없이 화면으로: 루트 행 "새 타일" -> 그 타일에서 행 클릭(폴더 안으로) -> "실행" -> `[title="장비 디렉토리 열기"]` = 폴더·터미널·장비 타일 5개
 - 찍는 것: `zoom.mjs`(DPR 2, 타일마다 머리+경로 줄 잘라 active·아닐 때) · `edit.mjs`(`.crumbs .cur` 클릭 = 입력 모드, 도구 유무·입력칸 폭, 폰 390×844 터치) · `phone.mjs`. active 만들기 = `.pos` 클릭, 마우스는 구석으로(hover 바탕 안 찍히게)
 - 정리: exe가 `<th>/sup/supervisor`·`<th>/wrk/worker`인 것 + 보관 프로세스 자식 `/bin/sh` -> vite는 cwd 확인 뒤 -> `DROP DATABASE` -> `/tmp/nexus-hold-1000/th-dev`
+
+## 2026-10-24 아이콘-확인(목록 아이콘 보기 화면) (`dg/pw/*.mjs`) → `REF-dir-grid.md` "확인"
+- 격리 = 머리-확인과 같은 틀(supervisor 5051 `TMPDIR=<dg>/tmp` · `nexus_dg_tmp` · worker `dg-dev`, cwd = 픽스처 폴더 · vite 3001 `vite.iso.mts`). 바이너리는 `th/sup`·`th/wrk` 복사(백엔드 변경 없는 파트)
+- 데이터(`seed.py`): 계정 `dg1`, `라인A`(dg-dev) > 검사장비(dg-dev)·펌웨어(`nobody-dev` = 접속 없음)·백업·tick.sh·긴 이름 .py. 장비 픽스처 `fx/` = projects·logs·run.sh·flash.sh(실행)·config.yaml·dump.bin·notes.txt·current(폴더 링크)·old-build(끊긴 링크). 장비 타일은 경로 줄 클릭 -> 경로 입력으로 `fx`에
+- `act.mjs`(PC: 클릭 고름·dblclick 실행·실행 목록·⋮ 카드·Ctrl+클릭·디렉토리 dblclick) · `phone2.mjs`(390 터치: `touchscreen.tap` 두 번 = 더블탭, 길게 누르기 = CDP `Input.dispatchTouchEvent` touchStart -> 800ms -> touchEnd) · `drag.mjs`(`dragTo`로 폴더 이동). 타일 상태가 남으므로 시작 때 경로를 되돌림
+- 정리: exe가 `<dg>/sup/supervisor`·`<dg>/wrk/worker`인 PID만 kill(보관 프로세스 포함) + vite는 cwd 확인 뒤 -> `DROP DATABASE` -> `/tmp/nexus-hold-1000/dg-dev`

@@ -10,9 +10,12 @@ import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { entryIcon, isDirLike, isFileLike, linkDest, parentPathOf, sizeText, timeText } from '@/feature/worker/util/workerDir.util';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { VBtn, VIcon, VList, VListItem, VMenu, VProgressLinear } from 'vuetify/components';
+import { useItemPress } from '../../hook/itemPress.hook';
 import { usePathEditKey } from '../../hook/pathEdit.hook';
 import { useNodeOps } from '../../store/nodeOps.store';
 import { useTileTree } from '../../store/tileTree.store';
+import DirGridCell from './DirGridCell.vue';
+import NodeRowMenu, { type RowMenuItem } from './NodeRowMenu.vue';
 import PathInput, { type PathCand } from './PathInput.vue';
 
 // 장비 타일 본문 — 경로 줄 + 목록(스크롤 끝에서 다음 페이지). 폴더-2(장비 타일), REF-worker-dir-list.md
@@ -96,22 +99,20 @@ const runFile = (e: DirEntry) => {
     const t = tile.value;
     if (t) void execFile(props.tileId, t.nodeId, t.instance, e.path, parentPathOf(e.path));
 }
-const onRow = (e: DirEntry) => {
-    if (isDirLike(e)) go(e.path);   // 링크 폴더는 링크 경로 그대로 들어간다
-}
 
 const bodyEl = ref<HTMLElement>();
 const onScroll = () => {
     const el = bodyEl.value;
     if (el && el.scrollTop + el.clientHeight >= el.scrollHeight - LOAD_MORE_PX) void dir.loadMore();
 }
-// 다른 폴더로 가면 맨 위부터, 선택은 비움
+// 다른 폴더로 가면 맨 위부터, 선택·고름은 비움
 watch(() => tile.value?.path, () => {
     bodyEl.value?.scrollTo({ top: 0 });
     selected.value = new Set();
+    focused.value = null;
 });
 
-// 항목 선택 — Q37(항목 선택 방식) 체크박스. 줄 클릭 동작은 그대로
+// 항목 선택 — 폴더 타일과 같은 방식(Ctrl+클릭·길게 누르기, 하나 이상 = 선택 모드). REF-dir-grid.md "누르기 규칙"
 const selected = ref(new Set<string>());
 const selEntries = computed(() => entries.value.filter(e => selected.value.has(e.path)));
 const toggle = (e: DirEntry) => {
@@ -120,6 +121,49 @@ const toggle = (e: DirEntry) => {
     selected.value = next;
 }
 const clearSel = () => { selected.value = new Set(); };
+
+// 칸 누르기 — 더블 = 디렉토리(링크 폴더는 링크 경로 그대로)는 들어가기, 실행 파일은 실행
+const canRun = computed(() => !saving.value && tabReady.value && online.value);
+const press = useItemPress<DirEntry, string>({
+    key: e => e.path,
+    selecting: () => selected.value.size > 0,
+    check: toggle,
+    open: e => {
+        if (isDirLike(e)) go(e.path);
+        else if (e.exec && canRun.value) runFile(e);
+    },
+});
+const { focused, dragOk } = press;
+const onBodyClick = (e: MouseEvent) => {
+    if (!(e.target as HTMLElement).closest('.DirGridCell')) focused.value = null;
+}
+
+// 칸 메뉴(⋮·우클릭) — 맨 위 정보 카드(판 D′: 크기·수정 시각·링크 원본은 여기서만)
+type EntryAct = 'select' | 'goto';
+const menuItems = (e: DirEntry): RowMenuItem<EntryAct>[] => [
+    { act: 'select', icon: selected.value.has(e.path) ? 'mdi-checkbox-blank-outline' : 'mdi-checkbox-marked-outline', title: selected.value.has(e.path) ? '선택 해제' : '선택' },
+    ...(linkDest(e) ? [{ act: 'goto' as const, icon: 'mdi-arrow-top-right', title: '원본 위치로' }] : []),
+];
+const onAct = (act: EntryAct, e: DirEntry) => act === 'select' ? toggle(e) : go(linkDest(e)!);
+const kindText = (e: DirEntry) => {
+    if (e.kind === 'dir') return '디렉토리';
+    if (e.kind === 'link') return !e.targetPath ? '끊긴 링크' : e.targetDir ? '링크 → 디렉토리' : '링크 → 파일';
+    return e.exec ? '실행 파일' : '파일';
+}
+const infoRows = (e: DirEntry): [string, string][] => ([
+    ['종류', kindText(e)],
+    e.kind === 'link' && ['원본', e.targetPath ?? `${e.linkTarget ?? ''} (없음)`],
+    e.kind === 'file' && ['크기', sizeText(e.size)],
+    !!e.modTime && ['수정', timeText(e.modTime)],
+] as const).filter((r): r is [string, string] => !!r);
+const ctxMenu = ref<{ entry: DirEntry; at: [number, number] }>();
+const ctxOpen = ref(false);
+const onContextMenu = (ev: MouseEvent, e: DirEntry) => {
+    ev.preventDefault();
+    if (press.lastPointer() !== 'mouse') return;   // 터치 길게 누르기 = 선택으로 처리
+    ctxMenu.value = { entry: e, at: [ev.clientX, ev.clientY] };
+    ctxOpen.value = true;
+}
 
 // 폴더-5(업로드): 지금 폴더로. Windows 드라이브 목록("")·읽기 실패·끊김이면 못 올림. REF-transfer-ext.md
 const { upload, download, copyTo, spots, setSpot, dragging, byTile, lastDone } = useTransfers();
@@ -218,7 +262,7 @@ watch(lastDone, d => {
 </script>
 
 <template>
-<div ref="bodyEl" class="DeviceTileBody" :class="{ dropping, selecting: selEntries.length > 0 }" @scroll.passive="onScroll" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
+<div ref="bodyEl" class="DeviceTileBody" :class="{ dropping }" @click="onBodyClick" @scroll.passive="onScroll" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
     <div class="crumbs" :class="{ editing }" @click="onCrumbsClick">
         <path-input v-if="editing" :value="here" :suggest="suggestPath" :submit="submitPath" @close="editing = false" />
         <!-- 입력 중엔 도구를 숨겨 입력칸이 줄 전체를 쓴다(좁은 타일에서 자동완성 목록 폭 확보) -->
@@ -284,20 +328,41 @@ watch(lastDone, d => {
         </span>
     </div>
     <template v-else>
-        <div v-for="e in entries" :key="e.path" class="row" :class="{ dir: isDirLike(e), picked: selected.has(e.path) }"
-            :draggable="isFileLike(e) && canUpload" @click="onRow(e)" @dragstart="onRowDragStart($event, e)" @dragend="onRowDragEnd">
-            <input type="checkbox" class="pick" :checked="selected.has(e.path)" :aria-label="`${e.name} 선택`" @click.stop="toggle(e)">
-            <v-icon size="14" :icon="entryIcon(e)" :class="isDirLike(e) ? 'folder' : 'file'" />
-            <span class="nm" :title="e.path">{{ e.name }}</span>
-            <span class="tail">
-                <span v-if="e.kind === 'link'" class="link" :title="`링크: ${e.linkTarget ?? ''}${e.targetPath ? `\n원본: ${e.targetPath}` : '\n원본 없음(끊긴 링크)'}`">→ {{ e.targetPath ?? e.linkTarget }}</span>
-                <button v-if="linkDest(e)" class="to" title="원본 위치로" @click.stop="go(linkDest(e)!)">
-                    <v-icon size="13" icon="mdi-arrow-top-right" />
-                </button>
-                <v-btn v-if="e.exec" class="run" size="x-small" variant="tonal" color="primary" :disabled="saving || !tabReady || !online" title="새 터미널 타일에서 실행" @click.stop="runFile(e)">실행</v-btn>
-                <span v-if="e.kind === 'file'" class="size">{{ sizeText(e.size) }}</span>
-                <span class="time">{{ timeText(e.modTime) }}</span>
-            </span>
+        <div v-if="entries.length" class="dir-grid">
+            <dir-grid-cell v-for="e in entries" :key="e.path"
+                :draggable="dragOk && isFileLike(e) && canUpload"
+                :icon="entryIcon(e)"
+                :tone="isDirLike(e) ? 'warning' : e.kind === 'link' && !e.targetPath ? 'error' : 'on-surface'"
+                :dim="!isDirLike(e) && !e.exec"
+                :name="e.name"
+                :title="e.path"
+                :checking="selEntries.length > 0"
+                :checked="selected.has(e.path)"
+                :focused="focused === e.path"
+                @click="press.onClick($event, e)"
+                @pointerdown="press.onPointerDown($event, e)"
+                @pointermove="press.onPointerMove"
+                @pointerup="press.cancelPress"
+                @pointercancel="press.cancelPress"
+                @contextmenu="onContextMenu($event, e)"
+                @dragstart="onRowDragStart($event, e)"
+                @dragend="onRowDragEnd"
+            >
+                <template #action>
+                    <button v-if="e.exec" class="dg-btn dg-btn--l" style="--c: var(--v-theme-primary)" title="새 터미널 타일에서 실행" :disabled="!canRun" @click="runFile(e)">
+                        <v-icon size="11" icon="mdi-play" />실행
+                    </button>
+                </template>
+                <template #menu>
+                    <node-row-menu :items="menuItems(e)" @act="a => onAct(a, e)">
+                        <template #head><div class="dg-info"><span class="t">{{ e.name }}</span><template v-for="[k, v] in infoRows(e)" :key="k"><span class="k">{{ k }}</span><span class="v mono">{{ v }}</span></template></div></template>
+                    </node-row-menu>
+                </template>
+                <template #left>
+                    <span v-if="e.kind === 'link' && e.targetPath" class="dg-lbl" style="--c: var(--v-theme-info)"><v-icon size="10" icon="mdi-arrow-top-right" />링크</span>
+                    <span v-else-if="e.kind === 'link'" class="dg-lbl" style="--c: var(--v-theme-error)">! 끊김</span>
+                </template>
+            </dir-grid-cell>
         </div>
         <p v-if="!loading && !entries.length" class="empty">비어 있음</p>
         <p v-if="total > entries.length" class="more">
@@ -305,6 +370,9 @@ watch(lastDone, d => {
             <v-btn size="x-small" variant="text" :disabled="loading" @click="dir.loadMore()">더 보기</v-btn>
         </p>
     </template>
+    <node-row-menu v-if="ctxMenu" v-model="ctxOpen" :at="ctxMenu.at" :items="menuItems(ctxMenu.entry)" @act="a => ctxMenu && onAct(a, ctxMenu.entry)">
+        <template #head><div class="dg-info"><span class="t">{{ ctxMenu.entry.name }}</span><template v-for="[k, v] in infoRows(ctxMenu.entry)" :key="k"><span class="k">{{ k }}</span><span class="v mono">{{ v }}</span></template></div></template>
+    </node-row-menu>
     <!-- 이 타일에서 시작한 전송 — Q27(타일 막대 범위) -->
     <div v-if="mine.length" class="xfer">
         <transfer-row v-for="t in mine" :key="t.id" :item="t" />
@@ -318,7 +386,7 @@ watch(lastDone, d => {
     min-height: 0;
     overflow: auto;
     @include vars.font('body-medium');
-    button:where(:not(.v-btn, .tile-btn)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
+    button:where(:not(.v-btn, .tile-btn, .dg-btn, .dg-lbl)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
         padding: 0;
         border: 0;
         background: none;
@@ -386,53 +454,6 @@ watch(lastDone, d => {
     margin: vars.$spacing-md;
     color: rgb(var(--v-theme-error));
     .acts { display: inline-flex; gap: vars.$spacing-sm; }
-}
-.row {
-    display: grid;
-    grid-template-columns: 14px 16px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 6px;
-    min-height: 26px;
-    padding: 2px vars.$spacing-md;
-    border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    &.dir { cursor: pointer; }
-    &.dir:hover .nm { color: rgb(var(--v-theme-primary)); }
-    &.picked { background: rgba(var(--v-theme-primary), 0.08); }
-}
-// Q37(항목 선택 방식): 마우스를 올린 줄·선택 중이면 전부·터치 기기는 늘 보임
-.pick {
-    width: 13px;
-    height: 13px;
-    margin: 0;
-    cursor: pointer;
-    accent-color: rgb(var(--v-theme-primary));
-    opacity: 0;
-    .row:hover &, .selecting &, &:focus-visible { opacity: 1; }
-    @media (hover: none) { opacity: 1; }
-}
-.folder { color: rgb(var(--v-theme-warning)); }
-.file { opacity: 0.7; }
-.nm {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.tail {
-    display: flex;
-    align-items: center;
-    gap: vars.$spacing-sm;
-    @include vars.font('label-small');
-    white-space: nowrap;
-    .link {
-        max-width: 160px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        color: rgb(var(--v-theme-info));
-    }
-    .to { display: inline-flex; color: rgb(var(--v-theme-info)); }
-    .size { min-width: 44px; text-align: right; font-family: monospace; opacity: 0.75; }
-    .time { font-family: monospace; opacity: 0.6; }
 }
 // 접속 여부 점 — 폴더 타일 장비 칩과 같은 색
 .dev {
