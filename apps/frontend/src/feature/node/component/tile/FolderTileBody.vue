@@ -4,21 +4,23 @@ import type { ProcessStatus } from '@/feature/process/api/process.api';
 import { isRunning } from '@/feature/process/store/processTerm.store';
 import { useWorkerRoster } from '@/feature/worker/api/worker.api';
 import { osName } from '@/feature/worker/util/workerOs.util';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { VBtn, VIcon, VList, VListItem, VMenu, VProgressLinear } from 'vuetify/components';
 import { suggestNodes, useListChildren, useNodePath, type NodeResponse } from '../../api/node.api';
 import { useNodeShares } from '../../api/share.api';
+import { useItemPress } from '../../hook/itemPress.hook';
 import { dragging, pasteBlock, useNodePaste, type PasteDest } from '../../hook/nodePaste.hook';
 import { usePathEditKey } from '../../hook/pathEdit.hook';
 import { useScriptRuns } from '../../hook/scriptRuns.hook';
 import { toClip, useNodeClipboard, type ClipMode, type ClipNode } from '../../store/nodeClipboard.store';
-import { nodeActItems, useNodeOps, type NodeAct, type NodeActItem } from '../../store/nodeOps.store';
+import { nodeActItems, useNodeOps, type NodeAct } from '../../store/nodeOps.store';
 import { useNodeSelection } from '../../store/nodeSelection.store';
 import { useTileTree } from '../../store/tileTree.store';
 import { agoText } from '../../util/presenceView.util';
-import { PERM_OWNER } from '../../util/shareView.util';
+import { PERM_EDIT, PERM_OWNER } from '../../util/shareView.util';
 import ShareDialog from '../dialog/ShareDialog.vue';
-import NodeRowMenu from './NodeRowMenu.vue';
+import DirGridCell from './DirGridCell.vue';
+import NodeRowMenu, { type RowMenuItem } from './NodeRowMenu.vue';
 import PathInput, { type PathCand } from './PathInput.vue';
 import ScriptRunList from './ScriptRunList.vue';
 
@@ -133,6 +135,11 @@ const canOpenDir = computed(() => !!current.value && current.value.kind === 'FOL
 // 공유 걸기 — O1(경로 줄 공유 버튼). 내 폴더(소유자 단계)일 때만. 서버도 소유자만 허용(SH4(공유 대상 찾기))
 const canShare = computed(() => !!current.value && current.value.kind === 'FOLDER' && current.value.permission === PERM_OWNER);
 const shareOpen = ref(false);
+const shareFor = ref<NodeResponse>();     // 공유 창 대상 = 지금 폴더(경로 줄) 또는 칸의 폴더(⋮·공유 라벨)
+const openShare = (n: NodeResponse) => {
+    shareFor.value = n;
+    shareOpen.value = true;
+}
 const shareCount = computed(() => sharesQuery.data.value?.length ?? 0);   // O1 숫자 = 이 폴더에 적용되는 사람 수(이어진 사람 포함)
 const sharesQuery = useNodeShares(computed(() => current.value?.id), canShare);
 
@@ -151,7 +158,7 @@ const deviceTitle = (key: string | null | undefined, from?: string) => {
     return [`${head}\n접속 ${d.online} · 끊김 ${d.instances.length - d.online}`, ...lines].join('\n');
 }
 
-// 스크립트 행 "실행 중 N · 최소화 n" — 눌러서 펼침(실시간-6a)
+// 스크립트 칸 실행 목록 표식(숫자 = 터미널 수) — 눌러서 칸 아래 팝업(실시간-6a, 아이콘-Q4(실행 목록))
 const { byNode: runsByNode } = useScriptRuns(nodeId);
 const runsOf = (id: number) => runsByNode.value.get(id) ?? [];
 const runsText = (id: number) => {
@@ -160,7 +167,7 @@ const runsText = (id: number) => {
     const min = runs.filter(r => r.minimized).length;
     return [live && `실행 중 ${live}`, runs.length > live && `끝남 ${runs.length - live}`, min && `최소화 ${min}`].filter(v => !!v).join(' · ');
 }
-const runsOpen = ref<Record<number, boolean>>({});
+const runsLive = (id: number) => runsOf(id).filter(r => isRunning(r.status as ProcessStatus)).length;
 
 const onRefresh = () => {
     listQuery.refetch();
@@ -178,58 +185,53 @@ watch(() => listQuery.data.value, list => {
     if (list) sel.syncTile(props.tileId, nodeId.value, list);
 })
 
-// 행 메뉴(⋮·우클릭) 항목 = "선택" + 행 동작 — SM1(켜는 방법)
-const menuItems = (n: NodeResponse): NodeActItem[] => [
-    { act: 'select', icon: isSel(n) ? 'mdi-checkbox-blank-outline' : 'mdi-checkbox-marked-outline', title: isSel(n) ? '선택 해제' : '선택' },
-    ...nodeActItems(n, saving.value || !tabReady.value),
-];
-const onAct = (act: NodeAct, n: NodeResponse) => act === 'select' ? pick(n) : ops.act(act, props.tileId, [n]);
-
-const LONG_PRESS_MS = 500;
-const PRESS_MOVE_MAX = 10;     // px — 넘게 움직이면 스크롤로 보고 취소
-let press: { timer: ReturnType<typeof setTimeout>; x: number; y: number } | null = null;
-let skipClick = false;         // 길게 누르기 뒤따르는 click 무시
-let lastPointer = 'mouse';
-const dragOk = ref(false);     // 마우스로 누를 때만 draggable — SD3(터치 드래그 제외), 길게 누르기와 겹치지 않게
-
-const cancelPress = () => {
-    if (press) clearTimeout(press.timer);
-    press = null;
+// 칸 메뉴(⋮·우클릭) 항목 = "선택" + 행 동작 + 공유(내 폴더만, 삭제 앞) — SM1(켜는 방법), REF-dir-grid.md "추가 요청"
+type RowAct = NodeAct | 'share';
+const ownFolder = (n: NodeResponse) => n.kind === 'FOLDER' && n.permission === PERM_OWNER;
+const canEditDevice = (n: NodeResponse) => n.kind === 'FOLDER' && (n.permission ?? 0) >= PERM_EDIT;
+const menuItems = (n: NodeResponse): RowMenuItem<RowAct>[] => {
+    const items: RowMenuItem<RowAct>[] = [
+        { act: 'select', icon: isSel(n) ? 'mdi-checkbox-blank-outline' : 'mdi-checkbox-marked-outline', title: isSel(n) ? '선택 해제' : '선택' },
+        ...nodeActItems(n, saving.value || !tabReady.value),
+    ];
+    if (ownFolder(n)) items.splice(items.length - 1, 0, { act: 'share', icon: 'mdi-account-multiple-plus', title: '공유' });
+    return items;
 }
-onBeforeUnmount(cancelPress);
-
-const onPointerDown = (e: PointerEvent, n: NodeResponse) => {
-    lastPointer = e.pointerType;
-    dragOk.value = e.pointerType === 'mouse';
-    skipClick = false;
-    cancelPress();
-    if (e.pointerType === 'mouse') return;
-    press = {
-        x: e.clientX,
-        y: e.clientY,
-        timer: setTimeout(() => {
-            press = null;
-            skipClick = true;
-            pick(n);
-        }, LONG_PRESS_MS),
-    };
+// ⋮ 메뉴 맨 위 정보 카드 — 판 D′(hover 대신). 상태 라벨의 뜻을 글자로
+const infoRows = (n: NodeResponse): [string, string][] => {
+    const d = n.deviceKey ? devices.value.get(n.deviceKey) : undefined;
+    return ([
+        ['종류', n.kind === 'SCRIPT' ? '스크립트' : n.ownerNickname ? '공유받은 폴더' : '폴더'],
+        n.ownerNickname && ['소유자', n.ownerNickname],
+        n.deviceKey && ['장비', `${n.deviceKey} · ${d ? `접속 ${d.online} / ${d.instances.length}` : '접속한 적 없음'}`],
+        n.shareCount && ['공유', `${n.shareCount}명에게 공유 중`],
+        n.kind === 'SCRIPT' && runsOf(n.id).length && ['터미널', runsText(n.id)],
+    ] as const).filter((r): r is [string, string] => !!r);
 }
-const onPointerMove = (e: PointerEvent) => {
-    if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) > PRESS_MOVE_MAX) cancelPress();
+const onAct = (act: RowAct, n: NodeResponse) => {
+    if (act === 'select') pick(n);
+    else if (act === 'share') openShare(n);
+    else ops.act(act, props.tileId, [n]);
+}
+// 장비·공유 라벨 누르기 = 지정 창. 선택 모드·Ctrl이면 칸 누르기(체크)로 넘긴다
+const onLabel = (e: MouseEvent, run: () => void) => {
+    if (!sel.on.value && !e.ctrlKey && !e.metaKey) run();
 }
 
-// 행 누르기: 모드 중 = 토글, 평소 Ctrl(⌘)+클릭 = 모드 시작(SM1). 행 안의 버튼은 각자 처리
-const onRowClick = (e: MouseEvent, n: NodeResponse) => {
-    if (skipClick) {
-        skipClick = false;
-        return;
-    }
-    if ((e.target as HTMLElement).closest('.v-btn, .runs')) return;
-    if (sel.on.value || e.ctrlKey || e.metaKey) pick(n);
-}
-// 폴더 이름: 평소엔 이 타일 안에서 열기, 선택 중·Ctrl이면 행 누르기로 넘긴다
-const onNameClick = (e: MouseEvent, n: NodeResponse) => {
-    if (!sel.on.value && !e.ctrlKey && !e.metaKey) navigate(props.tileId, n.id);
+// 칸 누르기 — REF-dir-grid.md "누르기 규칙". 더블 = 폴더는 이 타일 안에서 열기, 스크립트는 실행
+const press = useItemPress<NodeResponse, number>({
+    key: n => n.id,
+    selecting: () => sel.on.value,
+    check: pick,
+    open: n => {
+        if (n.kind === 'FOLDER') navigate(props.tileId, n.id);
+        else if (!saving.value && tabReady.value) void ops.exec(props.tileId, n);
+    },
+});
+const { focused, dragOk } = press;
+watch(nodeId, () => focused.value = null);
+const onBodyClick = (e: MouseEvent) => {
+    if (!(e.target as HTMLElement).closest('.DirGridCell')) focused.value = null;
 }
 
 // 우클릭 = 행 메뉴를 포인터 위치에. 터치 길게 누르기가 일으키는 contextmenu는 선택으로 처리했으므로 막기만
@@ -237,7 +239,7 @@ const ctxMenu = ref<{ node: NodeResponse; at: [number, number] }>();
 const ctxOpen = ref(false);
 const onContextMenu = (e: MouseEvent, n: NodeResponse) => {
     e.preventDefault();
-    if (lastPointer !== 'mouse') return;
+    if (press.lastPointer() !== 'mouse') return;
     ctxMenu.value = { node: n, at: [e.clientX, e.clientY] };
     ctxOpen.value = true;
 }
@@ -327,6 +329,7 @@ const onDrop = (e: DragEvent) => {
 <template>
 <div ref="rootEl" class="FolderTileBody"
     :class="{ drop: dropAt === 'tile' }"
+    @click="onBodyClick"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"
@@ -368,7 +371,7 @@ const onDrop = (e: DragEvent) => {
                 >
                     <v-icon size="16" icon="mdi-folder-network" />
                 </button>
-                <button v-if="canShare" class="tile-btn share" title="이 폴더 공유" @click="shareOpen = true">
+                <button v-if="canShare" class="tile-btn share" title="이 폴더 공유" @click="current && openShare(current)">
                     <v-icon size="16" icon="mdi-account-multiple-plus" /><span v-if="shareCount" class="share-count">{{ shareCount }}</span>
                 </button>
                 <template v-if="clip.nodes.length">
@@ -404,50 +407,77 @@ const onDrop = (e: DragEvent) => {
         <v-btn size="x-small" variant="tonal" :disabled="busy" @click="onRefresh">다시 시도</v-btn>
     </div>
     <template v-else>
-        <template v-for="(n, i) in children" :key="n.id">
-        <div class="row"
-            :class="{ cut: cutIds.has(n.id), sel: isSel(n), drop: dropAt === n.id, picking: sel.on.value }"
-            :data-folder-id="n.kind === 'FOLDER' ? n.id : undefined"
-            :draggable="dragOk"
-            @click="onRowClick($event, n)"
-            @pointerdown="onPointerDown($event, n)"
-            @pointermove="onPointerMove"
-            @pointerup="cancelPress"
-            @pointercancel="cancelPress"
-            @contextmenu="onContextMenu($event, n)"
-            @dragstart="onDragStart($event, n)"
-            @dragend="onDragEnd"
-        >
-            <v-icon v-if="sel.on.value" size="14" class="check" :icon="isSel(n) ? 'mdi-checkbox-marked' : 'mdi-checkbox-blank-outline'" />
-            <span v-else class="ord">{{ i + 1 }}</span>
-            <v-icon size="14"
+        <div v-if="children.length" class="dir-grid">
+            <dir-grid-cell v-for="n in children" :key="n.id"
+                :class="{ cut: cutIds.has(n.id), drop: dropAt === n.id }"
+                :data-folder-id="n.kind === 'FOLDER' ? n.id : undefined"
+                :draggable="dragOk"
                 :icon="n.kind === 'FOLDER' ? (n.ownerNickname ? 'mdi-folder-account' : 'mdi-folder') : 'mdi-console'"
-                :class="n.kind === 'FOLDER' ? 'folder' : 'script'"
-            />
-            <button v-if="n.kind === 'FOLDER'" class="nm" :title="sel.on.value ? '' : '이 타일 안에서 열기'" @click="onNameClick($event, n)">{{ n.name }}</button>
-            <span v-else class="nm">{{ n.name }}</span>
-            <span class="tail">
-                <span v-if="n.ownerNickname" class="by" :title="`${n.ownerNickname}님이 공유한 폴더`">← {{ n.ownerNickname }}</span>
-                <span v-if="n.shareCount" class="shared" :title="`${n.shareCount}명에게 공유 중`"><v-icon size="11" icon="mdi-account-multiple" />{{ n.shareCount }}</span>
-                <button v-if="n.kind === 'SCRIPT' && runsOf(n.id).length" class="runs" :class="{ on: runsOpen[n.id] }" title="이 스크립트의 터미널(실행 중 + 내 타일에 남은 끝난 것)" @click="runsOpen[n.id] = !runsOpen[n.id]">{{ runsText(n.id) }}</button>
-                <span v-if="n.deviceKey" class="dev" :class="{ on: isOnline(n.deviceKey) }" :title="deviceTitle(n.deviceKey)">
-                    <i /><span class="key">{{ n.deviceKey }}</span><span v-if="deviceCount(n.deviceKey)" class="cnt">{{ deviceCount(n.deviceKey) }}</span>
-                </span>
-                <!-- 선택 모드 중엔 숨김 — 행 누르기 = 선택과 겹치지 않게 -->
-                <template v-if="!sel.on.value">
-                    <v-btn v-if="n.kind === 'FOLDER'" size="x-small" variant="tonal" color="warning" @click="ops.open(tileId, n.id)">새 타일</v-btn>
-                    <v-btn v-else size="x-small" variant="tonal" color="primary" :disabled="saving || !tabReady" @click="ops.exec(tileId, n)">실행</v-btn>
-                    <node-row-menu :items="menuItems(n)" @act="a => onAct(a, n)" />
+                :tone="n.kind === 'FOLDER' ? 'warning' : 'primary'"
+                :name="n.name"
+                :checking="sel.on.value"
+                :checked="isSel(n)"
+                :focused="focused === n.id"
+                @click="press.onClick($event, n)"
+                @pointerdown="press.onPointerDown($event, n)"
+                @pointermove="press.onPointerMove"
+                @pointerup="press.cancelPress"
+                @pointercancel="press.cancelPress"
+                @contextmenu="onContextMenu($event, n)"
+                @dragstart="onDragStart($event, n)"
+                @dragend="onDragEnd"
+            >
+                <template #action>
+                    <button v-if="n.kind === 'FOLDER'" class="dg-btn dg-btn--l" style="--c: var(--v-theme-warning)" title="새 타일에서 열기" @click="ops.open(tileId, n.id)">새 타일</button>
+                    <button v-else class="dg-btn dg-btn--l" style="--c: var(--v-theme-primary)" title="새 터미널 타일에서 실행" :disabled="saving || !tabReady" @click="ops.exec(tileId, n)">
+                        <v-icon size="11" icon="mdi-play" />실행
+                    </button>
                 </template>
-            </span>
+                <template #menu>
+                    <node-row-menu :items="menuItems(n)" @act="a => onAct(a, n)">
+                        <template #head><div class="dg-info"><span class="t">{{ n.name }}</span><template v-for="[k, v] in infoRows(n)" :key="k"><span class="k">{{ k }}</span><span class="v">{{ v }}</span></template></div></template>
+                    </node-row-menu>
+                </template>
+                <template #right>
+                    <component :is="ownFolder(n) ? 'button' : 'span'" v-if="n.shareCount" class="dg-lbl dg-lbl--solid" style="--c: var(--v-theme-share); --on-c: var(--v-theme-on-share)"
+                        :title="`${n.shareCount}명에게 공유 중${ownFolder(n) ? ' — 눌러서 공유 관리' : ''}`"
+                        @click="ownFolder(n) && onLabel($event, () => openShare(n))"
+                    >
+                        <v-icon size="10" icon="mdi-account-multiple" />{{ n.shareCount }}
+                    </component>
+                    <v-menu v-if="n.kind === 'SCRIPT' && runsOf(n.id).length" location="bottom end" :offset="72" :close-on-content-click="false" :disabled="sel.on.value">
+                        <template #activator="{ props: act }">
+                            <button v-bind="act" class="dg-lbl" :class="{ 'dg-lbl--solid': runsLive(n.id) > 0 }"
+                                :style="runsLive(n.id) > 0 ? '--c: var(--v-theme-success); --on-c: var(--v-theme-on-success)' : ''"
+                                :title="`이 스크립트의 터미널 — ${runsText(n.id)}`"
+                            >
+                                <v-icon size="10" icon="mdi-play" />{{ runsOf(n.id).length }}
+                            </button>
+                        </template>
+                        <div class="dg-pop"><script-run-list :runs="runsOf(n.id)" :tile-id="tileId" /></div>
+                    </v-menu>
+                </template>
+                <template #left>
+                    <component :is="canEditDevice(n) ? 'button' : 'span'" v-if="n.deviceKey" class="dg-lbl" :style="isOnline(n.deviceKey) ? '--c: var(--v-theme-success)' : ''"
+                        :title="`${deviceTitle(n.deviceKey)}${canEditDevice(n) ? '\n(눌러서 장비 지정)' : ''}`"
+                        :disabled="canEditDevice(n) && saving"
+                        @click="canEditDevice(n) && onLabel($event, () => ops.editDevice(tileId, n))"
+                    >
+                        <i class="dot" /><span class="k">{{ n.deviceKey }}</span>{{ devices.get(n.deviceKey)?.online || '' }}
+                    </component>
+                    <span v-if="n.ownerNickname" class="dg-lbl" style="--c: var(--v-theme-warning)" :title="`${n.ownerNickname}님이 공유한 폴더`">
+                        <span class="k">← {{ n.ownerNickname }}</span>
+                    </span>
+                </template>
+            </dir-grid-cell>
         </div>
-        <script-run-list v-if="n.kind === 'SCRIPT' && runsOpen[n.id] && runsOf(n.id).length" :runs="runsOf(n.id)" :tile-id="tileId" />
-        </template>
         <p v-if="!listQuery.isPending.value && !children.length" class="empty">비어 있음</p>
     </template>
 
-    <node-row-menu v-if="ctxMenu" v-model="ctxOpen" :at="ctxMenu.at" :items="menuItems(ctxMenu.node)" @act="a => ctxMenu && onAct(a, ctxMenu.node)" />
-    <share-dialog v-if="canShare && current" v-model="shareOpen" :node-id="current.id" :node-name="current.name" :tile-id="tileId" />
+    <node-row-menu v-if="ctxMenu" v-model="ctxOpen" :at="ctxMenu.at" :items="menuItems(ctxMenu.node)" @act="a => ctxMenu && onAct(a, ctxMenu.node)">
+        <template #head><div class="dg-info"><span class="t">{{ ctxMenu.node.name }}</span><template v-for="[k, v] in infoRows(ctxMenu.node)" :key="k"><span class="k">{{ k }}</span><span class="v">{{ v }}</span></template></div></template>
+    </node-row-menu>
+    <share-dialog v-if="shareFor" v-model="shareOpen" :node-id="shareFor.id" :node-name="shareFor.name" :tile-id="tileId" />
 </div>
 </template>
 
@@ -457,7 +487,7 @@ const onDrop = (e: DragEvent) => {
     min-height: 0;
     overflow: auto;
     @include vars.font('body-medium');
-    button:where(:not(.v-btn, .tile-btn)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
+    button:where(:not(.v-btn, .tile-btn, .dg-btn, .dg-lbl)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
         padding: 0;
         border: 0;
         background: none;
@@ -521,65 +551,11 @@ const onDrop = (e: DragEvent) => {
     margin: vars.$spacing-md;
     color: rgb(var(--v-theme-error));
 }
-.row {
-    display: grid;
-    grid-template-columns: 20px 16px minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 6px;
-    min-height: 30px;
-    padding: vars.$spacing-sm vars.$spacing-xs vars.$spacing-sm vars.$spacing-md;
-    border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    user-select: none;
-    -webkit-touch-callout: none;    // 길게 누르기 = 선택(SM1) — iOS 기본 메뉴 끔
+.DirGridCell {
     &.cut { opacity: 0.45; }    // CP2(표시 구분): 잘라낸 것만 흐리게
-    &.picking { cursor: pointer; }
-    &.sel { background: rgba(var(--v-theme-primary), 0.12); }
-    &.drop { outline: 1px dashed rgb(var(--v-theme-primary)); outline-offset: -1px; background: rgba(var(--v-theme-primary), 0.08); }
+    &.drop :deep(.box) { outline: 1px dashed rgb(var(--v-theme-primary)); outline-offset: -1px; }
 }
 .FolderTileBody.drop { box-shadow: inset 0 0 0 1px rgb(var(--v-theme-primary)); }
-.check { color: rgb(var(--v-theme-primary)); }
-.ord { font-family: monospace; @include vars.font('label-small'); opacity: 0.6; }
-.folder { color: rgb(var(--v-theme-warning)); }
-.script { color: rgb(var(--v-theme-primary)); }
-.nm {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    text-align: left;
-}
-button.nm:hover { color: rgb(var(--v-theme-primary)); }
-// 공유받은 루트 폴더의 소유자
-.by {
-    @include vars.font('label-small');
-    white-space: nowrap;
-    color: rgb(var(--v-theme-warning));
-}
-.shared {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    padding: 0 6px;
-    border-radius: 8px;
-    @include vars.font('label-small');
-    white-space: nowrap;
-    color: rgb(var(--v-theme-share));
-    background: rgba(var(--v-theme-share), 0.12);
-}
-button.runs {
-    padding: 0 6px;
-    border-radius: 8px;
-    @include vars.font('label-small');
-    white-space: nowrap;
-    color: rgb(var(--v-theme-success));
-    background: rgba(var(--v-theme-success), 0.12);
-    &.on { background: rgba(var(--v-theme-success), 0.25); }
-}
-.tail {
-    display: flex;
-    align-items: center;
-    gap: vars.$spacing-sm;
-}
 // 지정된 장비 + 접속 여부(점 색)
 .dev {
     display: inline-flex;

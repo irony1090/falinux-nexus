@@ -40,6 +40,7 @@
 - 글자 크기 규칙(마감) → `INDEX-typography.md` (typography)
 - Ctrl+Alt 팝업 버튼·터치 스크롤 양(마감) → `INDEX-pager-tools.md` (pager-tools)
 - 타일 머리 줄 버튼(마감) → `INDEX-tile-head.md` (tile-head)
+- 목록 아이콘 보기(마감) → `INDEX-dir-grid.md` (dir-grid)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.

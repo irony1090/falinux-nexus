@@ -18,6 +18,7 @@ import App from './App.vue'
 import "@/styles/noto-sans-korean.scss"
 import "@/styles/global.scss"
 import "@/styles/tile-buttons.scss"
+import "@/styles/dir-grid.scss"
 
 const app = createApp(App)
 
