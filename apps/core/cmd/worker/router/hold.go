@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"nexus/internal/execute"
@@ -44,7 +45,7 @@ func (s *WorkerState) admit(entry *procEntry) (ok bool, reason string) {
 }
 
 // spawn은 보관 프로세스를 띄워 붙고 목록(procs·sqlite)에 넣는다
-func (s *WorkerState) spawn(spec hold.Spec, kind protocol.ExecType, editPath string) (*procEntry, error) {
+func (s *WorkerState) spawn(spec hold.Spec, kind protocol.ExecType, editPath, label string) (*procEntry, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -60,7 +61,8 @@ func (s *WorkerState) spawn(spec hold.Spec, kind protocol.ExecType, editPath str
 		hold.Cleanup(sock)
 		return nil, fmt.Errorf("보관 프로세스 연결 실패: %w", err)
 	}
-	entry := &procEntry{uid: spec.UID, kind: kind, editPath: editPath, pid: pid, h: cli}
+	cmdline := strings.Join(append([]string{spec.Cmd}, spec.Args...), " ")
+	entry := &procEntry{uid: spec.UID, kind: kind, editPath: editPath, pid: pid, h: cli, label: label, cmd: cmdline, cwd: spec.Cwd, startedAt: time.Now().Unix()}
 	if ok, reason := s.admit(entry); !ok {
 		cli.Kill(true)
 		cli.Close()
@@ -70,6 +72,7 @@ func (s *WorkerState) spawn(spec hold.Spec, kind protocol.ExecType, editPath str
 	defer cancel()
 	if err := s.store.Queries().InsertHold(ctx, workerdb.InsertHoldParams{
 		Uid: spec.UID, Kind: string(kind), EditPath: editPath, Sock: sock, HolderPid: int64(holderPid), Pid: int64(pid),
+		Label: label, Cmd: cmdline, Cwd: spec.Cwd,
 	}); err != nil {
 		log.Printf("[hold] 목록 저장 실패 uid=%s: %v", spec.UID, err) // 실행은 계속(worker가 다시 켜지면 못 붙을 뿐)
 	}
@@ -97,7 +100,8 @@ func (s *WorkerState) Recover() {
 			s.dropHold(row.Uid)
 			continue
 		}
-		entry := &procEntry{uid: row.Uid, kind: protocol.ExecType(row.Kind), editPath: row.EditPath, pid: int(row.Pid), h: cli}
+		entry := &procEntry{uid: row.Uid, kind: protocol.ExecType(row.Kind), editPath: row.EditPath, pid: int(row.Pid), h: cli,
+			label: row.Label, cmd: row.Cmd, cwd: row.Cwd, startedAt: row.CreatedAt}
 		if ok, _ := s.admit(entry); !ok {
 			cli.Close()
 			continue

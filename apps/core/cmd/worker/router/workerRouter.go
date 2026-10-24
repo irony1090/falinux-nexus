@@ -1,9 +1,11 @@
 package router
 
 import (
+	"net/http"
 	"net/url"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"nexus/internal/manager"
 	"nexus/internal/protocol"
@@ -21,10 +23,11 @@ type WorkerState struct {
 	ready   atomic.Pointer[transport.Conn] // register·sync 보고를 마친 conn — 종료 보고(finish)는 이것으로만
 	store   *store.StorePool
 	holdDir string
+	addrs   *AddrBook // supervisor 주소 목록 — 옮기기 명령(MsgMove)이 고친다
 }
 
-func NewWorkerState(store *store.StorePool, holdDir string) *WorkerState {
-	return &WorkerState{procs: manager.NewKeyValManager[string, *procEntry](), store: store, holdDir: holdDir}
+func NewWorkerState(store *store.StorePool, holdDir string, addrs *AddrBook) *WorkerState {
+	return &WorkerState{procs: manager.NewKeyValManager[string, *procEntry](), store: store, holdDir: holdDir, addrs: addrs}
 }
 
 // currentConn: forward가 전송마다 읽는 "지금" conn. 끊긴 동안엔 죽은 conn이라 실패해도 로그만(재접속 때 교체됨)
@@ -52,10 +55,13 @@ type workerRouter struct {
 	reached atomic.Bool // register 성공(정상 가동) 여부. register가 쓰고 Serve 종료 경로가 읽음
 }
 
+// 접속 시도 상한 — 기본 Dialer는 연결 단계 상한이 없어, 응답 없는 주소에 오래 묶이면 다음 순위로 못 넘어간다(주소-1(주소 목록))
+var dialer = websocket.Dialer{Proxy: http.ProxyFromEnvironment, HandshakeTimeout: 10 * time.Second}
+
 // onReady = register 성공 때 1회(nil 가능), state = 재접속을 넘어 공유(WorkerState)
 func NewWorkerRouter(supervisor url.URL, uniqueKey string, store *store.StorePool, state *WorkerState, onReady func()) (<-chan Result, error) {
 
-	ws, _, err := websocket.DefaultDialer.Dial(supervisor.String(), nil)
+	ws, _, err := dialer.Dial(supervisor.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +106,9 @@ func NewWorkerRouter(supervisor url.URL, uniqueKey string, store *store.StorePoo
 	conn.On(protocol.MsgData, router.input)
 	conn.Handle(protocol.MsgResize, router.resize)
 	conn.Handle(protocol.MsgKill, router.kill)
+
+	conn.Handle(protocol.MsgMove, router.move)
+	conn.Handle(protocol.MsgAddrs, router.addrList)
 
 	go func() { // 수신 루프: 끝나면 세션 종료. reached로 정상 가동 여부 보고.
 		err := conn.Serve()

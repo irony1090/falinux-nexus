@@ -3,6 +3,7 @@
 package store
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sort"
@@ -74,4 +75,17 @@ func GetStorePool() *StorePool {
 
 func (s *StorePool) Queries() *workerdb.Queries {
 	return workerdb.New(s.db)
+}
+
+// Tx는 fn을 한 트랜잭션으로 돌린다(에러면 롤백)
+func (s *StorePool) Tx(ctx context.Context, fn func(q *workerdb.Queries) error) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	if err := fn(workerdb.New(tx)); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
 }

@@ -15,7 +15,7 @@ INSERT INTO users (
     password,
     nickname
 ) VALUES ( $1, $2, $3 )
-RETURNING id, identification, password, nickname, created_at, updated_at
+RETURNING id, identification, password, nickname, created_at, updated_at, perms
 `
 
 type CreateUserParams struct {
@@ -34,12 +34,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.Nickname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Perms,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, identification, password, nickname, created_at, updated_at FROM users WHERE id = $1
+SELECT id, identification, password, nickname, created_at, updated_at, perms FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id int64) (User, error) {
@@ -52,12 +53,13 @@ func (q *Queries) GetUser(ctx context.Context, id int64) (User, error) {
 		&i.Nickname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Perms,
 	)
 	return i, err
 }
 
 const getUserByIdentification = `-- name: GetUserByIdentification :one
-SELECT id, identification, password, nickname, created_at, updated_at FROM users WHERE identification = $1
+SELECT id, identification, password, nickname, created_at, updated_at, perms FROM users WHERE identification = $1
 `
 
 func (q *Queries) GetUserByIdentification(ctx context.Context, identification string) (User, error) {
@@ -70,6 +72,7 @@ func (q *Queries) GetUserByIdentification(ctx context.Context, identification st
 		&i.Nickname,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Perms,
 	)
 	return i, err
 }

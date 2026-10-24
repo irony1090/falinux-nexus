@@ -29,3 +29,11 @@
 - 위 글자-5 격리를 재사용(DB만 `nexus_pager_tmp`, `seed.py`는 공유 필드 `permission`으로 고침, worker.db 지움). vite 3001만
 - PC: `keyboard.down('Control')`·`down('Alt')` 누른 채 `.PagerPopup .size` 클릭, 크기 확인은 `fetch('http://localhost:5051/tiles')`의 `tree.tiles[id].size`. active 만들기 = 머리 줄 `.pos` 클릭(`.spacer`는 폭 0)
 - 터치: CDP `Input.dispatchTouchEvent`(touchStart -> 기다림 -> touchEnd)로 길게·짧게·움직이기. 빈 곳은 **터치 대상 보정** 때문에 CDP로 안 됨 -> `elementFromPoint`에 `PointerEvent(pointerType 'touch')` 직접. 팝업 위치 판정은 가장자리 당김(16 + 19px) 반영
+
+## 2026-10-24 주소-6(supervisor 주소 변경) (`mv/mv_test.py` 29개 · `mv/pw/ui.mjs` 8개) → `REF-supervisor-move.md` "확인"
+- 격리: supervisor 둘 = A 5051(`nexus_mv_a`) · B 5052(`nexus_mv_b`), 각자 `sup{A,B}/env`(`IP=127.0.0.1`) + `TMPDIR=<mv>/tmp`로 실행. worker `mv-dev` = `-env <mv>/wrk/env`(절대 경로, dev 판정 그대로, TMPDIR 안 바꿈 -> 보관 소켓 `/tmp/nexus-hold-1000/mv-dev`). 실행·정지는 스크립트 안 `start_sup`·`start_worker`·`stop`(cwd + exe로 고르고 `-hold`는 뺌), `CLAUDE*` 변수 지움
+- exec는 탭 id가 필요 -> `/subscribe` 소켓을 열어 `TAB:ID`를 받고 `X-Tab-Id` 헤더(websockets 17.1 `sync.client.connect`, 쿠키 헤더 직접)
+- 순서: A에 계정·폴더(deviceKey mv-dev)·`tick.sh` 2개 실행 -> B에 같은 이름 계정·폴더(데이터 다름) + 다른 계정 -> T1(perms)~T14(env 고침) — 저장만·A 끄기 -> B·미등록 2개·다른 계정 403·끄기·move-all 403 -> SQL로 권한 -> A 다시 켜고 move-all 바로 -> A에서 P1 PROCESS·P2 FAILED -> 없는 주소 바로 -> 되돌아옴 -> 3개 제한 -> worker 재시작 -> env 고치면 1순위
+- **기대값 함정**: 스크립트 노드의 미등록 명령 = 스크립트 내용이 아니라 worker 임시 파일 경로 `/tmp/<노드 id>/<uid>.sh` (첫 판 T6b가 `tick`을 기대해 FAIL 1). 이름 표시 추가 뒤 T6b = `label == tick.sh` + 명령이 `<uid>.sh`로 끝남 -> 29/29
+- 화면(`pw/ui.mjs`, playwright-core 1.56을 `mv/pw`에 npm i): vite 3001(`mv/vite.iso.mts` = `await base(e)` 뒤 root·cacheDir·server 덮음, `VITE_API_URL=http://localhost:5052`) + B에 `PUT /tiles`로 장비 타일(루트 폴더 타일의 자식). Vuetify 목록 항목은 role이 `menuitem`이 아님 -> `.v-overlay--active .v-list-item`로 고름. 창 스크린샷은 뜨는 애니메이션 중에 찍힐 수 있음
+- 정리: 보관 프로세스는 argv[2]에 `/nexus-hold-1000/mv-dev/`가 든 것만, 나머지는 cwd 기준 + `vite.iso.mts` 인자 -> `DROP DATABASE` 둘 -> `rm -rf /tmp/nexus-hold-1000/mv-dev`

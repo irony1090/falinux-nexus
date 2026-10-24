@@ -1,13 +1,14 @@
 # CURRENT
 
 ## 현재 날짜
-2026-10-23
+2026-10-24
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`, 마감 파트는 `INDEX-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
 ---
 
 ## ⚠️ 다음 세션 시작 시
+- **2026-10-24 파트(supervisor 주소 실시간 변경) 구현·격리 확인 끝 — 사용자 확인 대기**(→ `REF-supervisor-move.md` "구현"·"확인"): 브랜치 `feat/supervisor-move`(커밋 전). 주소-1(주소 목록)~주소-5(화면) 구현, 스크립트 이름 표시 추가(사용자 요청). 격리 확인 서버 29/29·화면 8/8, 격리 환경 정리함. **사용자 브라우저 확인 대기 — 2026-10-24 주말 외부라 다음 주에 확인**(사용자 요청으로 브랜치에 중간 커밋(`wip(supervisor-move)`), master 머지 안 함 — 확인 뒤 마감 커밋·머지). 돌아오면 확인할 것: ① 빌드 뒤 장비 타일 ⋮ 메뉴 "supervisor 주소 변경"·"미등록 process" ② 권한 SQL(`REF-supervisor-move.md` 00013 주석) 뒤 푸터 보드 메뉴 "전체 worker 주소 변경" ③ 빌드본 교체 주의 = `REF-build.md` 빌드본 적용 때 supervisor `00013`·worker `00003`·`00004` 마이그레이션이 붙음
 - **2026-10-23 파트 2개 마감·master 머지**: 파트(타일 종류 정리) → `INDEX-tile-kinds.md` / 파트(worker 폴더 타일) → `INDEX-worker-dir.md`. 브랜치 `refactor/tile-kinds`·`feat/worker-dir` 남겨 둠, push 안 함
 - **2026-10-23 파트(파일 전송 확장)·파트(내려받기·worker 간 전송) 마감·master 머지**(→ `INDEX-transfer-ext.md`·`INDEX-transfer-down.md`): 장비 타일 업로드·전송 상태 + 내려받기(파일·zip)·worker 간 복사(메뉴·끌어 놓기). 사용자 브라우저 확인 OK. 브랜치 `feat/transfer-ext`·`feat/transfer-down`·`feat/path-input` 남겨 둠, push 안 함
 - **2026-10-23 파트(Ctrl+Alt 팝업 버튼·터치 스크롤 양) 마감·master 머지**(→ `INDEX-pager-tools.md`): Ctrl+Alt 팝업에 크기·전체보기 버튼 + 터치 길게 누르기 + 터미널 터치 스크롤 2배. 사용자가 이 브랜치로 빌드해 PC·폰 확인 OK(빌드 이름 미확인). 브랜치 `feat/pager-tools` 남겨 둠, push 안 함. 격리 환경(5051·3001·`nexus_pager_tmp`) 정리함. **다음 파트 = 미정**(후보 `BACKLOG.md`)

@@ -2,13 +2,14 @@ import { BaseAxios, throwCatch, throwThen } from '@/common/api/api.util'
 import type { Replace } from '@/common/util/index.type'
 
 // 백엔드: apps/core/cmd/supervisor/router/user.go (group "/users")
-// userResponse{identification, nickname, createdAt(unix sec), updatedAt(*unix sec)}
+// userResponse{identification, nickname, createdAt(unix sec), updatedAt(*unix sec), perms}
 
 export type UserResponse = {
     identification: string
     nickname: string
     createdAt: Date        // unix sec (.Unix())
     updatedAt: Date | null // nullable
+    perms: string[]        // 계정 권한 이름 — 주소-3(권한 열), 화면 메뉴 보이기용(인가는 서버)
 }
 type UserResponseDto = Replace<UserResponse, {
     createdAt: number
@@ -65,3 +66,6 @@ export const signOut = () => BaseAxios.delete(
     '/users/session'
 ).then(throwThen<Record<string, never>>)
 .catch(throwCatch)
+
+// 계정 권한 이름(users.perms) — 서버 user.go와 같게
+export const PERM_WORKER_MOVE = 'worker_move'   // 전체 worker 주소 변경
