@@ -3,7 +3,7 @@ import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { deleteWorkerInstance, invalidateWorkerRoster, useWorkerRoster, type WorkerInstanceResponse } from '@/feature/worker/api/worker.api';
 import { useQueryClient } from '@tanstack/vue-query';
 import { computed, ref, watch } from 'vue';
-import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VForm, VIcon, VTextField } from 'vuetify/components';
+import { VCard, VCardText, VCardTitle, VDialog, VForm, VIcon, VTextField } from 'vuetify/components';
 import { osBadge, osTitle } from '@/feature/worker/util/workerOs.util';
 import { agoText } from '../../util/presenceView.util';
 
@@ -79,7 +79,7 @@ const onSubmit = () => emit('submit', trimmed.value || null);
 
 <template>
 <v-dialog v-model="open" max-width="440" min-width="296" :persistent="loading">
-    <v-card :loading="loading || removing" :disabled="loading || removing">
+    <v-card :loading="loading || removing" :disabled="loading || removing" class="ct-card">
         <v-card-title>{{ title }}</v-card-title>
         <v-form @submit.prevent="onSubmit">
             <v-card-text>
@@ -99,10 +99,13 @@ const onSubmit = () => emit('submit', trimmed.value || null);
                                     <i class="dot" :class="{ on: d.online > 0 }" />
                                     <span class="mono">{{ d.mainKey }}</span>
                                 </button>
-                                <span class="cnt" :class="{ on: d.online > 0 }">접속 {{ d.online }} / {{ d.instances.length }}</span>
-                                <button type="button" class="dev__fold" :aria-label="expanded[d.mainKey] ? '접기' : '인스턴스 펼치기'" @click="expanded[d.mainKey] = !expanded[d.mainKey]">
-                                    <v-icon size="16" :icon="expanded[d.mainKey] ? 'mdi-chevron-down' : 'mdi-chevron-right'" />
-                                </button>
+                                <!-- 찰떡: 행 끝 묶음(오른쪽 = 명부 벽 쪽 곧게) -->
+                                <span class="ct-grp ct-grp--r">
+                                    <span class="ct-seg ct-seg--txt cnt" :class="{ on: d.online > 0 }">접속 {{ d.online }} / {{ d.instances.length }}</span>
+                                    <button type="button" class="ct-seg ct-seg--icon" :aria-label="expanded[d.mainKey] ? '접기' : '인스턴스 펼치기'" @click="expanded[d.mainKey] = !expanded[d.mainKey]">
+                                        <v-icon size="16" :icon="expanded[d.mainKey] ? 'mdi-chevron-down' : 'mdi-chevron-right'" />
+                                    </button>
+                                </span>
                             </div>
                             <template v-if="expanded[d.mainKey]">
                                 <div v-for="inst in d.instances" :key="inst.subKey" class="inst" :class="{ off: !inst.online }">
@@ -112,7 +115,9 @@ const onSubmit = () => emit('submit', trimmed.value || null);
                                     <span v-if="inst.online" class="inst__seen on">접속 중 · 처음 {{ new Date(inst.firstSeen * 1000).toLocaleDateString() }}</span>
                                     <template v-else>
                                         <span class="inst__seen">{{ agoText(inst.lastSeen) }}</span>
-                                        <v-btn size="x-small" variant="outlined" color="error" @click="remove(inst)">삭제</v-btn>
+                                        <span class="ct-grp ct-grp--r">
+                                            <button type="button" class="ct-seg ct-seg--error" @click="remove(inst)">삭제</button>
+                                        </span>
                                     </template>
                                 </div>
                             </template>
@@ -121,10 +126,12 @@ const onSubmit = () => emit('submit', trimmed.value || null);
                     <span v-else class="roster__none">없음 — 접속한 worker가 아직 없습니다</span>
                 </div>
             </v-card-text>
-            <v-card-actions>
-                <v-btn variant="text" @click="open = false">취소</v-btn>
-                <v-btn type="submit" variant="flat" color="primary">확인</v-btn>
-            </v-card-actions>
+            <div class="ct-actions">
+                <span class="ct-grp ct-grp--r">
+                    <button type="button" class="ct-seg" @click="open = false">취소</button>
+                    <button type="submit" class="ct-seg ct-seg--primary">확인</button>
+                </span>
+            </div>
         </v-form>
     </v-card>
 </v-dialog>
@@ -137,7 +144,7 @@ const onSubmit = () => emit('submit', trimmed.value || null);
     gap: vars.$spacing-sm;
     margin-top: vars.$spacing-lg;
     @include vars.font('body-medium');
-    button:where(:not(.v-btn)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
+    button:where(:not(.v-btn, .ct-seg)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
         padding: 0;
         border: 0;
         background: none;
@@ -151,9 +158,6 @@ const onSubmit = () => emit('submit', trimmed.value || null);
 .roster__box {
     max-height: 240px;
     overflow: auto;
-    padding: 2px;
-    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 6px;
 }
 .mono { font-family: monospace; }
 .dot {
@@ -168,8 +172,9 @@ const onSubmit = () => emit('submit', trimmed.value || null);
     display: flex;
     align-items: center;
     gap: vars.$spacing-sm;
-    padding: 4px 6px;
-    border-radius: 4px;
+    min-height: 36px;
+    padding-left: 6px;
+    border-radius: 6px 0 0 6px;
     &.sel { background: rgba(var(--v-theme-primary), 0.08); }
 }
 .dev__pick {
@@ -182,18 +187,13 @@ const onSubmit = () => emit('submit', trimmed.value || null);
     span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     &:hover { color: rgb(var(--v-theme-primary)); }
 }
-.cnt {
-    @include vars.font('body-small');
-    opacity: 0.7;
-    &.on { color: rgb(var(--v-theme-success)); opacity: 1; }
-}
-.dev__fold { display: inline-flex; opacity: 0.7; }
+.cnt.on { color: rgb(var(--v-theme-success)); }
 .inst {
     display: flex;
     align-items: center;
     gap: vars.$spacing-sm;
-    min-height: 26px;
-    padding: 2px 6px 2px 22px;
+    min-height: 32px;
+    padding-left: 22px;
     @include vars.font('body-small');
     &.off .inst__key { opacity: 0.7; }
 }

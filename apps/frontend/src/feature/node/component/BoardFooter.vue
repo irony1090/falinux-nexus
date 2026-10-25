@@ -51,7 +51,7 @@ const style = computed(() => ({ height: `${size.value.h}px`, '--pill-h': `${size
 <!-- 키보드가 열린 동안 숨김: 높이는 그대로 둔다(빼면 Grid 영역이 바뀌어 타일이 옮겨 감 — REF-mobile-viewport.md 4) -->
 <footer ref="rootEl" class="BoardFooter" :class="{ hidden: kb.open }" :style="style">
     <div ref="leftEl" class="side left">
-        <foot-pill>
+        <foot-pill edge="left">
             <board-menu :compact="phone" />
         </foot-pill>
     </div>
@@ -59,7 +59,7 @@ const style = computed(() => ({ height: `${size.value.h}px`, '--pill-h': `${size
         <tile-nav />
     </div>
     <div ref="rightEl" class="side right">
-        <foot-pill v-if="!phone">
+        <foot-pill v-if="!phone" edge="right">
             <transfer-button />
             <v-btn size="small" density="comfortable" variant="text" icon title="위치 알림" @click="drawerOpen = !drawerOpen">
                 <v-badge v-if="unread" :content="unreadText" color="error" floating>
@@ -75,7 +75,7 @@ const style = computed(() => ({ height: `${size.value.h}px`, '--pill-h': `${size
             <v-btn size="small" density="comfortable" variant="text" :icon="auth ? 'mdi-logout' : 'mdi-login'" :title="auth ? '로그아웃' : '로그인'" @click="toggleAuth" />
         </foot-pill>
         <!-- 폰: 하나로 합쳐 위로 펼침, 안 읽은 알림은 빨간 점 -->
-        <foot-pill v-else>
+        <foot-pill v-else edge="right">
             <v-menu location="top center" offset="10">
                 <template #activator="{ props: act, isActive }">
                     <v-btn v-bind="act" density="comfortable" variant="text" icon :active="isActive" title="더 보기" aria-label="더 보기 - 전송, 알림, 전체 화면, 로그아웃">

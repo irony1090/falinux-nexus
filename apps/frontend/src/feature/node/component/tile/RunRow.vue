@@ -4,7 +4,7 @@ import type { ProcessStatus } from '@/feature/process/api/process.api';
 import { useQueryClient } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { VBtn, VChip, VIcon } from 'vuetify/components';
+import { VChip, VIcon, VProgressCircular } from 'vuetify/components';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { invalidateNodeRuns, useNodePath, type RunResponse } from '../../api/node.api';
 import { bindProcessTile } from '../../api/share.api';
@@ -82,10 +82,13 @@ const onKill = () => {
 </script>
 
 <template>
+<!-- 찰떡: 위치 번호는 타일 왼쪽 벽, 명령 묶음은 오른쪽 벽에 붙는다(REF-design-chaltteok.md) -->
 <div class="RunRow" :class="{ named: showName }">
-    <span v-if="local && !minimized" class="pos">{{ posOf.get(local.id) }}</span>
-    <span v-else-if="minimized" class="min" title="최소화"><v-icon size="11" icon="mdi-window-minimize" /></span>
-    <span v-else class="pos none">-</span>
+    <span class="ct-grp ct-grp--l ct-grp--sm">
+        <span v-if="local && !minimized" class="ct-seg pos">{{ posOf.get(local.id) }}</span>
+        <span v-else-if="minimized" class="ct-seg ct-seg--txt pos" title="최소화"><v-icon size="12" icon="mdi-window-minimize" /></span>
+        <span v-else class="ct-seg pos none">-</span>
+    </span>
     <span class="where">
         <template v-if="showName">
             <span v-if="pathText" class="path" :title="run.cwd">{{ pathText }} / </span>{{ run.name }}
@@ -97,12 +100,17 @@ const onKill = () => {
         <span class="by"> · {{ run.startedByMe ? '나' : run.startedBy }}</span>
     </span>
     <v-chip size="x-small" variant="tonal" class="pill" :color="pill.color">{{ pill.text }}</v-chip>
-    <span class="acts">
-        <v-btn v-if="local" size="x-small" variant="tonal" :color="minimized ? 'primary' : undefined" @click="onOpen">{{ minimized ? '열기' : '보기' }}</v-btn>
-        <v-btn v-else-if="board" size="x-small" variant="tonal" @click="onOpen">보드로 이동</v-btn>
-        <v-btn v-if="!bound" size="x-small" variant="tonal" color="primary" :loading="binding" title="이 터미널 타일을 현재 타일 아래로 옮김(없으면 새로 엶)" @click="onBind">현재 타일에 바인딩</v-btn>
-        <v-btn v-if="canKill" size="x-small" variant="text" :icon="run.terminating ? 'mdi-stop-circle' : 'mdi-stop'" :title="run.terminating ? '강제 종료…' : '종료…'" :loading="!!killing[run.uid]" @click="onKill" />
-        <v-btn v-else-if="local && !running" size="x-small" variant="text" icon="mdi-close" title="닫기" @click="closeTile(local.id)" />
+    <span class="ct-grp ct-grp--r ct-grp--sm">
+        <button v-if="local" type="button" class="ct-seg" :class="{ 'ct-seg--accent': minimized }" @click="onOpen">{{ minimized ? '열기' : '보기' }}</button>
+        <button v-else-if="board" type="button" class="ct-seg" @click="onOpen">보드로 이동</button>
+        <button v-if="!bound" type="button" class="ct-seg ct-seg--accent" :disabled="binding" title="이 터미널 타일을 현재 타일 아래로 옮김(없으면 새로 엶)" @click="onBind">
+            <v-progress-circular v-if="binding" indeterminate size="11" width="2" />현재 타일에 바인딩
+        </button>
+        <button v-if="canKill" type="button" class="ct-seg ct-seg--icon" :title="run.terminating ? '강제 종료…' : '종료…'" :disabled="!!killing[run.uid]" @click="onKill">
+            <v-progress-circular v-if="killing[run.uid]" indeterminate size="13" width="2" />
+            <v-icon v-else size="15" :icon="run.terminating ? 'mdi-stop-circle' : 'mdi-stop'" />
+        </button>
+        <button v-else-if="local && !running" type="button" class="ct-seg ct-seg--icon" title="닫기" @click="closeTile(local.id)"><v-icon size="15" icon="mdi-close" /></button>
     </span>
 </div>
 </template>
@@ -110,35 +118,22 @@ const onKill = () => {
 <style scoped lang="scss">
 .RunRow {
     display: grid;
-    grid-template-columns: 20px minmax(0, 1fr) auto auto;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     align-items: center;
-    gap: 6px;
-    min-height: 28px;
-    padding: vars.$spacing-xs vars.$spacing-xs vars.$spacing-xs 36px;
+    gap: vars.$spacing-md;
+    min-height: 32px;
+    padding: vars.$spacing-xs 0;
     @include vars.font('body-small');
-    &.named {
-        padding-left: vars.$spacing-md;
-        border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    }
-}
-.pos, .min {
-    min-width: 16px;
-    height: 16px;
-    padding: 0 4px;
-    border-radius: 4px;
-    display: inline-grid;
-    place-items: center;
-    @include vars.font('label-small');
-    font-weight: vars.$weight-lg;
+    &.named { border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
 }
 .pos {
-    background: rgb(var(--v-theme-on-surface));
-    color: rgb(var(--v-theme-surface));
-    &.none { opacity: 0.35; }
-}
-.min {
-    border: 1px dashed rgba(var(--v-border-color), 0.6);
-    opacity: 0.75;
+    min-width: 26px;
+    font-weight: vars.$weight-lg;
+    &:not(.ct-seg--txt):not(.none) {
+        background: rgb(var(--v-theme-on-surface));
+        color: rgb(var(--v-theme-surface));
+    }
+    &.none { opacity: 0.6; }
 }
 .where {
     min-width: 0;
@@ -148,9 +143,4 @@ const onKill = () => {
 }
 .path, .by { opacity: 0.6; }
 .pill { font-family: monospace; }
-.acts {
-    display: flex;
-    align-items: center;
-    gap: vars.$spacing-xs;
-}
 </style>

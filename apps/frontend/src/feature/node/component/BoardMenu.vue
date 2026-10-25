@@ -99,17 +99,16 @@ const onRemove = () => {
     gap: 8px;
     min-width: 0;
     max-width: 240px;
-    height: calc(var(--pill-h, 34px) - 6px);
-    padding: 0 8px 0 2px;
+    padding: 0 12px 0 8px;
     border: none;
-    border-radius: 999px;
+    border-radius: 0;       // 알약(FootPill edge)이 모양을 자른다
     background: none;
     color: inherit;
     font: inherit;
     font-weight: vars.$weight-lg;
     cursor: pointer;
     &:hover { background: rgba(var(--v-theme-on-surface), 0.06); }
-    &.compact { gap: 4px; padding: 0 6px 0 4px; }
+    &.compact { gap: 4px; padding: 0 12px 0 8px; }
 }
 .logo {
     flex: none;
