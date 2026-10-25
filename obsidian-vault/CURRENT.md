@@ -8,7 +8,7 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **(2026-10-25) 다음 = 새 파트 미정**(후보 `BACKLOG.md`) + 파트(supervisor 주소 실시간 변경)는 사용자 확인 대기(다음 주, 아래 항목). 작업 트리 = master(파트(빈 곳 길게 누르기) 머지 + 탭 줄 후속 + 확대 막기 커밋), 떠 있는 개발 서버 없음
+- **(2026-10-25 세션 끝) 다음 = 새 파트 미정**(후보 `BACKLOG.md`. worker 화면 송출(VNC)은 2026-10-25 논의 뒤 SC1(VNC 서버 준비) 방향 보류 → `REF-worker-screen.md`) + 파트(supervisor 주소 실시간 변경)는 사용자 확인 대기(다음 주, 아래 항목). 작업 트리 = master(파트(빈 곳 길게 누르기) 머지 + 탭 줄 후속 + 확대 막기 커밋), 떠 있는 개발 서버 없음
 - **2026-10-25 터치 확대 막기(master 바로)** → `REF-mobile-viewport.md` 7절: viewport·전역 touch-action·iOS gesturestart. 크롬 헤드리스 확인, test3 `web` 교체(옛 것 = `web.bak` = 파트(빈 곳 길게 누르기), 그 전 = `web.bak.press-pager-전`) — 사용자 확인 OK(2026-10-25, 아이폰은 미확인 → `BACKLOG.md`), test1 닫음
 - **2026-10-25 파트(빈 곳 길게 누르기) 마감·master 머지**(→ `INDEX-press-pager.md`): 경로 줄·도구 줄·목록 빈 곳 터치 길게 = 타일 컨트롤 패널 + 고른 칸의 누를 수 있는 라벨 테두리 부드럽게 강조. 사용자 test1 확인 OK(폴더·장비 타일). 마감 뒤 루트 탭 줄 빈 곳도 대상으로 고침(REF "후속"). test3 `build/ctrl_panel/web`을 이 빌드로 교체(옛 화면 = `web.bak` = 파트(목록 아이콘 보기), 그 전 것 = `web.bak.dir-grid-전`, 더 전 = `web.bak.tile-head-전`) — 사용자 test3 확인 OK(2026-10-25, 탭 줄 후속 포함), test1 닫음. 브랜치 `feat/press-pager` 남겨 둠, push 안 함
 - **2026-10-24 파트(목록 아이콘 보기) 마감·master 머지**(→ `INDEX-dir-grid.md`): 폴더·장비 타일 목록을 격자 아이콘 칸으로 교체(판 D′) + 누르기 규칙(한 번 = 고름, 더블 = 열기·실행, Ctrl·길게 = 체크) + 칸에서 공유·장비 지정. 사용자 test1 확인 OK. test3 `build/ctrl_panel/web`을 이 빌드로 교체(옛 화면 = `web.bak`, 그 전 것 = `web.bak.tile-head-전`) — 사용자 test3 확인 OK(2026-10-25), test1 닫음. 브랜치 `feat/dir-grid` 남겨 둠, push 안 함

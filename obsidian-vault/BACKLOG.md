@@ -7,7 +7,7 @@
 ## 다음 파트 후보 (기능)
 - **업로드 한계 보강** · 2026-10-23 · 필요해지면 · 대기 파일 목록 표시·탭 닫은 뒤 이어 올리기·폴더째 올리기(Q26)·worker 간 폴더 전송(Q36, → `REF-transfer-down.md`) → `REF-transfer-ext.md` "알려진 한계"
 - **SFTP 접근** · 2026-10-22 · **진행할 작업이 전혀 없을 때 이야기**(2026-10-23 Q21) · supervisor SFTP 서버로 `/{메인키}/{서브키}/...` 접근, 답 3개 대기 → `REF-worker-dir.md` "나중에"
-- **worker 화면 송출 + 조작** · 2026-10-15 아이디어 · 나(VNC 터널 + noVNC) 추천 → `REF-worker-screen.md`
+- **worker 화면 송출 + 조작** · 2026-10-15 아이디어(2026-10-25 재논의 보류) · 다시 시작하면 SC1(VNC 서버 준비) 방향부터(제안 = 안내 + 내려받기 -> 동봉, 원격 자동 설치 비추천) · 나(VNC 터널 + noVNC) 추천 → `REF-worker-screen.md` "VNC 서버 준비 방식 재논의"
 - **이미지·텍스트 보기 타일** · 2026-10-22 · worker -> 브라우저 방향 전송부터 → `REF-worker-dir.md` Q4(이미지·텍스트 보기)
 - **process 단독 공유 UI** · 지금 서버 API만, 두면 받는 쪽 진입점 = 기본 루트 터미널 탭 → `REF-tile-binding-rework.md` R3(경로 없는 process)
 - **회원가입** · 2026-10-12 사용자 "나중에" → `REF-frontend-auth.md` "회원가입"
