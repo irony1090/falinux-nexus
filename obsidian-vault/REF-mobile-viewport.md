@@ -61,3 +61,14 @@
 - resizes-content 흉내: `page.setViewportSize`로 창 높이를 키보드만큼 줄임(레이아웃·보이는 영역이 같이 줄어듦)
 - 함정: playwright `keyboard.type('B')`(대문자, shiftKey 없는 합성 keydown)는 실기기와 다르게 동작할 수 있음 -> 명령 키는 소문자로
 - 헤드리스로 못 보는 것: 실제 키보드 높이, 브라우저 막대 변화(3의 Edge 문제), IME 조합 -> 실기기 사진으로 확인(Nexus는 개발 서버 사진 업로드 도구 사용 → Nexus `REF-test-env.md` "폰 사진 올리기")
+
+## 7. 확대(핀치·더블탭) 막기 (2026-10-25 Nexus 적용)
+| 방법 | 먹는 브라우저 | 비고 |
+|---|---|---|
+| 줌-1(viewport) `maximum-scale=1, user-scalable=no` | Android 크롬 계열 | iOS Safari는 iOS 10부터 무시(단 입력칸 포커스 자동 확대는 막힘). `interactive-widget`과 같은 content에 같이 씀 |
+| 줌-2(전역 touch-action) `html { touch-action: pan-x pan-y }` | 크롬 + iOS Safari 13+ | 하위 `pan-x`·`none`·`manipulation`과 교집합이라 기존 터치 동작 그대로. 스크롤 상자 안에서도 핀치 막힘(크롬 실측) |
+| 줌-3(iOS 보강) `document` `gesturestart` -> `preventDefault` | iOS Safari만(gesture 이벤트) | touch-action이 안 먹는 옛 iOS 대비 |
+- 크롬 헤드리스 실측(폰 390, `--enable-viewport --enable-pinch --touch-events=enabled` + CDP 두 손가락 `dispatchTouchEvent` 벌리기 -> `visualViewport.scale`): 막기 전 머리 줄 5.00·스크롤 몸통 2.33 / 줌-1만·줌-2만·둘 다 = 전부 1.00
+- 함정: `Input.synthesizePinchGesture`는 막기 전에도 1.00이라 판별 불가 — 두 손가락 터치를 직접 보낼 것. iOS는 헤드리스로 못 봄 -> 실기기
+- 키보드 판정(2절)의 `vv.scale`은 확대를 막으면 항상 1 — 영향 없음
+- Nexus: `index.html`(줌-1) · `styles/global.scss` `html`(줌-2) · `main.ts`(줌-3), master에 바로 커밋 + test3 `web`만 교체

@@ -14,3 +14,6 @@
 
 ## 2026-10-23 — 자동완성 목록을 눌러도 키보드 유지
 - Nexus 파트(경로 직접 입력) 모바일 확인: 목록 상자 `mousedown.prevent`로 입력칸 포커스 유지 -> 키보드 안 내려감(사용자 실기기). REF 5-1절
+
+## 2026-10-25 — 확대 막기(줌-1~3)
+- 사용자: Nexus 웹 터치 줌 막기(아이폰 포함, 앱 전체, master 바로) -> 줌-1(viewport)·줌-2(전역 touch-action)·줌-3(iOS gesturestart) → REF 7절. 크롬 헤드리스로 막기 전후·방법별 비교(전부 1.00), test3 `web` 교체(옛 것 `web.bak`, 그 전 `web.bak.press-pager-전`)

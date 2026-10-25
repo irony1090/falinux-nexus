@@ -11,3 +11,4 @@
 ## 2026-10-25 마감
 - 사용자 test1 확인 "장비 타일까지 확인" + 마감·vault 정리·웹 빌드만 최신화 -> INDEX-press-pager로 접음(새 몸통 규칙은 `REF-tile-kinds.md` 4번), 커밋·master 머지, test3 `build/ctrl_panel/web` 교체
 - 사용자: 탭 줄 "터미널 N" 근처 길게 안 됨 -> 원인(`RootTabs`가 대상 밖) -> `data-pager-press` 붙임, master 커밋, test3 `web` 다시 교체 → REF "후속"
+- test3 사용자 확인 OK(탭 줄 후속 포함) -> test1(8011) 닫음
