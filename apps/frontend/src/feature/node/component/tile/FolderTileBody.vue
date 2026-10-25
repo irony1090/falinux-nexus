@@ -327,14 +327,14 @@ const onDrop = (e: DragEvent) => {
 </script>
 
 <template>
-<div ref="rootEl" class="FolderTileBody"
+<div ref="rootEl" data-pager-press class="FolderTileBody"
     :class="{ drop: dropAt === 'tile' }"
     @click="onBodyClick"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"
 >
-    <div class="crumbs" :class="{ editing }" @click="onCrumbsClick">
+    <div class="crumbs" :class="{ editing }" :data-pager-press-off="editing || undefined" @click="onCrumbsClick">
         <path-input v-if="editing" :value="pathText" :suggest="suggestPath" :submit="submitPath" @pick="onPick" @close="editing = false" />
         <!-- 입력 중엔 도구를 숨겨 입력칸이 줄 전체를 쓴다(좁은 타일에서 자동완성 목록 폭 확보) -->
         <template v-else>
@@ -494,6 +494,13 @@ const onDrop = (e: DragEvent) => {
         color: inherit;
         font: inherit;
         cursor: pointer;
+    }
+    // 터치 길게 누르기 = 타일 컨트롤 패널(길게-4) — 글자 선택·기본 메뉴 대신. 입력칸은 되살림(iOS는 막으면 입력이 안 됨)
+    @media (pointer: coarse) {
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        input { user-select: text; -webkit-user-select: text; }
     }
 }
 // 경로 줄 = 28px 한 줄, 좁은 타일은 두 줄. 경로는 앞쪽부터 줄어든다

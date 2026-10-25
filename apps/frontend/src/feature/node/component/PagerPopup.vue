@@ -86,7 +86,7 @@ const onKeyUp = (e: KeyboardEvent) => {
 // 창 전환(Ctrl+Alt+화살표 등)으로 keyup을 못 받는 경우
 const onBlur = () => held.value = false;
 
-// ---- 터치 길게 누르기 — 팝업-6. 자리 = 타일 머리 줄 + 타일 밖 빈 곳(Q57-1), 폴더 행·터미널 화면·버튼은 지금 동작 그대로 ----
+// ---- 터치 길게 누르기 — 팝업-6. 자리 = 타일 머리 줄 + 타일 밖 빈 곳(Q57-1) + 몸통의 `data-pager-press` 안 칸 밖(길게-2, REF-press-pager.md) ----
 let press: { timer: ReturnType<typeof setTimeout>; id: number; x: number; y: number } | null = null;
 const cancelPress = () => {
     if (press) clearTimeout(press.timer);
@@ -96,6 +96,8 @@ const pressable = (t: EventTarget | null) => {
     if (!(t instanceof Element) || overview.value) return false;
     if (t.closest('button, a, input, textarea, [role="button"], .v-btn')) return false;
     if (t.closest('.TileFrame__head')) return true;
+    const own = t.closest('[data-pager-press]');
+    if (own) return !t.closest('.DirGridCell, [data-pager-press-off]');
     return !!t.closest('.TileStrip') && !t.closest('.TileFrame');
 }
 const inside = (t: EventTarget | null) => t instanceof Node && (!!boxEl.value?.contains(t) || !!cardEl.value?.contains(t));

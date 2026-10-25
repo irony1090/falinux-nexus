@@ -24,7 +24,7 @@ defineProps({
 </script>
 
 <template>
-<div class="DirGridCell" :class="{ checked, focused }">
+<div class="DirGridCell" :class="{ checked, focused, checking }">
     <div class="box">
         <span v-if="checking" class="dg-btn dg-btn--l check" :class="{ on: checked }">
             <v-icon v-if="checked" size="13" icon="mdi-check-bold" /><i v-else />

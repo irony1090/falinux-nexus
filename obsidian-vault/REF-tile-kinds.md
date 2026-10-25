@@ -64,6 +64,7 @@
 1. `tileKind.go` `tileKinds` 줄 + 그 종류만의 `check` / 프론트 `TILE_KINDS` 줄 + `tile.type.ts` `TileType` + `tileTree.store` 타입(능력에 맞게 `ParentTile`·`ProcTile` 합집합에 넣기)
 2. 종류 컴포넌트(`TileFrame` 채우기) + `TILE_COMPONENTS` 줄
 3. 폴더 전용으로 남긴 것 중 그 종류에도 필요한 것(루트 탭·opener·보드 메뉴 hook)을 골라 씀
+4. (2026-10-25, 파트(빈 곳 길게 누르기)) 몸통 빈 곳도 터치 길게 = 타일 컨트롤 패널이 되게 몸통 루트에 `data-pager-press`, 입력 중인 자리엔 `data-pager-press-off` (→ `INDEX-press-pager.md`)
 
 ## 확인 (2026-10-22, 정리-7)
 - `go build`·`go vet`·`go test`(router 9개) · `vue-tsc` · `vite build` 통과
