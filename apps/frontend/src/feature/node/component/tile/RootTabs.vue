@@ -10,7 +10,7 @@ const minCount = computed(() => runs.value.filter(r => r.minimized).length);
 </script>
 
 <template>
-<div class="RootTabs" :inert="overview">
+<div class="RootTabs" data-pager-press :inert="overview">
     <button :class="{ on: rootTab === 'files' }" @click="rootTab = 'files'">파일</button>
     <button :class="{ on: rootTab === 'terminals' }" @click="rootTab = 'terminals'">
         터미널 {{ runs.length }}<template v-if="minCount"> · 최소화 {{ minCount }}</template>

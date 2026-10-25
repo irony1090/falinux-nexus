@@ -7,6 +7,7 @@
 - 자리: 경로 줄 빈 곳·현재 폴더 글자·도구 줄 빈 곳·목록 칸 밖 = 패널(짧게 = 경로 입력칸 그대로) / 칸 안 = 체크 / 버튼·라벨 = 각자 / 터미널 화면 제외. 폴더·장비 타일
 - 라벨: 고른 칸의 `button.dg-lbl`만 안쪽 1.5px 테두리 0.2초 전환(장비 = 라벨 색, 공유 수(solid) = `--on-c`), 선택 모드 제외
 - 코드: `PagerPopup.vue` `pressable` · 두 body 루트 `data-pager-press`(+ 경로 편집 중 `data-pager-press-off`) · `dir-grid.scss` `--ring` · `DirGridCell` `checking` 클래스
+- 후속(마감 뒤): 루트 탭 줄(`RootTabs`)도 대상 → REF "후속"
 - 확인: 헤드리스 폰 390 CDP 터치 13/13(test1 -> test3 API) + **사용자 test1 확인 OK**(폴더·장비 타일, 2026-10-25). 배포 = test3 `build/ctrl_panel/web`만 교체(백엔드 변경 없음)
 - 커밋: 브랜치 `feat/press-pager`에 파트 마감 커밋 1개 -> master `--no-ff` 머지
 
