@@ -50,15 +50,20 @@
 	white-space: nowrap;
 	color: rgb(var(--c));
 	background: color-mix(in srgb, rgb(var(--c)) 18%, rgb(var(--v-theme-surface)));
-	box-shadow: 0 0 0 1.5px var(--dg-box);
+	--ring: var(--c);
+	box-shadow: 0 0 0 1.5px var(--dg-box), inset 0 0 0 1.5px rgba(var(--ring), 0);
+	transition: box-shadow 0.2s ease;
 	> .k { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 	> .dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 }
 .dg-lbl--solid {
+	--ring: var(--on-c, var(--v-theme-surface));
 	color: rgb(var(--on-c, var(--v-theme-surface)));
 	background: rgb(var(--c));
 }
 button.dg-lbl { cursor: pointer; }
+// 고른 칸 = 누를 수 있는 라벨(button)만 안쪽 테두리가 부드럽게 나타남(라벨-1). 선택 모드에선 라벨 = 체크라 제외
+.DirGridCell.focused:not(.checking) button.dg-lbl { box-shadow: 0 0 0 1.5px var(--dg-box), inset 0 0 0 1.5px rgba(var(--ring), 0.9); }
 .dg-r > .dg-lbl { padding: 0 6px 0 7px; border-radius: 999px 0 0 999px; }
 .dg-l > .dg-lbl { padding: 0 7px 0 6px; border-radius: 0 999px 999px 0; }
 
