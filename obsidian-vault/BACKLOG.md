@@ -34,6 +34,7 @@
 - **같은 메인키 worker 2개의 보관 소켓 폴더 공유** · 2026-10-22 · test1·test3이 `/tmp/nexus-hold-1000/<메인키>/`를 같이 씀. 지금은 sqlite 목록이 달라 무해, 폴더를 훑는 정리 코드를 넣거나 두 빌드를 계속 나란히 둘 때 다시 → `REF-process-keep.md` "test3 재배포"
 - **PTY 환경에서 `CLAUDE*` 빼기** · 2026-10-22 · Claude가 띄운 worker의 변수가 터미널로 넘어가 그 안의 Claude가 transcript 저장 안 함. worker가 PTY 환경을 만들 때 `CLAUDE*` 제거(코드 위치 미조사). 다음에 worker 실행 코드를 고칠 때 → `REF-build.md` "Claude가 띄운 빌드본"
 - **SendFile abort 구분** · 정상 중단 sentinel 에러는 필요해지면 → `REF-transfer.md`
+- **집 서버 Cloudflare Access** · 2026-10-25 미룸(사용자) · 집 서버를 다른 사람에게 알리기 전 / `/worker` 무인증이라 열어 둔 동안 가짜 worker 등록 가능 · 걸 때 회사 worker용 `/worker` 경로 예외 필요 · → `REF-home-server.md` "코드 쪽 확인 결과"
 
 ## 보류한 설계 · 정리
 - **Label 모듈** · 2026-10-12 · 다시 볼 조건 → `REF-node-label.md` "Label 모듈"
