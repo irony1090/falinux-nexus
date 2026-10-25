@@ -1,6 +1,7 @@
 # REF — 타일 머리 줄 버튼
 
 > → 이력 `history/tile-head.md` · → 진행 `CURRENT.md`
+> 버튼 모양 규칙(벽에 닿는 끝 = 부모 모양)은 **찰떡 규칙**으로 정리됨 → `REF-design-chaltteok.md`(아래 조정-2 정정이 출처)
 > 파트(타일 머리 줄 버튼), 2026-10-24 조율·구현·**마감**(→ `INDEX-tile-head.md`). 브랜치 `feat/tile-head`(master에서, vault는 `feat/supervisor-move` 것을 그대로 옮겨 옴 — 두 브랜치 vault가 같은 내용으로 시작)
 
 ## 바라는 것 (사용자 2026-10-24)
