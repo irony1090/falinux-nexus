@@ -17,3 +17,4 @@
 
 ## 2026-10-25 — 확대 막기(줌-1~3)
 - 사용자: Nexus 웹 터치 줌 막기(아이폰 포함, 앱 전체, master 바로) -> 줌-1(viewport)·줌-2(전역 touch-action)·줌-3(iOS gesturestart) → REF 7절. 크롬 헤드리스로 막기 전후·방법별 비교(전부 1.00), test3 `web` 교체(옛 것 `web.bak`, 그 전 `web.bak.press-pager-전`)
+- 사용자 확인 OK(아이폰은 미확인, "괜찮을 것 같다" → `BACKLOG.md`) -> test1 닫음

@@ -19,6 +19,8 @@
 - **worker "전부 종료" 수단** · 2026-10-22 · 파트(process 살려 두기)에서 기본 = 살려 둠(K4), 끌 때 process까지 정리하는 명령(예: `worker -stop-all`)은 필요해지면 → `REF-process-keep.md`
 
 ## 확인만 남은 것
+- **아이폰 터치 확대 막기** · 2026-10-25 · 아이폰으로 Nexus를 열 일이 생기면(사용자 "괜찮을 것 같다", 미확인) · 핀치·더블탭이 막히는지 → `REF-mobile-viewport.md` 7절
+- **test3 웹 백업 폴더 정리** · 2026-10-25 · 다음 배포 때 · `build/ctrl_panel/web.bak*` 4개(`web.bak`·`press-pager-전`·`dir-grid-전`·`tile-head-전`) 남길 범위 사용자 미정 → `CURRENT.md` "지금 떠 있는 것"
 - **시연 순서 점검** · 2026-10-16 · 브라우저로 irony + test3 동시, Nexus 경유 실행 미확인(xterm.js 한글 정렬·24bit 색 사진, worker 카메라) → `REF-demo.md` "시연 순서"
 - **iPhone 실기기 확인** · 2026-10-01 · iPhone이 생기면(헤드리스로 iOS 키보드 재현 불가) → `REF-node-ui-overview.md` "모바일 가상 키보드"
 - **Windows 미확인 항목** · 2026-10-19 · `.py` 실행·EDIT 저장 CRLF·TEMP 경로 공백 → `REF-windows-worker.md`
