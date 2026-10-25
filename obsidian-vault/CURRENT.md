@@ -8,7 +8,7 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **(2026-10-25 세션 끝) 다음 = 새 파트 미정**(후보 `BACKLOG.md`. worker 화면 송출(VNC)은 2026-10-25 논의 뒤 SC1(VNC 서버 준비) 방향 보류 → `REF-worker-screen.md`) + 파트(supervisor 주소 실시간 변경)는 사용자 확인 대기(다음 주, 아래 항목). 작업 트리 = master(파트(빈 곳 길게 누르기) 머지 + 탭 줄 후속 + 확대 막기 커밋), 떠 있는 개발 서버 없음
+- **(2026-10-25 세션 끝) 다음 = 새 파트 미정**(후보 `BACKLOG.md`. worker 화면 송출(VNC)은 2026-10-25 논의 뒤 SC1(VNC 서버 준비) 방향 보류 → `REF-worker-screen.md`) + 파트(supervisor 주소 실시간 변경)는 사용자 확인 대기(다음 주, 아래 항목). 작업 트리 = master(파트(빈 곳 길게 누르기) 머지 + 탭 줄 후속 + 확대 막기 + 찰떡 규칙 vault 커밋), 떠 있는 개발 서버 없음. **MEMORY 9.9k자** — 줄이 더 늘면 색인 2단화(마감 파트 줄을 INDEX로)부터
 - **2026-10-25 디자인 규칙 "찰떡 규칙" 정리 끝** → `REF-design-chaltteok.md`(규칙 본문, 다른 작업공간도 직접 참조, 전역 CLAUDE.md엔 안 넣음) · 아티팩트 https://claude.ai/artifact/JzUCKbGWTm4TL8A3GpqeRo · user vault `user/links.md` "디자인 규칙" 절. 코드 변경 없음
 - **2026-10-25 터치 확대 막기(master 바로)** → `REF-mobile-viewport.md` 7절: viewport·전역 touch-action·iOS gesturestart. 크롬 헤드리스 확인, test3 `web` 교체(옛 것 = `web.bak` = 파트(빈 곳 길게 누르기), 그 전 = `web.bak.press-pager-전`) — 사용자 확인 OK(2026-10-25, 아이폰은 미확인 → `BACKLOG.md`), test1 닫음
 - **2026-10-25 파트(빈 곳 길게 누르기) 마감·master 머지**(→ `INDEX-press-pager.md`): 경로 줄·도구 줄·목록 빈 곳 터치 길게 = 타일 컨트롤 패널 + 고른 칸의 누를 수 있는 라벨 테두리 부드럽게 강조. 사용자 test1 확인 OK(폴더·장비 타일). 마감 뒤 루트 탭 줄 빈 곳도 대상으로 고침(REF "후속"). test3 `build/ctrl_panel/web`을 이 빌드로 교체(옛 화면 = `web.bak` = 파트(목록 아이콘 보기), 그 전 것 = `web.bak.dir-grid-전`, 더 전 = `web.bak.tile-head-전`) — 사용자 test3 확인 OK(2026-10-25, 탭 줄 후속 포함), test1 닫음. 브랜치 `feat/press-pager` 남겨 둠, push 안 함
