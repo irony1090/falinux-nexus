@@ -1,0 +1,75 @@
+// 찰떡 묶음 — 벽에 닿는 끝만 곧고 안쪽은 반원(REF-design-chaltteok.md). 칸마다 바탕, 칸 사이 바탕색 1px
+.ct-grp {
+	flex: none;
+	align-self: center;
+	display: inline-flex;
+	align-items: stretch;
+	height: 28px;
+	border-radius: 999px;
+	overflow: hidden;
+	@include vars.font('label-medium');
+	font-weight: vars.$weight-md;
+	> .ct-seg:first-child { padding-left: 13px; }
+	> .ct-seg:last-child { padding-right: 13px; }
+}
+.ct-grp--r {
+	border-radius: 999px 0 0 999px;
+	> .ct-seg:last-child { padding-right: 10px; }
+}
+.ct-grp--l {
+	border-radius: 0 999px 999px 0;
+	> .ct-seg:first-child { padding-left: 10px; }
+}
+.ct-grp--sm {
+	height: 24px;
+	@include vars.font('label-small');
+	> .ct-seg { padding: 0 9px; }
+	&.ct-grp--r > .ct-seg:first-child { padding-left: 12px; }
+	&.ct-grp--l > .ct-seg:last-child { padding-right: 12px; }
+}
+
+.ct-seg {
+	--c: var(--v-theme-on-surface);
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	padding: 0 10px;
+	border: 0;
+	background: rgba(var(--c), 0.07);
+	color: rgb(var(--c));
+	font: inherit;
+	white-space: nowrap;
+	&:is(button) { cursor: pointer; }
+	&:is(button):hover:not(:disabled) { background: rgba(var(--c), 0.16); }
+	&:disabled { cursor: default; opacity: 0.5; }
+	& + & { box-shadow: inset 1px 0 0 rgb(var(--v-theme-surface)); }
+}
+// 글자만 있는 칸 — 조금 진하게 칠해 묶음의 안쪽 반원이 보이게
+.ct-seg--txt { background: rgba(var(--c), 0.12); }
+.ct-seg--icon { padding: 0 7px; }
+// 기능 색 칸
+.ct-seg--share { --c: var(--v-theme-share); background: rgba(var(--c), 0.14); }
+.ct-seg--error { --c: var(--v-theme-error); background: rgba(var(--c), 0.12); }
+.ct-seg--accent { --c: var(--v-theme-primary); background: rgba(var(--c), 0.14); }
+.ct-seg--primary {
+	background: rgb(var(--v-theme-primary));
+	color: rgb(var(--v-theme-on-primary));
+	&:is(button):hover:not(:disabled) { background: rgba(var(--v-theme-primary), 0.85); }
+}
+.ct-seg--primary + .ct-seg, .ct-seg + .ct-seg--primary { box-shadow: none; }
+
+// 창 아래 버튼 = 창 오른쪽 아래 모서리에 붙는 끝 블록. 모서리 곡선은 창(.ct-card)이 자른다
+.ct-card { overflow: hidden; }
+.ct-actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: vars.$spacing-md;
+	> .ct-grp {
+		height: 40px;
+		@include vars.font('label-large');
+		> .ct-seg { padding: 0 18px; }
+		> .ct-seg:first-child { padding-left: 22px; }
+	}
+}

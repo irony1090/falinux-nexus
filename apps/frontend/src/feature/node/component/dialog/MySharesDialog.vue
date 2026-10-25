@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQueryClient } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
-import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VIcon, VSpacer } from 'vuetify/components';
+import { VCard, VCardText, VCardTitle, VDialog, VIcon } from 'vuetify/components';
 import { deleteNodeShare, deleteProcessShare, invalidateMyShares, invalidateNodeShares, useMyShares, type MyShare } from '../../api/share.api';
 import { levelTitle, PERM_BLOCK } from '../../util/shareView.util';
 
@@ -39,7 +39,7 @@ const release = (s: MyShare) => {
 
 <template>
 <v-dialog v-model="open" max-width="460" min-width="296" :persistent="loading">
-    <v-card :loading="loading || query.isFetching.value" :disabled="loading">
+    <v-card :loading="loading || query.isFetching.value" :disabled="loading" class="ct-card">
         <v-card-title>내가 공유한 것</v-card-title>
         <v-card-text>
             <p v-if="query.isPending.value" class="note">불러오는 중…</p>
@@ -52,16 +52,19 @@ const release = (s: MyShare) => {
                 </div>
                 <div v-for="s in g.rows" :key="s.userId" class="row">
                     <span class="who">{{ s.nickname }}</span>
-                    <span class="lv" :class="{ block: s.permission === PERM_BLOCK }">{{ levelText(s.permission) }}</span>
-                    <v-btn size="x-small" variant="text" color="error" @click="release(s)">해제</v-btn>
+                    <span class="ct-grp ct-grp--r">
+                        <span class="ct-seg ct-seg--txt" :class="{ 'text-error': s.permission === PERM_BLOCK }">{{ levelText(s.permission) }}</span>
+                        <button type="button" class="ct-seg ct-seg--error" @click="release(s)">해제</button>
+                    </span>
                 </div>
             </div>
             <p v-if="message" class="note err">{{ message }}</p>
         </v-card-text>
-        <v-card-actions>
-            <v-spacer />
-            <v-btn variant="text" @click="open = false">닫기</v-btn>
-        </v-card-actions>
+        <div class="ct-actions">
+            <span class="ct-grp ct-grp--r">
+                <button type="button" class="ct-seg ct-seg--primary" @click="open = false">닫기</button>
+            </span>
+        </div>
     </v-card>
 </v-dialog>
 </template>
@@ -72,7 +75,6 @@ const release = (s: MyShare) => {
 .head { display: flex; align-items: center; gap: 6px; font-weight: vars.$weight-lg; min-width: 0; }
 .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tag { @include vars.font('label-small'); padding: 0 6px; border-radius: 8px; color: rgb(var(--v-theme-share)); background: rgba(var(--v-theme-share), 0.12); white-space: nowrap; }
-.row { display: flex; align-items: center; gap: vars.$spacing-sm; padding: 2px 0 2px 22px; @include vars.font('body-medium'); }
+.row { display: flex; align-items: center; gap: vars.$spacing-sm; min-height: 36px; padding-left: 22px; @include vars.font('body-medium'); }
 .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lv { color: rgb(var(--v-theme-share)); &.block { color: rgb(var(--v-theme-error)); } }
 </style>

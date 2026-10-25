@@ -7,6 +7,7 @@
 - 환경: supervisor·worker는 사용자가 띄움(`docker start postgres15` → supervisor → worker, dev 서버 3000). 테스트 로그인 = `pages/Login.vue` 기본값 계정. 헤드리스 = `~/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome` + `playwright-core`(scratchpad에 `npm i`). worker 연결만 끊는 재현 = `REF-process-reconnect.md` "재현 방법"
 - 스크립트는 직접 실행이라 `#!/bin/sh` 등 shebang 필수(없으면 `exec format error`)
 - 재부팅으로 사라지는 것: 세션 scratchpad의 playwright-core + 테스트 스크립트(4.5 `snap/server.mjs`·`browser.mjs`·`probe.mjs`, 이전 `tiles/*.mjs`·`input/*.mjs`). 다시 쓸 땐 `REF-process-snapshot-impl.md` "스냅샷-b/-d"·`REF-node-ui-save-impl.md`·`REF-node-ui-sync.md` 각 확인 절(항목·함정), `REF-process-input.md` "입력-a/입력-c" 보고 재작성. 테스트는 계정을 새로 만들고 폴더 `deviceKey=irony-MAC-ADDress1`로 하면 irony 타일 트리를 안 건드림
+- **실제 계정 화면(test1 -> test3 API, irony) 헤드리스 확인 = 보기만**(2026-10-25 찰떡 UI 때 두 번 실수: `button:has(.mdi-play)`가 칸 "실행"에 걸려 스크립트 실행 · 공유 버튼이 늦게 그려져 좌표 클릭이 "장비 디렉토리 열기"에 걸림): 좌표 클릭 금지, 선택자는 클래스·title로 정확히(`button.dg-lbl:has(.mdi-play)`, `button[title="이 폴더 공유"]`), `.RootTabs` 대기 + 2초 뒤 누름. 로그인 = `.env.development.local` 주석 줄 계정으로 test3 `/users/session` -> `storageState`
 
 - **로그인 기본값(2026-10-19)**: `.env.development.local`의 `VITE_DEV_LOGIN_ID/PW` 줄이 주석 처리돼 있어 폼이 빔 -> 헤드리스 확인은 격리 supervisor에 계정을 만들어 씀(→ `REF-test-scripts-1014.md` "2026-10-19 보드 URL 바인딩")
 
