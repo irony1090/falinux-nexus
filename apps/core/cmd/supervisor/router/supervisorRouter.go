@@ -50,6 +50,7 @@ type supervisorRouter struct {
 	transfers      *manager.KeyValManager[string, *transferItem] // 전송 목록(transferList.go)
 	uploadDir      string                                        // 업로드 임시 파일(upload.go)
 	copySlots      chan struct{}                                 // worker 간 중계 동시 수(copy.go)
+	unregistered   *unregisteredSet                              // 인스턴스별 미등록 process(workerMove.go)
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -86,6 +87,7 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 		transfers:      manager.NewKeyValManager[string, *transferItem](),
 		uploadDir:      newUploadDir(),
 		copySlots:      make(chan struct{}, copyParallel),
+		unregistered:   newUnregisteredSet(),
 	}
 	go router.runPurge() // 끝난 process 주기 삭제(K2(supervisor 정리))
 	go router.runTransferSweep()
@@ -162,6 +164,7 @@ func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 	if key != "" {
 		router.workers.Remove(key)
 		router.workerOS.Remove(key)
+		router.unregistered.drop(key)
 		recordSeen(key, false, "")
 		router.reconcileDisconnect(key)
 		// 미완 전송의 reader는 여기서 닫지 않는다 — send가 재접속을 기다려 이어 보내므로

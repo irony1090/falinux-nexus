@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -56,38 +55,56 @@ func main() {
 	}
 	env := constants.GetEnv()
 
-	u := url.URL{Scheme: env.WsScheme, Host: env.WsHost, Path: "/worker"}
+	addrs, err := router.LoadAddrBook(store.GetStorePool(), env.WsScheme+"://"+env.WsHost)
+	if err != nil {
+		log.Fatalf("worker: supervisor 주소 목록 %v", err)
+	}
 	backoff := util.NewBackoff(0, time.Second*2, time.Second*60)
 	holdDir, err := router.HoldDir(env.Name)
 	if err != nil {
 		log.Fatalf("worker: 보관 프로세스 폴더 %v", err)
 	}
-	state := router.NewWorkerState(store.GetStorePool(), holdDir) // 재접속 루프 동안 procs·live conn 유지(재바인딩 기반)
+	state := router.NewWorkerState(store.GetStorePool(), holdDir, addrs) // 재접속 루프 동안 procs·live conn 유지(재바인딩 기반)
 	state.Recover()
 	go handleSignals()
 	for {
-		log.Printf("접속 시도 worker -> supervisor")
+		if connectRound(env.Name, addrs, state) {
+			backoff.Reset() // 정상 가동했었으면 다음 재시도는 짧게
+		}
+		time.Sleep(backoff.Next())
+	}
+}
+
+// connectRound는 주소 목록을 순위대로 한 번씩 시도한다 — 주소-1(주소 목록), REF-supervisor-move.md.
+// 붙었던 세션이 끝나면 바로 돌아가 1순위부터 다시(옮기기 명령이 바꾼 순위 반영), 등록까지 간 주소는 1순위로 올린다
+func connectRound(name string, addrs *router.AddrBook, state *router.WorkerState) (reached bool) {
+	for _, addr := range addrs.List() {
+		log.Printf("접속 시도 worker -> supervisor %s", addr)
 		done, err := router.NewWorkerRouter(
-			u,
-			env.Name,
+			router.WorkerURL(addr),
+			name,
 			store.GetStorePool(),
 			state,
-			func() { log.Printf("등록 완료, 접속 성공") }, // register 성공 시 호출
+			func() { // register 성공 시 호출
+				log.Printf("등록 완료, 접속 성공 %s", addr)
+				if _, err := addrs.Promote(addr); err != nil {
+					log.Printf("주소 순위 저장 실패 %v", err)
+				}
+			},
 		)
 		if err != nil {
-			log.Printf("접속 실패(dial) %v", err)
-			time.Sleep(backoff.Next())
+			log.Printf("접속 실패(dial) %s %v", addr, err)
 			continue
 		}
 
 		log.Printf("WS 연결됨, 등록 시도 중...") // dial 성공(등록 성공은 위 콜백에서 로그)
 		res := <-done                    // 세션 종료까지 대기(끊김/등록실패)
-		if res.Reached {
-			backoff.Reset() // 정상 가동했었으면 다음 재시도는 짧게
-		}
 		log.Printf("세션 종료(reached=%v) %v", res.Reached, res.Err)
-		time.Sleep(backoff.Next())
+		if res.Reached {
+			return true
+		}
 	}
+	return false
 }
 
 // handleSignals는 종료 신호에 worker만 끝낸다 — process는 보관 프로세스에 남는다(K4(기본 종료 동작), REF-process-keep.md).

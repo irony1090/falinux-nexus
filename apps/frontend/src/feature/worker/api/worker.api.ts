@@ -122,3 +122,57 @@ export const suggestWorkerDir = (instance: string, folderId: number, q: { dir: s
     ).then(throwThen<DirSuggestResponse>)
     .catch(throwCatch)
 }
+
+// ---- supervisor 주소 옮기기·미등록 process — 주소-2(옮기기 명령)·주소-4(미등록 process), REF-supervisor-move.md ----
+const instanceUrl = (instance: string, rest: string) => {
+    const i = instance.lastIndexOf('#')
+    return `/workers/${encodeURIComponent(instance.slice(0, i))}/${encodeURIComponent(instance.slice(i + 1))}/${rest}`
+}
+
+// worker에 저장된 supervisor 주소 목록(1순위부터, 최대 3)
+export type AddrsResponse = { addrs: string[] }
+
+export const listWorkerAddrs = (instance: string, folderId: number) => BaseAxios.get(
+    instanceUrl(instance, 'addrs'),
+    { params: { folderId } }
+).then(throwThen<AddrsResponse>)
+.catch(throwCatch)
+
+// now = 바로 옮기기 / false = 저장만(지금 supervisor가 끊기면 옮김) — 주소-Q9(즉시 옮김 여부)
+export const moveWorker = (instance: string, folderId: number, url: string, now: boolean) => BaseAxios.post(
+    instanceUrl(instance, 'move'),
+    { folderId, url, now }
+).then(throwThen<AddrsResponse>)
+.catch(throwCatch)
+
+export type MoveAllResult = { instanceKey: string; addrs: string[]; error?: string }
+
+// 접속 중인 worker 전부 — worker_move 권한만(없으면 403)
+export const moveAllWorkers = (url: string, now: boolean) => BaseAxios.post(
+    '/workers/move-all',
+    { url, now }
+).then(throwThen<MoveAllResult[]>)
+.catch(throwCatch)
+
+// 미등록 process = 이 supervisor DB에 기록이 없는데 worker에서 살아 있는 것(다른 supervisor에서 띄운 것 등)
+export type UnregisteredProcess = {
+    uid: string
+    kind: 'EXEC' | 'EDIT'
+    label: string           // 스크립트 노드 이름(장비 파일 실행·이 기능 전에 띄운 것은 빈 값)
+    cmd: string             // 명령 + 인자(이 기능 전에 띄운 것은 빈 값). 스크립트 노드면 worker 임시 파일 경로
+    cwd: string
+    pid: number
+    startedAt: number       // Unix 초, 0 = 모름
+}
+
+export const listUnregistered = (instance: string, folderId: number) => BaseAxios.get(
+    instanceUrl(instance, 'unregistered'),
+    { params: { folderId } }
+).then(throwThen<UnregisteredProcess[]>)
+.catch(throwCatch)
+
+export const killUnregistered = (instance: string, folderId: number, uid: string, force: boolean) => BaseAxios.post(
+    instanceUrl(instance, `unregistered/${encodeURIComponent(uid)}/kill`),
+    { folderId, force }
+).then(throwThen<{}>)
+.catch(throwCatch)

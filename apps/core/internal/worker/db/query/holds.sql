@@ -1,6 +1,6 @@
 -- name: InsertHold :exec
-INSERT INTO holds (uid, kind, edit_path, sock, holder_pid, pid)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO holds (uid, kind, edit_path, sock, holder_pid, pid, label, cmd, cwd)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: DeleteHold :exec
 DELETE FROM holds WHERE uid = ?;

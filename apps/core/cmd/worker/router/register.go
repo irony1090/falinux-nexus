@@ -82,9 +82,14 @@ func (r *workerRouter) sendSync() {
 	procs := make([]protocol.SyncEntry, 0, len(snapshot))
 	for _, e := range snapshot {
 		procs = append(procs, protocol.SyncEntry{
-			UID:    e.Val.uid,
-			Status: execute.CommandProcess,
-			PID:    e.Val.pid,
+			UID:       e.Val.uid,
+			Status:    execute.CommandProcess,
+			PID:       e.Val.pid,
+			Kind:      e.Val.kind,
+			Label:     e.Val.label,
+			Cmd:       e.Val.cmd,
+			Cwd:       e.Val.cwd,
+			StartedAt: e.Val.startedAt,
 		})
 	}
 	if err := r.conn.Emit(protocol.MsgSync, protocol.SyncEvent{Procs: procs}); err != nil {

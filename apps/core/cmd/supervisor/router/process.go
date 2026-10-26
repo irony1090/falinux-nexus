@@ -52,7 +52,7 @@ func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.E
 		r.failExec(uid)
 		return "", fmt.Errorf("content 선배치 실패: %w", err)
 	}
-	return uid, r.launch(worker, entry, tabID)
+	return uid, r.launch(worker, entry, tabID, node.Name)
 }
 
 // ExecFile: 장비 디렉토리 파일 실행(폴더-4(실행)) — 본문 선배치 없이 Exec의 3~5단계만. 소유·실행 = userID
@@ -63,11 +63,11 @@ func (r *supervisorRouter) ExecFile(userID int64, authKey, cmd, cwd string, dirN
 		return "", err
 	}
 	uid := entry.Record.Uid
-	return uid, r.launch(worker, entry, tabID)
+	return uid, r.launch(worker, entry, tabID, "")
 }
 
-// launch: 등록된 process를 worker에서 시작한다. 실패하면 FAILED로 닫는다
-func (r *supervisorRouter) launch(worker *transport.Conn, entry *process.ProcessEntry, tabID string) error {
+// launch: 등록된 process를 worker에서 시작한다. 실패하면 FAILED로 닫는다. label = 스크립트 노드 이름(미등록 process 표시용)
+func (r *supervisorRouter) launch(worker *transport.Conn, entry *process.ProcessEntry, tabID, label string) error {
 	uid := entry.Record.Uid
 
 	// 3. 순서 의존: 구독은 relay Start() 전에 — 늦으면 RUNNING 등 첫 이벤트를 놓친다
@@ -79,7 +79,9 @@ func (r *supervisorRouter) launch(worker *transport.Conn, entry *process.Process
 	// 5. worker에 실행 명령
 	ctx, cancel := context.WithTimeout(context.Background(), sendCallTimeout)
 	defer cancel()
-	res, err := worker.Call(ctx, protocol.MsgExec, entry.Spec())
+	spec := entry.Spec()
+	spec.Label = label
+	res, err := worker.Call(ctx, protocol.MsgExec, spec)
 	if err != nil {
 		r.failExec(uid)
 		return fmt.Errorf("MsgExec 전송 실패: %w", err)
@@ -173,6 +175,9 @@ func (r *supervisorRouter) status(ev protocol.Frame) {
 		return
 	}
 	log.Printf("[PROCESS.GO] status %v", body)
+	if body.Status.IsCompleted() {
+		r.unregistered.removeUID(body.UID)
+	}
 	r.applyStatus(body.UID, body.Status, body.PID, body.ExitCode)
 }
 
@@ -294,7 +299,7 @@ func (r *supervisorRouter) sync(conn *transport.Conn, auth *protocol.RegisterReq
 
 // reconcileReconnect: worker 보고와 DB 활성 uid를 대조한다(REF-process "재접속 재바인딩")
 //   - 둘 다: Rebind + 재구독 + relay 재기동 + 상태 동기화 + 기록된 종료 요청 전달(종료-3(재접속 전달))
-//   - DB만: FAILED로 닫고 직접 발행(relay 없음) / worker만(고아): 로그만
+//   - DB만: FAILED로 닫고 직접 발행(relay 없음) / worker만: 미등록 process 목록(unregistered)
 func (r *supervisorRouter) reconcileReconnect(deviceKey string, worker *transport.Conn, reported []protocol.SyncEntry) {
 	q := store.GetStorePool().Queries()
 	ctx := context.Background()
@@ -340,11 +345,15 @@ func (r *supervisorRouter) reconcileReconnect(deviceKey string, worker *transpor
 		}
 	}
 
-	for uid := range reportedByUID {
+	// worker만 앎 = 미등록 process: 죽이지 않고 목록에만 둔다(장비 타일에서 보고 끔) — 주소-Q12, REF-supervisor-move.md
+	var unregistered []protocol.SyncEntry
+	for uid, e := range reportedByUID {
 		if _, ok := dbUIDs[uid]; !ok {
-			log.Printf("[process] worker만 아는 고아 process 무시 uid=%s deviceKey=%s", uid, deviceKey)
+			log.Printf("[process] 미등록 process uid=%s deviceKey=%s", uid, deviceKey)
+			unregistered = append(unregistered, e)
 		}
 	}
+	r.unregistered.set(deviceKey, unregistered)
 }
 
 // publishLost: relay 없이 끝난 process의 FAILED를 직접 발행 — 구독이 이미 정리됐을 수 있어 먼저 다시 구독한다

@@ -22,6 +22,11 @@ type procEntry struct {
 	editPath string
 	pid      int // 스크립트 pid
 	h        *hold.Client
+	// 미등록 process 표시용(sync 보고에 실음) — 주소-4(미등록 process)
+	label     string
+	cmd       string
+	cwd       string
+	startedAt int64 // Unix 초
 }
 
 // workerBase는 이 worker의 실행/저장 루트다({WORKER_BASE} 치환 값). exec·resolveDest가
@@ -107,7 +112,7 @@ func (r *workerRouter) exec(req protocol.Frame) (any, error) {
 	env = append(env, "TERM=xterm-256color")
 
 	spec := hold.Spec{UID: body.UID, Cmd: body.Cmd, Args: body.Args, Env: env, Cwd: body.Cwd}
-	entry, err := r.state.spawn(spec, kind, editPath)
+	entry, err := r.state.spawn(spec, kind, editPath, body.Label)
 	if err != nil {
 		return protocol.ExecResponse{Accept: false, Reason: err.Error()}, nil
 	}

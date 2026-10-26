@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { TILE_KINDS } from '@/feature/widget/util/tileKind.util';
-import { computed } from 'vue';
+import SupervisorMoveDialog from '@/feature/worker/component/SupervisorMoveDialog.vue';
+import UnregisteredDialog from '@/feature/worker/component/UnregisteredDialog.vue';
+import { computed, ref } from 'vue';
 import { VListItem, VListSubheader } from 'vuetify/components';
 import { useGetNode } from '../../api/node.api';
 import { useTerminalKill } from '../../hook/terminalKill.hook';
@@ -46,6 +48,10 @@ const unavailable = computed(() => (folderError.value as { status?: number } | n
 const board = useTileBoard(() => props.tileId);
 const { otherBoards, busy: boardBusy, detachOpen } = board;
 const boardMenu = computed(() => !!tile.value?.parent && !unavailable.value);
+
+// 장비 메뉴 = 루트에도 — supervisor 주소 변경·미등록 process(주소-5(화면), REF-supervisor-move.md). 권한 = 이 장비를 등록한 계정(연 폴더 소유자)
+const moveOpen = ref(false);
+const unregOpen = ref(false);
 </script>
 
 <template>
@@ -54,7 +60,7 @@ const boardMenu = computed(() => !!tile.value?.parent && !unavailable.value);
     :icon="TILE_KINDS.device.icon"
     :color="TILE_KINDS.device.color"
     :unavailable="unavailable"
-    :menu="boardMenu"
+    :menu="!unavailable"
     :menu-busy="boardBusy"
     @close="closeTile(tile.id)"
 >
@@ -68,9 +74,11 @@ const boardMenu = computed(() => !!tile.value?.parent && !unavailable.value);
         <tile-nav-buttons :tile-id="tile.id" />
     </template>
 
-    <template v-if="boardMenu" #menu>
-        <v-list-item title="새 보드로 분리" prepend-icon="mdi-view-dashboard-outline" @click="detachOpen = true" />
-        <template v-if="otherBoards.length">
+    <template v-if="!unavailable" #menu>
+        <v-list-item title="supervisor 주소 변경" prepend-icon="mdi-server-network" @click="moveOpen = true" />
+        <v-list-item title="미등록 process" prepend-icon="mdi-console-network-outline" @click="unregOpen = true" />
+        <v-list-item v-if="boardMenu" title="새 보드로 분리" prepend-icon="mdi-view-dashboard-outline" @click="detachOpen = true" />
+        <template v-if="boardMenu && otherBoards.length">
             <v-list-subheader>다른 보드로 이동</v-list-subheader>
             <v-list-item v-for="b in otherBoards" :key="b.hash"
                 :title="boardLabel(b)"
@@ -93,6 +101,8 @@ const boardMenu = computed(() => !!tile.value?.parent && !unavailable.value);
 
     <template #extra>
         <node-name-dialog v-if="boardMenu" v-model="detachOpen" title="새 보드" :initial="name" :loading="boardBusy" @submit="board.detach" />
+        <supervisor-move-dialog v-model="moveOpen" :instance="tile.instance" :folder-id="tile.nodeId" />
+        <unregistered-dialog v-model="unregOpen" :instance="tile.instance" :folder-id="tile.nodeId" />
     </template>
 </tile-frame>
 </template>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
+import { PERM_WORKER_MOVE } from '@/feature/user/api/user.api';
 import { useAuthStore } from '@/feature/user/store/auth.store';
+import SupervisorMoveDialog from '@/feature/worker/component/SupervisorMoveDialog.vue';
 import logoUrl from '@/assets/logo.svg';
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -34,6 +36,9 @@ const go = (b: BoardItem) => router.push(boardPath(b));
 
 const nameOpen = ref(false);
 const mineOpen = ref(false);
+// 전체 worker 주소 변경 — worker_move 권한 계정만 보임(주소-Q20(전체 명령 권한))
+const moveAllOpen = ref(false);
+const canMoveAll = computed(() => !!auth.value?.perms?.includes(PERM_WORKER_MOVE));
 const onSubmitName = (name: string) => {
     if (!current.value) return;
     run(rename(current.value.hash, name), () => nameOpen.value = false);
@@ -84,11 +89,13 @@ const onRemove = () => {
         <v-list-item v-if="current && !current.isDefault" title="보드 삭제" prepend-icon="mdi-delete-outline" base-color="error" @click="onRemove" />
         <v-divider />
         <v-list-item title="내가 공유한 것" prepend-icon="mdi-account-multiple-outline" @click="mineOpen = true" />
+        <v-list-item v-if="canMoveAll" title="전체 worker 주소 변경" prepend-icon="mdi-server-network" @click="moveAllOpen = true" />
         <v-divider />
         <v-list-item :subtitle="`계정 ${auth?.nickname ?? '-'}`" disabled />
     </v-list>
 </v-menu>
 <my-shares-dialog v-model="mineOpen" />
+<supervisor-move-dialog v-if="canMoveAll" v-model="moveAllOpen" />
 <node-name-dialog v-model="nameOpen" title="보드 이름 변경" :initial="current?.name ?? ''" :loading="busy" @submit="onSubmitName" />
 </template>
 

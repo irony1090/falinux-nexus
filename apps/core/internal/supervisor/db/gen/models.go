@@ -84,6 +84,7 @@ type User struct {
 	Nickname       string
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
+	Perms          []string
 }
 
 type WorkerInstance struct {
