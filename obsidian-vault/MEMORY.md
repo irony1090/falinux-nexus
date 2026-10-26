@@ -78,7 +78,7 @@ sqlc.yaml  README.md  .gitignore
 | DB/스토어 (sqlc·goose·store) | 구현 완료 | `REF-db.md` |
 | Node 카탈로그 | Node 모듈·roster(명부)·폴더 목록 동기화·노드 클립보드·UI 연동 마감, label 보류 | `REF-node-label.md` + `INDEX-node-ops.md` |
 | 공용 PATCH 래퍼 (`internal/patch`) | `patch.Field[T]` 3-state(`{valid,value}`), worker도 재사용 예정 | `REF-node-label.md` |
-| 프론트엔드 (apps/frontend) | 타일 UI·터미널·⑮(모바일 가상 키보드)·로그인·active 타일·보드 미리보기 전부 마감, 회원가입 보류 | `REF-frontend.md` · `REF-node-ui.md`(컨셉) · `REF-node-ui-overview.md`(전체보기·가상 키보드) |
+| 프론트엔드 (apps/frontend) | 타일 UI·터미널·⑮(모바일 가상 키보드)·로그인·active 타일·보드 미리보기 전부 마감, 회원 관리 진행 중 | `REF-frontend.md` · `REF-node-ui.md`(컨셉) · `REF-node-ui-overview.md`(전체보기·가상 키보드) |
 | 실시간 push (socket) | 전송 토대·3모드·ping/pong·node CRUD 발행(`AfterCommit`)·계정 토픽, 마감 | `REF-realtime.md` |
 | 위젯 (Skeleton/SkeletonGroup/StickyBox/TileLayout) | 구현만, 실사용 미배선(TileLayout = index.vue 데모만) | `REF-widget.md` |
 | 범용 유틸 (EventInterface/Memoized/LifecycleRegistry/GroupedSet) | 4종 + 공유 리사이즈 관측 그룹(`feature/common`), 반복 주제 | `REF-util.md` · `REF-util-drag.md`(드래그, 보류) |
@@ -87,7 +87,7 @@ sqlc.yaml  README.md  .gitignore
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
 - 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-worker-dir.md`(worker 폴더 타일 전체 계획, 폴더-7(내려받기)·9(worker 간 전송) 원래 표)
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
-- **진행 중 파트**: supervisor 주소 실시간 변경 `REF-supervisor-move.md`(브랜치 중간 커밋, 사용자 확인 대기)
+- **진행 중 파트**: supervisor 주소 실시간 변경 `REF-supervisor-move.md`(브랜치 중간 커밋, 사용자 확인 대기) · 회원 관리 `REF-member.md`·`REF-member-impl.md`·`REF-member-ui.md`(화면 개편)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`

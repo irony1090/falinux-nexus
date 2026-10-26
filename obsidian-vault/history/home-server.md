@@ -8,3 +8,7 @@
 - 사용자: master 최신·8013·worker 동반(`IRONY-SERVER-WORKER`) -> Windows 빌드 묶음 생성(REF "빌드 묶음"). 서버 PC에서 start.ps1 실행 -> 접속 OK(사용자, Windows supervisor 첫 실행 성공) -> 도메인 Cloudflare에서 구매 -> `winget install Cloudflare.cloudflared`(설치 직후 창은 PATH 미반영, 새 창) -> 대시보드 터널 `home-server` + `service install <토큰>`(관리자) 연결됨 -> "공개 애플리케이션 추가" `nexus` + `http://localhost:8013` -> 외부 접속 OK. `/worker` 무인증 확인 -> Access 권장 -> 재부팅 시 supervisor·worker 안 켜짐 -> `build/nexus-autostart.ps1`(작업 스케줄러, 부팅 30초 뒤, 내 계정) 등록 -> 재부팅 후 접속 OK(첫 번은 원격 데스크톱 로그인 뒤 확인 -> 다시 재부팅해 원격 접속 없이 폰으로 OK = 로그인 전 시작 확인)
 - Access는 나중(BACKLOG). worker_move 필요 + 계정 `irony1090`(회원가입 화면 없음) -> B 선택: 임시 worktree에서 master + supervisor-move 합쳐 Windows 업데이트 묶음(`update.ps1`), 계정 INSERT·권한 SQL 안내
 - 업데이트 적용(`update.ps1`, 옛 파일 지움) -> 계정 SQL 파일 `build/nexus-create-user.sql` -> `irony1090` 생성·로그인 OK. 주소 변경 사용법 안내(둘 다 새 빌드여야, 옛 빌드 worker는 env 교체). 사용자: 운영 서버 구축 마무리, 내일 회사에서 worker 전부 최신 + 집 주소로 -> REF "내일 할 것"
+
+## 2026-10-26 (회사)
+- 사용자: 집 서버 배포 버전으로 Linux supervisor·worker 하나씩, 우선 test3(`localhost:8013`)에 붙이고 그 뒤 집 서버로 -> `build/supervisor_move` 빌드(태그 `SUPERVISORMOVE-261026`, REF "Linux B 빌드"). 실행은 사용자
+- 사용자: test3에 띄운 뒤 화면으로 집 서버로 옮기기 **잘 됨** -> 파트(supervisor 주소 실시간 변경) 머지해도 됨(순서는 회원 관리 확인 뒤, `CURRENT.md`). 회원 관리 뒤 master 정식 빌드로 집 서버 재배포 가능(모든 worker 실행 파일 + `API_KEY`, `REF-member.md` "배포 전 확인")

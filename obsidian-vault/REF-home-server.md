@@ -43,6 +43,11 @@
 - 주의: 집 서버 DB는 test3와 따로(폴더·스크립트·공유 없음) -> 옮긴 worker의 실행 중 터미널은 집 서버에서 "미등록 process"(장비 ⋮에서 보기·끄기). worker sqlite 서브키는 그대로 이어짐. worker 쪽 마이그레이션 `00003`·`00004`는 켜질 때 자동
 - 주의: 나중에 Access를 호스트 전체에 걸면 회사 worker의 `/worker` 접속도 막힘 -> `/worker` 경로 예외(Bypass) 또는 서비스 토큰
 
+## Linux B 빌드 (2026-10-26 회사)
+- `build/supervisor_move/{supervisor, worker, web/}`(Linux amd64), 태그 `SUPERVISORMOVE-261026`. 코드 = 집 서버 B 빌드와 같음(master `2cbd306`의 `apps/` = `19cc8bd` + `feat/supervisor-move` `40e0942`). 만든 법 = scratchpad 임시 worktree에서 `merge --no-commit`(vault 4개만 충돌) + `cmd/*/env` 태그만 바꿔 복사 + `node_modules` 링크 -> `scripts/build.sh` -> 결과를 `build/`로 옮기고 worktree 지움
+- embed env = test3 값 그대로(`localhost:8013`·`nexus_build`). 사용자 계획: 먼저 test3(8013) 자리에 띄움 -> 그 뒤 화면 "supervisor 주소 변경"으로 집 서버로 옮김
+- 띄울 때 붙는 것: supervisor `00013`(nexus_build) · worker `00003`·`00004`(공용 `build/worker-sqlite.db`). worker 교체 = test3 위 process 종료(REF-build)
+
 ## 겪은 것
 - `Restart-Service`·`New-NetFirewallRule`은 관리자 PowerShell 필요
 - DBeaver 편집기가 다른(MySQL) 연결에 붙어 `CREATE USER` 문법 오류 -> 편집기 활성 연결 확인(`Ctrl+9`)
