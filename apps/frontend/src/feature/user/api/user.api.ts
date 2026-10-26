@@ -5,20 +5,22 @@ import type { Replace } from '@/common/util/index.type'
 // userResponse{identification, nickname, createdAt(unix sec), updatedAt(*unix sec), perms}
 
 export type UserResponse = {
+    id: number
     identification: string
     nickname: string
     createdAt: Date        // unix sec (.Unix())
     updatedAt: Date | null // nullable
     perms: string[]        // 계정 권한 이름 — 주소-3(권한 열), 화면 메뉴 보이기용(인가는 서버)
+    workerLimit: number    // 등록할 수 있는 장비 이름 수 — REF-member.md
 }
 type UserResponseDto = Replace<UserResponse, {
     createdAt: number
     updatedAt: number | null
 }>
 
+// 닉네임 = 아이디(서버가 채움) — 회원-Q12(닉네임)
 export type CreateUserRequest = {
     identification: string
-    nickname: string
     password: string
 }
 
@@ -69,3 +71,5 @@ export const signOut = () => BaseAxios.delete(
 
 // 계정 권한 이름(users.perms) — 서버 user.go와 같게
 export const PERM_WORKER_MOVE = 'worker_move'   // 전체 worker 주소 변경
+export const PERM_ADMIN = 'admin'               // 관리자 페이지
+export const PERM_WORKER_REGISTER = 'worker_register'   // 장비 이름 등록

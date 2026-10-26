@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"nexus/internal/manager/session"
 	superdb "nexus/internal/supervisor/db/gen"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/labstack/echo/v4"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const sessionNonceKey = "_nonce" // 로그인마다 새 값 → sid(쿠키 원본값)가 로그인마다 달라짐
@@ -21,9 +23,9 @@ const sessionNonceKey = "_nonce" // 로그인마다 새 값 → sid(쿠키 원�
 // 에러는 panic(web.Err(...))로 던져 PanicMiddleware가 JSON으로 응답하고,
 // 트랜잭션은 txMiddleware가 깐 TxQueries(c)로 꺼낸다(롤백은 미들웨어 recover가 처리).
 
+// 닉네임 = 아이디(회원-Q12(닉네임)) — nickname 컬럼 VARCHAR(64)에 맞춰 아이디도 64자까지
 type userCreateRequest struct {
-	Identification string `json:"identification" validate:"required"`
-	Nickname       string `json:"nickname" validate:"required"`
+	Identification string `json:"identification" validate:"required,max=64"`
 	Password       string `json:"password" validate:"required"`
 }
 
@@ -33,18 +35,22 @@ type userSignRequest struct {
 }
 
 type userResponse struct {
+	ID             int64    `json:"id"`
 	Identification string   `json:"identification"`
 	Nickname       string   `json:"nickname"`
 	CreatedAt      int64    `json:"createdAt"`
 	UpdatedAt      *int64   `json:"updatedAt"`
 	Perms          []string `json:"perms"` // 주소-3(권한 열) — 화면 메뉴 보이기용, 인가는 requirePerm이 DB에서 다시 읽음
+	WorkerLimit    int32    `json:"workerLimit"`
 }
 
 func newUserResponse(u superdb.User) userResponse {
 	r := userResponse{
+		ID:             u.ID,
 		Identification: u.Identification,
 		Nickname:       u.Nickname,
 		Perms:          u.Perms,
+		WorkerLimit:    u.WorkerLimit,
 	}
 	if r.Perms == nil {
 		r.Perms = []string{}
@@ -59,10 +65,27 @@ func newUserResponse(u superdb.User) userResponse {
 	return r
 }
 
-// toHash는 식별자/비밀번호를 sha256 hex로 변환한다(구 PortBridge와 동일 — 저장·조회 모두 해시).
+// toHash는 식별자를 sha256 hex로 변환한다(구 PortBridge와 동일 — 저장·조회 모두 해시). 비밀번호는 옛 계정 대조에만
 func toHash(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return fmt.Sprintf("%x", h)
+}
+
+func hashPassword(pw string) string {
+	h, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+	if err != nil {
+		panic(web.Err(400, "%v", err)) // 72바이트 초과
+	}
+	return string(h)
+}
+
+// checkPassword: bcrypt면 bcrypt로, 아니면 옛 sha256 hex로 대조. legacy = 맞았는데 옛 방식(다시 저장 대상) — 회원-Q9(bcrypt 전환)
+func checkPassword(stored, pw string) (ok, legacy bool) {
+	if strings.HasPrefix(stored, "$2") {
+		return bcrypt.CompareHashAndPassword([]byte(stored), []byte(pw)) == nil, false
+	}
+	ok = stored == toHash(pw)
+	return ok, ok
 }
 
 // requireSession은 로그인된 세션을 돌려주거나 401을 panic한다.
@@ -72,11 +95,18 @@ func (router *supervisorRouter) requireSession(c echo.Context) *session.SessionE
 	if sess == nil || sess.Session.IsNew || sess.Data.ID == 0 {
 		panic(web.Err(401, "로그인 절차가 필요합니다"))
 	}
+	if router.blocked.has(sess.Data.ID) { // 쿠키는 정지·삭제 전에 받은 것일 수 있다 — 회원-Q21
+		panic(web.Err(401, "사용할 수 없는 계정입니다"))
+	}
 	return sess
 }
 
-// 계정 권한 이름(users.perms) — 주소-3(권한 열)
-const permWorkerMove = "worker_move" // 전체 worker 주소 변경
+// 계정 권한 이름(users.perms) — 주소-3(권한 열), 회원 관리 → REF-member.md
+const (
+	permWorkerMove     = "worker_move"     // 전체 worker 주소 변경
+	permAdmin          = "admin"           // 관리자 페이지
+	permWorkerRegister = "worker_register" // 장비 이름 등록(회원-Q3)
+)
 
 // requirePerm은 계정에 perm이 있는지 DB에서 다시 읽어 본다(쿠키의 sess.Data는 로그인 때 값이라 쓰지 않음). 없으면 403
 func requirePerm(c echo.Context, userID int64, perm string) {
@@ -138,14 +168,27 @@ func (router *supervisorRouter) createUser(c echo.Context) error {
 	ctx := c.Request().Context()
 	idHash := toHash(body.Identification)
 
+	// 순서 의존: 잠금 -> 회원 수 -> INSERT 를 한 트랜잭션에서. 잠금이 없으면 동시 첫 가입 둘 다 관리자가 된다 — 회원-Q5(관리자 판정)
+	if err := q.LockUserCreate(ctx); err != nil {
+		panic(web.Err(500, "%v", err))
+	}
 	if _, err := q.GetUserByIdentification(ctx, idHash); err == nil {
 		panic(web.Err(400, "가입할 수 없는 ID입니다"))
+	}
+	count, err := q.CountUsers(ctx)
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	perms := []string{permWorkerRegister}
+	if count == 0 {
+		perms = append(perms, permAdmin)
 	}
 
 	user, err := q.CreateUser(ctx, superdb.CreateUserParams{
 		Identification: idHash,
-		Password:       toHash(body.Password),
-		Nickname:       body.Nickname,
+		Password:       hashPassword(body.Password),
+		Nickname:       body.Identification,
+		Perms:          perms,
 	})
 	if err != nil {
 		panic(web.Err(500, "%v", err)) // PanicMiddleware가 500 + txMiddleware가 롤백
@@ -168,9 +211,22 @@ func (router *supervisorRouter) signIn(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	user, err := q.GetUserByIdentification(ctx, toHash(body.Identification))
-	if err != nil || user.Password != toHash(body.Password) {
+	ok, legacy := false, false
+	if err == nil {
+		ok, legacy = checkPassword(user.Password, body.Password)
+	}
+	if !ok {
 		// 계정 없음/비번 불일치를 같은 메시지로(존재 여부 노출 방지)
 		panic(web.Err(400, "존재하지 않는 계정입니다"))
+	}
+	if user.SuspendedAt.Valid {
+		panic(web.Err(403, "정지된 계정입니다"))
+	}
+	if legacy {
+		user.Password = hashPassword(body.Password)
+		if err := q.UpdateUserPassword(ctx, superdb.UpdateUserPasswordParams{ID: user.ID, Password: user.Password}); err != nil {
+			panic(web.Err(500, "%v", err))
+		}
 	}
 
 	nonce, err := util.RandomKey(16, "", "")

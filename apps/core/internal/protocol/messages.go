@@ -24,6 +24,7 @@ type RegisterRequest struct {
 	Key    string `json:"key"`              // 사전 지정 고유키 (여러 worker가 같을 수 있음)
 	SubKey string `json:"subKey,omitempty"` // 재접속 시에만 채워짐
 	OS     string `json:"os,omitempty"`     // worker runtime.GOOS(빈 값 = 옛 worker = linux) — WW5(OS 표시)
+	APIKey string `json:"apiKey,omitempty"` // 장비 API 키 — 회원-4(worker 접속 인증), REF-member.md
 }
 
 // NormalizeOS는 빈 OS(옛 worker·이전 명부 행)를 linux로 본다.
@@ -269,7 +270,14 @@ const (
 	MsgSync MsgType = "SYNC" // worker→sup EVENT: SyncEvent (재접속 직후 자기 procs 스냅샷 자발 보고)
 
 	MsgScreen MsgType = "SCREEN" // worker→sup EVENT: ScreenEvent (보관 프로세스 화면 스냅샷 — 재접속 뒤 supervisor ring 채우기)
+
+	MsgScreenReq MsgType = "SCREEN_REQ" // sup→worker REQ: ScreenRequest → 빈 응답, 화면은 MsgScreen으로 (가져오기-1(화면 다시 요청), REF-supervisor-move.md)
 )
+
+// ScreenRequest: 이 uid 보관 프로세스의 화면 스냅샷을 다시 보내 달라 — 미등록 process를 가져온 직후 그 전 화면을 채움
+type ScreenRequest struct {
+	UID string `json:"uid"`
+}
 
 // ExecType: EXEC = 실행 / EDIT = 미리 보낸 파일을 에디터로 열고 종료 때 내용 회수(MsgEditResult). 빈 값 = EXEC(Kind())
 type ExecType string

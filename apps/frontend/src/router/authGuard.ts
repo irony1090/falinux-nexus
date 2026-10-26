@@ -1,3 +1,4 @@
+import { PERM_ADMIN } from '@/feature/user/api/user.api';
 import { authState, ensureSession } from '@/feature/user/store/auth.store';
 import { watch } from 'vue';
 import type { RouteLocationNormalized, RouteLocationRaw, Router } from 'vue-router';
@@ -18,7 +19,8 @@ export const installAuthGuard = (router: Router) => {
         await ensureSession();
         const authed = !!authState.value;
         if (to.meta.public) return authed ? redirectTarget(to) : true;
-        return authed ? true : loginRoute(to.fullPath);
+        if (!authed) return loginRoute(to.fullPath);
+        return to.meta.admin && !authState.value?.perms?.includes(PERM_ADMIN) ? '/' : true;
     });
 
     // 보는 중에 로그인 상태가 바뀜(로그인·로그아웃·세션 만료). 첫 이동이 끝나기 전(matched 없음)은 가드가 맡는다

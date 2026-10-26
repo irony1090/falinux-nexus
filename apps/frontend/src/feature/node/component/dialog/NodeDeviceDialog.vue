@@ -111,6 +111,7 @@ const onSubmit = () => emit('submit', trimmed.value || null);
                                 <div v-for="inst in d.instances" :key="inst.subKey" class="inst" :class="{ off: !inst.online }">
                                     <i class="dot" :class="{ on: inst.online }" />
                                     <span class="mono inst__os" :title="osTitle(inst.os)">{{ osBadge(inst.os) }}</span>
+                                    <span v-if="inst.label" class="inst__label">{{ inst.label }}</span>
                                     <span class="mono inst__key">#{{ inst.subKey }}</span>
                                     <span v-if="inst.online" class="inst__seen on">접속 중 · 처음 {{ new Date(inst.firstSeen * 1000).toLocaleDateString() }}</span>
                                     <template v-else>
@@ -198,6 +199,7 @@ const onSubmit = () => emit('submit', trimmed.value || null);
     &.off .inst__key { opacity: 0.7; }
 }
 .inst__key { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.inst__label { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: vars.$weight-md; }
 .inst__os { font-weight: 600; }
 .inst__seen {
     opacity: 0.7;

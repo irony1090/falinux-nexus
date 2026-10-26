@@ -163,6 +163,28 @@ func (p *ProcessManager) ExecFile(worker *transport.Conn, workerKey, cmd, cwd st
 	return p.register(worker, params)
 }
 
+// Adopt는 worker에서 이미 돌고 있는 미등록 process를 이 supervisor에 등록한다(가져오기-3(등록 API)) — uid는 worker가 쓰는 값 그대로.
+// nodeID가 있으면 그 스크립트 실행으로, 없으면 장비 파일 실행처럼 dirNodeID(장비 타일 폴더)에 붙인다. 소유·실행 = 가져온 계정(장비 주인)
+func (p *ProcessManager) Adopt(worker *transport.Conn, workerKey, uid, cmd, cwd string, nodeID, dirNodeID pgtype.Int8, userID int64) (*ProcessEntry, error) {
+	if worker == nil {
+		return nil, fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", workerKey)
+	}
+	params := superdb.CreateProcessParams{
+		Uid:         uid,
+		Type:        string(protocol.ExecTypeExec),
+		OwnerUserID: userID,
+		NodeID:      nodeID,
+		DeviceKey:   workerKey,
+		Cmd:         cmd,
+		Args:        []string{},
+		Env:         []string{},
+		Cwd:         cwd,
+		StartedBy:   userID,
+		DirNodeID:   dirNodeID,
+	}
+	return p.register(worker, params)
+}
+
 // register: memory 등록 -> pool 영속(재시작 복구·프론트 목록). pool 실패 시 memory 롤백
 func (p *ProcessManager) register(worker *transport.Conn, params superdb.CreateProcessParams) (*ProcessEntry, error) {
 	entry := &ProcessEntry{Inter: newWorkerInteractive(worker, params.Uid)}

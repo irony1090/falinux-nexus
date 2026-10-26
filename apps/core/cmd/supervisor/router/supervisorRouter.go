@@ -51,6 +51,7 @@ type supervisorRouter struct {
 	uploadDir      string                                        // 업로드 임시 파일(upload.go)
 	copySlots      chan struct{}                                 // worker 간 중계 동시 수(copy.go)
 	unregistered   *unregisteredSet                              // 인스턴스별 미등록 process(workerMove.go)
+	blocked        *blockedUsers                                 // 정지·삭제된 회원(admin.go)
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -88,6 +89,7 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 		uploadDir:      newUploadDir(),
 		copySlots:      make(chan struct{}, copyParallel),
 		unregistered:   newUnregisteredSet(),
+		blocked:        loadBlockedUsers(),
 	}
 	go router.runPurge() // 끝난 process 주기 삭제(K2(supervisor 정리))
 	go router.runTransferSweep()
@@ -126,6 +128,8 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 	router.mountActive(e)
 	router.mountProcesses(e)
 	router.mountWorkers(e)
+	router.mountDevices(e)
+	router.mountAdmin(e)
 	router.mountTiles(e)
 	router.mountWorkspaces(e)
 	router.mountTransfers(e)
@@ -151,11 +155,12 @@ func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 	conn.Handle(protocol.MsgRegister, router.register(conn, &auth))
 
 	// worker→sup process 이벤트: 출력/상태=EVENT, EDIT read-back=REQ, 재접속 스냅샷=EVENT.
-	conn.On(protocol.MsgData, router.output)               // 출력 바이트 → Inter.PushOutput
-	conn.On(protocol.MsgStatus, router.status)             // 상태전이 → applyStatus 깔때기
-	conn.Handle(protocol.MsgEditResult, router.editResult) // UID→NodeID→content UPDATE
-	conn.On(protocol.MsgSync, router.sync(conn, &auth))    // 재접속 재바인딩(REF-process)
-	conn.On(protocol.MsgScreen, router.screen)             // 보관 프로세스 화면 스냅샷(REF-process-keep)
+	// uid를 받는 이벤트는 그 process를 실행 중인 인스턴스가 보낸 것만 — ownsProcess, REF-member.md 회원-Q14(이벤트 검사)
+	conn.On(protocol.MsgData, router.output(&auth))               // 출력 바이트 → Inter.PushOutput
+	conn.On(protocol.MsgStatus, router.status(&auth))             // 상태전이 → applyStatus 깔때기
+	conn.Handle(protocol.MsgEditResult, router.editResult(&auth)) // UID→NodeID→content UPDATE
+	conn.On(protocol.MsgSync, router.sync(conn, &auth))           // 재접속 재바인딩(REF-process)
+	conn.On(protocol.MsgScreen, router.screen(&auth))             // 보관 프로세스 화면 스냅샷(REF-process-keep)
 
 	err = conn.Serve()
 

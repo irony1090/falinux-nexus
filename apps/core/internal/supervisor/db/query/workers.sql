@@ -20,3 +20,27 @@ ORDER BY main_key, sub_key;
 -- name: DeleteWorkerInstance :execrows
 DELETE FROM worker_instances
 WHERE main_key = $1 AND sub_key = $2;
+
+-- name: UpdateWorkerInstanceLabel :execrows
+-- 인스턴스 라벨(회원-Q11(인스턴스 구분))
+UPDATE worker_instances SET label = $3
+WHERE main_key = $1 AND sub_key = $2;
+
+-- name: ListOwnedWorkerInstances :many
+-- 내 장비 페이지 — 내 장비 이름의 인스턴스만
+SELECT wi.* FROM worker_instances wi
+JOIN devices d ON d.main_key = wi.main_key
+WHERE d.owner_user_id = $1
+ORDER BY wi.main_key, wi.sub_key;
+
+-- name: ListVisibleWorkerInstances :many
+-- 명부 보이는 범위(회원-6(실행 권한)) = 내 장비 이름 + 내가 볼 수 있는 폴더에 지정된 장비. main_key = '' 이면 그 안 전부
+SELECT wi.* FROM worker_instances wi
+WHERE (sqlc.arg(main_key)::text = '' OR wi.main_key = sqlc.arg(main_key)::text)
+  AND (wi.main_key IN (SELECT d.main_key FROM devices d WHERE d.owner_user_id = sqlc.arg(user_id))
+    OR wi.main_key IN (SELECT n.device_key FROM nodes n
+                       WHERE n.device_key IS NOT NULL AND node_permission(sqlc.arg(user_id), n.id) >= 10))
+ORDER BY wi.main_key, wi.sub_key;
+
+-- name: ListOwnedMainKeys :many
+SELECT main_key FROM devices WHERE owner_user_id = $1;

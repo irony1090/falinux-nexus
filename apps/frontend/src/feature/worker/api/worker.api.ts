@@ -10,6 +10,7 @@ export type WorkerResponse = {
     subKey: string
     instanceKey: string     // main#sub = execProcess의 authKey
     os: string              // linux | windows ... (빈 값은 서버가 linux로) — WW5(OS 표시)
+    label?: string          // 인스턴스 라벨(회원-Q11), 명부 응답에만
 }
 
 export type WorkerInstanceResponse = WorkerResponse & {

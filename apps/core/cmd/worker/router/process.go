@@ -155,6 +155,19 @@ func (r *workerRouter) kill(req protocol.Frame) (any, error) {
 	return nil, nil
 }
 
+// screenReq: MsgScreenReq(REQ). 그 process 화면 스냅샷을 다시 요청한다(응답 = forward가 MsgScreen) — 가져오기-1(화면 다시 요청)
+func (r *workerRouter) screenReq(req protocol.Frame) (any, error) {
+	var body protocol.ScreenRequest
+	if err := req.Bind(&body); err != nil {
+		return nil, err
+	}
+	entry, ok := r.procs.Get(body.UID)
+	if !ok {
+		return nil, fmt.Errorf("존재하지 않는 process: %s", body.UID)
+	}
+	return nil, entry.h.RequestSnap()
+}
+
 // input: MsgData(EVENT). 입력 바이트를 해당 process에 써넣는다(짝 응답 없음 — 없는 uid는 무시).
 func (r *workerRouter) input(ev protocol.Frame) {
 	var body protocol.DataEvent

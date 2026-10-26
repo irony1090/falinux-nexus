@@ -4,6 +4,7 @@ import type { PropType } from 'vue';
 import { VCard, VCardSubtitle, VCardText, VCardTitle, VDialog, VDivider, VList, VListItem, VListSubheader } from 'vuetify/components';
 import type { WorkerInstanceResponse, WorkerResponse } from '../api/worker.api';
 import { osBadge, osTitle } from '../util/workerOs.util';
+import { instanceText } from '@/feature/member/util/member.util';
 
 // 실행 대상 인스턴스가 여러 개일 때 하나 고르기 (1개면 이 창 없이 바로 실행). 끊긴 인스턴스는 흐리게만 — RS5(표시 위치) ①
 defineProps({
@@ -42,7 +43,7 @@ const open = defineModel<boolean>({ type: Boolean, default: () => false });
                     :title="w.mainKey"
                     @click="emit('submit', w.instanceKey)"
                 >
-                    <template #subtitle><span class="os" :title="osTitle(w.os)">{{ osBadge(w.os) }}</span> {{ w.subKey }}</template>
+                    <template #subtitle><span class="os" :title="osTitle(w.os)">{{ osBadge(w.os) }}</span> {{ instanceText(w.subKey, w.label) }}</template>
                     <template #append><small class="text-success">접속 중</small></template>
                 </v-list-item>
                 <template v-if="offline.length">
@@ -53,7 +54,7 @@ const open = defineModel<boolean>({ type: Boolean, default: () => false });
                         :title="w.mainKey"
                         disabled
                     >
-                        <template #subtitle><span class="os" :title="osTitle(w.os)">{{ osBadge(w.os) }}</span> {{ w.subKey }}</template>
+                        <template #subtitle><span class="os" :title="osTitle(w.os)">{{ osBadge(w.os) }}</span> {{ instanceText(w.subKey, w.label) }}</template>
                         <template #append><small>마지막 접속 {{ agoText(w.lastSeen) }}</small></template>
                     </v-list-item>
                 </template>

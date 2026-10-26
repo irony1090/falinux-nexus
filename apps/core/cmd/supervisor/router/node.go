@@ -112,6 +112,10 @@ func (router *supervisorRouter) createNode(c echo.Context) error {
 		px, py = numFromFloat(body.Position.X), numFromFloat(body.Position.Y)
 	}
 
+	if body.DeviceKey != nil && *body.DeviceKey != "" {
+		requireDeviceOwner(ctx, q, *body.DeviceKey, owner)
+	}
+
 	var node superdb.Node
 	var err error
 	switch body.Kind {
@@ -214,6 +218,10 @@ func (router *supervisorRouter) patchNode(c echo.Context) error {
 			users = mergeUsers(c, users, *dest)
 		}
 		before = permIndex(c, users, uids)
+	}
+
+	if body.DeviceKey.Set && body.DeviceKey.Value != nil && *body.DeviceKey.Value != "" {
+		requireDeviceOwner(ctx, q, *body.DeviceKey.Value, target.OwnerUserID)
 	}
 
 	node, err := q.PatchNode(ctx, body.toParams(id, target.OwnerUserID))

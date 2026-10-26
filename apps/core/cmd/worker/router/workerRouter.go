@@ -106,6 +106,7 @@ func NewWorkerRouter(supervisor url.URL, uniqueKey string, store *store.StorePoo
 	conn.On(protocol.MsgData, router.input)
 	conn.Handle(protocol.MsgResize, router.resize)
 	conn.Handle(protocol.MsgKill, router.kill)
+	conn.Handle(protocol.MsgScreenReq, router.screenReq)
 
 	conn.Handle(protocol.MsgMove, router.move)
 	conn.Handle(protocol.MsgAddrs, router.addrList)

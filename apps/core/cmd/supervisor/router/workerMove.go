@@ -63,11 +63,38 @@ func (s *unregisteredSet) removeUID(uid string) {
 	}
 }
 
+func (s *unregisteredSet) get(key, uid string) (protocol.SyncEntry, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	e, ok := s.byKey[key][uid]
+	return e, ok
+}
+
 func (s *unregisteredSet) has(key, uid string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	_, ok := s.byKey[key][uid]
 	return ok
+}
+
+// take: 목록에서 꺼낸다 — 가져오기가 둘 겹쳐도 하나만 통과(가져오기-3(등록 API))
+func (s *unregisteredSet) take(key, uid string) (protocol.SyncEntry, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	e, ok := s.byKey[key][uid]
+	if ok {
+		delete(s.byKey[key], uid)
+	}
+	return e, ok
+}
+
+// put: take를 되돌린다(등록 실패). 그 사이 인스턴스가 끊겨 목록이 없어졌으면 두지 않는다
+func (s *unregisteredSet) put(key string, e protocol.SyncEntry) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if m, ok := s.byKey[key]; ok {
+		m[e.UID] = e
+	}
 }
 
 // list: 시작이 오래된 것부터

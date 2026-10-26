@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
-import { computed, ref, watch } from 'vue';
-import { usePagerDrag, type PagerPull } from '../hook/pagerDrag.hook';
+import PagerFloat from '@/feature/widget/component/PagerFloat.vue';
+import { usePagerDrag, type PagerPull } from '@/feature/widget/hook/pagerDrag.hook';
+import { computed, ref } from 'vue';
 import { useTileGrids } from '../store/tileGrids.store';
 import FootPill from './FootPill.vue';
-import TilePeek from './TilePeek.vue';
 
 // 도트 한 칸 폭 / 인디케이터 좌우 여백 / 숫자 자리(간격 포함)
 const SP = 22;
@@ -64,17 +64,6 @@ const countText = computed(() => {
     return `${lo === hi ? lo + 1 : `${lo + 1}-${hi + 1}`} / ${grids.value.length}`;
 })
 
-// 인디케이터는 앱 바(overflow 잘림) 안이라 안내·타일 패널은 body에 고정 위치로 — 드래그를 시작할 때 자리를 잰다
-// 안내는 막대 위쪽(bottom 기준) — 푸터-4(위로 열기). 타일 패널은 당긴 쪽
-const anchor = ref({ bottom: 0, top: 0, center: 0 });
-watch(mode, m => {
-    const r = barEl.value?.getBoundingClientRect();
-    if (m !== 'idle' && r) anchor.value = { bottom: document.documentElement.clientHeight - r.top + 8, top: r.bottom + 8, center: r.left + r.width / 2 };
-})
-const floatStyle = computed(() => ({ bottom: `${anchor.value.bottom}px`, left: `${anchor.value.center}px` }));
-const peekStyle = computed(() => pullDir.value === 'down' ? { top: `${anchor.value.top}px`, left: `${anchor.value.center}px` } : floatStyle.value);
-const hintText = computed(() => props.pull === 'both' ? '위·아래로 당기면 타일 선택' : '위로 당기면 타일 선택');
-
 // 칼럼 화살표 버튼 대신 — 인디케이터 안에 포커스가 있을 때 ←/→
 const onKey = (e: KeyboardEvent) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
@@ -111,10 +100,7 @@ const onKey = (e: KeyboardEvent) => {
         </nav>
         <span ref="endEl" class="end"><slot name="end" /></span>
     </foot-pill>
-    <teleport to="body">
-        <div class="GridPager__hint text-body-small" :class="{ show: mode === 'col' }" :style="floatStyle" aria-hidden="true">{{ hintText }}</div>
-        <tile-peek :open="mode === 'tile'" :below="pullDir === 'down'" :style="peekStyle" />
-    </teleport>
+    <pager-float :bar="barEl" :mode="mode" :pull-dir="pullDir" :pull="pull" />
 </div>
 </template>
 
@@ -191,26 +177,5 @@ const onKey = (e: KeyboardEvent) => {
     text-align: right;
     font-family: monospace;
     white-space: nowrap;
-}
-</style>
-
-<style lang="scss">
-// teleport로 body에 붙으므로 scoped 밖
-.GridPager__hint {
-    position: fixed;
-    z-index: 2100;
-    padding: 4px 10px;
-    border-radius: 12px;
-    background: rgb(var(--v-theme-on-surface));
-    color: rgb(var(--v-theme-surface));
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transform: translate(-50%, 4px);
-    transition: opacity 0.2s, transform 0.2s;
-    &.show {
-        opacity: 1;
-        transform: translate(-50%, 0);
-    }
 }
 </style>
