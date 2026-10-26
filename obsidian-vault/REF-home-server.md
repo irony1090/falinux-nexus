@@ -68,5 +68,6 @@
 - `build/home-update/`는 ps1만 남김(zip·exe·web·`ct/` 삭제). 다음 배포(`/api` 정리 + 주소 일괄 변경)는 supervisor.exe + `web/`만 바꾸면 됨. 집에선 ssh·원격 가능
 - **집 서버 다음 배포 묶음(2026-10-26 저녁)** `build/home-update/nexus-api-prefix.zip`(폴더 `api_prefix/`): master `c5f9749` Windows `supervisor.exe`(태그 `SUPERVISOR-API_PREFIX-HOMESERVER-261026`, 빌드 뒤 `API_PREFIX-261026`로 되돌림) + `web/`(`VITE_API_URL=`, `/api` 확인) + `update.ps1` + README. worker·env 그대로
   - **2026-10-26 밤 다시 묶음**: 웹만 master `8de3e05`(`fix/phone-layout` 머지 — 폰 수정 포함, test3 확인본과 같은 빌드)으로 교체, `supervisor.exe`는 그대로(c5f9749 이후 Go 변경 없음). README 첫 줄 갱신. 옛 zip은 세션 scratchpad에만
+  - **배포 결과(2026-10-26 22:19)**: 사용자가 `C:\Nexus\api_prefix`에 풀고 관리자 PowerShell `update.ps1` -> `OK`(8013). 서버 PC에 `*.old-20261026-221903`(supervisor.exe·web)·`C:\Nexus\api_prefix` 남음 — 화면 확인 뒤 지워도 됨. 하위 폴더에 풀어도 됨(README "C:\Nexus 말고" = 실행 중 파일 위에 직접 풀지 말라는 뜻)
   - `update.ps1`: supervisor + 주 worker 끄기 -> `supervisor.exe`·`web` -> `*.old-<stamp>` -> 새 것 복사 -> **`Start-ScheduledTask Nexus`로 켬**(ssh 세션·Nexus 터미널에서 띄운 프로세스는 세션이 끝나면 같이 죽으므로 어디서 실행해도 되게) -> `/api/nope` = 404면 새 빌드 확인(옛 빌드는 index.html 200) -> 60초 안에 안 되면 자동 되돌림. 관리자 PowerShell 권장
   - 사용자가 집에서 직접 배포(원격·ssh 가능)

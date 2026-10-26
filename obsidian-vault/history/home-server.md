@@ -15,3 +15,7 @@
 - (오후) master에 `feat/member` 머지(`4ae97a7`). 사용자: 회사라 집 서버 원격 불가, Nexus 시스템만으로 배포 -> 함정-A(Job)·함정-B(키) 확인, 업데이트-1~5 흐름 합의(관리자 `irony1090`, 다른 worker는 전부 test3, 서버 PC 터미널 실행은 처음). 업데이트-1(사전 점검) 스크립트 `build/home-update/check.ps1` 작성(ASCII만, 로컬 문법 검사 도구 없음)
 - 업데이트-1 결과 받음(전부 기대대로, REF). 롤백 안전 확인(옛 supervisor + v14 DB). master `4ae97a7` Windows 빌드 + 업데이트-3·4 스크립트 -> `build/home-update/nexus-member.zip`·`prepare.ps1`. 로컬 PowerShell 없어 문법 미검사
 - 사용자 실행: 업로드 -> `prepare.ps1` -> GO -> 키 붙여넣기 -> `status.ps1` `state=DONE`(16:59:03). 집 서버 = master `4ae97a7`(회원 관리) 배포 완료, Nexus 터미널만으로 원격 업데이트 성공
+
+## 2026-10-26 밤 — `/api` + 폰 수정 배포
+- 묶음 `nexus-api-prefix.zip` 다시 만듦: 웹 = master `8de3e05`(`fix/phone-layout` 머지, test3 확인본과 같은 빌드) / `supervisor.exe` = `c5f9749` 빌드 그대로(Go 변경 없음)
+- 사용자: `C:\Nexus\api_prefix`에 압축 해제 -> 관리자 PowerShell `update.ps1` -> 22:19 `OK: new supervisor is up on port 8013`. 남은 것 `*.old-20261026-221903`

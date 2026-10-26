@@ -34,3 +34,6 @@
   - 추가(10-26 밤, 사용자 요청 가(화면 이동만)): 상세 타일을 다 닫으면 목록으로 — `memberBoard.store` `close`에서 0개면 `goCol(0)`(폰 = 첫 칸, PC 변화 없음). 관리자 페이지도 같은 store라 같이 적용(도트 수정 포함), 자동완성 비침은 보드 장비 타일 전용이라 관리 쪽 해당 없음. 웹 3번째 교체(직전 웹 = scratchpad `web-prev-2`), 사용자 확인 대기
 - **git**: master = `a56b98f`(`refactor/api-prefix` 머지 `c5f9749` 포함, push = 사용자). 로컬 브랜치 `refactor/api-prefix`(머지됨) · `fix/phone-layout`(진행 중). worktree는 원래 폴더 하나(`nexus-member` 삭제, 원격 `origin/feat/member` 정리는 사용자)
 - **지금 떠 있는 것**(2026-10-26 밤): test3(8013) = supervisor **`build/api_prefix`**(사용자 빌드, **웹만 10-26 밤 `fix/phone-layout` 작업 트리로 교체(2번째 = 새 버그 2개 포함)** — supervisor 재시작 없음, master 웹은 세션 scratchpad `web-old-1018`) + worker **`build/take_process/worker`**(이번 변경에 worker 없음, 재시작 안 함) -> **`build/take_process/` 지우지 말 것**. 보관 프로세스 771160 = 실행 파일(`build/supervisor_move/worker`)은 지워졌지만 계속 돎(12:12 터미널, take_process worker가 붙어 있음). 격리 5051·VM `nexus-win` 꺼짐. 남긴 DB = `nexus_api_tmp`·`nexus_member_tmp`(시험 계정, 필요 없으면 DROP)
+
+## 2026-10-26 22:19 — 집 서버 배포 끝나 내려보낸 줄(원문)
+  2. **집 서버 배포 결과 듣기**: 사용자가 집에서 `build/home-update/nexus-api-prefix.zip`(10-26 밤 다시 묶음: supervisor.exe = `c5f9749` 그대로 + 웹 = master `8de3e05`, **phone-layout 수정 포함**) + `update.ps1`로 배포 예정 → `REF-home-server.md` 끝. 이미 옛 zip으로 배포했어도 새 zip으로 같은 방법 다시 실행하면 됨(exe 같음, 웹만 바뀜)

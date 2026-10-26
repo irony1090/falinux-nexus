@@ -10,7 +10,7 @@
 ## ⚠️ 다음 세션 시작 시
 - **(2026-10-26 밤 세션 끝, 사용자 "vault 정리하고 세션 재시작") 다음 세션 첫 할 일**
   1. ~~`fix/phone-layout`~~ **DONE 10-26 밤** — 사용자 폰 확인 -> 커밋 `77c9901`·`dbc136a` -> master `--no-ff` 머지 `8de3e05`(첫 타일 이동·전체보기 가로 한 줄·빈 페이지 도트·다 닫으면 목록·자동완성 비침 → `history/member-ui.md`·`history/board-preview.md`·`history/path-input.md`). test3 웹은 머지 내용과 같은 작업 트리로 이미 교체됨
-  2. **집 서버 배포 결과 듣기**: 사용자가 집에서 `build/home-update/nexus-api-prefix.zip`(10-26 밤 다시 묶음: supervisor.exe = `c5f9749` 그대로 + 웹 = master `8de3e05`, **phone-layout 수정 포함**) + `update.ps1`로 배포 예정 → `REF-home-server.md` 끝. 이미 옛 zip으로 배포했어도 새 zip으로 같은 방법 다시 실행하면 됨(exe 같음, 웹만 바뀜)
+  2. ~~집 서버 배포~~ **DONE 10-26 22:19** — 새 `nexus-api-prefix.zip`(웹 `8de3e05`) `update.ps1` OK(8013) → `history/home-server.md`. 남은 것: 사용자 화면 확인 뒤 서버 PC `*.old-20261026-221903`·`C:\Nexus\api_prefix` 삭제(사용자)
   3. **파트(회원 관리) 마감 정리**: MEMORY 불변 결정(판 계약·회원 권한 등) + `INDEX-member` 접기 — MEMORY가 10.3k자로 기준 초과, 이때 줄임. 사용자에게 파트 마감 확인
 - **git**: master = `8de3e05`(`fix/phone-layout` 머지, push = 사용자). 로컬 브랜치 `refactor/api-prefix`·`fix/phone-layout`(둘 다 머지됨). worktree는 원래 폴더 하나(`nexus-member` 삭제, 원격 `origin/feat/member` 정리는 사용자)
 - **지금 떠 있는 것**(2026-10-26 밤): test3(8013) = supervisor **`build/api_prefix`**(사용자 빌드, **웹만 10-26 밤 `fix/phone-layout` 내용(= master `8de3e05`)으로 교체** — supervisor 재시작 없음) + worker **`build/take_process/worker`**(이번 변경에 worker 없음, 재시작 안 함) -> **`build/take_process/` 지우지 말 것**. 보관 프로세스 771160 = 실행 파일(`build/supervisor_move/worker`)은 지워졌지만 계속 돎(12:12 터미널, take_process worker가 붙어 있음). 격리 5051·VM `nexus-win` 꺼짐. 남긴 DB = `nexus_api_tmp`·`nexus_member_tmp`(시험 계정, 필요 없으면 DROP)
