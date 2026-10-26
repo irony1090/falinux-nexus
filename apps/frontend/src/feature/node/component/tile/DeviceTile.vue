@@ -109,7 +109,7 @@ const unregOpen = ref(false);
     <template #extra>
         <node-name-dialog v-if="boardMenu" v-model="detachOpen" title="새 보드" :initial="name" :loading="boardBusy" @submit="board.detach" />
         <supervisor-move-dialog v-model="moveOpen" :instance="tile.instance" :folder-id="tile.nodeId" />
-        <unregistered-dialog v-model="unregOpen" :instance="tile.instance" :folder-id="tile.nodeId" />
+        <unregistered-dialog v-model="unregOpen" :tile-id="tile.id" :instance="tile.instance" :folder-id="tile.nodeId" />
     </template>
 </tile-frame>
 </template>

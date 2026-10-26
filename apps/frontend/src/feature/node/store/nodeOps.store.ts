@@ -43,7 +43,7 @@ export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
     const { tiles, hash: boardHash, openFolder, openDevice, applyServerTile, flush } = useTileTree()
     const { newSize, activate } = grids
     const { open: appDialogOpen, openDialog } = useAppDialog()
-    const { exec: execTerm, execFile: execTermFile } = useProcessTerm()
+    const { exec: execTerm, execFile: execTermFile, adopt: adoptTerm } = useProcessTerm()
     const { devices } = useWorkerRoster()
     const { create, patch } = useNodeActions()
     const { removeNode } = useNodeRemove()
@@ -122,6 +122,13 @@ export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
     // 저장 대기분을 먼저 보낸다 — 막 열거나 옮긴 부모 타일이 서버 트리에 없으면 서버가 루트에 붙인다(2026-10-23 확인)
     const execFile = (tileId: string, folderId: number, instance: string, cmd: string, cwd: string) =>
         run(tileId, flush().then(() => execTermFile(instance, folderId, cmd, cwd, { workspace: boardHash.value, parentTileId: tileId, size: newSize.value })), res => {
+            if (res.tile && res.tileVersion) activate(applyServerTile(res.tile, res.tileVersion))
+        })
+
+    // 미등록 process 가져오기(가져오기-4(화면)) — 서버가 장비 타일 아래 터미널 타일을 넣는다. 실패는 호출부(미등록 창)가 보여 준다
+    const adopt = (tileId: string, folderId: number, instance: string, uid: string) =>
+        flush().then(() => adoptTerm(instance, folderId, uid, { workspace: boardHash.value, parentTileId: tileId, size: newSize.value }))
+        .then(res => {
             if (res.tile && res.tileVersion) activate(applyServerTile(res.tile, res.tileVersion))
         })
 
@@ -236,6 +243,7 @@ export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
         startDir,
         openDir,
         execFile,
+        adopt,
         name,
         nameTitle,
         nameInitial,

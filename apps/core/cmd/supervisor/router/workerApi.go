@@ -36,6 +36,7 @@ func (r *supervisorRouter) mountWorkers(e *echo.Echo) {
 	g.POST("/move-all", r.moveAllWorkers)                       // workerMove.go
 	g.GET("/:mainKey/:subKey/unregistered", r.listUnregistered) // workerMove.go
 	g.POST("/:mainKey/:subKey/unregistered/:uid/kill", r.killUnregistered)
+	g.POST("/:mainKey/:subKey/unregistered/:uid/adopt", r.adoptUnregistered) // adopt.go
 }
 
 type workerResponse struct {
