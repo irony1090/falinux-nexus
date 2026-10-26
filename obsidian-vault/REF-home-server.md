@@ -51,3 +51,18 @@
 ## 겪은 것
 - `Restart-Service`·`New-NetFirewallRule`은 관리자 PowerShell 필요
 - DBeaver 편집기가 다른(MySQL) 연결에 붙어 `CREATE USER` 문법 오류 -> 편집기 활성 연결 확인(`Ctrl+9`)
+
+## 회원 관리 배포 — Nexus만으로 (2026-10-26 회사, 완료)
+- 조건: 회사에서 집 서버로 ssh·원격 불가 -> **집 서버 화면에서 `IRONY-SERVER-WORKER` 터미널로만** 업데이트. 집 서버 = supervisor-move B 빌드, 다른 worker는 전부 test3. 관리자 = `irony1090`
+- 함정-A(Job): Windows 터미널 process는 Job(`KILL_ON_JOB_CLOSE`, `execInteractive_windows.go`) 안 -> 터미널에서 `Start-Process`로 띄운 supervisor는 스크립트가 끝나면 같이 죽음 -> 터미널은 `Start-ScheduledTask Nexus`만 부르고 교체·재시작은 스케줄러 쪽에서
+- 함정-B(키): 새 supervisor는 키 없는 worker 거부 -> 키(`nxk_`)를 미리 `worker.env`에 넣고, 업데이트 뒤 "내 장비"에 **키 붙여넣기**로 등록(worker 재시도 최대 60초)
+- 업데이트-1(사전 점검) `build/home-update/check.ps1`(읽기만: 권한·Job·부모 체인·env 항목 이름·`Nexus` 작업·psql·DB 회원/goose/worker) -> 업데이트-2(묶음 업로드) -> 업데이트-3(준비: 압축 해제·`KEY_SECRET`·`API_KEY`·관리자 SQL·`Start-ScheduledTask`) -> 업데이트-4(교체: 15분 안에 서버 PC worker가 새 supervisor에 안 붙으면 옛 파일로 자동 되돌림, 판정 = `worker_instances.last_seen` > 시작 시각) -> 업데이트-5(화면: 키 붙여넣기)
+- 업데이트-1 결과(2026-10-26): elevated True · Job 안 True(함정-A 실재) · 부모 = `worker.exe -hold`(**Windows 보관 프로세스 동작 = K6 일부 확인**) · `Nexus` 작업 Ready(strik, Highest, Password, `start.ps1`) · goose 13 · `irony1090`(id 1) `{worker_move}` · 업로드 + 폴더 타일 직접 실행 OK
+- 롤백 안전: 옛 B 빌드 supervisor가 v14 DB 복사본(`nexus_member_tmp` 템플릿)에서 정상 기동(GET 200, 버전 14 유지) -> DB 복원 없이 파일만 되돌리면 됨
+- 묶음 `build/home-update/`(git 제외): `nexus-member.zip`(master `4ae97a7`, 태그 `MEMBER-261026`, Windows exe 2개 + `web/` + `apply.ps1`·`common.ps1`·`start.ps1`(PENDING 훅)·`status.ps1`·`VERSION.txt`) + 따로 올리는 `prepare.ps1`(압축 해제 -> env `KEY_SECRET`·`API_KEY`(`nxk_`) 추가 -> `pg_dump` -> 관리자 SQL -> start.ps1 교체 -> 키 출력 + `GO` 입력 -> `PENDING` + `Start-ScheduledTask`). `apply.ps1` = 끄기 -> `now()` -> `*.old-<stamp>` -> 켜기 -> HTTP 60초 -> 15분 `last_seen > t0` 기다림, 실패 = `Restore`(새 로그 `update\new-*.log`)
+- 함정: `cmd/*/env`는 git 추적 밖 -> 태그 되돌리기는 `git checkout` 말고 손으로
+- **결과(2026-10-26 16:56~16:59)**: `prepare.ps1` -> GO -> apply 16:56:52 끄기 -> 16:57:01 supervisor up -> 키 붙여넣기 등록 -> 16:59:03 DONE. 남은 것(서버 PC): `*.old-20261026-165652`(exe 2개·web)·`start.ps1.old-*`·`update\`(dump 포함) — 지워도 됨. `start.ps1`의 PENDING 훅은 그대로 둬도 무해, **다음 업데이트도 같은 방법**(zip + `prepare.ps1`, 이미 있는 env 키는 재사용)
+
+## 정리 (2026-10-26 저녁)
+- `build/`에서 `nexus-server.zip`·`nexus-update.zip`·`nexus-autostart.ps1`·`nexus-create-user.sql` 삭제(사용자: 새 배포에 필요 없으면 지움 — 작업 스케줄러는 이미 등록, 가입 화면이 생겨 계정 SQL 불필요). 다시 필요하면 위 "재부팅"·"업데이트 빌드 B" 절대로 다시 작성
+- `build/home-update/`는 ps1만 남김(zip·exe·web·`ct/` 삭제). 다음 배포(`/api` 정리 + 주소 일괄 변경)는 supervisor.exe + `web/`만 바꾸면 됨. 집에선 ssh·원격 가능

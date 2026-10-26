@@ -2,8 +2,11 @@
 import { useVirtualKeyboard } from '@/common/hook/virtualKeyboard.hook';
 import { useAppActions } from '@/feature/layout/hook/appActions.hook';
 import FootPill from '@/feature/node/component/FootPill.vue';
-import { computed } from 'vue';
+import FootActions, { type FootAction } from '@/feature/widget/component/FootActions.vue';
+import { computed, ref } from 'vue';
+import { useOpenDevices } from '../hook/openDevices.hook';
 import { useMemberBoard } from '../store/memberBoard.store';
+import DeviceMoveDialog from './DeviceMoveDialog.vue';
 import MemberDots from './MemberDots.vue';
 import MemberMenu from './MemberMenu.vue';
 
@@ -18,6 +21,13 @@ const kb = useVirtualKeyboard();
 const phone = computed(() => layout.value.phone);
 const size = computed(() => phone.value ? SIZE.phone : SIZE.pc);
 const style = computed(() => ({ height: `${size.value.h}px`, '--pill-h': `${size.value.pill}px` }));
+
+// 액션 = 판 상태로 쓸 수 있는지가 바뀌는 버튼(계정 알약 왼쪽) — REF-device-move.md
+const { devices, anyOnline } = useOpenDevices();
+const moveOpen = ref(false);
+const actions = computed<FootAction[]>(() => [
+    { key: 'move', icon: 'mdi-server-network', title: '열린 장비 supervisor 주소 변경', disabled: !anyOnline.value, hint: '열린 장비 타일에 접속 중인 instance가 없습니다', run: () => moveOpen.value = true },
+]);
 </script>
 
 <template>
@@ -30,11 +40,13 @@ const style = computed(() => ({ height: `${size.value.h}px`, '--pill-h': `${size
     </div>
     <member-dots />
     <div class="side right">
+        <foot-actions :actions="actions" />
         <foot-pill edge="right" class="acct">
             <span v-if="!phone" class="nick"><span class="dot" />{{ auth?.nickname }}</span>
             <v-btn size="small" density="comfortable" variant="text" icon="mdi-logout" title="로그아웃" @click="toggleAuth" />
         </foot-pill>
     </div>
+    <device-move-dialog v-model="moveOpen" :devices="devices" />
 </footer>
 </template>
 
@@ -51,7 +63,7 @@ const style = computed(() => ({ height: `${size.value.h}px`, '--pill-h': `${size
 }
 .side { display: flex; min-width: 0; }
 .left { justify-self: start; }
-.right { justify-self: end; }
+.right { justify-self: end; align-items: center; gap: 8px; }
 .nick {
     display: inline-flex;
     align-items: center;

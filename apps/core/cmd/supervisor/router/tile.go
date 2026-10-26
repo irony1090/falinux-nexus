@@ -18,7 +18,7 @@ import (
 )
 
 // 작업 공간마다 타일 트리 문서 1개 — `/tiles` = 기본, `/tiles/:hash` = 그 외(WS1(트리 주소), REF-node-ui-save.md)
-func (r *supervisorRouter) mountTiles(e *echo.Echo) {
+func (r *supervisorRouter) mountTiles(e *echo.Group) {
 	g := e.Group("/tiles")
 	g.GET("", r.getTiles)
 	g.PUT("", r.putTiles, middleware.BodyLimit("256K"))

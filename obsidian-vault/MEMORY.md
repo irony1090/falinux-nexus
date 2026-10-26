@@ -84,11 +84,13 @@ sqlc.yaml  README.md  .gitignore
 | 타일 판 공용 (`feature/widget` 판 계약 `PagerBoard`) | 알약 끌기·미니맵·빈 곳 휠·컨트롤 패널 여는 길·Ctrl+Alt+숫자를 보드·관리 페이지가 같이 씀. 새 타일 판 = 계약만 채움 | `REF-member-ui.md` "판 계약" |
 | 범용 유틸 (EventInterface/Memoized/LifecycleRegistry/GroupedSet) | 4종 + 공유 리사이즈 관측 그룹(`feature/common`), 반복 주제 | `REF-util.md` · `REF-util-drag.md`(드래그, 보류) |
 
+- **브라우저 API = 전부 `/api` 아래**(2026-10-26, `refactor/api-prefix`): 프론트 페이지 경로와 겹치지 않게 supervisor 코드에서(웹 서버 설정 의존 X). 새 API는 `mount*`에 받은 그룹에만, 프론트 주소는 `getBaseURL()` 뒤 문자열 이어 붙이기(`new URL('/x', base)` 금지). worker 소켓 `/worker`만 밖 (→ `REF-api-prefix.md`)
+
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
 - 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-worker-dir.md`(worker 폴더 타일 전체 계획, 폴더-7(내려받기)·9(worker 간 전송) 원래 표)
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
-- **진행 중 파트**: 회원 관리 `REF-member.md`·`REF-member-impl.md`·`REF-member-ui.md`(화면 개편·판 계약) — 코드·커밋 끝, test3 배포 확인 중
+- **진행 중 파트**: 회원 관리 `REF-member.md`·`REF-member-impl.md`·`REF-member-ui.md`(화면 개편·판 계약) — test3·집 서버 배포 끝, 마감 대기 / `/api` 정리 `REF-api-prefix.md` / 열린 장비 주소 일괄 변경 `REF-device-move.md`
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`

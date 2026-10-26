@@ -23,7 +23,7 @@ type activeTarget struct {
 
 func (a activeTarget) empty() bool { return a.uid == "" && a.nodeID == 0 }
 
-func (r *supervisorRouter) mountActive(e *echo.Echo) {
+func (r *supervisorRouter) mountActive(e *echo.Group) {
 	e.GET("/tabs/active", r.listActive)
 }
 

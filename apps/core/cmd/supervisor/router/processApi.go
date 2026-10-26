@@ -19,7 +19,7 @@ import (
 
 const tabIDHeader = "X-Tab-Id" // REST 요청이 어느 탭에서 왔는지(TAB:ID로 받은 값)
 
-func (r *supervisorRouter) mountProcesses(e *echo.Echo) {
+func (r *supervisorRouter) mountProcesses(e *echo.Group) {
 	g := e.Group("/processes")
 	g.GET("", r.listProcesses)
 	g.GET("/lookup", r.lookupProcesses)
