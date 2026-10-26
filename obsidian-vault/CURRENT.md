@@ -8,14 +8,14 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **(2026-10-26 오후) 파트(회원 관리) UI 개편 코드 적용 중** — UI-1(서버 목록)~UI-6(로그인·가입) + Ctrl+Alt 컨트롤 패널(보드와 공유 훅) + 알약 끌기(판 계약 `PagerBoard`, A안) 끝, 헤드리스 확인 끝 -> 사용자 브라우저 확인 OK("맘에 든다") -> 마감 전 회귀 17/17 + 옛 폴더 403 의도 확인 -> **파트 커밋 `1bd58e7`(feat/member)** -> 다음 = `feat/supervisor-move` 마감·master 머지 -> master를 `feat/member`에 머지 -> 배포(`REF-member.md` "배포 전 확인", 관리자 회원 묻기)(→ `REF-member-ui.md` "구현"). 그 뒤 = 마감 전 회귀(`REF-member-impl.md` "파트 마감까지 남은 것"). 격리 5051·3001·`jig-a`는 지난 세션 것이 그대로 떠 있음(scratchpad `e786c602…`)
+- **(2026-10-26 오후) 파트(회원 관리) UI 개편 코드 적용 중** — UI-1(서버 목록)~UI-6(로그인·가입) + Ctrl+Alt 컨트롤 패널(보드와 공유 훅) + 알약 끌기(판 계약 `PagerBoard`, A안) 끝, 헤드리스 확인 끝 -> 사용자 브라우저 확인 OK("맘에 든다") -> 마감 전 회귀 17/17 + 옛 폴더 403 의도 확인 -> **파트 커밋 `1bd58e7`(feat/member)** -> `feat/supervisor-move` master 머지 `efbe403`(vault 커밋 `f05bd24` 먼저) -> master를 `feat/member`에 머지 `fb2fa56`(vault = master 기준) -> **다음 = 미등록 process 가져오기(사용자 2026-10-26 추가 요청, 설계 조율 중 → `REF-supervisor-move.md` "가져오기")** -> 배포(`REF-member.md` "배포 전 확인", 관리자 회원 묻기)(→ `REF-member-ui.md` "구현"). 그 뒤 = 마감 전 회귀(`REF-member-impl.md` "파트 마감까지 남은 것"). 격리 5051·3001·`jig-a`는 지난 세션 것이 그대로 떠 있음(scratchpad `e786c602…`)
 - **(2026-10-26, 재부팅 직전) 파트(회원 관리) 진행 중 — 서버 전부 + 화면 첫 판 끝, 헤드리스 확인 OK, 커밋 전** → 결정 `REF-member.md` · 구현·다음 할 것 `REF-member-impl.md`
   - **다음 세션 첫 할 일(사용자 요청)**: ① `REF-member-impl.md` "격리 환경 다시 띄우기"로 5051 supervisor·3001 vite·`jig-a` worker를 띄운다(재부팅으로 scratchpad·프로세스 사라짐, DB `nexus_member_tmp`는 남음) ② 같은 파일 "다음 세션 첫 안내"의 **마지막 응답 원문을 그대로** 사용자에게 전한다 ③ 사용자가 화면 보며 지적 -> UI 다듬기
   - 작업 = **worktree `/home/jh-bae/irony/nexus-member`, 브랜치 `feat/member`**(머지 커밋 `6f87465` 위에 커밋 안 한 변경). 이 폴더(master)·`feat/supervisor-move`는 안 건드림. vault는 이 폴더에서 기록
   - 배포 전 필수: 관리자로 지정할 회원 묻기 · supervisor env `KEY_SECRET` · worker 실행 파일 + `API_KEY` 재배포(`REF-member.md` "배포 전 확인")
 - **(2026-10-26 세션 끝) 다음 세션 = 파트(회원 관리) UI 개편 코드 적용** → `REF-member-ui.md` "코드 적용 계획"(UI-1(서버 목록)~UI-7(확인), 착수 전에 표를 보이고 맞춤) / 다시 띄우기 → `REF-member-impl.md` "다음 세션 시작". 시안 확정 https://claude.ai/artifact/XeSQZMThQjbs5CxGMage9r(사용자 "디자인 좋아 맘에 들어")
   - 순서(2026-10-26 사용자): 회원 관리 확인·UI 먼저 -> supervisor-move 머지(마감 커밋 + vault 충돌은 master 기준) -> 회원 관리 마감 때 master를 `feat/member`에 가져와 머지 -> 집 서버 재배포(master 정식 빌드, `REF-member.md` "배포 전 확인" — 가능함 확인, 모든 worker 실행 파일 + `API_KEY` 재배포 필요)
-  - 머지 전 답 대기: 회원 관리 vault 파일(`REF-member*.md`·`history/member*.md`, 아직 git 밖)을 master vault 커밋에 같이 넣을지 · MEMORY 색인 2단화를 그때 같이 할지
+  - 회원 관리 vault 파일은 master vault 커밋 `f05bd24`에 넣음. MEMORY 색인 2단화는 아직(다음 vault 정리 때)
   - 지금 떠 있는 것(재부팅하면 사라짐): 격리 5051·3001·`jig-a`(scratchpad) + 사용자가 띄운 `test-worker`(`go run ./cmd/worker -env test.env`)
 - **(2026-10-26 회사) Linux B 빌드 `build/supervisor_move` 만듦**(태그 `SUPERVISORMOVE-261026`, embed env = test3 값) -> 사용자가 test3에 띄운 뒤 집 서버로 옮길 예정 → `REF-home-server.md` "Linux B 빌드"
 - **(2026-10-25 세션 끝) 다음 = 회사에서 worker 전부 최신으로 + supervisor를 집 서버 주소로**(사용자 계획 2026-10-26) → `REF-home-server.md` "내일 할 것". 집 서버(운영) 구축 끝: Windows 서버 PC + Cloudflare Tunnel + 부팅 자동 시작, **B 빌드 = master + `feat/supervisor-move`(master 미머지 코드)로 운영 중**. 파트(supervisor 주소 실시간 변경)는 여전히 사용자 확인 -> master 머지 대기. 작업 트리 = master(파트(찰떡 UI) 머지 + vault), 떠 있는 개발 서버 없음. **MEMORY ~10k자** — 다음 vault 정리 때 색인 2단화(마감 파트 줄을 INDEX로)부터. 새 파트 후보 `BACKLOG.md`

@@ -76,3 +76,10 @@
 
 ## 사용자 확인 (2026-10-26)
 - 집 서버로 옮기기 실제로 잘 됨(회사 test3 -> 집 서버). 머지 OK — 순서는 `CURRENT.md`(회원 관리 확인 뒤)
+
+## 가져오기 — 미등록 process를 새 supervisor에 등록 (2026-10-26 사용자 추가 요청, 조율 중)
+- 요청: worker에서 process가 도는 채로 supervisor를 옮기면 새 쪽에선 미등록 process -> 장비 주인이 새 supervisor `processes`에 등록하고 타일로 띄우기
+- 구조 메모: 등록 = 재접속 때 `reconcileReconnect`가 하는 것과 같은 길(`processes` 행 + `processManager.Rebind` + `subscribeViewers` + `startRelay` + `applyStatus`) + `unregistered`에서 뺌 + `execTile`로 터미널 타일. 옛 node id는 새 DB에서 뜻이 없어 장비 파일 실행처럼 `node_id` 없음·`dir_node_id` = 장비 타일 폴더가 후보
+- 결정(2026-10-26 사용자): ① EXEC만 가져옴(EDIT는 끄기만) ② 양쪽 DB에 행이 있으면 **가져오기를 먼저 누른 쪽이 주인**(해석 확인 필요 — 아래 답 대기) ③ 브랜치는 아직 미정
+- node 찾기(사용자 질문): worker는 node id를 따로 모름(holds = label·cmd·cwd). 단 스크립트 실행 경로가 `{WORKER_BASE}/<node.ID>/<uid><확장자>`(`supervisor/process/path.go`)라 cmd에서 옛 DB node id를 읽을 수 있음 -> 새 DB에 그 id가 있고 SCRIPT·이름 = label·주인 = 장비 주인·폴더 장비 = 이 장비면 연결, 아니면 node 없음(장비 파일 실행처럼). DB를 통째로 옮긴 경우만 맞고, 새 DB면 대개 없음
+- 화면 내용: worker는 접속 직후에만 hold 화면 스냅샷(MsgScreen)을 보냄 -> 가져온 뒤 그 전 화면을 채우려면 supervisor -> worker "이 uid 화면 다시" 요청 메시지가 새로 필요(worker 수정)
