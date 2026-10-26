@@ -38,6 +38,7 @@
 - 파일 전송 확장(마감, 업로드·전송 상태) → `INDEX-transfer-ext.md` (transfer-ext)
 - 내려받기·worker 간 전송(마감) → `INDEX-transfer-down.md` (transfer-down)
 - 경로 직접 입력(마감) → `INDEX-path-input.md` (path-input)
+  - 2026-10-26 `history/path-input.md`에 장비 타일 자동완성 비침(`.crumbs` z-index, `fix/phone-layout`)
 - 글자 크기 규칙(마감) → `INDEX-typography.md` (typography)
 - Ctrl+Alt 팝업 버튼·터치 스크롤 양(마감) → `INDEX-pager-tools.md` (pager-tools)
 - 타일 머리 줄 버튼(마감) → `INDEX-tile-head.md` (tile-head)
@@ -53,7 +54,7 @@
 | `history/api-prefix.md` | 브라우저 API `/api` 접두어(2026-10-26) ↔ `REF-api-prefix.md` | 10-26 api-1~5, 14/14, 다음 = 열린 장비 주소 일괄 변경 |
 | `history/member.md` | 회원 관리 — 결정·조율(2026-10-26 착수, 진행 중) ↔ `REF-member.md` | 10-26 회원-Q1~Q23 |
 | `history/member-impl.md` | 회원 관리 — 구현·확인 ↔ `REF-member-impl.md` | 10-26 오후 회귀 17/17·커밋 `1bd58e7`·`fa50c64`·사용자 test3 배포·관리자 지정 |
-| `history/member-ui.md` | 회원 관리 — 화면 개편(2026-10-26 `member-impl`에서 분할) ↔ `REF-member-ui.md` | 10-26 밤 폰 첫 타일 이동 버그(`memberUrl.hook` 감시 원천), `fix/phone-layout` 커밋 전 |
+| `history/member-ui.md` | 회원 관리 — 화면 개편(2026-10-26 `member-impl`에서 분할) ↔ `REF-member-ui.md` | 10-26 밤 폰 첫 타일 이동 버그(`memberUrl.hook` 감시 원천)·빈 페이지 도트·다 닫으면 목록으로, `fix/phone-layout` master 머지 |
 | `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-26 밤 세션 끝(회원 관리 배포·api-prefix 진행 줄) |
 | `history/current-archive-1.md` | 위 파일에서 분할(2026-10-26 낮까지: 재부팅 전·세션 끝 정리) | 10-26 세션 끝 |
 | `history/worker-dir.md` | worker 폴더 타일 전체 계획(2026-10-22 신설) — 파트(worker 폴더 타일)·파트(파일 전송 확장) 마감(`INDEX-worker-dir`·`INDEX-transfer-ext`), 폴더-7·9 계획이 남음 | 10-22 구상·조율 Q1~Q11, 큰 계획 폴더-1~9 |
