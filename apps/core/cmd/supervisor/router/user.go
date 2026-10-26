@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"slices"
 
 	"nexus/internal/manager/session"
 	superdb "nexus/internal/supervisor/db/gen"
@@ -32,16 +33,21 @@ type userSignRequest struct {
 }
 
 type userResponse struct {
-	Identification string `json:"identification"`
-	Nickname       string `json:"nickname"`
-	CreatedAt      int64  `json:"createdAt"`
-	UpdatedAt      *int64 `json:"updatedAt"`
+	Identification string   `json:"identification"`
+	Nickname       string   `json:"nickname"`
+	CreatedAt      int64    `json:"createdAt"`
+	UpdatedAt      *int64   `json:"updatedAt"`
+	Perms          []string `json:"perms"` // 주소-3(권한 열) — 화면 메뉴 보이기용, 인가는 requirePerm이 DB에서 다시 읽음
 }
 
 func newUserResponse(u superdb.User) userResponse {
 	r := userResponse{
 		Identification: u.Identification,
 		Nickname:       u.Nickname,
+		Perms:          u.Perms,
+	}
+	if r.Perms == nil {
+		r.Perms = []string{}
 	}
 	if u.CreatedAt.Valid {
 		r.CreatedAt = u.CreatedAt.Time.Unix()
@@ -67,6 +73,23 @@ func (router *supervisorRouter) requireSession(c echo.Context) *session.SessionE
 		panic(web.Err(401, "로그인 절차가 필요합니다"))
 	}
 	return sess
+}
+
+// 계정 권한 이름(users.perms) — 주소-3(권한 열)
+const permWorkerMove = "worker_move" // 전체 worker 주소 변경
+
+// requirePerm은 계정에 perm이 있는지 DB에서 다시 읽어 본다(쿠키의 sess.Data는 로그인 때 값이라 쓰지 않음). 없으면 403
+func requirePerm(c echo.Context, userID int64, perm string) {
+	user, err := TxQueries(c).GetUser(c.Request().Context(), userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		panic(web.Err(401, "로그인 절차가 필요합니다"))
+	}
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	if !slices.Contains(user.Perms, perm) {
+		panic(web.Err(403, "권한이 없습니다"))
+	}
 }
 
 func (router *supervisorRouter) mountUsers(e *echo.Echo) {

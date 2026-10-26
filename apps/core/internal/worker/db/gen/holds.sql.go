@@ -19,8 +19,8 @@ func (q *Queries) DeleteHold(ctx context.Context, uid string) error {
 }
 
 const insertHold = `-- name: InsertHold :exec
-INSERT INTO holds (uid, kind, edit_path, sock, holder_pid, pid)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO holds (uid, kind, edit_path, sock, holder_pid, pid, label, cmd, cwd)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertHoldParams struct {
@@ -30,6 +30,9 @@ type InsertHoldParams struct {
 	Sock      string
 	HolderPid int64
 	Pid       int64
+	Label     string
+	Cmd       string
+	Cwd       string
 }
 
 func (q *Queries) InsertHold(ctx context.Context, arg InsertHoldParams) error {
@@ -40,12 +43,15 @@ func (q *Queries) InsertHold(ctx context.Context, arg InsertHoldParams) error {
 		arg.Sock,
 		arg.HolderPid,
 		arg.Pid,
+		arg.Label,
+		arg.Cmd,
+		arg.Cwd,
 	)
 	return err
 }
 
 const listHolds = `-- name: ListHolds :many
-SELECT uid, kind, edit_path, sock, holder_pid, pid, created_at FROM holds ORDER BY created_at
+SELECT uid, kind, edit_path, sock, holder_pid, pid, created_at, label, cmd, cwd FROM holds ORDER BY created_at
 `
 
 func (q *Queries) ListHolds(ctx context.Context) ([]Hold, error) {
@@ -65,6 +71,9 @@ func (q *Queries) ListHolds(ctx context.Context) ([]Hold, error) {
 			&i.HolderPid,
 			&i.Pid,
 			&i.CreatedAt,
+			&i.Label,
+			&i.Cmd,
+			&i.Cwd,
 		); err != nil {
 			return nil, err
 		}

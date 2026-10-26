@@ -297,6 +297,8 @@ type ProcessSpec struct {
 	Cols uint16   `json:"cols,omitempty"`
 
 	Direct bool `json:"direct,omitempty"` // 장비 파일을 그대로 실행(형식 변환·확장자 강제 없음, 실행 가능한 파일만) — 폴더-4(실행)
+
+	Label string `json:"label,omitempty"` // 표시용 이름(스크립트 노드 이름) — worker가 보관 목록에 두고 미등록 process 표시에 씀(주소-4)
 }
 
 // Kind: 빈 값 = EXEC
@@ -363,6 +365,12 @@ type SyncEntry struct {
 	UID    string                `json:"uid"`
 	Status execute.CommandStatus `json:"status"`
 	PID    int                   `json:"pid,omitempty"`
+	// 아래는 미등록 process(붙은 supervisor DB에 행이 없음) 표시용 — 주소-4(미등록 process), REF-supervisor-move.md
+	Kind      ExecType `json:"kind,omitempty"`
+	Label     string   `json:"label,omitempty"` // 스크립트 노드 이름(장비 파일 실행은 빈 값)
+	Cmd       string   `json:"cmd,omitempty"`   // 명령 + 인자(표시용 한 줄). 이 기능 전에 띄운 process는 빈 값
+	Cwd       string   `json:"cwd,omitempty"`
+	StartedAt int64    `json:"startedAt,omitempty"` // Unix 초
 }
 
 // SyncEvent: MsgSync payload — register 성공 직후 1회
@@ -543,4 +551,21 @@ type TransferInfo struct {
 
 type TransferGoneEvent struct {
 	ID string `json:"id"`
+}
+
+// ===== supervisor 주소 옮기기 (supervisor -> worker) — 주소-2(옮기기 명령), REF-supervisor-move.md =====
+// worker는 주소 목록(최대 3)을 순위대로 시도한다. 옮기기 = 새 주소를 1순위로 저장, Now면 지금 연결도 끊어 바로 옮김
+const (
+	MsgMove  MsgType = "MOVE"  // sup→worker REQ: MoveRequest → AddrsResponse
+	MsgAddrs MsgType = "ADDRS" // sup→worker REQ: 빈 요청 → AddrsResponse
+)
+
+type MoveRequest struct {
+	URL string `json:"url"` // scheme://host (ws·wss)
+	Now bool   `json:"now"` // 주소-Q9(즉시 옮김 여부): true = 바로 옮기기 / false = 저장만
+}
+
+// AddrsResponse: 저장된 목록(1순위부터)
+type AddrsResponse struct {
+	Addrs []string `json:"addrs"`
 }

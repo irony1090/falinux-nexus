@@ -12,10 +12,23 @@ type Hold struct {
 	HolderPid int64
 	Pid       int64
 	CreatedAt int64
+	Label     string
+	Cmd       string
+	Cwd       string
 }
 
 type Identity struct {
 	MainKey   string
 	SubKey    string
 	UpdatedAt int64
+}
+
+type Setting struct {
+	Key   string
+	Value string
+}
+
+type Supervisor struct {
+	Url  string
+	Rank int64
 }
