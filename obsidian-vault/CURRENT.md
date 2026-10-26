@@ -13,6 +13,7 @@
   - 커밋 `9c1651d` + master 머지 `c5f9749`(2026-10-26 저녁, 사용자 요청). push = 사용자
   - worktree `nexus-member` 삭제 + 로컬 `feat/member` 삭제(master에 포함 확인). 원격 `origin/feat/member`는 사용자가 정리. 지우기 전 `KEY_SECRET` 줄을 원래 폴더 `cmd/supervisor/env`(git 밖)로 옮김
   - 이 PC 재빌드(사용자 진행 예정): 빌드명 추천 `api_prefix`(태그 `SUPERVISOR-/WORKER-API_PREFIX-261026`, `cmd/*/env`는 git 밖이라 태그는 손으로 되돌림). **supervisor + web만 교체, worker는 재시작 불필요**(이번 변경에 `cmd/worker`·`internal` 차이 없음, `/worker` 그대로, 끊기면 스스로 재접속) -> worker는 `take_process/worker`로 계속 돌므로 **`build/take_process/` 지우지 말 것**
+  - 이 PC = 사용자가 `build/api_prefix` 빌드함 / 집 서버 묶음 = `build/home-update/nexus-api-prefix.zip`(supervisor + web + `update.ps1`, 사용자가 집에서 배포) → `REF-home-server.md` 끝
   - 다음: 사용자 화면 확인 -> 배포 = **supervisor + 웹만**(둘을 같이, worker 그대로): test3 = 새 빌드 / 집 서버 = 집에서 원격으로 exe·web 교체(남겨 둔 `build/home-update/` 스크립트 재사용 가능, env 키는 이미 있음)
   - 파트(회원 관리) 마감 정리(MEMORY 불변 결정·`INDEX-member` 접기 — MEMORY 10.3k자라 이때 줄임)도 같이
   - `build/` 정리함(사용자 요청): 남은 것 = `take_process/`·`supervisor.env`·`worker.env`·`worker-sqlite.db*` + `home-update/`의 ps1 스크립트만. 옛 빌드본 4개·`supervisor_move`·집 서버 옛 zip 2개·`nexus-autostart.ps1`·`nexus-create-user.sql` 삭제(내용은 `REF-home-server.md`에 설명 남음). `supervisor_move/worker -hold`(pid 771160, 12:12 터미널)는 실행 파일만 지워졌고 계속 돎(take_process worker가 붙어 있음)

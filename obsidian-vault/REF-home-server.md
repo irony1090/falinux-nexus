@@ -66,3 +66,6 @@
 ## 정리 (2026-10-26 저녁)
 - `build/`에서 `nexus-server.zip`·`nexus-update.zip`·`nexus-autostart.ps1`·`nexus-create-user.sql` 삭제(사용자: 새 배포에 필요 없으면 지움 — 작업 스케줄러는 이미 등록, 가입 화면이 생겨 계정 SQL 불필요). 다시 필요하면 위 "재부팅"·"업데이트 빌드 B" 절대로 다시 작성
 - `build/home-update/`는 ps1만 남김(zip·exe·web·`ct/` 삭제). 다음 배포(`/api` 정리 + 주소 일괄 변경)는 supervisor.exe + `web/`만 바꾸면 됨. 집에선 ssh·원격 가능
+- **집 서버 다음 배포 묶음(2026-10-26 저녁)** `build/home-update/nexus-api-prefix.zip`(폴더 `api_prefix/`): master `c5f9749` Windows `supervisor.exe`(태그 `SUPERVISOR-API_PREFIX-HOMESERVER-261026`, 빌드 뒤 `API_PREFIX-261026`로 되돌림) + `web/`(`VITE_API_URL=`, `/api` 확인) + `update.ps1` + README. worker·env 그대로
+  - `update.ps1`: supervisor + 주 worker 끄기 -> `supervisor.exe`·`web` -> `*.old-<stamp>` -> 새 것 복사 -> **`Start-ScheduledTask Nexus`로 켬**(ssh 세션·Nexus 터미널에서 띄운 프로세스는 세션이 끝나면 같이 죽으므로 어디서 실행해도 되게) -> `/api/nope` = 404면 새 빌드 확인(옛 빌드는 index.html 200) -> 60초 안에 안 되면 자동 되돌림. 관리자 PowerShell 권장
+  - 사용자가 집에서 직접 배포(원격·ssh 가능)
