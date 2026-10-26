@@ -46,6 +46,7 @@
 1. 사용자가 test3(`build/take_process`)에서 본 결과를 듣는다 -> 고칠 것 있으면 worktree `feat/member`에서
 2. 격리가 필요하면 위 "격리 환경 다시 띄우기"(전부 닫혀 있음, DB `nexus_member_tmp`만 남음 — scratchpad 경로는 새 세션 것으로)
 3. 문제없으면 파트 마감(아래 3번)
+- 이 세션 확인 스크립트(scratchpad `panel`·`url`·`auth`·`drag`·`wheel`·`regress`·`adopt1~3.mjs`, 공용 `lib.mjs`)는 세션이 끝나면 사라짐 — 무엇을 봤는지는 `REF-member-ui.md` "구현"·이 파일 "파트 마감까지 남은 것" 2번·`REF-supervisor-move.md` "가져오기 구현" 가져오기-5
 
 ## 파트 마감까지 남은 것
 1. ~~UI 개편 코드 적용(`REF-member-ui.md` UI-1~UI-7)~~ — 끝(2026-10-26 사용자 브라우저 확인 "맘에 든다")

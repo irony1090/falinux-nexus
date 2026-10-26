@@ -8,6 +8,7 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
+- **(2026-10-26 세션 끝, 사용자 "여기까지 오케이" -> 세션 재시작)** 다음 세션 첫 할 일 = 사용자가 test3에서 써 본 결과 듣기 -> 문제없으면 파트(회원 관리) 마감
 - **(2026-10-26 세션 끝) 파트(회원 관리) = 코드·확인·커밋 끝, 사용자가 test3.falinux.com에 직접 새 배포함** — test3(8013) = **`build/take_process`**(사용자 빌드, `nexus_build` goose v14 = `00014` 적용 확인). 사용자 확인 결과 듣고 이어서
   - 브랜치: `feat/member`(worktree `/home/jh-bae/irony/nexus-member`) = `1bd58e7`(회원 관리 전부: 서버·UI 개편·컨트롤 패널·알약 끌기·빈 곳 휠·판 계약) -> `fb2fa56`(master 머지 = supervisor-move 포함) -> `fa50c64`(미등록 process 가져오기). master = `efbe403`(supervisor-move 머지) + vault. **push = 사용자가 함**(분기 태그는 따로 `git push origin <tag>`)
   - (해결된 듯 — 사용자가 `build/take_process`로 배포) 배포 중 막힘: 사용자가 원래 폴더에서 `git checkout feat/member` -> "already checked out at nexus-member". 제안 = ① worktree 폴더에서 바로 빌드(권장, env·`KEY_SECRET` 이미 있음) / ② `git worktree remove --force` 뒤 원래 폴더에서 체크아웃(`test.env`·`node_modules` 링크·env 복사본 지워짐 — 옮긴 뒤)
