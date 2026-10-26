@@ -42,12 +42,12 @@
 - 끌 때: `/proc/<pid>/cwd`가 `<scratch>/iso/sup`·`iso/wrk`인 것, vite는 cwd가 worktree `apps/frontend`인 것만. `rm`은 `"${S:?}"/...` 또는 절대 경로(변수 빈 값 `rm` 안전장치에 걸림)
 - 외부(test1·test2)로 보이기: supervisor가 8012에 떠야 하는데 **8012는 다른 프로젝트(`irony/community`) vite가 씀** -> 사용자가 밖에서 보겠다고 하면 방법을 따로 맞춤
 
-## 다음 세션 시작 (2026-10-26 세션 끝)
-1. 격리 환경: 이 세션에서 띄운 5051·3001·`jig-a`는 scratchpad에 있어 PC를 다시 켜면 사라짐 -> 위 "격리 환경 다시 띄우기"로 다시(DB `nexus_member_tmp` 남음, `jig-a` 새 서브키면 라벨 다시). 사용자 테스트 worker = `cmd/worker/test.env`(`test-worker`, sqlite `cmd/worker/test-worker.db`)
-2. `REF-member-ui.md` "코드 적용 계획" 표를 사용자에게 보이고 맞춘 뒤 UI-1(서버 목록)부터
-- (옛 "다음 세션 첫 안내" 원문 = 2026-10-26 오전 세션 시작 때 전달함 -> 지움)
+## 다음 세션 시작 (2026-10-26 세션 끝, 배포 뒤)
+1. 사용자가 test3(`build/take_process`)에서 본 결과를 듣는다 -> 고칠 것 있으면 worktree `feat/member`에서
+2. 격리가 필요하면 위 "격리 환경 다시 띄우기"(전부 닫혀 있음, DB `nexus_member_tmp`만 남음 — scratchpad 경로는 새 세션 것으로)
+3. 문제없으면 파트 마감(아래 3번)
 
 ## 파트 마감까지 남은 것
 1. ~~UI 개편 코드 적용(`REF-member-ui.md` UI-1~UI-7)~~ — 끝(2026-10-26 사용자 브라우저 확인 "맘에 든다")
 2. 마감 전 회귀 — **2026-10-26 격리 17/17**(scratchpad `regress.mjs`, 보드 탭을 열어 그 탭 id로 API): alice 폴더(`jig-a`)·스크립트·실행 대상·실행·실행 기록 / 장비 타일 목록·올리기·내려받기·장비 파일 실행 / bob에 실행 권한(20) 공유 -> 실행 대상 보임·실행 OK·`/workers`엔 남의 장비 안 보임 / **`devices`에 없는 옛 폴더(SQL로 `ghost-dev`) = 실행 403 "ghost-dev 는 이 폴더 소유자가 등록한 장비가 아닙니다"**, 실행 대상 목록도 403, 장비 타일 목록 403. 참고: 공유받은 bob의 장비 디렉토리 목록 403은 원래부터(`requireDeviceFolder` = 폴더 소유자만, Q5). **403 = 의도대로(2026-10-26 사용자 확인)** — 배포 뒤 기존 폴더는 주인이 "내 장비"에 같은 이름으로 등록해야 실행됨. 시험 폴더·`/tmp/regress-*`는 지움
-3. ~~파트 커밋~~ — **`1bd58e7`**(2026-10-26, `feat/member`, 69파일. 뺀 것 = `cmd/worker/test.env`(디스크에 남김)·`apps/frontend/node_modules` 링크) -> 남은 것 = `feat/supervisor-move` 마감·master 머지 -> master를 `feat/member`에 머지 -> 배포. 배포는 `REF-member.md` "배포 전 확인" 순서대로(관리자 회원 묻기 필수)
+3. ~~파트 커밋~~ — **`1bd58e7`**(2026-10-26, `feat/member`, 69파일. 뺀 것 = `cmd/worker/test.env`(디스크에 남김)·`apps/frontend/node_modules` 링크) -> `feat/supervisor-move` master 머지(`efbe403`) -> master를 `feat/member`에 머지(`fb2fa56`) -> 가져오기 `fa50c64` -> **사용자 test3 배포(`build/take_process`), 관리자 = `아이로니`(id 3)** -> 남은 것 = 배포 확인 뒤 파트 마감(MEMORY 불변 결정·`INDEX-member` 접기·master 머지). 배포는 `REF-member.md` "배포 전 확인" 순서대로(관리자 회원 묻기 필수)

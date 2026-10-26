@@ -18,3 +18,10 @@
 - 격리 환경 함정: worktree `apps/frontend/node_modules` = 원래 폴더로의 심볼릭 링크 -> vite가 아이콘 폰트(`@fs/...`)를 403 -> scratchpad `vite.iso.mts`로 `server.fs.allow` 넓혀 띄움(코드 문제 아님)
 
 - 재부팅 전 vault 정리: REF·history를 결정(`REF-member`)/구현(`REF-member-impl`) 두 쌍으로 분할, 사용자 요청으로 마지막 응답 원문을 `REF-member-impl.md` "다음 세션 첫 안내"에 보관
+
+## 2026-10-26 오후 — 마감 전 회귀 · 커밋 · 배포
+- 마감 전 회귀 17/17(`regress.mjs`, 보드 탭 id로 API): 실행·장비 타일(목록·올리기·내려받기·파일 실행)·공유 실행 OK. `devices`에 없는 옛 폴더 = 실행 403 -> 사용자 "의도대로"(질문: API 키 문제냐 장비 등록 문제냐 -> 장비 등록 쪽이라고 설명)
+- 함정: `users.identification`은 sha256 해시라 아이디로 못 찾음(닉네임으로) · 실행 기록 API는 폴더 id
+- 파트 커밋 `1bd58e7`(69파일, `test.env`·`node_modules` 링크 뺌) -> supervisor-move master 머지 -> master를 `feat/member`로 `fb2fa56`(vault = master 기준)
+- 추가 요청 = 미등록 process 가져오기(→ `history/supervisor-move.md`) -> 커밋 `fa50c64`
+- 배포: 사용자가 test3에 직접(`build/take_process`, goose v14). 원래 폴더에서 `git checkout feat/member`가 worktree 때문에 막힘 -> worktree 폴더에서 빌드 권장. 관리자 = 사용자 "irony 닉네임" -> 실제 닉네임 `아이로니`(로그인 아이디 `irony`, id 3) 확인 뒤 Claude가 SQL로 지정

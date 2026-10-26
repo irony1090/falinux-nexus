@@ -2,7 +2,7 @@
 
 > → 이력 `history/supervisor-move.md` · → 진행 `CURRENT.md`
 > 파트(supervisor 주소 실시간 변경), 2026-10-24 착수. 용도 = supervisor 이사·업데이트, 임시로 연결 유지
-> **상태: 마감(2026-10-26) — 집 서버 B 빌드로 운영 확인, master 머지**(`40e0942` wip가 구현 전부)
+> **상태: 마감(2026-10-26, master `efbe403`, → `INDEX-supervisor-move.md`)** — 집 서버 B 빌드로 운영 확인. 후속 "가져오기"는 `feat/member` `fa50c64`
 
 ## 결정 (2026-10-24 조율)
 

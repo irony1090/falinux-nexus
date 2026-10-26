@@ -18,3 +18,9 @@
 
 ## 2026-10-26
 - 사용자 확인: 회사 Linux B 빌드(`build/supervisor_move`)를 test3에 띄운 뒤 화면으로 집 서버로 옮기기 **잘 됨** -> "맘 편히 머지해도 될 것 같다". 머지는 회원 관리 확인 뒤(`CURRENT.md` 순서). 마감 커밋 + `INDEX-supervisor-move.md`로 접기는 머지 때
+
+## 2026-10-26 오후 — master 머지 · 미등록 process 가져오기
+- vault 먼저 master 커밋(`f05bd24`) -> `feat/supervisor-move` `--no-ff` 머지 `efbe403`(vault 충돌 6개 = master 쪽) -> 파트 마감 → `INDEX-supervisor-move.md`
+- 사용자 추가 요청: 옮긴 뒤 미등록 process를 새 supervisor의 장비 주인이 등록·타일로 -> 조율: EXEC만 · 주인 = 가져온 쪽 장비 주인(superA UserC 실행 -> superB UserD가 가져오면 UserD) · worker가 옛 쪽으로 돌아가면 옛 행으로(①) · node 찾기 = 실행 경로 `/<id>/<uid>`(사용자 질문 "node는 어떻게 찾아?") · `feat/member`에서 · 찰떡 UI 참고
+- 구현 가져오기-1~4 → REF "가져오기 구현". 확인 = 격리 supervisor 3개(A·새 DB B·A 복사본 C) + worker, `adopt2.mjs` 22/22 · 화면 `adopt3.mjs` 6/6. 함정: 키는 DB마다 따로(새 DB면 같은 키로 등록)
+- 사용자 확인 -> 커밋 `fa50c64`, 격리 전부 닫고 임시 DB 지움
