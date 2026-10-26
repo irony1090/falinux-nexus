@@ -52,6 +52,7 @@
 
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
+| `history/decisions.md` | 확정 결정 상세(2026-10-26 MEMORY 슬림화 때 신설) ↔ `REF-decisions.md` | 10-26 밤 MEMORY 9.9k -> 5.8k자 |
 | `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-26 밤 vault 색인 정리(회원 관리 마감) |
 | `history/current-archive-2.md` | 위 파일에서 분할(2026-10-26 밤 세션 끝) | 10-26 밤 세션 끝 |
 | `history/current-archive-1.md` | 위 파일에서 분할(2026-10-26 낮까지: 재부팅 전·세션 끝 정리) | 10-26 세션 끝 |
