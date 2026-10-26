@@ -27,8 +27,109 @@ func (q *Queries) DeleteWorkerInstance(ctx context.Context, arg DeleteWorkerInst
 	return result.RowsAffected(), nil
 }
 
+const listOwnedMainKeys = `-- name: ListOwnedMainKeys :many
+SELECT main_key FROM devices WHERE owner_user_id = $1
+`
+
+func (q *Queries) ListOwnedMainKeys(ctx context.Context, ownerUserID int64) ([]string, error) {
+	rows, err := q.db.Query(ctx, listOwnedMainKeys, ownerUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var main_key string
+		if err := rows.Scan(&main_key); err != nil {
+			return nil, err
+		}
+		items = append(items, main_key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOwnedWorkerInstances = `-- name: ListOwnedWorkerInstances :many
+SELECT wi.main_key, wi.sub_key, wi.first_seen, wi.last_seen, wi.os, wi.label FROM worker_instances wi
+JOIN devices d ON d.main_key = wi.main_key
+WHERE d.owner_user_id = $1
+ORDER BY wi.main_key, wi.sub_key
+`
+
+// 내 장비 페이지 — 내 장비 이름의 인스턴스만
+func (q *Queries) ListOwnedWorkerInstances(ctx context.Context, ownerUserID int64) ([]WorkerInstance, error) {
+	rows, err := q.db.Query(ctx, listOwnedWorkerInstances, ownerUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkerInstance
+	for rows.Next() {
+		var i WorkerInstance
+		if err := rows.Scan(
+			&i.MainKey,
+			&i.SubKey,
+			&i.FirstSeen,
+			&i.LastSeen,
+			&i.Os,
+			&i.Label,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleWorkerInstances = `-- name: ListVisibleWorkerInstances :many
+SELECT wi.main_key, wi.sub_key, wi.first_seen, wi.last_seen, wi.os, wi.label FROM worker_instances wi
+WHERE ($1::text = '' OR wi.main_key = $1::text)
+  AND (wi.main_key IN (SELECT d.main_key FROM devices d WHERE d.owner_user_id = $2)
+    OR wi.main_key IN (SELECT n.device_key FROM nodes n
+                       WHERE n.device_key IS NOT NULL AND node_permission($2, n.id) >= 10))
+ORDER BY wi.main_key, wi.sub_key
+`
+
+type ListVisibleWorkerInstancesParams struct {
+	MainKey string
+	UserID  int64
+}
+
+// 명부 보이는 범위(회원-6(실행 권한)) = 내 장비 이름 + 내가 볼 수 있는 폴더에 지정된 장비. main_key = ” 이면 그 안 전부
+func (q *Queries) ListVisibleWorkerInstances(ctx context.Context, arg ListVisibleWorkerInstancesParams) ([]WorkerInstance, error) {
+	rows, err := q.db.Query(ctx, listVisibleWorkerInstances, arg.MainKey, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []WorkerInstance
+	for rows.Next() {
+		var i WorkerInstance
+		if err := rows.Scan(
+			&i.MainKey,
+			&i.SubKey,
+			&i.FirstSeen,
+			&i.LastSeen,
+			&i.Os,
+			&i.Label,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWorkerInstances = `-- name: ListWorkerInstances :many
-SELECT main_key, sub_key, first_seen, last_seen, os FROM worker_instances
+SELECT main_key, sub_key, first_seen, last_seen, os, label FROM worker_instances
 WHERE $1::text = '' OR main_key = $1::text
 ORDER BY main_key, sub_key
 `
@@ -49,6 +150,7 @@ func (q *Queries) ListWorkerInstances(ctx context.Context, mainKey string) ([]Wo
 			&i.FirstSeen,
 			&i.LastSeen,
 			&i.Os,
+			&i.Label,
 		); err != nil {
 			return nil, err
 		}
@@ -74,6 +176,26 @@ type TouchWorkerInstanceParams struct {
 func (q *Queries) TouchWorkerInstance(ctx context.Context, arg TouchWorkerInstanceParams) error {
 	_, err := q.db.Exec(ctx, touchWorkerInstance, arg.MainKey, arg.SubKey)
 	return err
+}
+
+const updateWorkerInstanceLabel = `-- name: UpdateWorkerInstanceLabel :execrows
+UPDATE worker_instances SET label = $3
+WHERE main_key = $1 AND sub_key = $2
+`
+
+type UpdateWorkerInstanceLabelParams struct {
+	MainKey string
+	SubKey  string
+	Label   string
+}
+
+// 인스턴스 라벨(회원-Q11(인스턴스 구분))
+func (q *Queries) UpdateWorkerInstanceLabel(ctx context.Context, arg UpdateWorkerInstanceLabelParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateWorkerInstanceLabel, arg.MainKey, arg.SubKey, arg.Label)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const upsertWorkerInstance = `-- name: UpsertWorkerInstance :exec

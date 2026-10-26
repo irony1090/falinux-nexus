@@ -7,25 +7,58 @@ package superdb
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const countActiveProcessesOfUser = `-- name: CountActiveProcessesOfUser :one
+SELECT COUNT(*) FROM processes
+WHERE (owner_user_id = $1 OR started_by = $1) AND status IN ('PENDING', 'PROCESS')
+`
+
+// 회원 삭제 전 — 소유했거나 실행한 process 중 살아 있는 것
+func (q *Queries) CountActiveProcessesOfUser(ctx context.Context, ownerUserID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countActiveProcessesOfUser, ownerUserID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*) FROM users
+`
+
+func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
     identification,
     password,
-    nickname
-) VALUES ( $1, $2, $3 )
-RETURNING id, identification, password, nickname, created_at, updated_at, perms
+    nickname,
+    perms
+) VALUES ( $1, $2, $3, $4::text[] )
+RETURNING id, identification, password, nickname, created_at, updated_at, perms, worker_limit, suspended_at
 `
 
 type CreateUserParams struct {
 	Identification string
 	Password       string
 	Nickname       string
+	Perms          []string
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Identification, arg.Password, arg.Nickname)
+	row := q.db.QueryRow(ctx, createUser,
+		arg.Identification,
+		arg.Password,
+		arg.Nickname,
+		arg.Perms,
+	)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -35,12 +68,45 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Perms,
+		&i.WorkerLimit,
+		&i.SuspendedAt,
 	)
 	return i, err
 }
 
+const deleteNodesOfUser = `-- name: DeleteNodesOfUser :exec
+DELETE FROM nodes WHERE owner_user_id = $1
+`
+
+func (q *Queries) DeleteNodesOfUser(ctx context.Context, ownerUserID int64) error {
+	_, err := q.db.Exec(ctx, deleteNodesOfUser, ownerUserID)
+	return err
+}
+
+const deleteProcessesOfUser = `-- name: DeleteProcessesOfUser :exec
+DELETE FROM processes WHERE owner_user_id = $1 OR started_by = $1
+`
+
+func (q *Queries) DeleteProcessesOfUser(ctx context.Context, ownerUserID int64) error {
+	_, err := q.db.Exec(ctx, deleteProcessesOfUser, ownerUserID)
+	return err
+}
+
+const deleteUser = `-- name: DeleteUser :execrows
+DELETE FROM users WHERE id = $1
+`
+
+// devices·공유·타일 트리는 CASCADE
+func (q *Queries) DeleteUser(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUser, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getUser = `-- name: GetUser :one
-SELECT id, identification, password, nickname, created_at, updated_at, perms FROM users WHERE id = $1
+SELECT id, identification, password, nickname, created_at, updated_at, perms, worker_limit, suspended_at FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id int64) (User, error) {
@@ -54,12 +120,14 @@ func (q *Queries) GetUser(ctx context.Context, id int64) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Perms,
+		&i.WorkerLimit,
+		&i.SuspendedAt,
 	)
 	return i, err
 }
 
 const getUserByIdentification = `-- name: GetUserByIdentification :one
-SELECT id, identification, password, nickname, created_at, updated_at, perms FROM users WHERE identification = $1
+SELECT id, identification, password, nickname, created_at, updated_at, perms, worker_limit, suspended_at FROM users WHERE identification = $1
 `
 
 func (q *Queries) GetUserByIdentification(ctx context.Context, identification string) (User, error) {
@@ -73,8 +141,34 @@ func (q *Queries) GetUserByIdentification(ctx context.Context, identification st
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Perms,
+		&i.WorkerLimit,
+		&i.SuspendedAt,
 	)
 	return i, err
+}
+
+const listSuspendedUserIDs = `-- name: ListSuspendedUserIDs :many
+SELECT id FROM users WHERE suspended_at IS NOT NULL
+`
+
+func (q *Queries) ListSuspendedUserIDs(ctx context.Context) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listSuspendedUserIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listUserNicknames = `-- name: ListUserNicknames :many
@@ -104,4 +198,143 @@ func (q *Queries) ListUserNicknames(ctx context.Context, ids []int64) ([]ListUse
 		return nil, err
 	}
 	return items, nil
+}
+
+const listUsersWithDevices = `-- name: ListUsersWithDevices :many
+SELECT u.id, u.nickname, u.perms, u.worker_limit, u.created_at, u.suspended_at,
+       (SELECT COUNT(*) FROM devices d WHERE d.owner_user_id = u.id)::int AS device_count
+FROM users u
+ORDER BY u.id
+`
+
+type ListUsersWithDevicesRow struct {
+	ID          int64
+	Nickname    string
+	Perms       []string
+	WorkerLimit int32
+	CreatedAt   pgtype.Timestamptz
+	SuspendedAt pgtype.Timestamptz
+	DeviceCount int32
+}
+
+// 관리자 페이지 — 회원과 등록한 장비 이름 수
+func (q *Queries) ListUsersWithDevices(ctx context.Context) ([]ListUsersWithDevicesRow, error) {
+	rows, err := q.db.Query(ctx, listUsersWithDevices)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListUsersWithDevicesRow
+	for rows.Next() {
+		var i ListUsersWithDevicesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Nickname,
+			&i.Perms,
+			&i.WorkerLimit,
+			&i.CreatedAt,
+			&i.SuspendedAt,
+			&i.DeviceCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockUserCreate = `-- name: LockUserCreate :exec
+SELECT pg_advisory_xact_lock(hashtext('users_create'))
+`
+
+// 가입 직렬화(트랜잭션 끝에 풀림) — 첫 회원 = 관리자 판정이 동시 가입에 두 번 걸리지 않게(회원-Q5(관리자 판정))
+func (q *Queries) LockUserCreate(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockUserCreate)
+	return err
+}
+
+const reassignNodeCreatedBy = `-- name: ReassignNodeCreatedBy :exec
+UPDATE nodes SET created_by = owner_user_id WHERE created_by = $1 AND owner_user_id <> $1
+`
+
+// 남의 폴더에 이 회원이 만든 노드는 남기고 만든 사람을 노드 주인으로(created_by NOT NULL)
+func (q *Queries) ReassignNodeCreatedBy(ctx context.Context, createdBy int64) error {
+	_, err := q.db.Exec(ctx, reassignNodeCreatedBy, createdBy)
+	return err
+}
+
+const setUserSuspended = `-- name: SetUserSuspended :one
+UPDATE users SET suspended_at = CASE WHEN $2::bool THEN NOW() ELSE NULL END, updated_at = NOW()
+WHERE id = $1
+RETURNING id, identification, password, nickname, created_at, updated_at, perms, worker_limit, suspended_at
+`
+
+type SetUserSuspendedParams struct {
+	ID      int64
+	Suspend bool
+}
+
+func (q *Queries) SetUserSuspended(ctx context.Context, arg SetUserSuspendedParams) (User, error) {
+	row := q.db.QueryRow(ctx, setUserSuspended, arg.ID, arg.Suspend)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Identification,
+		&i.Password,
+		&i.Nickname,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Perms,
+		&i.WorkerLimit,
+		&i.SuspendedAt,
+	)
+	return i, err
+}
+
+const updateUserMember = `-- name: UpdateUserMember :one
+UPDATE users SET worker_limit = $2, perms = $3::text[], updated_at = NOW()
+WHERE id = $1
+RETURNING id, identification, password, nickname, created_at, updated_at, perms, worker_limit, suspended_at
+`
+
+type UpdateUserMemberParams struct {
+	ID          int64
+	WorkerLimit int32
+	Perms       []string
+}
+
+// 관리자 페이지 — 상한·권한
+func (q *Queries) UpdateUserMember(ctx context.Context, arg UpdateUserMemberParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserMember, arg.ID, arg.WorkerLimit, arg.Perms)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Identification,
+		&i.Password,
+		&i.Nickname,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Perms,
+		&i.WorkerLimit,
+		&i.SuspendedAt,
+	)
+	return i, err
+}
+
+const updateUserPassword = `-- name: UpdateUserPassword :exec
+UPDATE users SET password = $2 WHERE id = $1
+`
+
+type UpdateUserPasswordParams struct {
+	ID       int64
+	Password string
+}
+
+// 옛 sha256 -> bcrypt 다시 저장(회원-Q9(bcrypt 전환))
+func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
+	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.Password)
+	return err
 }

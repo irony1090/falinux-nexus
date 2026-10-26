@@ -154,7 +154,7 @@ const deviceTitle = (key: string | null | undefined, from?: string) => {
     const d = devices.value.get(key);
     const head = [key, from && `상위 폴더 '${from}'에서 상속`].filter(v => !!v).join(' — ');
     if (!d) return `${head}\n접속한 적 없음`;
-    const lines = d.instances.map(i => `${i.online ? '●' : '○'} #${i.subKey} (${osName(i.os)})  ${i.online ? '접속 중' : agoText(i.lastSeen)}`);
+    const lines = d.instances.map(i => `${i.online ? '●' : '○'} ${i.label ? `${i.label} ` : ''}#${i.subKey} (${osName(i.os)})  ${i.online ? '접속 중' : agoText(i.lastSeen)}`);
     return [`${head}\n접속 ${d.online} · 끊김 ${d.instances.length - d.online}`, ...lines].join('\n');
 }
 

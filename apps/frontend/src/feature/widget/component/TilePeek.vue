@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { TILE_GAP, useTileGrids } from '../store/tileGrids.store';
+import { usePagerBoard } from '../store/pagerBoard.store';
 
 // 미니맵 높이 / 미니맵 사이 / 전체 Grid 미니맵 폭 범위 / 패널 최대 폭
 const MH = 26;
@@ -9,31 +9,28 @@ const MW = { min: 12, max: 52 };
 const MAX_W = 560;
 
 // 인디케이터를 위로 당긴 동안의 타일 패널: Grid별 미니맵 + 지금 보이는 범위 틀 + active — REF-board-pager.md
-// below = 막대 아래쪽에 띄움(커서 팝업을 아래로 당김)
+// below = 막대 아래쪽에 띄움(커서 팝업을 아래로 당김). 판은 PagerBoard 계약으로만 본다(보드·관리 페이지 공용)
 defineProps<{ open: boolean; below?: boolean }>();
-const { grids, geometry, area, scrollX, viewW, activeId, order } = useTileGrids();
+const { peekGrids, peekView, aspect, activeId, order } = usePagerBoard();
 
-const fullW = computed(() => {
-    const { w = 0, h = 0 } = area.value ?? {};
-    return Math.max(MW.min, Math.min(MW.max, Math.round(h ? MH * w / h : MW.max)));
-})
+const fullW = computed(() => Math.max(MW.min, Math.min(MW.max, Math.round(aspect.value ? MH * aspect.value : MW.max))));
 
-// 미니맵 칸 = Grid 2x2 기준 비율. 좁은 Grid(칼럼 하나)는 폭도 반
+// 미니맵 칸 = Grid 칸 비율. 반 폭 Grid는 폭도 반
 const minis = computed(() => {
     let x = 0;
-    return grids.value.map(g => {
-        const w = g.cols === 1 ? Math.round((fullW.value - MG) / 2) : fullW.value;
+    return peekGrids.value.map(g => {
+        const w = g.half ? Math.round((fullW.value - MG) / 2) : fullW.value;
         const m = {
             x,
             w,
             tiles: g.items.map(it => ({
-                id: it.tile.id,
-                on: it.tile.id === activeId.value,
+                id: it.id,
+                on: it.id === activeId.value,
                 style: {
                     left: `${it.c / g.cols * 100}%`,
-                    top: `${it.r * 50}%`,
+                    top: `${it.r / g.rows * 100}%`,
                     width: `${it.cw / g.cols * 100}%`,
-                    height: `${it.ch * 50}%`,
+                    height: `${it.ch / g.rows * 100}%`,
                 },
             })),
         };
@@ -48,7 +45,7 @@ const total = computed(() => {
 
 // strip 좌표 -> 미니맵 좌표. Grid 안은 비례, Grid 사이 간격은 다음 미니맵까지 선형
 const toMini = (sx: number) => {
-    const gs = geometry.value.grids, ms = minis.value;
+    const gs = peekGrids.value, ms = minis.value;
     for (let i = 0; i < gs.length; i++) {
         const g = gs[i]!, m = ms[i]!;
         if (sx <= g.x) return i ? m.x : 0;
@@ -59,12 +56,12 @@ const toMini = (sx: number) => {
     return total.value;
 }
 const frame = computed(() => {
-    const l = toMini(scrollX.value + TILE_GAP), r = toMini(scrollX.value + viewW.value - TILE_GAP);
+    const l = toMini(peekView.value.l), r = toMini(peekView.value.r);
     return { l, r };
 })
 
-// 패널보다 길면 보이는 범위 틀 주변만, 더 있는 쪽 끝은 흐리게
-const clipW = computed(() => Math.min(total.value, Math.max(120, Math.min(viewW.value - 32, MAX_W))));
+// 패널보다 길면 보이는 범위 틀 주변만, 더 있는 쪽 끝은 흐리게. 패널 폭 = 보이는 폭 - 32(보드 그대로)
+const clipW = computed(() => Math.min(total.value, Math.max(120, Math.min(peekView.value.r - peekView.value.l - 16, MAX_W))));
 const off = computed(() => {
     const over = total.value - clipW.value;
     if (over <= 0) return 0;
@@ -78,7 +75,7 @@ const clipStyle = computed(() => {
 })
 
 const label = computed(() => {
-    const i = order.value.findIndex(o => o.tile.id === activeId.value);
+    const i = activeId.value ? order.value.indexOf(activeId.value) : -1;
     return i < 0 ? '' : `타일 ${i + 1} / ${order.value.length}`;
 })
 </script>

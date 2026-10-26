@@ -2,6 +2,7 @@
 import { TILE_KINDS } from '@/feature/widget/util/tileKind.util';
 import SupervisorMoveDialog from '@/feature/worker/component/SupervisorMoveDialog.vue';
 import UnregisteredDialog from '@/feature/worker/component/UnregisteredDialog.vue';
+import { useWorkerRoster } from '@/feature/worker/api/worker.api';
 import { computed, ref } from 'vue';
 import { VListItem, VListSubheader } from 'vuetify/components';
 import { useGetNode } from '../../api/node.api';
@@ -39,6 +40,12 @@ const isRoot = computed(() => !tile.value?.parent);
 
 const { data: folder, error: folderError } = useGetNode(computed(() => tile.value?.nodeId ?? NaN));
 const name = computed(() => tile.value ? deviceLabel(tile.value.instance, tile.value.path) : '');
+// 인스턴스 라벨(회원-Q11) — 있으면 인스턴스 키 대신 보인다(키는 툴팁)
+const { devices: roster } = useWorkerRoster();
+const instLabel = computed(() => {
+    const key = tile.value?.instance ?? '';
+    return roster.value.get(key.slice(0, key.lastIndexOf('#')))?.instances.find(i => i.instanceKey === key)?.label;
+});
 const opener = computed(() => tile.value ? nodeLabel(tile.value.nodeId, folder.value?.name) : undefined);
 
 // 볼 수 없음 = 연 폴더가 지워짐(404). 루트는 그대로 두고 표시만 — Q26(연 폴더 삭제 때)
@@ -66,7 +73,7 @@ const unregOpen = ref(false);
 >
     <template #title>
         <span class="name">{{ name }}</span>
-        <span class="inst" :title="`인스턴스 ${tile.instance}`">{{ tile.instance }}</span>
+        <span class="inst" :title="`인스턴스 ${tile.instance}`">{{ instLabel || tile.instance }}</span>
         <span v-if="opener" class="opener text-warning">← {{ opener }}</span>
     </template>
 

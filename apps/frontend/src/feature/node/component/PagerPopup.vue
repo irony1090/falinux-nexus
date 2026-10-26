@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
+import { usePagerOpen, type PagerPoint } from '@/feature/widget/hook/pagerOpen.hook';
 import { useTileGrids } from '../store/tileGrids.store';
 import GridPager from './GridPager.vue';
 import TileSizeCard from './tile/TileSizeCard.vue';
@@ -7,48 +8,22 @@ import TileSizeCard from './tile/TileSizeCard.vue';
 // 팝업 상자 폭(도트 자리) / 화면 가장자리 여백
 const MAX_W = 560;
 const EDGE = 16;
-// 터치 길게 누르기 — Q57-4(누르는 시간): 행 선택과 같은 시간, 이만큼 움직이면 취소
-const LONG_PRESS_MS = 500;
-const PRESS_MOVE_MAX = 10;
 
 // 커서 위치에 인디케이터 하나 더 — 이동-2(커서 위치 페이지 표시) + 팝업-3(팝업 버튼)·팝업-6(길게 누르기로 띄우기), REF-pager-tools.md
-// 여는 길 둘: 키 = Ctrl+Alt 누르는 동안(떼면 크기 카드까지 닫힘, Q53) / 터치 = 머리 줄·빈 곳 길게 누르기(바깥 탭·동작으로 닫힘, Q57-2)
-// 키는 폰·단축키 끈 타일에선 안 띄움, 전체보기 중엔 둘 다 안 띄움
+// 여는 길(키·길게 누르기)은 usePagerOpen. 키는 폰·단축키 끈 타일에선 안 띄움, 전체보기 중엔 둘 다 안 띄움
 const { overview, activeId, appShortcutsOff, enterOverview } = useTileGrids();
 
 const pagerRef = ref<InstanceType<typeof GridPager>>();
 const boxEl = ref<HTMLElement>();
 const cardEl = ref<HTMLElement>();
-const held = ref(false);
-const touchOpen = ref(false);
 const sizeOpen = ref(false);
-const opened = computed(() => (held.value || touchOpen.value) && !overview.value);
-const dragging = computed(() => (pagerRef.value?.mode ?? 'idle') !== 'idle');
-// 크기 카드가 뜨면 알약은 숨김 — Q55(카드 뜨면 팝업)
-const shown = computed(() => (opened.value || dragging.value) && !overview.value && !sizeOpen.value);
-const cardShown = computed(() => opened.value && sizeOpen.value);
-
-const closeAll = () => {
-    held.value = false;
-    touchOpen.value = false;
-    sizeOpen.value = false;
-}
-watch(opened, o => { if (!o) sizeOpen.value = false; });
-
-// 마지막 마우스 위치 — 창 밖으로 나가면 모름
-let last: { x: number; y: number } | null = null;
-const onPointerMove = (e: PointerEvent) => {
-    if (e.pointerType === 'mouse') last = { x: e.clientX, y: e.clientY };
-}
-const onMouseOut = (e: MouseEvent) => {
-    if (!e.relatedTarget) last = null;
-}
 
 // 알약 가운데 = 커서(터치면 누른 자리), 화면 밖으로 나가면 안쪽으로. 상자 폭이 고정이라 알약 크기는 위치와 무관해 바로 잰다
 const at = ref({ x: 0, y: 0 });
 const boxW = ref(MAX_W);
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(Math.max(lo, hi), v));
-const place = (p: { x: number; y: number } | null) => {
+const place = (p: PagerPoint | null) => {
+    sizeOpen.value = false;
     const { clientWidth: vw, clientHeight: vh } = document.documentElement;
     boxW.value = Math.min(MAX_W, vw - EDGE * 2);
     const c = p ?? { x: vw / 2, y: vh / 2 };
@@ -56,6 +31,28 @@ const place = (p: { x: number; y: number } | null) => {
     const w = pill?.offsetWidth ?? 0, h = pill?.offsetHeight ?? 0;
     at.value = { x: clamp(c.x, EDGE + w / 2, vw - EDGE - w / 2), y: clamp(c.y, EDGE + h / 2, vh - EDGE - h / 2) };
 }
+
+// 길게 누를 자리 = 타일 머리 줄 + 타일 밖 빈 곳(Q57-1) + 몸통의 `data-pager-press` 안 칸 밖(길게-2, REF-press-pager.md)
+const pressable = (t: Element) => {
+    if (t.closest('.TileFrame__head')) return true;
+    const own = t.closest('[data-pager-press]');
+    if (own) return !t.closest('.DirGridCell, [data-pager-press-off]');
+    return !!t.closest('.TileStrip') && !t.closest('.TileFrame');
+}
+const { held, touchOpen, close } = usePagerOpen({
+    off: () => overview.value,
+    keyOff: () => appShortcutsOff.value,
+    pressable,
+    inside: t => t instanceof Node && (!!boxEl.value?.contains(t) || !!cardEl.value?.contains(t)),
+    onOpen: place,
+});
+
+const opened = computed(() => (held.value || touchOpen.value) && !overview.value);
+const dragging = computed(() => (pagerRef.value?.mode ?? 'idle') !== 'idle');
+// 크기 카드가 뜨면 알약은 숨김 — Q55(카드 뜨면 팝업)
+const shown = computed(() => (opened.value || dragging.value) && !overview.value && !sizeOpen.value);
+const cardShown = computed(() => opened.value && sizeOpen.value);
+watch(opened, o => { if (!o) sizeOpen.value = false; });
 
 // 크기 카드 = 크기 버튼의 가로·세로 가운데 — Q56(카드 위치). 크기를 바꿔도 자리 고정(머리 줄 팝업처럼 따라가지 않음)
 const cardAt = ref({ x: 0, y: 0 });
@@ -69,114 +66,14 @@ const openSize = async (e: MouseEvent) => {
     cardAt.value = { x: clamp(cardAt.value.x, EDGE + w / 2, vw - EDGE - w / 2), y: clamp(cardAt.value.y, EDGE + h / 2, vh - EDGE - h / 2) };
 }
 const goOverview = () => {
-    closeAll();
+    close();
     enterOverview();
 }
 
-const onKeyDown = (e: KeyboardEvent) => {
-    if (appShortcutsOff.value || held.value || !e.ctrlKey || !e.altKey || e.shiftKey || e.metaKey) return;
-    if ((e.key !== 'Control' && e.key !== 'Alt') || !matchMedia('(pointer: fine)').matches) return;
-    touchOpen.value = false;
-    place(last);
-    held.value = true;
-}
-const onKeyUp = (e: KeyboardEvent) => {
-    if (e.key === 'Control' || e.key === 'Alt') held.value = false;
-}
-// 창 전환(Ctrl+Alt+화살표 등)으로 keyup을 못 받는 경우
-const onBlur = () => held.value = false;
-
-// ---- 터치 길게 누르기 — 팝업-6. 자리 = 타일 머리 줄 + 타일 밖 빈 곳(Q57-1) + 몸통의 `data-pager-press` 안 칸 밖(길게-2, REF-press-pager.md) ----
-let press: { timer: ReturnType<typeof setTimeout>; id: number; x: number; y: number } | null = null;
-const cancelPress = () => {
-    if (press) clearTimeout(press.timer);
-    press = null;
-}
-const pressable = (t: EventTarget | null) => {
-    if (!(t instanceof Element) || overview.value) return false;
-    if (t.closest('button, a, input, textarea, [role="button"], .v-btn')) return false;
-    if (t.closest('.TileFrame__head')) return true;
-    const own = t.closest('[data-pager-press]');
-    if (own) return !t.closest('.DirGridCell, [data-pager-press-off]');
-    return !!t.closest('.TileStrip') && !t.closest('.TileFrame');
-}
-const inside = (t: EventTarget | null) => t instanceof Node && (!!boxEl.value?.contains(t) || !!cardEl.value?.contains(t));
-// 길게 누르기가 브라우저 기본 메뉴를 띄우지 않게(누르는 중·뜬 직후) + 손 뗄 때의 click이 막 뜬 알약을 누르지 않게
-let eatMenu = false;
-let eatClick = false;
-const onContextMenu = (e: Event) => {
-    if (!press && !eatMenu) return;
-    eatMenu = false;
-    e.preventDefault();
-}
-const onClickCapture = (e: Event) => {
-    if (!eatClick) return;
-    eatClick = false;
-    e.preventDefault();
-    e.stopPropagation();
-}
-const onPointerDown = (e: PointerEvent) => {
-    eatClick = false;
-    if (e.pointerType === 'mouse') return;
-    // 터치로 연 것 = 바깥 탭에 닫힘(그 탭은 원래 동작도 함) — Q57-2(닫는 법)
-    if (touchOpen.value && !inside(e.target)) closeAll();
-    cancelPress();
-    if (!e.isPrimary || !pressable(e.target)) return;
-    press = {
-        id: e.pointerId, x: e.clientX, y: e.clientY,
-        timer: setTimeout(() => {
-            const p = press;
-            press = null;
-            if (!p || overview.value) return;
-            held.value = false;
-            sizeOpen.value = false;
-            place({ x: p.x, y: p.y });
-            touchOpen.value = true;
-            eatMenu = true;
-            eatClick = true;
-            window.getSelection()?.removeAllRanges();
-        }, LONG_PRESS_MS),
-    };
-}
-const onPressMove = (e: PointerEvent) => {
-    if (press && e.pointerId === press.id && Math.hypot(e.clientX - press.x, e.clientY - press.y) > PRESS_MOVE_MAX) cancelPress();
-}
-const onPressEnd = (e: PointerEvent) => {
-    if (press && e.pointerId === press.id) cancelPress();
-    if (eatMenu || eatClick) setTimeout(() => eatMenu = eatClick = false, 400);
-}
 // 터치로 연 것 = 도트 누르기·드래그가 끝나면 닫힘. 키로 연 것은 키를 뗄 때까지 둔다(기존 동작)
 const onPillClick = () => { if (touchOpen.value && !sizeOpen.value) touchOpen.value = false; }
 watch(dragging, d => { if (!d && touchOpen.value) touchOpen.value = false; });
-watch(overview, o => { if (o) closeAll(); });
-
-onMounted(() => {
-    window.addEventListener('keydown', onKeyDown, true);
-    window.addEventListener('keyup', onKeyUp, true);
-    window.addEventListener('blur', onBlur);
-    window.addEventListener('pointermove', onPointerMove, { capture: true, passive: true });
-    window.addEventListener('mouseout', onMouseOut);
-    window.addEventListener('pointerdown', onPointerDown, true);
-    window.addEventListener('pointermove', onPressMove, { capture: true, passive: true });
-    window.addEventListener('pointerup', onPressEnd, true);
-    window.addEventListener('pointercancel', onPressEnd, true);
-    window.addEventListener('contextmenu', onContextMenu, true);
-    window.addEventListener('click', onClickCapture, true);
-})
-onBeforeUnmount(() => {
-    cancelPress();
-    window.removeEventListener('keydown', onKeyDown, true);
-    window.removeEventListener('keyup', onKeyUp, true);
-    window.removeEventListener('blur', onBlur);
-    window.removeEventListener('pointermove', onPointerMove, { capture: true });
-    window.removeEventListener('mouseout', onMouseOut);
-    window.removeEventListener('pointerdown', onPointerDown, true);
-    window.removeEventListener('pointermove', onPressMove, { capture: true });
-    window.removeEventListener('pointerup', onPressEnd, true);
-    window.removeEventListener('pointercancel', onPressEnd, true);
-    window.removeEventListener('contextmenu', onContextMenu, true);
-    window.removeEventListener('click', onClickCapture, true);
-})
+watch(overview, o => { if (o) close(); });
 </script>
 
 <template>

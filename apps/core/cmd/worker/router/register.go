@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	"nexus/cmd/worker/constants"
 	"nexus/internal/execute"
 	"nexus/internal/protocol"
 	workerdb "nexus/internal/worker/db/gen"
@@ -31,6 +32,7 @@ func (r *workerRouter) register() error {
 
 	req := protocol.NewRegisterRequest(r.uniqueKey, subKey)
 	req.OS = runtime.GOOS
+	req.APIKey = constants.GetEnv().ApiKey
 
 	// REGISTER 요청 → 응답이 이 한 줄에 묶여 돌아온다.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

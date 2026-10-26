@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useVirtualKeyboard } from '@/common/hook/virtualKeyboard.hook';
 import TerminalKeyBar from '@/feature/process/component/TerminalKeyBar.vue';
+import { useGapWheel } from '@/feature/widget/hook/gapWheel.hook';
 import { computed } from 'vue';
-import { useGapWheel } from '../hook/gapWheel.hook';
 import { useTileUrl } from '../hook/tileUrl.hook';
 import { provideNodeOps } from '../store/nodeOps.store';
 import { provideTileGrids } from '../store/tileGrids.store';
@@ -17,7 +17,7 @@ const grids = provideTileGrids();
 provideNodeOps(grids);     // 같은 컴포넌트에선 inject가 안 되므로 grids를 넘긴다
 // ?focus=(목록 "보드로 이동"·위치 알림 N3(누르면 이동) + active) · ?view=(보던 칼럼) · ?tab=terminals(M4(위치 없음)) — 새로고침 복원
 useTileUrl(grids);
-const onWheel = useGapWheel(grids);
+const onWheel = useGapWheel(grids.pager, t => !!t.closest('.Tile:not(.Tile--empty)'));
 
 // 라-2(높이 고정): resizes-content라 키보드가 뜨면 화면이 줄어든다. 그대로 두면 Grid 수용량이 바뀌어 타일이 옮겨 가므로
 // 열린 동안은 키보드 전 높이로 고정한다. 포커스된 터미널 타일만 키보드 위에 맞춰 띄운다(TileFrame 맞춤-1(타일 띄우기))

@@ -25,6 +25,7 @@ type EnvVars struct {
 	DBHost      string
 	DBPort      int
 	SessionKey  string // 세션 쿠키 서명 키
+	KeySecret   string // 장비 API 키 암호화 비밀값 — 잃으면 저장된 키를 다시 볼 수 없음(REF-member.md 회원-Q16)
 	WebDir      string // 빌드된 웹 파일 폴더(비면 서빙 안 함). 상대 경로 = 실행 파일 폴더 기준
 }
 
@@ -118,6 +119,15 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		}
 	}
 
+	keySecret := os.Getenv("KEY_SECRET")
+	if keySecret == "" {
+		if isNil {
+			return nil, fmt.Errorf("환경변수 KEY_SECRET 값 필수")
+		} else {
+			keySecret = env.KeySecret
+		}
+	}
+
 	webDir := os.Getenv("WEB_DIR")
 	if webDir == "" && !isNil {
 		webDir = env.WebDir
@@ -142,6 +152,7 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 	env.DBHost = dbHost
 	env.DBPort = dbPort
 	env.SessionKey = sessionKey
+	env.KeySecret = keySecret
 	env.WebDir = webDir
 
 	log.Printf("root path %s", projectDir)

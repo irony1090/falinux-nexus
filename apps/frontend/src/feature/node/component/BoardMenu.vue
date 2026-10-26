@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
-import { PERM_WORKER_MOVE } from '@/feature/user/api/user.api';
+import { PERM_ADMIN, PERM_WORKER_MOVE } from '@/feature/user/api/user.api';
 import { useAuthStore } from '@/feature/user/store/auth.store';
 import SupervisorMoveDialog from '@/feature/worker/component/SupervisorMoveDialog.vue';
 import logoUrl from '@/assets/logo.svg';
@@ -39,6 +39,7 @@ const mineOpen = ref(false);
 // 전체 worker 주소 변경 — worker_move 권한 계정만 보임(주소-Q20(전체 명령 권한))
 const moveAllOpen = ref(false);
 const canMoveAll = computed(() => !!auth.value?.perms?.includes(PERM_WORKER_MOVE));
+const isAdmin = computed(() => !!auth.value?.perms?.includes(PERM_ADMIN));
 const onSubmitName = (name: string) => {
     if (!current.value) return;
     run(rename(current.value.hash, name), () => nameOpen.value = false);
@@ -89,6 +90,8 @@ const onRemove = () => {
         <v-list-item v-if="current && !current.isDefault" title="보드 삭제" prepend-icon="mdi-delete-outline" base-color="error" @click="onRemove" />
         <v-divider />
         <v-list-item title="내가 공유한 것" prepend-icon="mdi-account-multiple-outline" @click="mineOpen = true" />
+        <v-list-item title="내 장비" prepend-icon="mdi-chip" to="/devices" />
+        <v-list-item v-if="isAdmin" title="관리자" prepend-icon="mdi-shield-account-outline" to="/admin" />
         <v-list-item v-if="canMoveAll" title="전체 worker 주소 변경" prepend-icon="mdi-server-network" @click="moveAllOpen = true" />
         <v-divider />
         <v-list-item :subtitle="`계정 ${auth?.nickname ?? '-'}`" disabled />

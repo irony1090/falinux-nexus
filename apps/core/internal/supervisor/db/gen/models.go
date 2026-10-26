@@ -8,6 +8,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Device struct {
+	MainKey     string
+	OwnerUserID int64
+	ApiKeyHash  string
+	ApiKeyEnc   []byte
+	CreatedAt   pgtype.Timestamptz
+	KeyIssuedAt pgtype.Timestamptz
+}
+
 type Node struct {
 	ID          int64
 	OwnerUserID int64
@@ -85,6 +94,8 @@ type User struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 	Perms          []string
+	WorkerLimit    int32
+	SuspendedAt    pgtype.Timestamptz
 }
 
 type WorkerInstance struct {
@@ -93,4 +104,5 @@ type WorkerInstance struct {
 	FirstSeen pgtype.Timestamptz
 	LastSeen  pgtype.Timestamptz
 	Os        string
+	Label     string
 }

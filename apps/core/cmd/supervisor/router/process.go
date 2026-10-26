@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"nexus/cmd/supervisor/process"
 	"nexus/internal/execute"
@@ -140,45 +141,78 @@ func (r *supervisorRouter) startRelay(uid string, inter *execute.AgentInteractiv
 // ===== worker → supervisor: process 이벤트 수신 =====
 
 // output: MsgData — 출력 바이트를 Inter로(relay가 브라우저로 보냄)
-func (r *supervisorRouter) output(ev protocol.Frame) {
-	var body protocol.DataEvent
-	if err := ev.Bind(&body); err != nil {
-		log.Printf("[process] output 디코드 실패: %v", err)
-		return
+func (r *supervisorRouter) output(auth *protocol.RegisterRequest) transport.EventHandler {
+	return func(ev protocol.Frame) {
+		var body protocol.DataEvent
+		if err := ev.Bind(&body); err != nil {
+			log.Printf("[process] output 디코드 실패: %v", err)
+			return
+		}
+		entry, ok := r.processManager.Get(body.UID)
+		if !ok || entry.Inter == nil {
+			return // 이미 정리된 엔트리 → 버림
+		}
+		if entry.Record == nil || entry.Record.DeviceKey != auth.InstanceKey() || auth.SubKey == "" {
+			return // 다른 인스턴스의 process
+		}
+		entry.Inter.PushOutput(execute.Chunk{Data: body.Data, Off: body.Off})
 	}
-	entry, ok := r.processManager.Get(body.UID)
-	if !ok || entry.Inter == nil {
-		return // 이미 정리된 엔트리 → 버림
-	}
-	entry.Inter.PushOutput(execute.Chunk{Data: body.Data, Off: body.Off})
 }
 
 // screen: MsgScreen — 보관 프로세스 화면 스냅샷을 출력과 같은 줄로(relay가 순서대로 ring을 채움). 재접속 뒤 sync가 Rebind한 다음에 온다
-func (r *supervisorRouter) screen(ev protocol.Frame) {
-	var body protocol.ScreenEvent
-	if err := ev.Bind(&body); err != nil {
-		log.Printf("[process] screen 디코드 실패: %v", err)
-		return
+func (r *supervisorRouter) screen(auth *protocol.RegisterRequest) transport.EventHandler {
+	return func(ev protocol.Frame) {
+		var body protocol.ScreenEvent
+		if err := ev.Bind(&body); err != nil {
+			log.Printf("[process] screen 디코드 실패: %v", err)
+			return
+		}
+		entry, ok := r.processManager.Get(body.UID)
+		if !ok || entry.Inter == nil {
+			return
+		}
+		if entry.Record == nil || entry.Record.DeviceKey != auth.InstanceKey() || auth.SubKey == "" {
+			return // 다른 인스턴스의 process
+		}
+		entry.Inter.PushOutput(execute.Chunk{Data: body.Data, Off: body.Off, Seed: true, Alt: body.Alt})
 	}
-	entry, ok := r.processManager.Get(body.UID)
-	if !ok || entry.Inter == nil {
-		return
-	}
-	entry.Inter.PushOutput(execute.Chunk{Data: body.Data, Off: body.Off, Seed: true, Alt: body.Alt})
 }
 
 // status: MsgStatus — applyStatus로
-func (r *supervisorRouter) status(ev protocol.Frame) {
-	var body protocol.StatusEvent
-	if err := ev.Bind(&body); err != nil {
-		log.Printf("[process] status 디코드 실패: %v", err)
-		return
+func (r *supervisorRouter) status(auth *protocol.RegisterRequest) transport.EventHandler {
+	return func(ev protocol.Frame) {
+		var body protocol.StatusEvent
+		if err := ev.Bind(&body); err != nil {
+			log.Printf("[process] status 디코드 실패: %v", err)
+			return
+		}
+		log.Printf("[PROCESS.GO] status %v", body)
+		if auth.SubKey == "" {
+			return // 등록 전·거부됨
+		}
+		if body.Status.IsCompleted() && r.unregistered.has(auth.InstanceKey(), body.UID) {
+			r.unregistered.removeUID(body.UID)
+		}
+		if !r.ownsProcess(auth, body.UID) {
+			return // 다른 인스턴스의 process(미등록 process도 DB 행이 없어 여기서 끝)
+		}
+		r.applyStatus(body.UID, body.Status, body.PID, body.ExitCode)
 	}
-	log.Printf("[PROCESS.GO] status %v", body)
-	if body.Status.IsCompleted() {
-		r.unregistered.removeUID(body.UID)
+}
+
+// ownsProcess: 이 연결(등록된 인스턴스)이 uid의 process를 실행하는 worker인지. 메모리에 없으면 DB(applyStatus가 DB만 닫는 경우)
+func (r *supervisorRouter) ownsProcess(auth *protocol.RegisterRequest, uid string) bool {
+	if auth.SubKey == "" {
+		return false
 	}
-	r.applyStatus(body.UID, body.Status, body.PID, body.ExitCode)
+	key := auth.InstanceKey()
+	if entry, ok := r.processManager.Get(uid); ok && entry.Record != nil {
+		return entry.Record.DeviceKey == key
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	row, err := store.GetStorePool().Queries().GetProcess(ctx, uid)
+	return err == nil && row.DeviceKey == key
 }
 
 // applyStatus: 모든 상태 전이의 단일 깔때기 — worker 보고 / 끊김 합성(PENDING) / 재접속 대조(REF-process "status 단일 깔때기")
@@ -367,13 +401,19 @@ func (r *supervisorRouter) publishLost(uid string) {
 }
 
 // editResult: EDIT 종료 후 파일 내용 — UID -> entry -> NodeID로 content를 비교해 다르면 UPDATE, 끝나면 엔트리 제거
-func (r *supervisorRouter) editResult(req protocol.Frame) (any, error) {
+func (r *supervisorRouter) editResult(auth *protocol.RegisterRequest) transport.Handler {
+	return func(req protocol.Frame) (any, error) {
+		return r.applyEditResult(auth, req)
+	}
+}
+
+func (r *supervisorRouter) applyEditResult(auth *protocol.RegisterRequest, req protocol.Frame) (any, error) {
 	var body protocol.EditResult
 	if err := req.Bind(&body); err != nil {
 		return nil, err
 	}
 	entry, ok := r.processManager.Get(body.UID)
-	if !ok {
+	if !ok || entry.Record == nil || entry.Record.DeviceKey != auth.InstanceKey() || auth.SubKey == "" {
 		return nil, fmt.Errorf("알 수 없는 편집 세션: %s", body.UID)
 	}
 	nodeID := entry.NodeID()

@@ -24,6 +24,7 @@ type RegisterRequest struct {
 	Key    string `json:"key"`              // 사전 지정 고유키 (여러 worker가 같을 수 있음)
 	SubKey string `json:"subKey,omitempty"` // 재접속 시에만 채워짐
 	OS     string `json:"os,omitempty"`     // worker runtime.GOOS(빈 값 = 옛 worker = linux) — WW5(OS 표시)
+	APIKey string `json:"apiKey,omitempty"` // 장비 API 키 — 회원-4(worker 접속 인증), REF-member.md
 }
 
 // NormalizeOS는 빈 OS(옛 worker·이전 명부 행)를 linux로 본다.

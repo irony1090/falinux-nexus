@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -41,7 +42,8 @@ type workerResponse struct {
 	MainKey     string `json:"mainKey"`
 	SubKey      string `json:"subKey"`
 	InstanceKey string `json:"instanceKey"`
-	OS          string `json:"os"` // linux | windows ... — WW5(OS 표시)
+	OS          string `json:"os"`    // linux | windows ... — WW5(OS 표시)
+	Label       string `json:"label"` // 인스턴스 라벨(회원-Q11), 명부에서만 채움
 }
 
 type workerInstanceResponse struct {
@@ -70,6 +72,7 @@ func resolveMainKey(ctx context.Context, q *superdb.Queries, nodeID, ownerID int
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
+	requireDeviceOwner(ctx, q, key.String, ownerID)
 	return key.String
 }
 
@@ -87,45 +90,75 @@ func (r *supervisorRouter) listWorkers(c echo.Context) error {
 		mainKey = resolveMainKey(c.Request().Context(), TxQueries(c), nodeID, node.OwnerUserID)
 	}
 
+	// nodeId 없음 = 폴더에 지정할 후보 = 내 장비 이름만(회원-6(실행 권한))
+	var mine []string
+	if mainKey == "" {
+		var err error
+		if mine, err = TxQueries(c).ListOwnedMainKeys(c.Request().Context(), sess.Data.ID); err != nil {
+			panic(web.Err(500, "%v", err))
+		}
+	}
 	found := r.workers.FindAll(func(key string, _ *transport.Conn) bool {
 		main, _ := splitInstanceKey(key)
-		return mainKey == "" || main == mainKey
+		if mainKey == "" {
+			return slices.Contains(mine, main)
+		}
+		return main == mainKey
 	})
+	labels := instanceLabels(c, sess.Data.ID, mainKey)
 	rst := make([]workerResponse, 0, len(found))
 	for _, f := range found {
 		main, sub := splitInstanceKey(f.Key)
 		os, _ := r.workerOS.Get(f.Key)
-		rst = append(rst, workerResponse{MainKey: main, SubKey: sub, InstanceKey: f.Key, OS: protocol.NormalizeOS(os)})
+		rst = append(rst, workerResponse{MainKey: main, SubKey: sub, InstanceKey: f.Key, OS: protocol.NormalizeOS(os), Label: labels[f.Key]})
 	}
 	sort.Slice(rst, func(i, j int) bool { return rst[i].InstanceKey < rst[j].InstanceKey })
 	return c.JSON(200, rst)
 }
 
-// listWorkerInstances: 명부 전체(?mainKey= 면 그 장비만). 장비는 계정 소유가 아니라 로그인만 확인 — RS3(보이는 범위)
+// instanceLabels: InstanceKey -> 라벨(회원-Q11). mainKey 없음 = 내 장비 전부
+func instanceLabels(c echo.Context, userID int64, mainKey string) map[string]string {
+	q, ctx := TxQueries(c), c.Request().Context()
+	var rows []superdb.WorkerInstance
+	var err error
+	if mainKey == "" {
+		rows, err = q.ListOwnedWorkerInstances(ctx, userID)
+	} else {
+		rows, err = q.ListWorkerInstances(ctx, mainKey)
+	}
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	out := make(map[string]string, len(rows))
+	for _, row := range rows {
+		if row.Label != "" {
+			out[row.MainKey+"#"+row.SubKey] = row.Label
+		}
+	}
+	return out
+}
+
+// listWorkerInstances: 명부(?mainKey= 면 그 장비만). 보이는 범위 = 내 장비 + 볼 수 있는 폴더의 장비 — 회원-6(실행 권한), 옛 RS3(로그인만) 대체
 func (r *supervisorRouter) listWorkerInstances(c echo.Context) error {
-	r.requireSession(c)
-	rows, err := TxQueries(c).ListWorkerInstances(c.Request().Context(), c.QueryParam("mainKey"))
+	sess := r.requireSession(c)
+	rows, err := TxQueries(c).ListVisibleWorkerInstances(c.Request().Context(), superdb.ListVisibleWorkerInstancesParams{
+		MainKey: c.QueryParam("mainKey"), UserID: sess.Data.ID,
+	})
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
 	rst := make([]workerInstanceResponse, 0, len(rows))
 	for _, row := range rows {
-		key := row.MainKey + "#" + row.SubKey
-		_, online := r.workers.Get(key)
-		rst = append(rst, workerInstanceResponse{
-			workerResponse: workerResponse{MainKey: row.MainKey, SubKey: row.SubKey, InstanceKey: key, OS: protocol.NormalizeOS(row.Os)},
-			Online:         online,
-			FirstSeen:      row.FirstSeen.Time.Unix(),
-			LastSeen:       row.LastSeen.Time.Unix(),
-		})
+		rst = append(rst, r.newWorkerInstanceResponse(row))
 	}
 	return c.JSON(200, rst)
 }
 
 // deleteWorkerInstance: 끊긴 인스턴스만 명부에서 지운다(접속 중 409) — RS4(정리)
 func (r *supervisorRouter) deleteWorkerInstance(c echo.Context) error {
-	r.requireSession(c)
+	sess := r.requireSession(c)
 	mainKey, subKey := pathParam(c, "mainKey"), pathParam(c, "subKey")
+	requireMyDevice(c, sess.Data.ID, mainKey)
 	if _, online := r.workers.Get(mainKey + "#" + subKey); online {
 		panic(web.Err(409, "접속 중인 인스턴스는 지울 수 없습니다"))
 	}

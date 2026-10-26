@@ -24,6 +24,7 @@ type EnvVars struct {
 	Sqlite       string `iniName:"SQLITE"`
 	Editor       string `iniName:"EDITOR"`
 	ScriptFormat string `iniName:"SCRIPT_FORMAT"` // 확장자별 인코딩·줄 끝 덮어쓰기 → router/script.go
+	ApiKey       string `iniName:"API_KEY"`       // 장비 API 키(내 장비 페이지에서 발급) — 없거나 틀리면 supervisor가 등록 거부, REF-member.md
 	ProcessRoot  string
 	ProjectDir   string
 	Ip           string
@@ -96,6 +97,11 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		scriptFormat = env.ScriptFormat
 	}
 
+	apiKey := os.Getenv(("API_KEY"))
+	if apiKey == "" && !isNil {
+		apiKey = env.ApiKey
+	}
+
 	if isNil {
 		// 환경 변수 값으로 구조체 초기화
 		env = &EnvVars{
@@ -112,9 +118,14 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 	env.Ip = ip
 	env.Editor = editor
 	env.ScriptFormat = scriptFormat
+	env.ApiKey = apiKey
 
 	log.Printf("root path %s", projectDir)
-	log.Printf("Loaded %v", env)
+	shown := *env
+	if shown.ApiKey != "" {
+		shown.ApiKey = "***"
+	}
+	log.Printf("Loaded %v", shown)
 
 	return env, nil
 }

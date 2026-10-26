@@ -2,6 +2,7 @@ import type { Area, Capacity, GridPlan } from '@/feature/widget/util/tile.type'
 import { flatten, pack } from '@/feature/widget/util/tileOrder.util'
 import { capacity, colScroll, effectiveSize, minSize, revealCol, stripGeometry, stripPos, stripView } from '@/feature/widget/util/tileSplit.util'
 import { readUserPref, writeUserPref } from '@/common/util/userPrefs.util'
+import { providePagerBoard } from '@/feature/widget/store/pagerBoard.store'
 import { useProcessTerm } from '@/feature/process/store/processTerm.store'
 import { useTestSocket } from '@/common/websocket/websocket.hook'
 import { tabReady } from '@/common/util/tabId.util'
@@ -159,16 +160,6 @@ export const provideTileGrids = () => {
         return { l: cols.indexOf(span.first), r: cols.indexOf(span.last) }
     }
 
-    // 인디케이터 타일 이동 — active + 막 다 보이는 만큼 스크롤. view = 직전 왼쪽 칼럼, 옮긴 왼쪽 칼럼을 돌려준다
-    const stepTo = (tileId: string, view: number) => {
-        setActive(tileId)
-        const range = colRange(tileId)
-        if (!range) return view
-        const v = revealCol(range.l, range.r, view, cap.value.x, maxCol.value)
-        if (v !== view) goCol(v)
-        return v
-    }
-
     // 보던 자리 = 스냅 기준 왼쪽 칼럼을 차지하는 타일(위쪽 먼저). URL ?view= — REF-tile-url.md U1(넣을 것)
     const anchorId = computed(() => {
         if (overview.value) return undefined
@@ -309,6 +300,30 @@ export const provideTileGrids = () => {
         boardTrees.close()
     })
 
+    // 알약 끌기·미니맵·빈 곳 휠 계약 — 좌표 = strip 스크롤 내용(padding 포함), 스냅 위치 = 칼럼 x - gap
+    const pager = providePagerBoard({
+        off: overview,
+        span: computed(() => cap.value.x),
+        maxCol,
+        viewCol: computed(() => view.value.col),
+        order: computed(() => order.value.map(o => o.tile.id)),
+        activeId,
+        scrollEl: stripEl,
+        scrubbing,
+        colLeft: col => { const c = geometry.value.columns[col]; return c ? c.x - TILE_GAP : undefined },
+        goCol,
+        scrubTo,
+        colRange,
+        setActive,
+        focusTile,
+        peekGrids: computed(() => grids.value.map((g, i) => {
+            const s = geometry.value.grids[i] ?? { x: 0, w: 0 }
+            return { x: s.x, w: s.w, cols: g.cols, rows: 2, half: g.cols === 1, items: g.items.map(it => ({ id: it.tile.id, c: it.c, r: it.r, cw: it.cw, ch: it.ch })) }
+        })),
+        peekView: computed(() => ({ l: scrollX.value + TILE_GAP, r: scrollX.value + viewW.value - TILE_GAP })),
+        aspect: computed(() => area.value?.h ? area.value.w / area.value.h : 0),
+    })
+
     const ctx = {
         area,
         cap,
@@ -333,7 +348,6 @@ export const provideTileGrids = () => {
         goCol,
         scrubTo,
         colRange,
-        stepTo,
         reveal,
         overview,
         ovPercent,
@@ -350,11 +364,12 @@ export const provideTileGrids = () => {
         activate,
         anchorId,
         restore,
+        pager,
     }
 
     provide(TILE_GRIDS_STORE_KEY, ctx)
-
     return ctx
+
 }
 
 export const useTileGrids = () => {

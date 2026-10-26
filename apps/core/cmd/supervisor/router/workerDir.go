@@ -180,4 +180,5 @@ func requireDeviceFolder(c echo.Context, userID, folderID int64, mainKey string)
 	if !key.Valid || key.String != mainKey {
 		panic(web.Err(403, "이 폴더에 지정된 장비가 아닙니다"))
 	}
+	requireDeviceOwner(c.Request().Context(), TxQueries(c), mainKey, folder.OwnerUserID)
 }

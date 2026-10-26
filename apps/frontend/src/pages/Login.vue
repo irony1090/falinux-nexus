@@ -1,188 +1,90 @@
 <script setup lang="ts">
 import { LazyListener } from '@/common/listener/lazy.listener';
-import { useAppDialog } from '@/feature/layout/store/appDialog.store';
-import { ref, watch } from 'vue';
-import type { SubmitEventPromise } from 'vuetify';
-import { VAlert, VCard, VCardTitle, VCardActions, VBtn, VForm, VTextField, VCheckbox, VImg } from 'vuetify/components'
-import Cookies from 'js-cookie';
 import { isNil } from '@/common/util/index.util';
+import AuthTile from '@/feature/member/component/AuthTile.vue';
 import { useAuthStore } from '@/feature/user/store/auth.store';
+import Cookies from 'js-cookie';
+import { computed, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { VIcon } from 'vuetify/components';
 
 const REMEMBER_ID_COOKIE_KEY = 'remember_id';
 
+// 로그인 — 가운데 타일 하나, 오류 = 빨간 알약 한 줄 — 화-16(로그인·가입). 성공 뒤 이동은 라우터(authGuard)
 const { loading, login, offline } = useAuthStore();
+const router = useRouter();
 const isLazyLoading = ref(false);
-const lazyListener = new LazyListener(false, { time: 750, startLazy: v => !v})
+const lazyListener = new LazyListener(false, { time: 750, startLazy: v => !v });
 lazyListener.onValue = v => isLazyLoading.value = v;
-
-const { openDialog } = useAppDialog();
+watch(loading, val => lazyListener.setValue(val), { immediate: true });
 
 // 개발용 기본값은 `.env.development.local`(git 제외)에만 — 로그인-4(화면 정리)
-const id = ref(Cookies.get(REMEMBER_ID_COOKIE_KEY) ?? import.meta.env.VITE_DEV_LOGIN_ID ?? '')
-const pw = ref(import.meta.env.VITE_DEV_LOGIN_PW ?? '')
-
+const id = ref(Cookies.get(REMEMBER_ID_COOKIE_KEY) ?? import.meta.env.VITE_DEV_LOGIN_ID ?? '');
+const pw = ref(import.meta.env.VITE_DEV_LOGIN_PW ?? '');
 const rememberId = ref(!isNil(Cookies.get(REMEMBER_ID_COOKIE_KEY)));
 
+const error = ref<string>();
+watch([id, pw], () => error.value = undefined);
+const shownError = computed(() => error.value ?? (offline.value ? '서버에 연결할 수 없습니다' : undefined));
 
-const idMsg = ref<string>()
-const pwMsg = ref<string>()
-const idValid = (): string | null => {
-    if (id.value === '') return 'ID 입력이 필수입니다';
-    return null;
-}
-const pwValid = (): string | null => {
-    if (pw.value === '') return 'PW 입력이 필수입니다';
-    return null;
-}
-
-const onSubmit = (e: SubmitEventPromise) => {
-    e.preventDefault()
-    const idM = idValid()
-    if (idM) {
-        idMsg.value = idM
+const submit = () => {
+    if (!id.value || !pw.value) {
+        error.value = '아이디와 비밀번호를 입력하세요';
+        return;
     }
-
-    const pwM = pwValid()
-    if (pwM) {
-        pwMsg.value = pwM
-    }
-
-    const exit = !!idM || !!pwM
-    if (exit) return
-    
-    // 성공 뒤 이동은 라우터(authGuard)가 한다
     login(id.value, pw.value)
-    .then( _ => {
-        if (rememberId.value)
-            Cookies.set(REMEMBER_ID_COOKIE_KEY, id.value, { expires: 7 })
-        else 
-            Cookies.remove(REMEMBER_ID_COOKIE_KEY)
-    }).catch(err => {
-        openDialog({
-            type: 'error',
-            content: err.message
-        })
+    .then(() => {
+        if (rememberId.value) Cookies.set(REMEMBER_ID_COOKIE_KEY, id.value, { expires: 7 });
+        else Cookies.remove(REMEMBER_ID_COOKIE_KEY);
     })
+    .catch(err => error.value = err?.message || '로그인에 실패했습니다');
 }
-
-watch(loading, val => {
-    lazyListener.setValue(val);
-}, {immediate: true})
-
-watch(id, () => idMsg.value = undefined)
-watch(pw, () => pwMsg.value = undefined)
-
-
 </script>
 
 <template>
-<div id="Login" ref="loginRef">
-    <v-card class="card" ref="vRef" 
-        variant="text"
-        :loading="isLazyLoading" 
-    >
-        <div class="logo">
-            <v-img 
-                width="96"
-                aspect-ratio="1"
-                cover
-                src="/favicon.ico"
-            />
-        </div>
-        <v-card-title><h3 class="text-primary">NEXUS-supervisor</h3></v-card-title>
-        <v-form @submit="onSubmit">
-            <div class="content">
-                <v-alert v-if="offline" type="warning" variant="tonal" density="compact" text="서버에 연결할 수 없습니다" />
-                <v-text-field 
-                    label="ID"
-                    name="idenfitication"
-                    variant="outlined"
-                    :messages="idMsg"
-                    :error="!!idMsg"
-                    autocomplete="off"
-                    :disabled="isLazyLoading"
-                    color="primary"
-                    v-model="id"
-                />
-                <v-text-field 
-                    label="PW" 
-                    name="password"
-                    type="password"
-                    variant="outlined"
-                    :messages="pwMsg"
-                    :error="!!pwMsg"
-                    autocomplete="off"
-                    :disabled="isLazyLoading"
-                    color="primary"
-                    v-model="pw"
-                />
-                <v-checkbox 
-                    density="compact"
-                    hide-details
-                    color="primary"
-                    label="아이디 저장"
-                    v-model="rememberId"
-                />
-            </div>
-            <v-card-actions class="action">
-                <v-btn
-                    variant="flat"
-                    color="primary"
-                    type="submit"
-                    :disabled="isLazyLoading"
-                >
-                    로그인
-                </v-btn>
-            </v-card-actions>
-        </v-form>
-    </v-card>
-</div>
+<auth-tile title="NEXUS-supervisor" submit-label="로그인" :busy="isLazyLoading" @submit="submit">
+    <label for="au-id" class="mb-lbl">아이디</label>
+    <input id="au-id" v-model="id" class="mb-input" name="identification" autocomplete="username" :disabled="isLazyLoading" />
+    <label for="au-pw" class="mb-lbl">비밀번호</label>
+    <input id="au-pw" v-model="pw" class="mb-input" type="password" name="password" autocomplete="current-password" :disabled="isLazyLoading" />
+    <span />
+    <button type="button" class="remember" :class="{ on: rememberId }" :aria-pressed="rememberId" @click="rememberId = !rememberId">
+        <v-icon icon="mdi-check" size="14" class="chk" />아이디 저장
+    </button>
+    <p v-if="shownError" role="alert" class="mb-err full">{{ shownError }}</p>
+    <template #note>처음이면 <button type="button" class="link" @click="router.push('/signup')">회원가입</button></template>
+</auth-tile>
 </template>
 
 <style scoped lang="scss">
-
-#Login {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
+.full { grid-column: 1 / -1; }
+// 아이디 저장 = 토글 알약
+.remember {
+    justify-self: start;
+    height: 28px;
+    display: inline-flex;
     align-items: center;
+    gap: 6px;
+    padding: 0 12px 0 10px;
+    border: 0;
+    border-radius: 999px;
+    background: rgba(var(--v-theme-on-surface), 0.07);
+    color: rgb(var(--v-theme-on-surface));
+    font: inherit;
+    @include vars.font('label-medium');
+    font-weight: vars.$weight-md;
+    cursor: pointer;
+    .chk { opacity: 0.25; }
+    &.on { background: rgba(var(--v-theme-primary), 0.14); color: rgb(var(--v-theme-primary)); .chk { opacity: 1; } }
 }
-.card {
-    width: 100%;
-    max-width: 296px;
-    margin: vars.$spacing-lg;
-    .logo {
-        width: 100%;
-        .v-img {
-            margin: 0 auto;
-        }
-    }
-    .v-card-title {
-        text-align: center;
-    }
-    .content {
-        padding: vars.$spacing-lg;
-        padding-bottom: 0;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: vars.$spacing-md;
-        .v-checkbox {
-            & :deep(.v-selection-control) {
-                --v-input-control-height: 28px;
-            }
-            &:deep(.v-input__control .v-selection-control) {
-                gap: vars.$spacing-md;
-            }
-        }
-    }
-    .action {
-        padding-top: vars.spacing(6);
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: vars.$spacing-md;
-    }
+.link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: rgb(var(--v-theme-primary));
+    font: inherit;
+    font-weight: vars.$weight-lg;
+    text-decoration: underline;
+    cursor: pointer;
 }
 </style>
