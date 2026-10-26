@@ -176,8 +176,6 @@ export const provideTileGrids = () => {
     const ovPercent = ref<number>(readOvPercent())
     watch(ovPercent, v => writeUserPref(OV_PERCENT_KEY, v))
     const ovScale = computed(() => ovPercent.value / 100)
-    // 긴 축을 따라 Grid 한 줄
-    const ovDir = computed<'row' | 'col'>(() => (area.value?.w ?? 0) >= (area.value?.h ?? 0) ? 'row' : 'col')
     let normScroll = 0
 
     // 전체보기의 다른 보드 줄 — 같은 cap으로 채워 "배치 그대로"(EV3(다른 보드 크기) = 같은 축소 비율)
@@ -209,8 +207,8 @@ export const provideTileGrids = () => {
         // 첫 Grid 기준 — 앞에 보드 이름 칸이 있어도 첫 Grid면 스크롤 0
         const cells = el.querySelectorAll<HTMLElement>('.cell')
         const cell = cells[gi], first = cells[0]
-        el.scrollLeft = cell && first && ovDir.value === 'row' ? cell.offsetLeft - first.offsetLeft : 0
-        el.scrollTop = cell && first && ovDir.value === 'col' ? cell.offsetTop - first.offsetTop : 0
+        el.scrollLeft = cell && first ? cell.offsetLeft - first.offsetLeft : 0
+        el.scrollTop = 0
     }
 
     // tileId 없음(Esc·돌아가기) = 원래 위치 / tileId = 원래 위치 기준으로 그 타일이 보이게(reveal)
@@ -352,7 +350,6 @@ export const provideTileGrids = () => {
         overview,
         ovPercent,
         ovScale,
-        ovDir,
         otherBoards,
         zoomOverview,
         enterOverview,

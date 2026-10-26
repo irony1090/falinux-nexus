@@ -406,7 +406,7 @@ watch(lastDone, d => {
 .crumbs {
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 3;     // 목록 칸 버튼·라벨(dir-grid z 1~2)보다 위 — 아니면 자동완성 목록을 뚫고 보인다
     display: flex;
     flex-wrap: wrap;
     align-items: center;
