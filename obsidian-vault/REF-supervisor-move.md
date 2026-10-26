@@ -80,6 +80,24 @@
 ## 가져오기 — 미등록 process를 새 supervisor에 등록 (2026-10-26 사용자 추가 요청, 조율 중)
 - 요청: worker에서 process가 도는 채로 supervisor를 옮기면 새 쪽에선 미등록 process -> 장비 주인이 새 supervisor `processes`에 등록하고 타일로 띄우기
 - 구조 메모: 등록 = 재접속 때 `reconcileReconnect`가 하는 것과 같은 길(`processes` 행 + `processManager.Rebind` + `subscribeViewers` + `startRelay` + `applyStatus`) + `unregistered`에서 뺌 + `execTile`로 터미널 타일. 옛 node id는 새 DB에서 뜻이 없어 장비 파일 실행처럼 `node_id` 없음·`dir_node_id` = 장비 타일 폴더가 후보
-- 결정(2026-10-26 사용자): ① EXEC만 가져옴(EDIT는 끄기만) ② 양쪽 DB에 행이 있으면 **가져오기를 먼저 누른 쪽이 주인**(해석 확인 필요 — 아래 답 대기) ③ 브랜치는 아직 미정
+- 결정(2026-10-26 사용자): ① EXEC만 가져옴(EDIT는 끄기만) ② 주인 = 가져오기 한 supervisor의 장비 주인(예: superA의 UserC가 실행 -> superB로 옮김 -> superB 장비 주인 UserD가 가져오면 UserD 것). worker가 superA로 다시 붙으면 superA 행으로 그대로 이어짐(붙은 쪽이 주인, 추가 기록 없음 — 사용자 ①) ③ 브랜치 = `feat/member`에 이어서 — **회원 관리 + 가져오기 끝나면 새 배포**(사용자)
+
+| 번호(이름) | 내용 |
+|---|---|
+| 가져오기-1(화면 다시 요청) | protocol `MsgScreenReq{uid}`(supervisor -> worker), worker는 그 hold에 `RequestSnap` -> 기존 MsgScreen으로 화면 채움 |
+| 가져오기-2(node 찾기) | cmd 경로에서 옛 node id -> 새 DB에서 SCRIPT·이름 = label·주인 = 장비 주인·폴더 장비 = 이 장비면 연결, 아니면 node 없음 |
+| 가져오기-3(등록 API) | `POST /workers/:m/:s/unregistered/:uid/adopt`(장비 주인만, EXEC만) -> `processes` 행(주인 = 장비 주인, `dir_node_id` = 장비 타일 폴더) + Rebind·구독·relay·상태 + 미등록 목록에서 뺌 + 가져오기-1 + 터미널 타일(`execTile`) |
+| 가져오기-4(화면) | `UnregisteredDialog` 줄마다 [가져오기](EDIT는 끄기만) -> 장비 타일 아래 터미널 타일 |
+| 가져오기-5(확인) | 격리 supervisor 2개(5051·5052, DB 2개) + worker: 옮김 -> 가져오기 -> 출력·입력·종료·화면 내용 / DB 복사본이면 node 연결 / EDIT 불가 / 남 403 |
 - node 찾기(사용자 질문): worker는 node id를 따로 모름(holds = label·cmd·cwd). 단 스크립트 실행 경로가 `{WORKER_BASE}/<node.ID>/<uid><확장자>`(`supervisor/process/path.go`)라 cmd에서 옛 DB node id를 읽을 수 있음 -> 새 DB에 그 id가 있고 SCRIPT·이름 = label·주인 = 장비 주인·폴더 장비 = 이 장비면 연결, 아니면 node 없음(장비 파일 실행처럼). DB를 통째로 옮긴 경우만 맞고, 새 DB면 대개 없음
 - 화면 내용: worker는 접속 직후에만 hold 화면 스냅샷(MsgScreen)을 보냄 -> 가져온 뒤 그 전 화면을 채우려면 supervisor -> worker "이 uid 화면 다시" 요청 메시지가 새로 필요(worker 수정)
+
+### 가져오기 구현 (2026-10-26, `feat/member` 커밋 `fa50c64`, 사용자 확인)
+| 번호(이름) | 파일 |
+|---|---|
+| 가져오기-1(화면 다시 요청) | protocol `MsgScreenReq`·`ScreenRequest` · worker `router/process.go` `screenReq`(그 hold에 `RequestSnap`) · `workerRouter.go` 등록 |
+| 가져오기-2(node 찾기) | supervisor `router/adopt.go` `nodeIDInCmd`(경로 `/<id>/<uid>`, `\\`도) · `adoptNode`(GetNode 내 것 + SCRIPT + 이름 = label + 부모 폴더 ResolveDeviceKey = 메인키) |
+| 가져오기-3(등록 API) | `adopt.go` `adoptUnregistered`(인가 = `requireDeviceDir` -> 목록 `get` -> EDIT 400 -> node 찾기 -> EndTx -> `take`(겹치면 404) -> `processManager.Adopt` -> 구독·relay·`applyStatus(PROCESS)`·크기 소유자 -> `MsgScreenReq`(실패는 로그만, 옛 worker) -> `execTile`) · `unregisteredSet.get/take/put` · `process/manager.go` `Adopt` |
+| 가져오기-4(화면) | `UnregisteredDialog.vue` 찰떡으로 다시(`ct-card`·행 끝 `ct-grp--r` [가져오기(accent) · 끄기(error) · 강제(txt)]·창 아래 `ct-actions` [새로 고침 · 닫기]), 가져오면 창 닫힘 · `nodeOps.adopt` -> `processTerm.adopt` -> `process.api` `adoptUnregistered` · `DeviceTile`이 `tile-id` 넘김 |
+| 가져오기-5(확인) | 격리 A 5051(`nexus_member_tmp`)·B 5052(`nexus_adopt_b`, 새 DB)·C 5053(`nexus_adopt_c`, A 복사본) + vite 3001·3002·3003 + worker `jig-a`. scratchpad `adopt2.mjs` **22/22**: B에 dora가 같은 키로 장비 등록 -> 옮김 -> 미등록 2개 -> eve 폴더 403·가져오기 404 -> dora 가져오기(행 = 주인 dora·node 없음·dir = 폴더·PROCESS) -> 이전 화면 tick-1부터 -> 출력 이어짐 -> 목록에서 빠짐 -> 두 번째 404 -> 종료 / C로 옮김 -> alice 가져오기 = 스크립트 node 연결·실행 기록에 보임 / A로 돌아감 -> A 행으로 그대로 이어짐. `adopt3.mjs` 화면 6/6(장비 타일 메뉴 -> 창 -> [가져오기] -> 터미널 타일, tick-1부터 보임) |
+- 함정: 키는 supervisor DB마다 따로 -> 새 supervisor에선 장비를 **같은 키로** 등록해야 worker가 붙음(내 장비 "키 붙여넣기"·등록 때 `apiKey`). DB를 통째로 옮기면 그대로
