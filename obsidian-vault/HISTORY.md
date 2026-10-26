@@ -55,7 +55,7 @@
 | `history/member.md` | 회원 관리 — 결정·조율(2026-10-26 착수, 진행 중) ↔ `REF-member.md` | 10-26 회원-Q1~Q23 |
 | `history/member-impl.md` | 회원 관리 — 구현·확인 ↔ `REF-member-impl.md` | 10-26 오후 회귀 17/17·커밋 `1bd58e7`·`fa50c64`·사용자 test3 배포·관리자 지정 |
 | `history/member-ui.md` | 회원 관리 — 화면 개편(2026-10-26 `member-impl`에서 분할) ↔ `REF-member-ui.md` | 10-26 밤 폰 첫 타일 이동 버그(`memberUrl.hook` 감시 원천)·빈 페이지 도트·다 닫으면 목록으로, `fix/phone-layout` master 머지 |
-| `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-26 밤 세션 끝(회원 관리 배포·api-prefix 진행 줄) |
+| `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-26 밤 fix/phone-layout 머지(새 버그 2개·첫 할 일 1번 줄) |
 | `history/current-archive-1.md` | 위 파일에서 분할(2026-10-26 낮까지: 재부팅 전·세션 끝 정리) | 10-26 세션 끝 |
 | `history/worker-dir.md` | worker 폴더 타일 전체 계획(2026-10-22 신설) — 파트(worker 폴더 타일)·파트(파일 전송 확장) 마감(`INDEX-worker-dir`·`INDEX-transfer-ext`), 폴더-7·9 계획이 남음 | 10-22 구상·조율 Q1~Q11, 큰 계획 폴더-1~9 |
 | `history/windows-vm.md` | Windows VM `nexus-win`(2026-10-23 `windows-worker`에서 분할) | 10-23 경로 직접 입력 확인, win-dev를 test3에 다시 붙임 |
