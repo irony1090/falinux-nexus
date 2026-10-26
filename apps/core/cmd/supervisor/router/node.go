@@ -17,7 +17,7 @@ import (
 
 // nodes 카탈로그 핸들러 — 인가 = 공유 단계 판정(perm.go), 쓰기 쿼리의 owner 인자 = 대상 노드 소유자(SB4(노드 쓰기 쿼리의 owner 인자)). DTO = nodeDto.go
 
-func (router *supervisorRouter) mountNodes(e *echo.Echo) {
+func (router *supervisorRouter) mountNodes(e *echo.Group) {
 	g := e.Group("/nodes")
 	g.POST("", router.createNode)
 	g.GET("", router.listChildren)

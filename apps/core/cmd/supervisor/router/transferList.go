@@ -45,7 +45,7 @@ func (it *transferItem) snapshot() protocol.TransferInfo {
 	return it.info
 }
 
-func (r *supervisorRouter) mountTransfers(e *echo.Echo) {
+func (r *supervisorRouter) mountTransfers(e *echo.Group) {
 	g := e.Group("/transfers")
 	g.GET("", r.listTransfers)
 	g.DELETE("/:id", r.abortTransfer)

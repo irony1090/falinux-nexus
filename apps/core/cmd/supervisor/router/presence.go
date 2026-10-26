@@ -17,7 +17,7 @@ import (
 // 접속 상태(presence) — SH6(presence 범위·전달)·SH7(브라우저 이름), REF-process-share.md. REST 조회만(push 없음).
 // 탭 id·sid 원문은 다른 계정에 내보내지 않는다(탭 id = 크기 우선권 인가 열쇠, sid = 세션 쿠키 값).
 
-func (r *supervisorRouter) mountPresence(e *echo.Echo) {
+func (r *supervisorRouter) mountPresence(e *echo.Group) {
 	e.GET("/processes/:processId/presence", r.processPresence)
 	e.GET("/users/presence", r.usersPresence)
 }

@@ -57,6 +57,9 @@ type supervisorRouter struct {
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
 // REST(user/session 등)도 같은 echo 인스턴스에 붙여 WS와 단일 서버에서 공존시킨다.
 // 서버 기동(addr 바인딩)은 호출자가 e.Start(addr)로 한다.
+// APIPrefix: 브라우저 API 접두어 — main.go 웹 서빙이 이 아래는 index.html로 돌리지 않는다
+const APIPrefix = "/api"
+
 func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisorRouter) {
 
 	log.Printf("[supervisor] SERVER 실행")
@@ -107,32 +110,24 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 		AllowHeaders:     []string{"Content-Type", "Authorization", "MAC", tabIDHeader},
 	}))
 
-	e.GET("/test", func(c echo.Context) error {
-		log.Printf("[TEST]")
-		router.processManager.Test(func(s string, pe *process.ProcessEntry) bool {
-			log.Printf("[%s] - %v", s, pe)
-			return true
-		})
-		return nil
-	})
-
-	// worker router
+	// worker router — /api 밖(배포된 worker env WORKER_PATH 그대로)
 	e.GET(workerPath, router.handleWorkerWS)
-	e.GET("/subscribe", router.handleSubscribeWS)
 
-	// api
-	router.mountUsers(e)
-	router.mountNodes(e)
-	router.mountShares(e)
-	router.mountPresence(e)
-	router.mountActive(e)
-	router.mountProcesses(e)
-	router.mountWorkers(e)
-	router.mountDevices(e)
-	router.mountAdmin(e)
-	router.mountTiles(e)
-	router.mountWorkspaces(e)
-	router.mountTransfers(e)
+	// 브라우저 API는 전부 /api 아래 — 프론트 페이지 경로(/devices 등)와 겹치지 않게(REF-api-prefix.md)
+	api := e.Group(APIPrefix)
+	api.GET("/subscribe", router.handleSubscribeWS)
+	router.mountUsers(api)
+	router.mountNodes(api)
+	router.mountShares(api)
+	router.mountPresence(api)
+	router.mountActive(api)
+	router.mountProcesses(api)
+	router.mountWorkers(api)
+	router.mountDevices(api)
+	router.mountAdmin(api)
+	router.mountTiles(api)
+	router.mountWorkspaces(api)
+	router.mountTransfers(api)
 
 	return e, router
 }

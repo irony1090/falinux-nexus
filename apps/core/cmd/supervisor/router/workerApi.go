@@ -19,7 +19,7 @@ import (
 )
 
 // GET /workers = 접속 중만(레지스트리) / /workers/instances = 명부(DB, online은 레지스트리로 계산) — RS2(API 모양)
-func (r *supervisorRouter) mountWorkers(e *echo.Echo) {
+func (r *supervisorRouter) mountWorkers(e *echo.Group) {
 	g := e.Group("/workers")
 	g.GET("", r.listWorkers)
 	g.GET("/instances", r.listWorkerInstances)

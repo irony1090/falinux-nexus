@@ -122,7 +122,7 @@ func requirePerm(c echo.Context, userID int64, perm string) {
 	}
 }
 
-func (router *supervisorRouter) mountUsers(e *echo.Echo) {
+func (router *supervisorRouter) mountUsers(e *echo.Group) {
 	g := e.Group("/users")
 	g.POST("", router.createUser)
 	g.POST("/session", router.signIn)

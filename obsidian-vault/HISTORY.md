@@ -49,6 +49,7 @@
 
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
+| `history/api-prefix.md` | 브라우저 API `/api` 접두어(2026-10-26) ↔ `REF-api-prefix.md` | 10-26 api-1~5, 14/14, 다음 = 열린 장비 주소 일괄 변경 |
 | `history/member.md` | 회원 관리 — 결정·조율(2026-10-26 착수, 진행 중) ↔ `REF-member.md` | 10-26 회원-Q1~Q23 |
 | `history/member-impl.md` | 회원 관리 — 구현·확인 ↔ `REF-member-impl.md` | 10-26 오후 회귀 17/17·커밋 `1bd58e7`·`fa50c64`·사용자 test3 배포·관리자 지정 |
 | `history/member-ui.md` | 회원 관리 — 화면 개편(2026-10-26 `member-impl`에서 분할) ↔ `REF-member-ui.md` | 10-26 오후 UI-1~7 구현·컨트롤 패널·판 계약(A안)·빈 곳 휠, 사용자 OK |

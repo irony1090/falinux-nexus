@@ -71,3 +71,11 @@ flowchart LR
 
 ## 메모 — worker 종료 시 자식 정리 (2026-10-15, → `REF-worker-orphan.md`)
 - Linux는 안 나(SIGHUP 복원) + 안 다(정상 종료 정리)로 처리. Windows에는 SIGHUP·process group이 없음 → 스크립트를 **Job Object**(`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`)에 넣으면 worker가 어떻게 죽든(crash 포함) OS가 job 안 프로세스를 전부 끔. 윈도-2(ConPTY PTY 구현) 때 같이
+
+## 출력 줄 빠짐 (2026-10-26, 조사 중)
+- 증상(집 서버, Win10 19045, master `4ae97a7`): `check.ps1` 1번째 실행은 전부 보임 / 2번째 = 5번 항목의 파일 약 19줄 없음(폴더 3줄은 보임) / 3번째(새로고침 후 다시 실행) = 5번 머리줄부터 파일까지 약 24줄 없음, 바로 다음 `diskFreeGB` 줄은 보임. 스크롤해도 없음
+- 후보: ㄱ 브라우저 실시간 경로(새로고침으로 다시 받으면 보임) / ㄴ hold -> worker -> supervisor 중계 / ㄷ ConPTY(한 프레임 안에 화면 높이 넘게 스크롤된 줄을 다시 그리기로 건너뜀). ring은 바이트 그대로 쌓는 구조라 ㄴ 가능성 낮음, 빠진 곳 = 한꺼번에 몰린 출력이라 ㄷ 유력
+- 확인 방법: 번호 줄(`1..300`) 시험 · VM `nexus-win`에서 재현 + 보관 프로세스가 받은 바이트에 빠진 줄이 있는지
+- ㄷ이면 고칠 후보: Windows Terminal의 `conpty.dll` + `OpenConsole.exe`(MIT)를 같이 배포해 그 `CreatePseudoConsole` 사용(VS Code `windowsUseConptyDll`과 같은 방식) — 미검토
+- VM 재현(2026-10-26): `conptytest.exe`(scratchpad 임시 worktree `cmd/conptytest`, `pty.ExecInteractive`로 `burst.ps1`(`line 1..N` 한꺼번에) 실행 -> 받은 바이트에서 누락 셈, worker·supervisor·브라우저 없음). VM = **Windows 11 빌드 26200** -> rows 10·24·50, N 300·3000 전부 **누락 0**. 집 서버는 Win10 19045라 ConPTY 구현이 다름 -> 같은 시험을 집 서버에서: `build/home-update/ct/`(`conptytest.exe`·`burst.ps1`·`ct.ps1`)
+  - 판정: 집 서버에서 누락 > 0 = ㄷ(Win10 ConPTY) 확정 / 0 = 우리 경로(ㄱ·ㄴ) -> VM에서 전체 경로 시험

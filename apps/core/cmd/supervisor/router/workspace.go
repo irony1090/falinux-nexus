@@ -16,7 +16,7 @@ import (
 
 // 작업 공간 목록·만들기·폴더 이동·이름·삭제 — 타일 이동은 한 트랜잭션에서 두 트리를 함께 고친다(WS2(변경 방식), REF-workspace-impl.md)
 
-func (r *supervisorRouter) mountWorkspaces(e *echo.Echo) {
+func (r *supervisorRouter) mountWorkspaces(e *echo.Group) {
 	g := e.Group("/workspaces")
 	g.GET("", r.listWorkspaces)
 	g.POST("", r.createWorkspace)

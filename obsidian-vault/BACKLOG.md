@@ -28,6 +28,7 @@
 - **PC 갑작스러운 재부팅** · 2026-10-21 13:03:43 · **다음 진행할 작업이 없을 때 다시 확인**(사용자 2026-10-22). 경고 없이 끊김(journal "uncleanly shut down"), OOM·커널 패닉·하드웨어 오류 기록 없음, 앱 버퍼 원인 아님. 직전 1초 RustDesk 정시 재시작·gnome-shell 커서 drm 오류만 -> 전원·하드웨어·GPU 멈춤 추정
 
 ## 알려진 한계 · 보안 (지금 손대지 않음)
+- **Windows 터미널 출력 줄 빠짐** · 2026-10-26 · 원인 좁히기 중(번호 줄 시험 결과 대기) · 집 서버 `check.ps1` 3번 실행 중 2·3번째에서 5번 항목(`Get-ChildItem` 한꺼번에 약 20줄)이 화면·스크롤에 없음, 빠진 범위가 매번 다름 · 유력 = ConPTY가 한 프레임에 화면 높이 넘게 지나간 줄을 버림(`REF-windows-worker.md` 63행 "ConPTY 출력 = 다시 그린 화면") → `REF-windows-worker.md`
 - **서브키 위조** · RS6(위조 검증) 보류 · key-subkey 결속 검증 없음, 명부를 인가에 안 쓰는 동안 보류 → `REF-node-label.md`
 - **supervisor 레지스트리 영속** · registry 메모리 -> PostgreSQL 미착수
 - **Hub 막힘 남은 한계** · 막힘 최대 약 25초, 줄이려면 write deadline / 소켓별 송신 큐 → `REF-realtime.md` "발견"
@@ -39,6 +40,7 @@
 - **집 서버 Cloudflare Access** · 2026-10-25 미룸(사용자) · (2026-10-26) 파트(회원 관리)의 worker API 키가 배포되면 가짜 worker 등록은 막히므로 필요성 다시 볼 것(`REF-member.md`) · 집 서버를 다른 사람에게 알리기 전 / `/worker` 무인증이라 열어 둔 동안 가짜 worker 등록 가능 · 걸 때 회사 worker용 `/worker` 경로 예외 필요 · → `REF-home-server.md` "코드 쪽 확인 결과"
 
 ## 보류한 설계 · 정리
+- **주소 목록 3개 상한이 지금 주소를 밀어냄** · 2026-10-26 · 사용자 판단 대기 · "저장만"을 3번 넘게 하면 지금 붙어 있는 supervisor 주소가 목록에서 지워져, 새 주소가 다 실패하면 돌아올 곳이 없음(주소-1 "3개 넘으면 꼴찌 삭제") · 후보 = 지금 붙은 주소는 지우지 않기 → `REF-device-move.md` "확인"
 - **Label 모듈** · 2026-10-12 · 다시 볼 조건 → `REF-node-label.md` "Label 모듈"
 - **드래그 인프라(DraggableSession/useDragGhost)** · 2026-10-12 · 드래그 UX(아래 분할 UX 등)를 넣을 때 → `REF-util-drag.md`
 - **SNAPSHOT worker 쪽 이전** · 2026-07-16 검토 → `REF-process-snapshot.md` "worker-side 이전 옵션"

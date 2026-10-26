@@ -15,7 +15,7 @@ import (
 )
 
 // 내 장비 페이지 — 장비 이름(메인키) 등록·API 키·인스턴스 라벨. 설계 → REF-member.md 회원-3(워커 등록·키 발급)
-func (r *supervisorRouter) mountDevices(e *echo.Echo) {
+func (r *supervisorRouter) mountDevices(e *echo.Group) {
 	g := e.Group("/devices")
 	g.GET("", r.listMyDevices)
 	g.GET("/:mainKey", r.getMyDevice)
@@ -24,6 +24,8 @@ func (r *supervisorRouter) mountDevices(e *echo.Echo) {
 	g.POST("/:mainKey/key", r.reissueMyDeviceKey)
 	g.DELETE("/:mainKey", r.deleteMyDevice)
 	g.PATCH("/:mainKey/instances/:subKey", r.labelMyInstance)
+	g.GET("/:mainKey/instances/:subKey/addrs", r.myInstanceAddrs) // deviceMove.go
+	g.POST("/move", r.moveMyDevices)                              // deviceMove.go
 }
 
 type deviceResponse struct {

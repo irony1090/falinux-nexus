@@ -15,7 +15,7 @@ import (
 
 // 공유 걸기·풀기·목록 — 대상 소유자만(P(공유 권한), 재공유 불가). 받는 쪽 구독·타일 반영 = shareAccess.go (REF-process-share-api.md)
 
-func (r *supervisorRouter) mountShares(e *echo.Echo) {
+func (r *supervisorRouter) mountShares(e *echo.Group) {
 	e.GET("/shares/mine", r.listMyShares)
 	e.GET("/nodes/:id/shares", r.listNodeShares)
 	e.PUT("/nodes/:id/shares/:userId", r.putNodeShare)

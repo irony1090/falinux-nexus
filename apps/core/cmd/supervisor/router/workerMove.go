@@ -178,31 +178,49 @@ func (r *supervisorRouter) moveAllWorkers(c echo.Context) error {
 	EndTx(c)
 
 	conns := r.workers.FindAll(func(string, *transport.Conn) bool { return true })
-	out := make([]moveAllResult, len(conns))
-	var wg sync.WaitGroup
+	targets := make([]moveTarget, len(conns))
 	for i, w := range conns {
+		targets[i] = moveTarget{key: w.Key, conn: w.Val}
+	}
+	return c.JSON(200, moveConns(c.Request().Context(), targets, protocol.MoveRequest{URL: body.URL, Now: body.Now}))
+}
+
+// moveTarget: conn = nil이면 접속 중이 아님(그 줄만 error)
+type moveTarget struct {
+	key  string
+	conn *transport.Conn
+}
+
+// moveConns: 대상마다 MsgMove를 동시에 보낸다 — 결과는 instanceKey 순
+func moveConns(ctx context.Context, targets []moveTarget, req protocol.MoveRequest) []moveAllResult {
+	out := make([]moveAllResult, len(targets))
+	var wg sync.WaitGroup
+	for i, t := range targets {
+		out[i] = moveAllResult{InstanceKey: t.key, Addrs: []string{}}
+		if t.conn == nil {
+			out[i].Error = "접속 중이 아닙니다"
+			continue
+		}
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			res := moveAllResult{InstanceKey: w.Key, Addrs: []string{}}
-			ctx, cancel := context.WithTimeout(c.Request().Context(), sendCallTimeout)
+			ctx, cancel := context.WithTimeout(ctx, sendCallTimeout)
 			defer cancel()
-			f, err := w.Val.Call(ctx, protocol.MsgMove, protocol.MoveRequest{URL: body.URL, Now: body.Now})
+			f, err := t.conn.Call(ctx, protocol.MsgMove, req)
 			var a protocol.AddrsResponse
 			if err == nil {
 				err = f.Bind(&a)
 			}
 			if err != nil {
-				res.Error = err.Error()
+				out[i].Error = err.Error()
 			} else {
-				res.Addrs = nonNil(a.Addrs)
+				out[i].Addrs = nonNil(a.Addrs)
 			}
-			out[i] = res
 		}()
 	}
 	wg.Wait()
 	slices.SortFunc(out, func(a, b moveAllResult) int { return cmp.Compare(a.InstanceKey, b.InstanceKey) })
-	return c.JSON(200, out)
+	return out
 }
 
 // bindMove: 주소 검사는 worker와 같은 함수 — 잘못된 주소가 worker 목록에 들어가지 않게 먼저 거른다
@@ -214,12 +232,16 @@ func bindMove(c echo.Context) moveRequest {
 	if err := c.Validate(&body); err != nil {
 		panic(web.Err(400, "%v", err))
 	}
-	addr, err := protocol.NormalizeSupervisorAddr(body.URL)
+	body.URL = normalizeMoveURL(body.URL)
+	return body
+}
+
+func normalizeMoveURL(u string) string {
+	addr, err := protocol.NormalizeSupervisorAddr(u)
 	if err != nil {
 		panic(web.Err(400, "%v", err))
 	}
-	body.URL = addr
-	return body
+	return addr
 }
 
 func nonNil(s []string) []string {

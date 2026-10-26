@@ -42,7 +42,7 @@ export const getTiles = (hash: string) => BaseAxios.get(
 
 // keepalive = 페이지가 사라져도 전송을 끝낸다. axios(XHR)는 지원하지 않아 fetch를 직접 쓴다
 const putTilesKeepalive = (hash: string, body: string): Promise<PutTilesResult> => fetch(
-    new URL(tilesPath(hash), BaseAxios.defaults.baseURL),
+    `${BaseAxios.defaults.baseURL}${tilesPath(hash)}`,
     {
         method: 'PUT',
         keepalive: true,

@@ -19,7 +19,7 @@ import (
 )
 
 // 관리자 페이지 — 모든 회원의 장비·키·라벨 + 회원 상한·권한·정지·삭제. 설계 → REF-member.md 회원-5(관리자 화면)·회원-Q15~Q21
-func (r *supervisorRouter) mountAdmin(e *echo.Echo) {
+func (r *supervisorRouter) mountAdmin(e *echo.Group) {
 	g := e.Group("/admin")
 	g.GET("/users", r.adminListUsers)
 	g.GET("/users/:id", r.adminGetUser)
@@ -34,6 +34,8 @@ func (r *supervisorRouter) mountAdmin(e *echo.Echo) {
 	g.GET("/devices/:mainKey/key", r.adminShowKey)
 	g.POST("/devices/:mainKey/key", r.adminReissueKey)
 	g.PATCH("/devices/:mainKey/instances/:subKey", r.adminLabelInstance)
+	g.GET("/devices/:mainKey/instances/:subKey/addrs", r.adminInstanceAddrs) // deviceMove.go
+	g.POST("/devices/move", r.adminMoveDevices)                              // deviceMove.go
 }
 
 // ===== 정지·삭제된 회원 (메모리) =====

@@ -1,5 +1,5 @@
 import { BaseAxios, throwCatch, throwThen } from '@/common/api/api.util'
-import { keepPreviousData, useQuery, type QueryClient } from '@tanstack/vue-query'
+import { keepPreviousData, useQueries, useQuery, type QueryClient } from '@tanstack/vue-query'
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import type { WorkerInstanceResponse } from '@/feature/worker/api/worker.api'
 
@@ -97,6 +97,18 @@ export const adminReissueKey = (mainKey: string, apiKey = '') => BaseAxios.post(
 export const adminLabelInstance = (mainKey: string, subKey: string, label: string) => BaseAxios.patch(`/admin/devices/${enc(mainKey)}/instances/${enc(subKey)}`, { label })
 .then(throwThen<Empty>).catch(throwCatch)
 
+// ---- supervisor 주소 일괄 변경(열린 장비 타일) — deviceMove.go, REF-device-move.md ----
+export type DeviceMoveResult = { instanceKey: string, addrs: string[], error?: string }
+const deviceBase = (admin: boolean) => admin ? '/admin/devices' : '/devices'
+
+// targets = instanceKey(메인키#서브키). 접속 안 된 것은 그 줄만 error
+export const moveDevices = (admin: boolean, targets: string[], url: string, now: boolean) => BaseAxios.post(`${deviceBase(admin)}/move`, { targets, url, now })
+.then(throwThen<DeviceMoveResult[]>).catch(throwCatch)
+
+// worker에 저장된 주소(1순위부터) — 접속 중일 때만(아니면 409)
+export const instanceAddrs = (admin: boolean, mainKey: string, subKey: string) => BaseAxios.get(`${deviceBase(admin)}/${enc(mainKey)}/instances/${enc(subKey)}/addrs`)
+.then(throwThen<{ addrs: string[] }>).catch(throwCatch)
+
 // ---- 조회 훅 ----
 const POLL_MS = 10 * 1000   // 접속 여부는 알림이 없어 주기 조회
 type P = MaybeRefOrGetter<ListParams>
@@ -126,11 +138,17 @@ export const useMemberUser = (id: number) => useQuery({
     queryFn: () => adminGetUser(id),
     retry: false,
 })
-export const useMemberDevice = (mainKey: string, admin: boolean) => useQuery({
+const memberDeviceQuery = (mainKey: string, admin: boolean) => ({
     queryKey: admin ? ['ADMIN', 'DEVICE', mainKey] : ['MEMBER', 'DEVICE', mainKey],
     queryFn: () => admin ? adminGetDevice(mainKey) : getMyDevice(mainKey),
     refetchInterval: POLL_MS,
     retry: false,
+})
+export const useMemberDevice = (mainKey: string, admin: boolean) => useQuery(memberDeviceQuery(mainKey, admin))
+// 여러 장비(열린 장비 타일) — 타일과 같은 queryKey라 캐시를 같이 쓴다. 못 읽은 장비는 빠짐
+export const useMemberDeviceList = (mainKeys: MaybeRefOrGetter<string[]>, admin: boolean) => useQueries({
+    queries: computed(() => toValue(mainKeys).map(k => memberDeviceQuery(k, admin))),
+    combine: results => results.flatMap(r => r.data ? [r.data] : []),
 })
 
 export const invalidateMember = (queryClient: QueryClient) => Promise.all([

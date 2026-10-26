@@ -52,9 +52,10 @@ export const throwCatch = (error: AxiosError | CommonResponse) => {
 };
 
 
+// API 기준 주소 = supervisor 주소(VITE_API_URL, 없으면 같은 출처) + /api — 서버 APIPrefix와 맞춤. 뒤에 붙일 경로는 문자열로 이어 붙인다(new URL('/x', base)는 /api를 버림)
 export const getBaseURL = (): string => {
-    const rst = !!import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL : `${location.protocol}//${location.host}`
-    return rst;
+    const origin = !!import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/+$/, '') : `${location.protocol}//${location.host}`
+    return `${origin}/api`;
 }
 
 export const BaseAxios = axios.create({

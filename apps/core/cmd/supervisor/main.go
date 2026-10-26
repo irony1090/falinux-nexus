@@ -15,12 +15,14 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"nexus/cmd/supervisor/constants"
 	"nexus/cmd/supervisor/router"
 	"nexus/internal/supervisor/db/migrations"
 	"nexus/internal/supervisor/store"
 
+	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
@@ -45,7 +47,11 @@ func main() {
 	e, _ := router.NewSupervisorRouter(env.WorkerPath, env.SessionKey)
 	if env.WebDir != "" {
 		// Pre = 라우팅·tx 앞. 파일이 없으면 API로 넘기고, 404면 index.html(SPA 경로 /w/:hash 새로고침)
-		e.Pre(middleware.StaticWithConfig(middleware.StaticConfig{Root: env.WebDir, HTML5: true}))
+		// /api·worker 경로는 건너뜀 — 없는 API가 index.html(200)이 아니라 JSON 404로 나가게
+		e.Pre(middleware.StaticWithConfig(middleware.StaticConfig{Root: env.WebDir, HTML5: true, Skipper: func(c echo.Context) bool {
+			p := c.Request().URL.Path
+			return p == router.APIPrefix || strings.HasPrefix(p, router.APIPrefix+"/") || p == env.WorkerPath
+		}}))
 		log.Printf("supervisor: 웹 서빙 %s", env.WebDir)
 	}
 	log.Fatal(e.Start(addr))

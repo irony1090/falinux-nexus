@@ -27,10 +27,6 @@ func NewProcessManager() *ProcessManager {
 	}
 }
 
-func (p *ProcessManager) Test(predicate func(string, *ProcessEntry) bool) []manager.FindResult[string, *ProcessEntry] {
-	return p.memory.FindAll(predicate)
-}
-
 // Get은 uid로 실행 엔트리를 조회한다. worker→sup의 MsgData/MsgStatus 핸들러가
 // 해당 process의 AgentInteractive를 되찾을 때 쓴다.
 func (p *ProcessManager) Get(uid string) (*ProcessEntry, bool) {
