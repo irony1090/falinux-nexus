@@ -1,4 +1,4 @@
-# REF — 회원 관리: 결정 (파트(회원 관리), 2026-10-26 착수 · 진행 중)
+# REF — 회원 관리: 결정 (파트(회원 관리), 2026-10-26 착수 · 같은 날 마감 → `INDEX-member.md`)
 
 → 이력 `history/member.md` · 구현·확인·다음 할 것 `REF-member-impl.md` · 현재 `CURRENT.md` · 옛 보류 메모 `REF-frontend-auth.md` "회원가입"
 

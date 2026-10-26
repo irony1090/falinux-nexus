@@ -34,7 +34,7 @@
 - 새 보드·IUTF8(마감) → `INDEX-fix-board-iutf8.md` (fix-board-iutf8)
 - process 살려 두기(마감) → `INDEX-process-keep.md` (process-keep)
 - 타일 종류 정리(마감) → `INDEX-tile-kinds.md` (tile-kinds)
-- worker 폴더 타일(마감) → `INDEX-worker-dir.md` (worker-dir-list·worker-dir-exec·worker-dir-board)
+- worker 폴더 타일(마감) → `INDEX-worker-dir.md` (worker-dir-list·worker-dir-exec·worker-dir-board·전체 계획 worker-dir)
 - 파일 전송 확장(마감, 업로드·전송 상태) → `INDEX-transfer-ext.md` (transfer-ext)
 - 내려받기·worker 간 전송(마감) → `INDEX-transfer-down.md` (transfer-down)
 - 경로 직접 입력(마감) → `INDEX-path-input.md` (path-input)
@@ -45,19 +45,16 @@
 - 목록 아이콘 보기(마감) → `INDEX-dir-grid.md` (dir-grid)
 - 빈 곳 길게 누르기(마감) → `INDEX-press-pager.md` (press-pager)
 - supervisor 주소 실시간 변경(마감, 후속 가져오기는 회원 관리 브랜치) → `INDEX-supervisor-move.md` (supervisor-move)
+- **회원 관리(마감, `/api` 정리·열린 장비 주소 일괄 변경·폰 수정 포함)** → `INDEX-member.md` (member·member-impl·member-ui·api-prefix·device-move)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.
 
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
-| `history/api-prefix.md` | 브라우저 API `/api` 접두어(2026-10-26) ↔ `REF-api-prefix.md` | 10-26 api-1~5, 14/14, 다음 = 열린 장비 주소 일괄 변경 |
-| `history/member.md` | 회원 관리 — 결정·조율(2026-10-26 착수, 진행 중) ↔ `REF-member.md` | 10-26 회원-Q1~Q23 |
-| `history/member-impl.md` | 회원 관리 — 구현·확인 ↔ `REF-member-impl.md` | 10-26 오후 회귀 17/17·커밋 `1bd58e7`·`fa50c64`·사용자 test3 배포·관리자 지정 |
-| `history/member-ui.md` | 회원 관리 — 화면 개편(2026-10-26 `member-impl`에서 분할) ↔ `REF-member-ui.md` | 10-26 밤 폰 첫 타일 이동 버그(`memberUrl.hook` 감시 원천)·빈 페이지 도트·다 닫으면 목록으로, `fix/phone-layout` master 머지 |
-| `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-26 22:19 집 서버 배포 끝(첫 할 일 2번 줄) |
+| `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-26 밤 vault 색인 정리(회원 관리 마감) |
+| `history/current-archive-2.md` | 위 파일에서 분할(2026-10-26 밤 세션 끝) | 10-26 밤 세션 끝 |
 | `history/current-archive-1.md` | 위 파일에서 분할(2026-10-26 낮까지: 재부팅 전·세션 끝 정리) | 10-26 세션 끝 |
-| `history/worker-dir.md` | worker 폴더 타일 전체 계획(2026-10-22 신설) — 파트(worker 폴더 타일)·파트(파일 전송 확장) 마감(`INDEX-worker-dir`·`INDEX-transfer-ext`), 폴더-7·9 계획이 남음 | 10-22 구상·조율 Q1~Q11, 큰 계획 폴더-1~9 |
 | `history/windows-vm.md` | Windows VM `nexus-win`(2026-10-23 `windows-worker`에서 분할) | 10-23 경로 직접 입력 확인, win-dev를 test3에 다시 붙임 |
 | `history/demo.md` | 시연 데이터(2026-10-16 신설) | 10-16 안 C(생산 지그 시나리오) 등록, 브라우저 경유 실행 미확인 |
 | `history/design-chaltteok.md` | 찰떡 규칙(디자인 규칙, 2026-10-25 신설) | 10-25 이름 확정·아티팩트·REF 정리 → 파트(찰떡 UI) 시안·다′·구현·test3 웹 교체 |

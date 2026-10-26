@@ -1,4 +1,4 @@
-# REF — 열린 장비 타일 supervisor 주소 일괄 변경 (2026-10-26, 구현·격리 확인, 커밋 전)
+# REF — 열린 장비 타일 supervisor 주소 일괄 변경 (2026-10-26, master 머지 `c5f9749` · 마감 → `INDEX-member.md`)
 
 > → 이력 `history/api-prefix.md`(같은 세션에서 시작, 착수하면 `history/device-move.md` 분리) · → `CURRENT.md` · 바탕 = `REF-supervisor-move.md` 주소-5(화면)
 

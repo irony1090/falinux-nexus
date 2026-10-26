@@ -1,6 +1,6 @@
 # history — CURRENT에서 내려보낸 줄 1 (원문 보존, 2026-10-26 낮까지)
 
-> 2026-10-26 밤 `current-archive.md`에서 분할(10k자 기준). 이후 것 → `history/current-archive.md` / → `CURRENT.md`
+> 2026-10-26 밤 `current-archive.md`에서 분할(10k자 기준). 이후 것 → `history/current-archive-2.md`(밤 세션 끝) · `history/current-archive.md`(그 뒤) / → `CURRENT.md`
 
 ## 2026-10-26 재부팅 전 정리 때 내림 (이미 마감·INDEX로 접힌 파트들)
 - **2026-10-25 파트(찰떡 UI) 마감·master 머지**: 찰떡-1(푸터)·찰떡-2(공유 창)·찰떡-3(내가 공유한 것 창)·찰떡-4(장비 지정 창)·찰떡-5(터미널 탭 목록·칸 실행 팝업) + 공통 `styles/chaltteok.scss` → `REF-design-chaltteok.md` "Nexus에서 쓰는 곳", 경위 `history/design-chaltteok.md`. 사용자 test1 확인 뒤 test3 `build/ctrl_panel/web`만 이 빌드로 교체(백업 안 둠), test1 닫음. 확인 중 실수로 test3 irony 보드에 생긴 터미널·장비 타일은 사용자가 정리함. 브랜치 `feat/chaltteok-ui` 남겨 둠, push 안 함

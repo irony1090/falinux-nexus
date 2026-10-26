@@ -94,3 +94,6 @@ embed된 `cmd/*/env` = **배포 값**으로 단정. 빌드 전에 이 파일을 
 | 근본 해결 | worker를 사용자 터미널에서 다시 띄우기. 단 이미 떠 있는 보관 프로세스(K1)는 옛 변수를 유지 -> 새로 여는 터미널부터 깨끗 |
 | 앞으로 (규칙) | 서버 재기동은 사용자가 직접 실행. Claude가 띄워야 하면 `env $(env \| grep -o '^CLAUDE[A-Z_]*' \| sed 's/^/-u /') setsid ./worker ...`처럼 지우고 띄움 |
 | 코드로 막기 | worker가 PTY 환경을 만들 때 `CLAUDE*` 빼기 -> BACKLOG "PTY 환경에서 `CLAUDE*` 빼기" |
+
+## MEMORY에서 옮긴 줄 (2026-10-26 원문)
+- 빌드본 = 사용용(2026-10-22~): 개발(8011·8012, `nexus`)과 분리. Claude가 띄우면 `CLAUDE*` 변수 지움. 빌드본 worker 교체 = 그 위 process 전부 종료(2026-10-22 기록 — 그 뒤 K4(기본 종료 동작)로 보관 프로세스는 남음, `REF-process-keep.md`). embed `cmd/*/env` = 배포 값

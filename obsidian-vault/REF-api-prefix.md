@@ -1,6 +1,6 @@
 # REF — 브라우저 API를 `/api` 아래로 (2026-10-26)
 
-> → 이력 `history/api-prefix.md` · → `CURRENT.md` · 브랜치 `refactor/api-prefix`
+> → 이력 `history/api-prefix.md` · → `CURRENT.md` · 브랜치 `refactor/api-prefix`(master 머지 `c5f9749`) · 마감 → `INDEX-member.md`
 
 ## 왜
 - 빌드본은 supervisor가 웹(`WEB_DIR`)과 API를 같은 출처로 서빙 -> 프론트 페이지 `/devices`에서 새로고침하면 `GET /devices`(내 장비 목록 API)가 받아 JSON이 보임(집 서버에서 발견, test3도 같음). 격리 시험은 vite 개발 서버라 안 드러남

@@ -27,3 +27,8 @@
 - 장비 디렉토리 인가(연 폴더 소유자 + device_key == 메인키, `requireDeviceFolder`)는 다음 파트(업로드·내려받기)도 같은 규칙을 쓸 것 → `REF-worker-dir-board.md` "구현", `REF-worker-dir-list.md`
 - 못 본 것: 504(worker 무응답) · 여러 인스턴스 고르기 창 · 화면에서 상위 폴더를 지울 때 루트 장비 분기 · 모바일 화면 → 각 REF "확인"
 - 다음 파트(파일 전송 확장) 폴더-8(전송 상태)·7(내려받기)·5(업로드)·9(worker 간 전송) + SFTP 아이디어 → `REF-worker-dir.md`, `BACKLOG.md`
+
+## 전체 계획 접음 (2026-10-26 밤 vault 색인 정리)
+- 폴더-1~9가 파트(worker 폴더 타일)·파트(파일 전송 확장)·파트(내려받기·worker 간 전송)에서 전부 끝나 전체 계획 `REF-worker-dir.md` / `history/worker-dir.md`도 이 INDEX로 접음(MEMORY "설계/재사용 지식" 줄·HISTORY 색인 행에서 뺌). SFTP 아이디어는 `BACKLOG.md`
+- MEMORY 원문: `REF-worker-dir.md`(worker 폴더 타일 전체 계획, 폴더-7(내려받기)·9(worker 간 전송) 원래 표)
+- HISTORY 원문: | `history/worker-dir.md` | worker 폴더 타일 전체 계획(2026-10-22 신설) — 파트(worker 폴더 타일)·파트(파일 전송 확장) 마감(`INDEX-worker-dir`·`INDEX-transfer-ext`), 폴더-7·9 계획이 남음 | 10-22 구상·조율 Q1~Q11, 큰 계획 폴더-1~9 |

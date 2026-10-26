@@ -1,4 +1,4 @@
-# history — 회원 관리
+# history — 회원 관리 (마감 → `INDEX-member.md`)
 
 → `REF-member.md`(결정) · 구현 이력 `history/member-impl.md` · `CURRENT.md`
 
