@@ -71,17 +71,23 @@ export const useMemberUrl = (ctx: ReturnType<typeof provideMemberBoard>) => {
     const saved = readUserPref<Query | null>(lastKey, null)
     if (!Object.keys(norm(route.query)).length && saved && Object.keys(saved).length) void router.replace({ query: saved })
 
-    // 원천은 글자열로 — 배열을 돌려주면 apply가 바꾼 타일 때문에 매번 "바뀜"으로 보여 무한히 다시 돈다
-    watch(() => `${JSON.stringify(norm(route.query))}|${grids.value.length > 0}`, async () => {
-        const raw = norm(route.query), measured = grids.value.length > 0
+    // Grid 측정 전이라 보던 자리 복원을 미룬 URL이 있음 — 측정되면 그때 마저 적용
+    let waitGrid = false
+    const sync = async () => {
+        const raw = norm(route.query)
         if (written && same(raw, written)) return
         pending = true
         apply(raw)
-        if (!measured && raw.t) return     // Grid 측정 전 — 스크롤할 자리가 없다
+        waitGrid = !grids.value.length && !!raw.t
+        if (waitGrid) return     // Grid 측정 전 — 스크롤할 자리가 없다
         if (raw.view) await restoreView(raw.view)
         pending = false
         write('replace')
-    }, { immediate: true, flush: 'post' })
+    }
+    // 원천은 route 글자열만 — Grid 유무를 원천에 넣으면 화면에서 연 첫 타일(push가 아직 안 돌아온 때)에
+    // 옛 URL을 다시 적용해 타일을 지운다(폰에서 첫 타일로 안 넘어가던 원인, 2026-10-26)
+    watch(() => JSON.stringify(norm(route.query)), sync, { immediate: true, flush: 'post' })
+    watch(() => grids.value.length > 0, measured => { if (measured && waitGrid) void sync() }, { flush: 'post' })
 
     watch(() => [tiles.value, tab.value, filter.value, pageNo.value, size.value, q.value], () => write(), { flush: 'post' })
     watch(anchorKey, () => {

@@ -19,7 +19,7 @@ import { TILE_COMPONENTS } from './tile/tileComponents';
 
 const {
     grids, cap, area, stripEl, scrollX, viewW,
-    overview, ovScale, ovDir, otherBoards, leaveOverview, activate, scrubbing,
+    overview, ovScale, otherBoards, leaveOverview, activate, scrubbing,
 } = useTileGrids();
 useTileShortcut();
 useTileNavShortcut();
@@ -53,10 +53,10 @@ const onScroll = () => {
 // 전체보기에 다른 보드 줄이 있음 — EV2(보드 쌓는 방향)
 const multi = computed(() => overview.value && otherBoards.value.length > 0);
 
-// 가로 한 줄 전체보기에선 세로 휠도 가로로. 보드 줄이 여럿이면 세로 휠 = 보드 사이 이동
+// 전체보기(가로 한 줄)에선 세로 휠도 가로로. 보드 줄이 여럿이면 세로 휠 = 보드 사이 이동
 const onWheel = (e: WheelEvent) => {
     const el = stripEl.value;
-    if (!el || !overview.value || multi.value || ovDir.value !== 'row' || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    if (!el || !overview.value || multi.value || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
     e.preventDefault();
     el.scrollLeft += e.deltaY;
 }
@@ -90,7 +90,9 @@ const layoutStyle = (cols: CellSpan): CSSProperties | undefined => {
     return { width: `${w}px`, height: `${h}px`, transform: `scale(${ovScale.value})` };
 }
 
-const stripClass = computed(() => overview.value ? ['overview', ovDir.value, { multi: multi.value }] : { scrubbing: scrubbing.value });
+// 폰 = 보드 푸터와 같은 판정(한 칸). 전체보기 방향은 PC·폰 모두 가로 한 줄, 폰은 보드 이름만 줄 위로
+const phone = computed(() => cap.value.x === 1);
+const stripClass = computed(() => overview.value ? ['overview', { multi: multi.value, phone: phone.value }] : { scrubbing: scrubbing.value });
 
 const currentName = computed(() => boardLabel(byHash(hash.value)) || '기본 보드');
 
@@ -250,20 +252,11 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
         gap: 14px;
         align-items: center;
     }
-    // PC 가로: Grid 가로 한 줄 + 세로 가운데
-    &.row {
-        justify-content: safe center;
-        align-items: flex-start;
-    }
-    // 폰 세로: 보드 안 Grid도 세로 + 가로 가운데, 보드 사이엔 이름표 — EV2(보드 쌓는 방향) 나
-    &.col {
-        align-items: safe center;
-        overflow-x: hidden;
-        .board { flex-direction: column; }
-        .board-cells { flex-direction: column; }
-    }
-    // PC 가로 + 보드 여럿: 보드마다 가로 한 줄(이름 왼쪽), 위에서부터 — EV2(보드 쌓는 방향) 가
-    &.row.multi {
+    // Grid 가로 한 줄 + 세로 가운데(PC·폰 같음 — 2026-10-26 폰 세로 나열 폐기)
+    justify-content: safe center;
+    align-items: flex-start;
+    // 보드 여럿: 보드마다 가로 한 줄(이름 왼쪽), 위에서부터 — EV2(보드 쌓는 방향)
+    &.multi {
         justify-content: flex-start;
         align-items: flex-start;
         .board {
@@ -286,9 +279,10 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
         border-radius: 8px;
         background: rgb(var(--v-theme-surface));
     }
-    &.col.multi .board {
-        padding: 6px;
-        border-radius: 8px;
+    // 폰: 이름 칸(140px)이 폭을 많이 먹으므로 줄 위로
+    &.multi.phone {
+        .board { flex-direction: column; }
+        .board-cap { width: auto; flex-direction: row; align-items: baseline; justify-content: flex-start; }
     }
     .cell {
         flex: none;

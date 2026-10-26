@@ -49,7 +49,8 @@ export const provideMemberBoard = (page: MemberPageKind) => {
     const maxCol = computed(() => Math.max(0, colCount.value - span.value))
     // 도트 위치 = 화면 단위 실수(폰은 0 = 목록)
     const pos = computed(() => viewW.value ? scrollX.value / viewW.value : 0)
-    const dotCount = computed(() => Math.max(1, lead.value + grids.value.length))
+    // 타일이 없어도 빈 안내 페이지가 한 칸 — 빼면 그 페이지의 위치 표시가 도트 줄 밖에 그려진다
+    const dotCount = computed(() => lead.value + Math.max(1, grids.value.length))
 
     const clampCol = (col: number) => Math.max(0, Math.min(maxCol.value, col))
     const goCol = (col: number, behavior: ScrollBehavior = 'smooth') =>
@@ -117,6 +118,8 @@ export const provideMemberBoard = (page: MemberPageKind) => {
     const close = (key: string) => {
         tiles.value = tiles.value.filter(t => t.key !== key)
         if (activeKey.value === key) activeKey.value = null
+        // 다 닫으면 목록으로(폰 = 첫 칸, PC는 목록이 늘 보여 그대로)
+        if (!tiles.value.length) void nextTick(() => goCol(0))
     }
     // 주소-5(없는 대상): 지워진 회원·장비 타일은 닫고, URL은 기록을 쌓지 않고 덮는다(뒤로 가기가 같은 자리에서 맴돌지 않게)
     const replaceNext = ref(false)
