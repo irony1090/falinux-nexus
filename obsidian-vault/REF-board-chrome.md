@@ -71,7 +71,7 @@
 | 푸터-4(위로 열기) | `pagerDrag.hook` `TILE_PULL`/`TILE_BACK`(위로 36 = 타일, 16 아래로 = 칼럼). 안내·`TilePeek`은 `bottom` 기준(막대 위 8px), 등장 방향도 아래->위 |
 | 푸터-5(스크롤바 삭제) | `.TileStrip:not(.overview)` 스크롤바 숨김(전체보기는 인디케이터가 없어 유지), store `scrollbar`·`syncScrollbar` 삭제 |
 | 푸터-6(Grid 정보 토스트) | store `range` 공용화(`GridPager`도 이걸 씀). `GridToast.vue`: 범위 key가 바뀌고 스크롤이 150ms 멈추면 표시, 드래그(`scrubbing`) 중 대기, 2.5초, 누르면 닫힘(`pointerdown.prevent`로 포커스 유지), 전체보기 중 숨김·돌아오면 다시 표시. 위치 기준 = `TileWorkspace__stage`(strip 밖 래퍼) |
-| 푸터-7(빈 곳 휠) | `gapWheel.hook.ts`: 세로 우세 휠만, 대상이 `.Tile:not(.Tile--empty)` 밖이면 `preventDefault` + delta 누적 50px -> `goCol(±1)`, 간격 250ms, 200ms 멈추면 누적 버림, smooth 도중(600ms) 다음 칸은 목표 칼럼 기준. `TileWorkspace__body`의 `@wheel` |
+| 푸터-7(빈 곳 휠) | `gapWheel.hook.ts`(2026-10-26 `widget/hook`, 판 계약): 세로 우세 휠만, 대상이 `.Tile:not(.Tile--empty)` 밖이면 `preventDefault` + delta 누적 50px -> `goCol(±1)`, 간격 250ms, 200ms 멈추면 누적 버림, smooth 도중(600ms) 다음 칸은 목표 칼럼 기준. `TileWorkspace__body`의 `@wheel` |
 | 버튼 크기 | 알약 안 `v-btn`은 `density="comfortable"`(기본 크기면 PC 40px·폰 48px 버튼이 34/44 알약을 넘침 — 헤드리스에서 발견) |
 
 - 남은 빈틈: 보드 불러오기 실패·로딩 화면(`index.vue` state)엔 푸터가 없어 로그아웃 버튼이 없음 — "기본 보드로"로 나갈 수는 있음

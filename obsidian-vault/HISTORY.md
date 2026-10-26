@@ -48,11 +48,16 @@
 
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
-| `history/supervisor-move.md` | supervisor 주소 실시간 변경(2026-10-24 착수, 진행 중) | 10-24 구현·격리 확인(서버 29/29·화면 8/8), 브랜치 중간 커밋, 사용자 확인 대기 |
+| `history/member.md` | 회원 관리 — 결정·조율(2026-10-26 착수, 진행 중) ↔ `REF-member.md` | 10-26 회원-Q1~Q23 |
+| `history/member-impl.md` | 회원 관리 — 구현·확인 ↔ `REF-member-impl.md` | 10-26 서버 전부 + 화면 첫 판, 헤드리스 확인, 커밋 전, 격리 다시 띄움·`test.env` |
+| `history/member-ui.md` | 회원 관리 — 화면 개편(2026-10-26 `member-impl`에서 분할) ↔ `REF-member-ui.md` | 10-26 시안 1·2판 확정, N×M Grid, URL push 조율, 코드는 다음 세션 |
+| `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-26 마감 파트 17줄 |
+| `history/supervisor-move.md` | supervisor 주소 실시간 변경(2026-10-24 착수, 진행 중) | 10-26 사용자 확인 OK(집 서버로 옮기기), 머지 대기 |
 | `history/worker-dir.md` | worker 폴더 타일 전체 계획(2026-10-22 신설) — 파트(worker 폴더 타일)·파트(파일 전송 확장) 마감(`INDEX-worker-dir`·`INDEX-transfer-ext`), 폴더-7·9 계획이 남음 | 10-22 구상·조율 Q1~Q11, 큰 계획 폴더-1~9 |
 | `history/windows-vm.md` | Windows VM `nexus-win`(2026-10-23 `windows-worker`에서 분할) | 10-23 경로 직접 입력 확인, win-dev를 test3에 다시 붙임 |
 | `history/demo.md` | 시연 데이터(2026-10-16 신설) | 10-16 안 C(생산 지그 시나리오) 등록, 브라우저 경유 실행 미확인 |
 | `history/design-chaltteok.md` | 찰떡 규칙(디자인 규칙, 2026-10-25 신설) | 10-25 이름 확정·아티팩트·REF 정리 → 파트(찰떡 UI) 시안·다′·구현·test3 웹 교체 |
+| `history/home-server.md` | 집 Windows 서버 PC에 supervisor + Cloudflare Tunnel(2026-10-25 신설) | 10-26 Linux B 빌드 `build/supervisor_move` -> 집 서버로 옮기기 OK |
 | `history/worker-screen.md` | worker 화면 송출(아이디어) | 10-15 나(VNC 터널 + noVNC) 추천 · 10-25 VNC 서버 준비 방식(내려받기·설치) 재논의, 보류 |
 | `history/node-ui.md` | node 카탈로그 UI 컨셉 | 08-10 그리드 직접 제작 확정, termspace 영감 피벗 |
 | `history/node-ui-overview.md` | 전체보기 · 화면 내비게이션 | 10-06 active 타일 표시 = 나(약하게 흐림) + 위치 번호 단축키 |

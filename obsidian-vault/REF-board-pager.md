@@ -47,8 +47,8 @@
 | N1(위치 계산) | `widget/util/tileSplit.util.ts` | `StripColumn.pos`(오른쪽 칼럼 = +0.5) · `stripPos`(scrollX -> Grid 단위 실수) · `colScroll`(칼럼 실수 -> scrollLeft) · `revealCol` |
 | N2(스토어 동작) | `node/store/tileGrids.store.ts` | `pos` · `maxCol`(스크롤 끝에 막히는 칼럼 제외) · `scrubbing` · `goCol` · `scrubTo` · `colRange` · `stepTo` · `focusTile` 노출 |
 | N3(스냅 끄기) | `TileStrip.vue` | `.scrubbing` = `scroll-snap-type: none` |
-| N4(인디케이터) | `GridPager.vue` + `hook/pagerDrag.hook.ts` | 도트·막대(반 칸 = 작은 도트)·창 방식(폭 재서 개수, 도트 5개도 안 들어가면 숫자 숨김)·←/→ 키. 드래그 상수 START 6 · TILE_DOWN 36 · TILE_UP 16 · COL_PX 36 · TILE_PX 29 |
-| N5(타일 미니맵) | `TilePeek.vue` | Grid 칸 비율 미니맵 + 보이는 범위 틀(strip 좌표 -> 미니맵 선형) + 창 방식 + `타일 i / N` |
+| N4(인디케이터) | `GridPager.vue` + `hook/pagerDrag.hook.ts`(2026-10-26 `widget/hook`으로 옮김, 판 계약 → `REF-member-ui.md` "판 계약") | 도트·막대(반 칸 = 작은 도트)·창 방식(폭 재서 개수, 도트 5개도 안 들어가면 숫자 숨김)·←/→ 키. 드래그 상수 START 6 · TILE_DOWN 36 · TILE_UP 16 · COL_PX 36 · TILE_PX 29(2026-10-26 54·44로 넓힘 → `REF-member-ui.md`) |
+| N5(타일 미니맵) | `TilePeek.vue`(2026-10-26 `widget/component`) | Grid 칸 비율 미니맵 + 보이는 범위 틀(strip 좌표 -> 미니맵 선형) + 창 방식 + `타일 i / N` |
 | N6(TileNav 교체) | `TileNav.vue` | `VPagination`·칼럼 화살표·"칼럼 n/m" 제거 -> `GridPager`. 전체보기 분기 그대로 |
 - 안내·패널은 앱 바(`v-app-bar`, overflow 잘림 + transform) 안에서 못 나오므로 **body로 teleport + fixed**, 위치는 드래그 시작 때 인디케이터 rect로
 - 놓으면 `settle`: 가까운 칼럼 `goCol` -> 그 위치에 도착(`scrollend` + 위치 확인, 최대 700ms)한 뒤 스냅 복원 — smooth 도중 스냅을 켜면 다른 칼럼으로 튈 수 있음
