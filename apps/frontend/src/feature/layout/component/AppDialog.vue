@@ -9,6 +9,7 @@
     <v-card
         :loading="delayLoading"
         :disabled="delayLoading"
+        class="ct-card"
     >
         <v-card-title class="title">
             <v-icon 
@@ -21,25 +22,19 @@
         <v-card-text>
             <p v-for="content,i in contents" :key="i" v-html="content" />
         </v-card-text>
-        <v-divider />
-        <v-card-actions class="actions">
-            <v-btn v-for="{ view, action, color, variant }, i in buttons" 
-                :key="i"
-                :color="color"
-                :variant="variant"
-                @click="action"
-            >
-                {{ view }}
-            </v-btn>
-        </v-card-actions>
+        <div class="ct-actions">
+            <span class="ct-grp ct-grp--r">
+                <button v-for="{ view, action, cls }, i in buttons" :key="i" type="button" class="ct-seg" :class="cls" @click="action">{{ view }}</button>
+            </span>
+        </div>
     </v-card>
 </v-dialog>
 </template>
 
 <script lang="ts" setup>
-import { useAppDialog, type DialogButton } from '@/feature/layout/store/appDialog.store';
+import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { computed, watch } from 'vue';
-import { VDialog, VCard, VCardTitle, VCardText, VCardActions, VDivider, VBtn } from 'vuetify/components'
+import { VDialog, VCard, VCardTitle, VCardText, VDivider } from 'vuetify/components'
 import { useLazyRef } from '@/common/hook/vue.hook';
 import { useAppWindow } from '@/feature/layout/store/appWindown.store';
 // import { useStateDelay } from '@/common/hook/vue.hook';
@@ -64,37 +59,12 @@ const contents = computed<Array<string>>(() => {
 })
 
 
-const buttons = computed(() => {
-    return (dialog.value?.buttons ?? []).map((el) => {
-        const newEl = {...el} as DialogButton & {
-            variant: VBtn['$props']['variant'],
-            color: VBtn['$props']['color'],
-        };
-        if (!el.type) {
-            newEl.type = dialog.value?.type
-        }
-
-        switch(newEl.type) {
-            case 'info':
-                newEl.variant = 'text';
-                newEl.color = undefined;
-                break;
-            case 'warning':
-                newEl.variant = 'outlined';
-                newEl.color = 'warning';
-                break;
-            case 'error':
-                newEl.variant = 'flat';
-                newEl.color = 'error';
-                break;
-            default:
-                newEl.variant = 'plain';
-                newEl.color = 'error';
-        }
-
-        return newEl;
-    })
-})
+// 버튼 종류 = 찰떡 칸 색(REF-design-chaltteok.md). 종류가 없으면 창 종류를 따른다
+const SEG_CLS: Record<string, string> = { info: '', warning: 'ct-seg--warning', error: 'ct-seg--danger' };
+const buttons = computed(() => (dialog.value?.buttons ?? []).map((el) => {
+    const type = el.type ?? dialog.value?.type;
+    return { ...el, type, cls: type ? SEG_CLS[type] : 'ct-seg--error' };
+}))
 
 
 const iconAttrs = computed(() => {
@@ -161,10 +131,5 @@ watch(open, val => {
     display: flex;
     align-items: center;
     gap: vars.$spacing-sm;
-}
-.actions {
-    display: flex;
-    align-items: center;
-    justify-content: end;
 }
 </style>

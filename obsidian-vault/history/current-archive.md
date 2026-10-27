@@ -39,3 +39,19 @@
   - 폴더 칸 ⋮·우클릭 메뉴에 "장비 디렉토리 열기"(내 폴더 + 장비(상속 포함)일 때만, 오프라인 = 꺼짐). 격리 헤드리스 확인 OK
   - 격리 떠 있음: supervisor 5051 + DB `nexus_dp_tmp` + vite 3001 + worker `dp-dev`(scratchpad `dp/on.sh`·`off.sh`), 계정 a1·o2·v3·x4(pw123456). **다음: 사용자 확인 → 격리 정리 → 마감·커밋·머지**
   - test3(8013) = 젤리·셸·장비 push 미반영(supervisor·worker·웹 다시 빌드)
+
+## 2026-10-27 저녁 (세션 끝 vault 정리 때 내려보냄)
+- **(2026-10-27 오후) 진행 중 파트 없음** — 오늘 마감 = 파트(장비 상태 push) `INDEX-device-push.md` → 파트(칸 메뉴 장비 디렉토리) `INDEX-row-open-dir.md`. 다음 파트는 `BACKLOG.md`에서 사용자와 고른다
+  - git: master = `feat/row-open-dir` 머지(그 전 `feat/device-push`), push = 사용자. 격리 전부 정리(5051·3001 닫힘, `nexus_dp_tmp` DROP)
+  - test3(8013) = 젤리·셸·장비 push·칸 메뉴 미반영(supervisor·worker·웹 다시 빌드)
+- **(2026-10-27 낮) 진행 중 파트 없음** — 파트(폴더에서 터미널) 마감 → `INDEX-dir-shell.md`(그 전 파트(젤리·관리 기록) → `INDEX-jelly.md`). 다음 파트는 `BACKLOG.md`에서 사용자와 고른다
+  - git: master = `feat/dir-shell` 머지(10-27), push = 사용자. 개발 서버 8011·8012 꺼짐, VM `nexus-win` 꺼짐, 격리 전부 정리. test3(8013) = 젤리·셸 둘 다 미반영(worker도 새 빌드여야 셸이 됨)
+  - 개발 DB `nexus`에 장비 등록 없음(회원 관리 이후) → 개발 환경에서 장비 타일을 쓰려면 아이로니 계정 "내 장비"에서 `irony-MAC-ADDress1`·`win-dev` 등록 + worker env `API_KEY`
+
+## 2026-10-27 파트(찰떡 마무리) 마감 때 내려보낸 줄
+- **(2026-10-27 저녁 세션 끝) 진행 중 파트 = 찰떡 마무리** → `REF-ui-chaltteok.md`(항목 표 1~5 + "찰떡 입력칸 구상") / 브랜치 `feat/ui-chaltteok`(master `87ff6f2`에서, **미커밋**)
+  - 구현·헤드리스 확인 끝: 1(경로 줄 여백) · 2(관리자 필터 = 시안 A′) · 3(남은 창 5개) · 4(상세 상태 칸 = 안 2, 구분선 없음 + 여백 조정 2건). 사용자가 확인하던 중
+  - 5(select 목록 흰 바탕 흰 글씨) = 미해결 → 사용자 제안 "Vuetify 입력칸을 찰떡 공용 컴포넌트로" 논의만. autocomplete = 주인 고르기·공유 대상 찾기
+  - **다음 세션 첫 질문**: 지금 파트를 5 빼고 마감(커밋·머지)하고 새 파트(가칭 "찰떡 입력칸")로 갈지(Claude 추천) / 같은 파트에 넣을지 → 정해지면 진행
+  - **격리 떠 있음**(세션 재시작해도 남음): supervisor 5051 + DB `nexus_dp_tmp` + vite 3001 + worker `dp-dev`. 켜고 끄기 `/tmp/claude-1000/-home-jh-bae-irony-nexus/483bf060-2b4f-44c6-86c0-6dd9c05f93c4/scratchpad/dp/on.sh`·`off.sh`(끄기 = exe 경로로 고름), 계정 a1 관리자·o2 주인·v3 공유받음·x4 무관(pw123456). 정리 = supervisor·worker·vite를 exe/cmdline으로 골라 kill(`pgrep -f` 문자열은 내 bash도 잡으니 node exe 확인) + `DROP DATABASE nexus_dp_tmp` + `/tmp/nexus-hold-1000/dp-dev`
+  - 시안 아티팩트 4개 링크 = REF 항목 표

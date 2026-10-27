@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { VBtn, VBtnToggle, VCard, VCardActions, VCardText, VCardTitle, VDialog, VForm, VSelect, VSpacer, VTextField } from 'vuetify/components';
+import { VCard, VCardText, VCardTitle, VDialog, VForm, VSelect, VTextField } from 'vuetify/components';
 import { listWorkerAddrs, moveAllWorkers, moveWorker, type MoveAllResult } from '../api/worker.api';
 
 // supervisor 주소 변경 — 주소-5(화면), REF-supervisor-move.md. instance가 있으면 그 장비 하나(장비 타일 메뉴), 없으면 접속 중 전부(헤더 메뉴, worker_move 권한)
@@ -64,7 +64,7 @@ const onSubmit = () => {
 
 <template>
 <v-dialog v-model="open" max-width="460" min-width="296" :persistent="loading">
-    <v-card :loading="loading" :disabled="loading">
+    <v-card :loading="loading" :disabled="loading" class="ct-card">
         <v-card-title>{{ single ? 'supervisor 주소 변경' : '전체 worker 주소 변경' }}</v-card-title>
         <v-form @submit.prevent="onSubmit">
             <v-card-text class="body">
@@ -81,10 +81,10 @@ const onSubmit = () => {
                         @update:model-value="message = undefined"
                     />
                 </div>
-                <v-btn-toggle v-model="now" mandatory density="compact" variant="outlined" color="primary" divided>
-                    <v-btn :value="false" size="small">저장만</v-btn>
-                    <v-btn :value="true" size="small">바로 옮기기</v-btn>
-                </v-btn-toggle>
+                <span class="ct-grp ct-grp--sm mode" role="group" aria-label="옮기는 방식">
+                    <button type="button" class="ct-seg" :class="{ 'ct-seg--primary': !now }" :aria-pressed="!now" @click="now = false">저장만</button>
+                    <button type="button" class="ct-seg" :class="{ 'ct-seg--primary': now }" :aria-pressed="now" @click="now = true">바로 옮기기</button>
+                </span>
                 <p class="note">{{ now ? '지금 연결을 끊고 새 주소로 붙습니다. 못 붙으면 옛 주소로 돌아옵니다' : '지금 연결은 그대로 두고, 이 supervisor가 끊기면 새 주소부터 시도합니다' }}</p>
                 <p v-if="done" class="note ok">{{ done }}</p>
                 <template v-if="addrs">
@@ -102,11 +102,12 @@ const onSubmit = () => {
                     </div>
                 </template>
             </v-card-text>
-            <v-card-actions>
-                <v-spacer />
-                <v-btn variant="text" @click="open = false">닫기</v-btn>
-                <v-btn type="submit" variant="flat" color="primary">{{ now ? '옮기기' : '저장' }}</v-btn>
-            </v-card-actions>
+            <div class="ct-actions">
+                <span class="ct-grp ct-grp--r">
+                    <button type="button" class="ct-seg" @click="open = false">닫기</button>
+                    <button type="submit" class="ct-seg ct-seg--primary">{{ now ? '옮기기' : '저장' }}</button>
+                </span>
+            </div>
         </v-form>
     </v-card>
 </v-dialog>
@@ -116,6 +117,7 @@ const onSubmit = () => {
 .body { display: flex; flex-direction: column; gap: vars.$spacing-md; }
 .addr { display: flex; gap: vars.$spacing-sm; align-items: flex-start; }
 .scheme { flex: 0 0 88px; }
+.mode { align-self: flex-start; }
 .note { margin: 0; @include vars.font('body-medium'); opacity: 0.7; &.ok { color: rgb(var(--v-theme-success)); opacity: 1; } }
 .label { margin: 0; @include vars.font('label-medium'); opacity: 0.7; }
 .list { margin: 0; padding-left: 20px; @include vars.font('body-medium'); }

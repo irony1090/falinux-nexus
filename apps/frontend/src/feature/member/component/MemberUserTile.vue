@@ -80,7 +80,7 @@ const remove = () => {
 <div class="mb-body">
     <p v-if="userQuery.isError.value" class="mb-empty">회원을 찾을 수 없습니다(지워졌을 수 있습니다)</p>
     <template v-else-if="u">
-        <div class="mb-fields">
+        <div class="mb-fields mb-fields--wall">
             <span class="mb-lbl">상태</span>
             <span class="mb-tag" :class="state.cls">{{ state.text }}</span>
             <span class="mb-lbl">가입</span>
@@ -125,9 +125,7 @@ const remove = () => {
 </template>
 
 <style scoped lang="scss">
-.val { @include vars.font('body-medium'); }
-.mb-grp { justify-self: start; }
-.step { min-width: 40px; @include vars.font('title-small'); }
-.count { min-width: 64px; cursor: default; background: rgba(var(--v-theme-on-surface), 0.12) !important; }
-.full { grid-column: 1 / -1; }
+.val { padding-left: 14px; @include vars.font('body-medium'); }
+.mb-grp > .mb-btn.step { flex: none; min-width: 44px; @include vars.font('title-small'); }
+.count { cursor: default; background: rgba(var(--v-theme-on-surface), 0.12) !important; }
 </style>

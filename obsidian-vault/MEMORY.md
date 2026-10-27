@@ -79,7 +79,7 @@ sqlc.yaml  README.md  .gitignore
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
 - 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-decisions.md`(확정 결정 상세) · `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어)
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
-- **진행 중 파트**: 없음(직전 = 칸 메뉴 장비 디렉토리(마감) → `INDEX-row-open-dir.md`)
+- **다음 파트(착수 전)**: 찰떡 입력칸(입력칸·select 전부를 찰떡 공용 컴포넌트로) → 구상 = `REF-ui-chaltteok.md` "찰떡 입력칸 구상" (직전 = 찰떡 마무리(마감) → `INDEX-ui-chaltteok.md`)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`

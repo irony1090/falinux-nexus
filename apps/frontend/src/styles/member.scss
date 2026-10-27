@@ -131,6 +131,22 @@
 	padding: 14px 16px;
 	&.top { align-items: start; > .mb-lbl { padding-top: 7px; } }
 }
+// 상세 상태 칸(REF-ui-chaltteok.md 안 2) — 줄 44px·구분선 없음, 값 칸 = 남는 폭 전부, 조작은 타일 오른쪽 벽에 붙음(오른쪽 끝 곧게)
+.mb-fields--wall {
+	grid-auto-rows: minmax(44px, auto);
+	row-gap: 0;
+	padding: 4px 0 10px 16px;   // 아래 10px = 마지막 조작 칸 아래 간격이 위쪽 첫 줄 글자까지와 같게(약 16px)
+	> .mb-grp, > .mb-select { width: 100%; }
+	> .mb-grp {
+		border-radius: 999px 0 0 999px;
+		> .mb-btn { flex: 1; }
+		> .mb-btn:last-child { padding-right: 12px; }
+	}
+	> .mb-select > .mb-input { border-radius: 999px 0 0 999px; border-right: 0; }
+	> .mb-tag { gap: 6px; height: auto; padding-left: 14px; background: none; @include vars.font('body-medium'); }   // 상태 = 글자(+점)
+	// 줄 전체 칸(env 상자·키 바꾸기·에러) — 오른쪽 16px = 왼쪽 여백과 같게
+	> .full { grid-column: 1 / -1; margin: 2px 16px 6px 0; }
+}
 .mb-lbl {
 	@include vars.font('label-medium');
 	font-weight: vars.$weight-md;

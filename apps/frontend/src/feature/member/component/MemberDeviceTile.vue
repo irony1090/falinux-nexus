@@ -134,9 +134,9 @@ const remove = () => openDialog({
 <div class="mb-body">
     <p v-if="deviceQuery.isError.value" class="mb-empty">장비를 찾을 수 없습니다(지워졌을 수 있습니다)</p>
     <template v-else-if="d">
-        <div class="mb-fields">
+        <div class="mb-fields mb-fields--wall">
             <span class="mb-lbl">상태</span>
-            <span class="mb-tag" :class="stateCls">{{ deviceStateText(d.instances) }}</span>
+            <span class="mb-tag" :class="stateCls"><span class="mb-dot" :class="state" />{{ deviceStateText(d.instances) }}</span>
             <template v-if="admin">
                 <span class="mb-lbl">주인</span>
                 <label class="mb-select">
@@ -151,11 +151,13 @@ const remove = () => openDialog({
             <span class="val">{{ dayText(d.createdAt) }} · 키 발급 {{ dayText(d.keyIssuedAt) }}</span>
             <span class="mb-lbl">API 키</span>
             <div class="keyrow">
-                <code class="mb-input mb-mono code" :class="{ hidden: !key }">{{ key ?? `${API_KEY_PREFIX}${'•'.repeat(18)}` }}</code>
+                <!-- 보기 = 고칠 수 없는 입력칸(한 줄, 커서로 끝까지 이동·선택) / 숨김 = 가림 글자. readonly는 Chromium에서 키보드 커서 이동이 안 돼서 입력만 막는다 -->
+                <input v-if="key" class="mb-input mb-mono code" :value="key" inputmode="none" spellcheck="false" autocomplete="off" aria-readonly="true" aria-label="API 키" @beforeinput.prevent @drop.prevent />
+                <code v-else class="mb-input mb-mono code hidden">{{ `${API_KEY_PREFIX}${'•'.repeat(18)}` }}</code>
                 <div class="mb-grp mb-grp--sm">
                     <button type="button" class="mb-btn" :disabled="busy" @click="toggleKey">{{ key ? '숨기기' : '보기' }}</button>
                     <button type="button" class="mb-btn" :disabled="busy" @click="copy('key')">{{ copied === 'key' ? '복사됨' : '복사' }}</button>
-                    <button type="button" class="mb-btn mb-btn--accent" :disabled="busy" :aria-pressed="changing" @click="changing = !changing">키 바꾸기</button>
+                    <button type="button" class="mb-btn mb-btn--accent" :disabled="busy" :aria-pressed="changing" @click="changing = !changing">바꾸기</button>
                 </div>
             </div>
             <div v-if="changing" class="full change">
@@ -195,17 +197,15 @@ const remove = () => openDialog({
 </template>
 
 <style scoped lang="scss">
-.val { @include vars.font('body-medium'); }
-.full { grid-column: 1 / -1; }
+.val { padding-left: 14px; @include vars.font('body-medium'); }
+// 키 칸 + [보기|복사|바꾸기] = 한 덩어리, 오른쪽 벽에 붙음
 .keyrow {
     min-width: 0;
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
-    .code { flex: 1 1 150px; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: all;
+    .code { flex: 1; min-width: 0; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 999px 0 0 999px; border-right: 0;
         &.hidden { opacity: 0.6; user-select: none; } }
-    .mb-grp { height: 32px; }
+    .mb-grp { height: 32px; border-radius: 0; }
 }
 .change {
     display: flex;
