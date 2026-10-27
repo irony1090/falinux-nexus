@@ -1,8 +1,11 @@
 // 노드 타일 이름 — 이름을 받기 전에는 node id로 표시, nodeId null = 루트 목록
 export const nodeLabel = (nodeId: number | null, loaded?: string) => nodeId === null ? '기본' : loaded ?? `node ${nodeId}`
 
-// 장비 파일 실행 터미널 이름 — 파일 이름(폴더-4(실행))
-export const fileLabel = (path: string) => path.split(/[\\/]/).pop() || path
+// 장비 타일 "여기서 셸" cmd — 서버 protocol.PlaceholderWorkerShell과 같게(worker가 OS 셸로 바꿈)
+export const SHELL_CMD = '{WORKER_SHELL}'
+
+// 장비 파일 실행 터미널 이름 — 파일 이름(폴더-4(실행)), 셸 = "셸"
+export const fileLabel = (path: string) => path === SHELL_CMD ? '셸' : path.split(/[\\/]/).pop() || path
 
 // 장비 실행 경로 표시 — 끝 두 단계만(전체는 title로). 길면 파일 이름이 가려져서
 export const shortPath = (p: string) => {

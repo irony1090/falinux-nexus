@@ -67,6 +67,9 @@ func prepareEdit(body protocol.ProcessSpec) (protocol.ProcessSpec, string, error
 func localize(s string) string {
 	s = strings.ReplaceAll(s, protocol.PlaceholderWorkerBase, workerBase())
 	s = strings.ReplaceAll(s, protocol.PlaceholderWorkerEditor, resolveEditor())
+	if strings.Contains(s, protocol.PlaceholderWorkerShell) {
+		s = strings.ReplaceAll(s, protocol.PlaceholderWorkerShell, shellPath())
+	}
 	return s
 }
 

@@ -8,14 +8,14 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **(2026-10-27) 진행 중 파트 없음** — 파트(젤리·관리 기록) 마감 → `INDEX-jelly.md`. 다음 파트는 `BACKLOG.md`에서 사용자와 고른다
-  - 개발 서버 8011·8012는 10-27 사용자 요청으로 끔. test3(8013) 웹은 이번 변경 미반영
-  - BACKLOG(10-27 추가): 업로드 파일 실행 권한
+- **(2026-10-27 낮) 진행 중 파트 없음** — 파트(폴더에서 터미널) 마감 → `INDEX-dir-shell.md`(그 전 파트(젤리·관리 기록) → `INDEX-jelly.md`). 다음 파트는 `BACKLOG.md`에서 사용자와 고른다
+  - git: master = `feat/dir-shell` 머지(10-27), push = 사용자. 개발 서버 8011·8012 꺼짐, VM `nexus-win` 꺼짐, 격리 전부 정리. test3(8013) = 젤리·셸 둘 다 미반영(worker도 새 빌드여야 셸이 됨)
+  - 개발 DB `nexus`에 장비 등록 없음(회원 관리 이후) → 개발 환경에서 장비 타일을 쓰려면 아이로니 계정 "내 장비"에서 `irony-MAC-ADDress1`·`win-dev` 등록 + worker env `API_KEY`
 - **(2026-10-26 밤 vault 색인 정리)** 그때 기준 진행 중 파트 없음
   - 오늘 끝난 것: 파트(회원 관리) 마감(`/api` 정리·열린 장비 주소 일괄 변경·폰 수정 포함) → `INDEX-member.md` · 집 서버 배포 22:19 OK → `REF-home-server.md` · worker 폴더 타일 전체 계획(`REF-worker-dir.md`)도 `INDEX-worker-dir`로 접음
   - MEMORY 슬림화(9.9k -> 5.8k자): 확정 결정은 한 줄 요약, 원문 = `REF-decisions.md`(같은 이름 절)
   - 사용자 쪽 남은 것: 집 서버 PC 옛 파일 정리(기준 = `REF-home-server.md` "서버 PC 정리 기준") · push · 원격 `origin/feat/member` 정리
-- **git**: master = 파트(젤리·관리 기록) 머지(10-27), push = 사용자. 로컬 브랜치 `refactor/api-prefix`·`fix/phone-layout`(둘 다 머지됨). worktree는 원래 폴더 하나
+- **git**: master = 파트(폴더에서 터미널) 머지(10-27, 그 전 = 젤리·관리 기록), push = 사용자. 로컬 브랜치 `refactor/api-prefix`·`fix/phone-layout`(둘 다 머지됨). worktree는 원래 폴더 하나
 - **지금 떠 있는 것**(2026-10-26 밤): test3(8013) = supervisor **`build/api_prefix`**(사용자 빌드, **웹만 10-26 밤 `fix/phone-layout` 내용(= master `8de3e05`)으로 교체** — supervisor 재시작 없음) + worker **`build/take_process/worker`**(이번 변경에 worker 없음, 재시작 안 함) -> **`build/take_process/` 지우지 말 것**. 보관 프로세스 771160 = 실행 파일(`build/supervisor_move/worker`)은 지워졌지만 계속 돎(12:12 터미널, take_process worker가 붙어 있음). 격리 5051·VM `nexus-win` 꺼짐. 남긴 DB = `nexus_api_tmp`·`nexus_member_tmp`(시험 계정, 필요 없으면 DROP)
 - **`build/`**(2026-10-26 정리): `api_prefix/`·`take_process/`·`supervisor.env`·`worker.env`·`worker-sqlite.db*`·`home-update/`(ps1 스크립트 + `api_prefix/` 묶음·`nexus-api-prefix.zip`)
 - **BACKLOG(10-26 추가)**: Windows 터미널 출력 줄 빠짐(ConPTY 의심, 사용자가 시험 넘김) · 주소 목록 3개 상한이 지금 주소를 밀어냄

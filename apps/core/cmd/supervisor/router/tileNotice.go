@@ -90,8 +90,11 @@ func procName(ctx context.Context, q *superdb.Queries, p superdb.Process) string
 	return fileBase(p.Cmd)
 }
 
-// fileBase: 경로 끝 이름 — worker가 Windows일 수 있어 `\`도 구분자로
+// fileBase: 경로 끝 이름 — worker가 Windows일 수 있어 `\`도 구분자로. "여기서 셸" = "셸"
 func fileBase(p string) string {
+	if p == protocol.PlaceholderWorkerShell {
+		return "셸"
+	}
 	return p[strings.LastIndexAny(p, `/\`)+1:]
 }
 

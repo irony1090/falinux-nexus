@@ -291,6 +291,7 @@ const (
 const (
 	PlaceholderWorkerBase   = "{WORKER_BASE}"   // worker 베이스 디렉토리(ProcessRoot)
 	PlaceholderWorkerEditor = "{WORKER_EDITOR}" // worker 기본 텍스트 에디터($VISUAL>$EDITOR>OS 기본값)
+	PlaceholderWorkerShell  = "{WORKER_SHELL}"  // worker 대화형 셸 절대 경로(Linux $SHELL>bash / Windows powershell) — 장비 타일 "여기서 셸"
 )
 
 // ProcessSpec: 실행 명세(MsgExec REQ). EDIT 초기 내용은 별도 전송(SendBuffer)이라 필드 없음

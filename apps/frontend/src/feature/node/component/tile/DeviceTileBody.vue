@@ -14,6 +14,7 @@ import { useItemPress } from '../../hook/itemPress.hook';
 import { usePathEditKey } from '../../hook/pathEdit.hook';
 import { useNodeOps } from '../../store/nodeOps.store';
 import { useTileTree } from '../../store/tileTree.store';
+import { SHELL_CMD } from '../../util/tileLabel.util';
 import DirGridCell from './DirGridCell.vue';
 import NodeRowMenu, { type RowMenuItem } from './NodeRowMenu.vue';
 import PathInput, { type PathCand } from './PathInput.vue';
@@ -98,6 +99,11 @@ const { saving, busyTile, execFile } = useNodeOps();
 const runFile = (e: DirEntry) => {
     const t = tile.value;
     if (t) void execFile(props.tileId, t.nodeId, t.instance, e.path, parentPathOf(e.path));
+}
+// 여기서 셸: 지금 보는 폴더에서 worker OS 셸(Linux $SHELL / Windows powershell). 드라이브 목록(cur 빈 값)엔 폴더가 없음
+const openShell = () => {
+    const t = tile.value;
+    if (t && cur.value) void execFile(props.tileId, t.nodeId, t.instance, SHELL_CMD, cur.value);
 }
 
 const bodyEl = ref<HTMLElement>();
@@ -283,6 +289,9 @@ watch(lastDone, d => {
                 <button class="tile-btn refresh" title="새로고침" :disabled="loading" @click="dir.reload()">
                     <v-icon size="15" icon="mdi-refresh" />
                 </button>
+                <button class="tile-btn shell" title="여기서 셸 열기(새 터미널 타일)" :disabled="!canRun || !cur || !!error" @click="openShell">
+                    <v-icon size="15" icon="mdi-console" />
+                </button>
             </span>
             <span class="tools tile-btn-row-end">
                 <template v-if="selEntries.length">
@@ -439,7 +448,7 @@ watch(lastDone, d => {
     .path > button, .cur { display: inline-flex; align-items: center; gap: 2px; }
     .cur { font-weight: vars.$weight-md; }
     &:not(.editing) { cursor: text; }
-    .refresh { min-width: 38px; margin-left: 2px; }
+    .refresh, .shell { min-width: 38px; margin-left: 2px; }
     .tools {
         flex: none;
         height: 28px;

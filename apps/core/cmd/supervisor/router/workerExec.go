@@ -12,7 +12,7 @@ import (
 // workerExecRequest: POST /workers/:mainKey/:subKey/exec
 type workerExecRequest struct {
 	FolderID int64  `json:"folderId" validate:"required"` // 장비 타일을 연 폴더(Q15(장비 디렉토리 id))
-	Cmd      string `json:"cmd" validate:"required"`      // 파일 전체 경로(worker 기준)
+	Cmd      string `json:"cmd" validate:"required"`      // 파일 전체 경로(worker 기준) / "여기서 셸" = protocol.PlaceholderWorkerShell
 	Cwd      string `json:"cwd" validate:"required"`      // 보고 있던 폴더
 
 	Workspace    string    `json:"workspace"`
