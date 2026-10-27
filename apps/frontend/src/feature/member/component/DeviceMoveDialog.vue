@@ -4,6 +4,9 @@ import { computed, ref, watch } from 'vue';
 import { instanceAddrs, invalidateMember, moveDevices, type DeviceMoveResult, type DeviceResponse } from '../api/device.api';
 import { useMemberBoard } from '../store/memberBoard.store';
 import { instanceText } from '../util/member.util';
+import CtCheckbox from '@/feature/widget/component/CtCheckbox.vue';
+import CtSelect from '@/feature/widget/component/CtSelect.vue';
+import CtTextField from '@/feature/widget/component/CtTextField.vue';
 
 // 열린 장비 타일의 supervisor 주소 일괄 변경 — instance를 골라 보냄. 1개 = 저장된 주소 순위 / 여럿 = 바뀔 이름 (REF-device-move.md)
 const props = defineProps<{ devices: DeviceResponse[] }>();
@@ -82,7 +85,7 @@ const submit = () => {
                     <p class="mb-sec mb-mono dev">{{ d.mainKey }}</p>
                     <p v-if="!d.instances.length" class="none">접속 기록 없음</p>
                     <label v-for="i in d.instances" :key="i.instanceKey" class="inst" :class="{ off: !i.online }">
-                        <input type="checkbox" :checked="picked.includes(i.instanceKey)" :disabled="!i.online || busy" @change="toggle(i.instanceKey)" />
+                        <CtCheckbox :model-value="picked.includes(i.instanceKey)" :disabled="!i.online || busy" @update:model-value="toggle(i.instanceKey)" />
                         <span class="mb-dot" :class="i.online ? 'on' : 'off'" />
                         <span class="name">{{ instanceText(i.subKey, i.label) }}</span>
                         <span v-if="results[i.instanceKey]?.error" class="mb-tag mb-tag--error">{{ results[i.instanceKey].error }}</span>
@@ -92,18 +95,13 @@ const submit = () => {
                 </template>
             </div>
 
-            <form class="addr" @submit.prevent="submit">
-                <label class="mb-select scheme">
-                    <select v-model="scheme" class="mb-input" aria-label="방식" :disabled="busy">
-                        <option value="ws">ws</option>
-                        <option value="wss">wss</option>
-                    </select>
-                    <v-icon icon="mdi-chevron-down" size="18" class="chev" />
-                </label>
-                <input v-model="host" class="mb-input mb-mono" :class="{ bad: !!message }" placeholder="호스트:포트 (예: example.com:8012)" aria-label="호스트:포트"
-                    autocomplete="off" autofocus :disabled="busy" @input="message = undefined" />
+            <form class="ct-join" @submit.prevent="submit">
+                <CtSelect v-model="scheme" :items="['ws', 'wss']" size="sm" wall="r" aria-label="방식" :disabled="busy" class="scheme" />
+                <CtTextField v-model="host" size="sm" wall="l" class="mb-mono" placeholder="호스트:포트 (예: example.com:8012)" aria-label="호스트:포트"
+                    autocomplete="off" autofocus hide-details :error="!!message" :disabled="busy" @update:model-value="message = undefined" />
+                <p v-if="message" class="ct-msg ct-msg--error">{{ message }}</p>
             </form>
-            <div class="mb-grp mb-grp--sm">
+            <div class="mb-grp mb-grp--sm mode">
                 <button type="button" class="mb-btn" :class="{ 'mb-btn--on': !now }" :aria-pressed="!now" :disabled="busy" @click="now = false">저장만</button>
                 <button type="button" class="mb-btn" :class="{ 'mb-btn--on': now }" :aria-pressed="now" :disabled="busy" @click="now = true">바로 옮기기</button>
             </div>
@@ -120,7 +118,6 @@ const submit = () => {
                 <p class="names mb-mono">{{ pickedRows.map(r => `${r.mainKey} · ${r.text}`).join('\n') }}</p>
             </template>
             <p v-if="done" class="note ok">{{ done }}</p>
-            <p v-if="message" class="mb-err">{{ message }}</p>
         </v-card-text>
         <div class="ct-actions">
             <span class="ct-grp ct-grp--r">
@@ -146,12 +143,11 @@ const submit = () => {
     padding: 4px 12px;
     cursor: pointer;
     &.off { cursor: default; opacity: 0.6; }
-    > input { flex: none; margin: 0; }
     .name { flex: 1; min-width: 0; @include vars.font('body-medium'); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .mb-tag { max-width: 50%; overflow: hidden; text-overflow: ellipsis; }
 }
-.addr { display: flex; gap: vars.$spacing-sm; }
-.scheme { flex: 0 0 92px; }
+.scheme { flex: 0 0 88px !important; }
+.mode { align-self: flex-end; }   // .ct-join > .ct-field(flex: 1)보다 우선
 .ranks { margin: 0; padding-left: 22px; }
 .names { margin: 0; white-space: pre-line; }
 </style>

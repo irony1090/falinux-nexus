@@ -3,6 +3,7 @@ import { PERM_ADMIN, PERM_WORKER_REGISTER } from '@/feature/user/api/user.api';
 import { useAuthStore } from '@/feature/user/store/auth.store';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { VIcon } from 'vuetify/components';
+import CtTextField from '@/feature/widget/component/CtTextField.vue';
 import { useAdminDevices, useAdminUsers, useMyDevices, type AdminUserResponse, type DeviceResponse } from '../api/device.api';
 import { useMemberBoard } from '../store/memberBoard.store';
 import { deviceKey, userKey } from '../util/memberGrid.util';
@@ -115,10 +116,7 @@ const loading = computed(() => (usersTab.value ? usersQuery?.isPending.value : d
     </div>
 
     <div class="tools">
-        <label class="search">
-            <v-icon icon="mdi-magnify" size="18" class="ico" />
-            <input v-model="qInput" type="search" class="mb-input" :placeholder="usersTab ? '닉네임 검색' : admin ? '이름·주인·라벨 검색' : '이름·라벨 검색'" aria-label="검색" />
-        </label>
+        <CtTextField v-model="qInput" size="sm" type="search" prepend-inner-icon="mdi-magnify" hide-details :placeholder="usersTab ? '닉네임 검색' : admin ? '이름·주인·라벨 검색' : '이름·라벨 검색'" aria-label="검색" />
         <div class="mb-grp mb-grp--sm chips" role="group" aria-label="필터">
             <button v-for="c in chips" :key="c.key" type="button" class="mb-btn" :class="{ 'mb-btn--on': filter === c.key }"
                 :aria-pressed="filter === c.key" @click="pickFilter(c.key)"
@@ -195,12 +193,6 @@ const loading = computed(() => (usersTab.value ? usersQuery?.isPending.value : d
     gap: 8px;
     padding: 10px;   // 좌우 = 위 여백
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-.search {
-    position: relative;
-    display: block;
-    .ico { position: absolute; left: 12px; top: 7px; opacity: 0.6; pointer-events: none; }
-    .mb-input { padding-left: 36px; }
 }
 // 필터 묶음 = 왼쪽 끝 곧게 / 한 페이지 묶음 = 오른쪽 끝 곧게(줄 좌우 여백 10px, REF-ui-chaltteok.md 시안 A′)
 .chips {

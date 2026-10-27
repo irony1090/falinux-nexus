@@ -50,7 +50,8 @@
 - 폴더에서 터미널(마감, 장비 타일 "여기서 셸") → `INDEX-dir-shell.md` (dir-shell)
 - 장비 상태 push(마감, `DEVICE:CHANGE` 신호 + 폴링 60초) → `INDEX-device-push.md` (device-push)
 - 칸 메뉴 장비 디렉토리(마감, 폴더 칸 ⋮ "장비 디렉토리 열기") → `INDEX-row-open-dir.md` (row-open-dir)
-- **찰떡 마무리(마감, 경로 줄 여백·관리자 필터·남은 창 5개·상세 상태 칸)** → `INDEX-ui-chaltteok.md` (ui-chaltteok)
+- 찰떡 마무리(마감, 경로 줄 여백·관리자 필터·남은 창 5개·상세 상태 칸) → `INDEX-ui-chaltteok.md` (ui-chaltteok)
+- **찰떡 입력칸(마감, 입력칸·고르기·체크 = Ct* 컴포넌트 + 관리 타일 포커스 선)** → `INDEX-ct-field.md` (ct-field)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.

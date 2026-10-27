@@ -37,6 +37,7 @@
 - **브라우저 API**: 전부 `/api` 아래. 새 API는 `mount*` 그룹에만, 프론트는 `getBaseURL()` + 문자열(`new URL` 금지)
 - **회원·장비 인가**: worker 접속에 API 키(메인키마다 하나, env `KEY_SECRET` 필수). 실행 권한 = 장비 주인 + 지정 폴더 공유받은 사람
 - **젤리 효과**: 누를 수 있는 것·컨트롤 패널 = `styles/jelly.scss` 한 곳. 새 버튼 클래스는 `$box` 목록에, 가운데 팝업은 `translate` 속성 + `jelly-pop`
+- **입력칸**: input·select·textarea·체크 = `Ct*` 컴포넌트(`feature/widget/component`, 모양 = `styles/ct-field.scss` 한 곳). 기본 `<select>`·직접 그린 입력칸 금지
 - **배포 전 필수**: 회원이 있는 DB에 배포하기 전에 관리자로 지정할 회원을 사용자에게 묻는다
 
 ## 기술 스택 (확정)
@@ -79,7 +80,7 @@ sqlc.yaml  README.md  .gitignore
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
 - 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-decisions.md`(확정 결정 상세) · `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어)
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
-- **다음 파트(착수 전)**: 찰떡 입력칸(입력칸·select 전부를 찰떡 공용 컴포넌트로) → 구상 = `REF-ui-chaltteok.md` "찰떡 입력칸 구상" (직전 = 찰떡 마무리(마감) → `INDEX-ui-chaltteok.md`)
+- **진행 중 파트**: 없음 (직전 = 찰떡 입력칸(마감) → `INDEX-ct-field.md`)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useQueryClient } from '@tanstack/vue-query';
 import { computed, ref, watch } from 'vue';
-import { VAvatar, VCard, VCardText, VCardTitle, VDialog, VForm, VIcon, VList, VListItem, VMenu, VRadio, VRadioGroup, VTextField } from 'vuetify/components';
+import { VAvatar, VCard, VCardText, VCardTitle, VDialog, VForm, VIcon, VList, VListItem, VMenu, VRadio, VRadioGroup } from 'vuetify/components';
+import CtTextField from '@/feature/widget/component/CtTextField.vue';
 import { deleteNodeShare, invalidateNodeShares, lookupUser, putNodeShare, useNodeShares, type LookupUserResponse, type NodeShareEntry } from '../../api/share.api';
 import { useUsersPresence } from '../../api/presence.api';
 import { lastSeenText } from '../../util/presenceView.util';
@@ -195,7 +196,7 @@ const onAdd = () => {
 
         <v-form v-else-if="step === 'id'" @submit.prevent="onFind">
             <v-card-text>
-                <v-text-field v-model="identification"
+                <CtTextField v-model="identification"
                     label="아이디"
                     hint="목록에서 고르지 않고 아이디를 정확히 입력합니다"
                     persistent-hint

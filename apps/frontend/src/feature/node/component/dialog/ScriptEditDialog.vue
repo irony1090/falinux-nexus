@@ -2,7 +2,8 @@
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { computed, ref, watch, type PropType } from 'vue';
 import { useDisplay } from 'vuetify';
-import { VCard, VCardTitle, VDialog, VTextarea } from 'vuetify/components';
+import { VCard, VCardTitle, VDialog } from 'vuetify/components';
+import CtTextarea from '@/feature/widget/component/CtTextarea.vue';
 import { getNode, useNodeActions, type NodeResponse } from '../../api/node.api';
 
 // 스크립트 내용(nodes.content) 브라우저 편집 — REF-node-ui-link.md "4(스크립트 편집)"
@@ -97,9 +98,8 @@ const onTab = (e: KeyboardEvent) => {
             <span class="name">{{ node?.name }}</span>
             <span v-if="dirty" class="dirty text-warning">수정됨</span>
         </v-card-title>
-        <v-textarea v-model="text"
+        <CtTextarea v-model="text"
             class="editor"
-            variant="outlined"
             hide-details
             no-resize
             autofocus

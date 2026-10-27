@@ -2,6 +2,7 @@
 import { LazyListener } from '@/common/listener/lazy.listener';
 import { isNil } from '@/common/util/index.util';
 import AuthTile from '@/feature/member/component/AuthTile.vue';
+import CtTextField from '@/feature/widget/component/CtTextField.vue';
 import { useAuthStore } from '@/feature/user/store/auth.store';
 import Cookies from 'js-cookie';
 import { computed, ref, watch } from 'vue';
@@ -44,9 +45,9 @@ const submit = () => {
 <template>
 <auth-tile title="NEXUS-supervisor" submit-label="로그인" :busy="isLazyLoading" @submit="submit">
     <label for="au-id" class="mb-lbl">아이디</label>
-    <input id="au-id" v-model="id" class="mb-input" name="identification" autocomplete="username" :disabled="isLazyLoading" />
+    <CtTextField id="au-id" v-model="id" size="sm" name="identification" autocomplete="username" :disabled="isLazyLoading" />
     <label for="au-pw" class="mb-lbl">비밀번호</label>
-    <input id="au-pw" v-model="pw" class="mb-input" type="password" name="password" autocomplete="current-password" :disabled="isLazyLoading" />
+    <CtTextField id="au-pw" v-model="pw" size="sm" type="password" name="password" autocomplete="current-password" :disabled="isLazyLoading" />
     <span />
     <button type="button" class="remember" :class="{ on: rememberId }" :aria-pressed="rememberId" @click="rememberId = !rememberId">
         <v-icon icon="mdi-check" size="14" class="chk" />아이디 저장

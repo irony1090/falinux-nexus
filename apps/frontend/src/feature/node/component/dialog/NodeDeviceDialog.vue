@@ -3,7 +3,8 @@ import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { deleteWorkerInstance, invalidateWorkerRoster, useWorkerRoster, type WorkerInstanceResponse } from '@/feature/worker/api/worker.api';
 import { useQueryClient } from '@tanstack/vue-query';
 import { computed, ref, watch } from 'vue';
-import { VCard, VCardText, VCardTitle, VDialog, VForm, VIcon, VTextField } from 'vuetify/components';
+import { VCard, VCardText, VCardTitle, VDialog, VForm, VIcon } from 'vuetify/components';
+import CtTextField from '@/feature/widget/component/CtTextField.vue';
 import { osBadge, osTitle } from '@/feature/worker/util/workerOs.util';
 import { agoText } from '../../util/presenceView.util';
 
@@ -83,7 +84,7 @@ const onSubmit = () => emit('submit', trimmed.value || null);
         <v-card-title>{{ title }}</v-card-title>
         <v-form @submit.prevent="onSubmit">
             <v-card-text>
-                <v-text-field v-model="key"
+                <CtTextField v-model="key"
                     label="장비 키 (main_key)"
                     autofocus
                     clearable

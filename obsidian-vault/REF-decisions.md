@@ -65,6 +65,11 @@
 - 2026-10-27 파트(젤리·관리 기록). 누를 수 있는 것 hover·누름 + 컨트롤 패널 등장·퇴장 = `styles/jelly.scss` 한 곳(세기 중간). **새 버튼 클래스를 만들면 `$box` 목록에 넣는다.** 알약(`FootPill`) 안은 안쪽만, 넓은 줄은 제외
 - 가운데 정렬 팝업에 젤리(scale)를 걸 땐 `transform: translate(-50%,-50%)` 금지 -> `translate: -50% -50%` 속성 + 클래스 `jelly-pop`(열림 = `.shown`). 안 지키면 화면상 오른쪽 아래 기준으로 커짐 → `REF-jelly.md` "함정"
 
+## 입력칸
+- 2026-10-27 파트(찰떡 입력칸). 화면의 input·select·textarea·체크 = `CtTextField`·`CtSelect`·`CtAutocomplete`·`CtTextarea`·`CtCheckbox`(Vuetify 감싸기, 속성·슬롯 그대로 넘김) + 공용 `size`(sm 32 / md 40)·`wall`(l/r/lr = 곧은 끝). 모양은 `styles/ct-field.scss` 한 곳. **기본 `<select>` 금지**(목록이 OS 흰 바탕 + 앱 글자색 = 흰 바탕 흰 글씨)
+- 함정: v-input은 `flex: 1 1 auto` + 칸 줄 `1fr` -> 세로 flex 상자에서 칸이 늘어나 글자가 위로 쏠림. `.ct-field`에서 막아 둠 → `REF-ct-field.md` "함정"
+- 예외: 경로 직접 입력칸(`PathInput.vue`, 자체 자동완성) · 숨은 파일 선택
+
 ## 모듈 현황 원문 (MEMORY에서 옮김, 2026-10-26)
 | 모듈 | 상태 | 문서 |
 |------|------|------|

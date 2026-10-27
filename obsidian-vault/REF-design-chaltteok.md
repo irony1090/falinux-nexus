@@ -35,6 +35,7 @@
 ## Nexus에서 쓰는 곳
 | 자리 | 클래스 · 파일 | 모양 |
 |---|---|---|
+| 입력칸(글자·고르기·여러 줄) | `CtTextField` 등 · `styles/ct-field.scss` | 알약(여러 줄 = 16px 상자), `wall`로 벽·옆 칸 쪽 끝만 곧게, 붙인 묶음 `.ct-join` 사이 1px. 라벨은 선을 끊고 걸침 |
 | 머리 줄·경로 줄 버튼 | `.tile-btn` · `styles/tile-buttons.scss` | 기본 알약(높이 꽉, 최소 40px) |
 | 창 묶음·경로 줄 "＋ 새로"/"올리기" | `.tile-btn-end`(+`--primary`) · 같은 파일 | 타일 오른쪽 벽: 왼쪽 반원·오른쪽 곧음, 맨 위는 타일 6px 곡선이 자름 |
 | 줄 맨 끝 자식 | `.tile-btn-row-end` / `-row-start` · 같은 파일 | 닿는 면만 곧음 |
