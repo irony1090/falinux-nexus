@@ -32,3 +32,10 @@
   - 장비 접속·끊김·라벨·등록/삭제·주인 변경 → `DEVICE:CHANGE` 신호 → 보드·내 장비·관리자 화면이 다시 조회. 폴링 60초 안전망. 소켓 connect를 `App.vue`로 옮김(사용자 승인)
   - 격리 확인 끝(받는 사람 10/10·보드 0.4초·관리 페이지 1.5초 안), 격리 정리 끝. **다음: 사용자 확인 → 마감·커밋·머지**
   - (14:08) 사용자 확인용 격리 다시 띄움: supervisor 5051 + DB `nexus_dp_tmp` + vite 3001 + worker `dp-dev`(scratchpad `dp/on.sh`·`off.sh`). 계정 a1 관리자·o2 주인·v3 공유받음·x4 무관(pw123456). 끝나면 정리
+
+## 2026-10-27 오후 (파트(칸 메뉴 장비 디렉토리) 마감 때 내려보냄)
+- **(2026-10-27 오후) 진행 중 파트 없음** — 파트(장비 상태 push) 마감 → `INDEX-device-push.md`. master = `feat/device-push` 머지, push = 사용자. 격리 전부 정리
+- **(2026-10-27 오후) 진행 중 파트 = 칸 메뉴 장비 디렉토리** → `REF-row-open-dir.md` / 브랜치 `feat/row-open-dir`(master `e16a519`에서, **미커밋**)
+  - 폴더 칸 ⋮·우클릭 메뉴에 "장비 디렉토리 열기"(내 폴더 + 장비(상속 포함)일 때만, 오프라인 = 꺼짐). 격리 헤드리스 확인 OK
+  - 격리 떠 있음: supervisor 5051 + DB `nexus_dp_tmp` + vite 3001 + worker `dp-dev`(scratchpad `dp/on.sh`·`off.sh`), 계정 a1·o2·v3·x4(pw123456). **다음: 사용자 확인 → 격리 정리 → 마감·커밋·머지**
+  - test3(8013) = 젤리·셸·장비 push 미반영(supervisor·worker·웹 다시 빌드)

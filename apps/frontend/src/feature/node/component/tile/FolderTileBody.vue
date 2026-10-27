@@ -185,16 +185,21 @@ watch(() => listQuery.data.value, list => {
     if (list) sel.syncTile(props.tileId, nodeId.value, list);
 })
 
-// 칸 메뉴(⋮·우클릭) 항목 = "선택" + 행 동작 + 공유(내 폴더만, 삭제 앞) — SM1(켜는 방법), REF-dir-grid.md "추가 요청"
-type RowAct = NodeAct | 'share';
+// 칸 메뉴(⋮·우클릭) 항목 = "선택" + 행 동작 + 장비 디렉토리·공유(내 폴더만, 삭제 앞) — SM1(켜는 방법), REF-dir-grid.md "추가 요청"
+type RowAct = NodeAct | 'share' | 'openDir';
 const ownFolder = (n: NodeResponse) => n.kind === 'FOLDER' && n.permission === PERM_OWNER;
 const canEditDevice = (n: NodeResponse) => n.kind === 'FOLDER' && (n.permission ?? 0) >= PERM_EDIT;
+const rowDeviceKey = (n: NodeResponse) => n.deviceKey ?? deviceOwner.value?.deviceKey;   // 칸에 없으면 지금 경로에서 상속(Q12)
 const menuItems = (n: NodeResponse): RowMenuItem<RowAct>[] => {
     const items: RowMenuItem<RowAct>[] = [
         { act: 'select', icon: isSel(n) ? 'mdi-checkbox-blank-outline' : 'mdi-checkbox-marked-outline', title: isSel(n) ? '선택 해제' : '선택' },
         ...nodeActItems(n, saving.value || !tabReady.value),
     ];
-    if (ownFolder(n)) items.splice(items.length - 1, 0, { act: 'share', icon: 'mdi-account-multiple-plus', title: '공유' });
+    if (ownFolder(n)) {
+        const own: RowMenuItem<RowAct>[] = [{ act: 'share', icon: 'mdi-account-multiple-plus', title: '공유' }];
+        if (rowDeviceKey(n)) own.unshift({ act: 'openDir', icon: 'mdi-folder-network', title: '장비 디렉토리 열기', disabled: saving.value || !isOnline(rowDeviceKey(n)) });
+        items.splice(items.length - 1, 0, ...own);
+    }
     return items;
 }
 // ⋮ 메뉴 맨 위 정보 카드 — 판 D′(hover 대신). 상태 라벨의 뜻을 글자로
@@ -211,6 +216,7 @@ const infoRows = (n: NodeResponse): [string, string][] => {
 const onAct = (act: RowAct, n: NodeResponse) => {
     if (act === 'select') pick(n);
     else if (act === 'share') openShare(n);
+    else if (act === 'openDir') ops.openDir(props.tileId, n);
     else ops.act(act, props.tileId, [n]);
 }
 // 장비·공유 라벨 누르기 = 지정 창. 선택 모드·Ctrl이면 칸 누르기(체크)로 넘긴다
