@@ -7,6 +7,7 @@
 // Composables
 import { createRouter, createWebHistory } from 'vue-router'
 import { installAuthGuard } from './authGuard'
+import { installLastBoard } from './lastBoard'
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -46,5 +47,6 @@ const router = createRouter({
 })
 
 installAuthGuard(router)
+installLastBoard(router)
 
 export default router

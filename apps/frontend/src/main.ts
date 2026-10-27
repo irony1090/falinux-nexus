@@ -21,6 +21,7 @@ import "@/styles/tile-buttons.scss"
 import "@/styles/dir-grid.scss"
 import "@/styles/chaltteok.scss"
 import "@/styles/member.scss"
+import "@/styles/jelly.scss"
 
 // iOS Safari 핀치 확대 끔(줌-3) — touch-action이 안 먹는 옛 iOS 대비
 document.addEventListener('gesturestart', e => e.preventDefault())

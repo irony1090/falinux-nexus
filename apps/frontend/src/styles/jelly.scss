@@ -1,0 +1,48 @@
+// 젤리 효과 — hover = 커졌다 돌아옴, 누름 = 눌렸다가 떼면 튀어 돌아옴, 컨트롤 패널 = 튀어나오고 부풀었다 사라짐. 세기 = 중간 — REF-jelly.md
+// hover는 scale 속성(키프레임), 누름은 transform — 속성이 달라 겹쳐도 서로 지우지 않는다
+$hover-dur: 380ms;
+$press-dur: 70ms;
+$release-dur: 380ms;
+$release-ease: cubic-bezier(.3, 2, .5, 1);
+$pop-in-dur: 380ms;
+$pop-out-dur: 270ms;
+
+@keyframes jelly-hover { 0% { scale: 1 } 35% { scale: 1.08 } 65% { scale: 0.98 } 100% { scale: 1 } }
+@keyframes jelly-pop-in { 0% { opacity: 0; scale: 0.6 } 50% { opacity: 1; scale: 1.08 } 75% { scale: 0.97 } 100% { opacity: 1; scale: 1 } }
+@keyframes jelly-pop-out { 0% { opacity: 1; scale: 1 } 30% { opacity: 1; scale: 1.05 } 100% { opacity: 0; scale: 0.6 } }
+
+// 상자째 움직이는 것. 넓은 줄(v-list-item·목록 줄)은 넣지 않는다
+$box: ':is(.v-btn, .tile-btn, .mb-btn, .ct-seg, .dg-btn, .dg-lbl):is(button, a):not(.FootPill *)';
+// 알약(FootPill) 안 = 끝이 버튼 모양을 자르므로 상자 대신 안쪽(아이콘·글자)만
+$host: '.FootPill :is(button, a):not(:disabled)';
+$kid: ':not(.v-btn__overlay, .v-btn__underlay)';
+// 페이지 도트는 크기(transform)를 위치에 따라 직접 바꾸므로 누름에서 뺀다(hover만)
+$kid-press: ':not(.v-btn__overlay, .v-btn__underlay, .dot)';
+
+@media (prefers-reduced-motion: no-preference) {
+	#{$box}, :is(#{$host}) > #{$kid-press} { transition: transform $release-dur $release-ease; }
+	#{$box}:not(:disabled):active, :is(#{$host}):active > #{$kid-press} {
+		transform: scale(0.92);
+		transition: transform $press-dur ease-out;
+	}
+	// 폰(hover 없음) = 누름만
+	@media (hover: hover) {
+		#{$box}:not(:disabled):hover, :is(#{$host}):hover > #{$kid} { animation: jelly-hover $hover-dur ease-out; }
+	}
+
+	// 컨트롤 패널 — 열림 = .shown. 사라지는 동안은 보이게 visibility를 늦춘다
+	.jelly-pop {
+		animation: jelly-pop-out $pop-out-dur ease-in both;
+		transition: visibility 0s linear $pop-out-dur;
+		&.shown {
+			animation: jelly-pop-in $pop-in-dur ease-out both;
+			transition-delay: 0s;
+		}
+	}
+}
+
+// 칸 벽에 붙은 버튼·라벨은 붙은 벽 쪽을 기준으로 커진다(칸이 자르지 않게)
+.dg-btn--l { transform-origin: left top; }
+.dg-btn--r { transform-origin: right top; }
+.dg-l > .dg-lbl { transform-origin: left center; }
+.dg-r > .dg-lbl { transform-origin: right center; }
