@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { VCard, VCardText, VCardTitle, VDialog, VForm, VTextField } from 'vuetify/components';
+import { VCard, VCardText, VCardTitle, VDialog, VForm } from 'vuetify/components';
+import CtTextField from '@/feature/widget/component/CtTextField.vue';
 
 // 노드 이름 입력 — 생성·이름 변경 공용
 const props = defineProps({
@@ -46,7 +47,7 @@ const onSubmit = () => {
         <v-card-title>{{ title }}</v-card-title>
         <v-form @submit.prevent="onSubmit">
             <v-card-text>
-                <v-text-field v-model="name"
+                <CtTextField v-model="name"
                     label="이름"
                     autofocus
                     :error-messages="message"

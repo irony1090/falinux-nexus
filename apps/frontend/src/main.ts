@@ -20,6 +20,7 @@ import "@/styles/global.scss"
 import "@/styles/tile-buttons.scss"
 import "@/styles/dir-grid.scss"
 import "@/styles/chaltteok.scss"
+import "@/styles/ct-field.scss"
 import "@/styles/member.scss"
 import "@/styles/jelly.scss"
 

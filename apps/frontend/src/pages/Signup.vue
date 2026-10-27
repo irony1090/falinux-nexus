@@ -4,6 +4,7 @@ import { createUser } from '@/feature/user/api/user.api';
 import { useAuthStore } from '@/feature/user/store/auth.store';
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import CtTextField from '@/feature/widget/component/CtTextField.vue';
 
 // 회원가입 — 아이디·비밀번호만, 닉네임 = 아이디(서버). 가입하면 바로 로그인 — 회원-2(회원가입)·회원-Q12(닉네임), 모양 = 화-16(로그인·가입)
 const { login } = useAuthStore();
@@ -33,23 +34,16 @@ const submit = () => {
 <template>
 <auth-tile title="회원가입" submit-label="가입" back :busy="busy" @submit="submit" @back="router.push('/login')">
     <label for="au-id" class="mb-lbl">아이디</label>
-    <div class="col">
-        <input id="au-id" v-model="id" class="mb-input" autocomplete="username" :disabled="busy" />
-        <span class="mb-hint">아이디가 화면에 이름으로 보입니다</span>
-    </div>
+    <CtTextField id="au-id" v-model="id" size="sm" autocomplete="username" :disabled="busy" hint="아이디가 화면에 이름으로 보입니다" persistent-hint />
     <label for="au-pw" class="mb-lbl">비밀번호</label>
-    <input id="au-pw" v-model="pw" class="mb-input" type="password" autocomplete="new-password" :disabled="busy" />
+    <CtTextField id="au-pw" v-model="pw" size="sm" type="password" autocomplete="new-password" :disabled="busy" />
     <label for="au-pw2" class="mb-lbl">비밀번호 확인</label>
-    <div class="col">
-        <input id="au-pw2" v-model="pw2" class="mb-input" :class="{ bad: mismatch }" type="password" autocomplete="new-password" :disabled="busy" />
-        <span v-if="mismatch" class="mb-hint bad">비밀번호가 서로 다릅니다</span>
-    </div>
+    <CtTextField id="au-pw2" v-model="pw2" size="sm" type="password" autocomplete="new-password" :disabled="busy" :error-messages="mismatch ? '비밀번호가 서로 다릅니다' : undefined" />
     <p v-if="error" role="alert" class="mb-err full">{{ error }}</p>
     <template #note>가입하면 바로 로그인됩니다</template>
 </auth-tile>
 </template>
 
 <style scoped lang="scss">
-.col { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .full { grid-column: 1 / -1; }
 </style>

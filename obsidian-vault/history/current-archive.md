@@ -55,3 +55,9 @@
   - **다음 세션 첫 질문**: 지금 파트를 5 빼고 마감(커밋·머지)하고 새 파트(가칭 "찰떡 입력칸")로 갈지(Claude 추천) / 같은 파트에 넣을지 → 정해지면 진행
   - **격리 떠 있음**(세션 재시작해도 남음): supervisor 5051 + DB `nexus_dp_tmp` + vite 3001 + worker `dp-dev`. 켜고 끄기 `/tmp/claude-1000/-home-jh-bae-irony-nexus/483bf060-2b4f-44c6-86c0-6dd9c05f93c4/scratchpad/dp/on.sh`·`off.sh`(끄기 = exe 경로로 고름), 계정 a1 관리자·o2 주인·v3 공유받음·x4 무관(pw123456). 정리 = supervisor·worker·vite를 exe/cmdline으로 골라 kill(`pgrep -f` 문자열은 내 bash도 잡으니 node exe 확인) + `DROP DATABASE nexus_dp_tmp` + `/tmp/nexus-hold-1000/dp-dev`
   - 시안 아티팩트 4개 링크 = REF 항목 표
+
+## 2026-10-27 밤 파트(찰떡 입력칸) 마감 때 내려보낸 줄
+- **(2026-10-27) 진행 중 파트 = 찰떡 입력칸** → `REF-ct-field.md`(단계 F1~F4 · 추가 항목 3개 = 전부 구현) / 브랜치 `feat/ct-field`(master `d5b4963`에서, **미커밋, 마감 확인 대기**)
+  - 범위 = 페이지의 input·select **전부**(Vuetify 6개 + 직접 만든 `.mb-input` 16개, 로그인·회원가입 포함). 계기 = 찰떡 마무리 항목 5(select 목록 흰 바탕 흰 글씨)
+  - 순서 = 조각 하나(`CtTextField`) 먼저 만들고 높이(32px)·끝 모양 확인 -> 나머지. 브랜치는 착수 때 master에서 새로
+  - **격리 떠 있음**(세션 재시작해도 남음): supervisor 5051 + DB `nexus_dp_tmp` + vite 3001 + worker `dp-dev`. 켜고 끄기 `/tmp/claude-1000/-home-jh-bae-irony-nexus/483bf060-2b4f-44c6-86c0-6dd9c05f93c4/scratchpad/dp/on.sh`·`off.sh`(끄기 = exe 경로로 고름), 계정 a1 관리자·o2 주인·v3 공유받음·x4 무관(pw123456). 정리 = supervisor·worker·vite를 exe/cmdline으로 골라 kill(`pgrep -f` 문자열은 내 bash도 잡으니 node exe 확인) + `DROP DATABASE nexus_dp_tmp` + `/tmp/nexus-hold-1000/dp-dev`

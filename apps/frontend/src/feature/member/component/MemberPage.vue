@@ -26,7 +26,7 @@ const measure = () => {
     const el = phone.value ? outerEl.value : stripEl.value;
     scrollEl.value = el;
     scrollX.value = el?.scrollLeft ?? 0;
-    viewW.value = el?.clientWidth ?? 0;
+    viewW.value = el ? el.clientWidth - parseFloat(getComputedStyle(el).paddingLeft) : 0;   // 칼럼 폭 계산 = 안쪽 여백(.strip 4px) 뺀 폭
 }
 useResizeCallback(outerEl, measure);
 useResizeCallback(stripEl, measure);
@@ -104,6 +104,10 @@ const snaps = computed(() => Array.from({ length: layout.value.cols }, (_, c) =>
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
     &::-webkit-scrollbar { display: none; }
+    // active 바깥 선(타일 밖 3px)이 잘리지 않게 — 위·왼쪽은 간격 안으로 4px 넓히고(타일 자리 그대로), 아래는 4px 비움
+    margin: -4px 0 0 -4px;
+    padding: 4px 0 4px 4px;
+    scroll-padding-left: 4px;
 }
 .grid {
     flex: none;
@@ -160,6 +164,8 @@ const snaps = computed(() => Array.from({ length: layout.value.cols }, (_, c) =>
         flex: none;
         overflow: visible;
         scroll-snap-type: none;
+        margin: 0;
+        padding: 0;   // 폰 = Grid 여백(gap)이 선 자리
     }
     .grid {
         width: 100cqw;

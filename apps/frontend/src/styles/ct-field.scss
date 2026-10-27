@@ -1,0 +1,101 @@
+// 찰떡 입력칸(CtTextField 등) — 알약, 벽·옆 칸에 닿는 끝만 곧게(REF-design-chaltteok.md · REF-ct-field.md)
+// Vuetify 스타일은 @layer 안이라 여기(레이어 밖)가 우선한다
+.ct-field {
+	--ct-r-l: 999px;
+	--ct-r-r: 999px;
+	// 반원 끝의 여백 = 반지름보다 안쪽(글자·아이콘이 곡선 구간에 안 걸리게), 곧은 끝 = 14px
+	--ct-pad-flat: 14px;
+	--ct-pad-l: var(--ct-pad-round);
+	--ct-pad-r: var(--ct-pad-round);
+	// v-input은 flex: 1 1 auto + 칸 줄 1fr — 세로 flex 상자에 남는 높이가 있으면 칸이 늘어나 글자가 위로 쏠림. 칸 줄은 내용 높이, 남는 높이는 아래로
+	grid-template-rows: auto auto;
+	align-content: start;
+	> .v-input__control > .v-field {
+		border-radius: var(--ct-r-l) var(--ct-r-r) var(--ct-r-r) var(--ct-r-l);
+		background: rgba(var(--v-theme-on-surface), 0.035);
+		--v-field-padding-start: var(--ct-pad-l);
+		--v-field-padding-end: var(--ct-pad-r);
+		@include vars.font('body-medium');
+	}
+	// 안쪽 아이콘(돋보기·펼침·지우기)이 있으면 아이콘이 끝 여백을 차지하고 글자는 아이콘 옆 6px
+	> .v-input__control > .v-field--prepended { padding-inline-start: calc(var(--ct-pad-l) - 4px); --v-field-padding-start: 6px; }
+	> .v-input__control > .v-field--appended { padding-inline-end: calc(var(--ct-pad-r) - 4px); --v-field-padding-end: 6px; }
+	// 테두리 = Vuetify outlined(라벨이 뜨면 선이 끊기고 라벨이 선에 걸침). 두께는 포커스 때도 1px, 색만 바뀜
+	.v-field__outline {
+		--v-field-border-width: 1px;
+		--v-field-border-opacity: 0.18;
+	}
+	@media (hover: hover) {
+		.v-field:hover .v-field__outline { --v-field-border-opacity: 0.32; }
+	}
+	.v-field--focused .v-field__outline, &.v-input--error .v-field__outline { --v-field-border-opacity: 1; }
+	// Vuetify 포커스 색 = color 속성(없으면 글자색) — 찰떡 칸은 primary
+	.v-field--focused:not(.v-field--error) :is(.v-field__outline, .v-label) { color: rgb(var(--v-theme-primary)); }
+	// 칸 안 라벨 = 글자와 같은 크기(Vuetify 기본 16px), 선에 걸친 라벨 = 12px(Vuetify 0.75em은 10.5px라 작음)
+	.v-label.v-field-label { font-size: inherit; }
+	.v-label.v-field-label--floating { font-size: var(--v-field-label-scale); --v-field-label-scale: 0.8571em; }
+	// 펼침 화살표 칸은 좁게 — 좁은 고르기 칸(방식 ws/wss)에서 글자 자리를 먹지 않게
+	.v-field__append-inner > .v-icon { margin-inline-start: 0; }
+	// 라벨(선 끊김) 시작 = 글자 시작 — 앞 선 길이 + 라벨 좌우 여백 4px
+	.v-field__outline__start { flex-basis: calc(var(--ct-pad-l) - 4px) !important; }
+	// 에러·힌트 글자 = 칸 글자 시작과 같은 들여쓰기
+	> .v-input__details { padding-inline: var(--ct-pad-l) var(--ct-pad-r); }
+	// 메시지는 칸 폭 안에서 접힌다 — Vuetify 줄 높이 12px는 2줄부터 붙으므로 글자 단계 줄 높이로
+	.v-messages__message { @include vars.font('body-small'); }
+}
+// 여러 줄 칸 — 반원 대신 16px 둥근 상자(wall 규칙보다 앞에 둬야 곧은 끝이 이긴다)
+.ct-field--area { --ct-r-l: 16px; --ct-r-r: 16px; --ct-pad-round: 16px; }
+.ct-field--wall-l { --ct-r-l: 0; --ct-pad-l: var(--ct-pad-flat); }
+.ct-field--wall-r { --ct-r-r: 0; --ct-pad-r: var(--ct-pad-flat); }
+.ct-field--wall-lr { --ct-r-l: 0; --ct-r-r: 0; --ct-pad-l: var(--ct-pad-flat); --ct-pad-r: var(--ct-pad-flat); }
+
+.ct-field--sm {
+	--v-input-control-height: 32px;
+	--ct-pad-round: 20px;   // 반지름 16
+	> .v-input__control > .v-field {
+		--v-field-padding-top: 0px;
+		--v-field-padding-bottom: 0px;
+		--v-field-input-padding-top: 0px;
+		--v-field-input-padding-bottom: 0px;
+	}
+	.v-field__input { min-height: 32px; }
+}
+.ct-field--md {
+	--v-input-control-height: 40px;
+	--ct-pad-round: 24px;   // 반지름 20
+}
+
+// 옆 칸과 붙인 묶음 — 칸 사이 바탕색 1px(.ct-grp과 같음). 붙는 쪽 끝은 각 칸의 wall로 곧게
+.ct-join {
+	display: flex;
+	flex-wrap: wrap;   // 묶음 메시지(.ct-msg)만 다음 줄로
+	align-items: flex-start;
+	gap: 1px;
+	min-width: 0;
+	> .ct-field { flex: 1 1 0; min-width: 0; }
+	> .ct-grp { align-self: flex-start; height: 32px; }
+	// 묶음 메시지 — 칸마다 따로 말고 묶음 폭 아래 한 줄(칸은 :error로 테두리만 빨갛게, hide-details)
+	> .ct-msg { flex: 0 0 100%; }
+}
+.ct-msg {
+	margin: 0;
+	padding: 5px 20px 0;
+	@include vars.font('body-small');
+	color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+	overflow-wrap: break-word;
+	&.ct-msg--error { color: rgb(var(--v-theme-error)); }
+}
+
+// 체크 — 네모 칸 폭만(Vuetify 기본은 줄 폭을 차지해 옆 글자를 밀어냄)
+.ct-check { flex: none; }
+
+// 펼침 목록(CtSelect·CtAutocomplete) — 둥근 상자 안에 알약 줄. 사방 8px 띄움 + 줄 안 16px = 줄 글자가 md 칸 글자(24px)와 같은 세로줄
+.ct-menu {
+	border-radius: 16px !important;
+	.v-list { padding: 8px; }
+	.v-list-item {
+		min-height: 36px !important;
+		border-radius: 999px !important;   // Vuetify가 줄마다 rounded-0(!important)을 붙임
+		@include vars.font('body-medium');
+	}
+}

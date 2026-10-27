@@ -4,7 +4,8 @@ import { lastSeenText } from '@/feature/node/util/presenceView.util';
 import { deleteWorkerInstance, type WorkerInstanceResponse } from '@/feature/worker/api/worker.api';
 import { useQueryClient } from '@tanstack/vue-query';
 import { computed, ref, watch } from 'vue';
-import { VIcon } from 'vuetify/components';
+import CtAutocomplete from '@/feature/widget/component/CtAutocomplete.vue';
+import CtTextField from '@/feature/widget/component/CtTextField.vue';
 import {
     adminChangeOwner, adminDeleteDevice, adminLabelInstance, adminReissueKey, adminShowKey,
     deleteMyDevice, invalidateMember, labelMyInstance, reissueMyDeviceKey, showMyDeviceKey,
@@ -30,6 +31,12 @@ const d = computed(() => deviceQuery.data.value);
 // 주인 후보 = 회원 전부(관리자만)
 const ownersQuery = admin ? useAdminUsers({ size: 0 }) : undefined;
 const owners = computed(() => ownersQuery?.data.value?.items ?? []);
+// 주인 고르기 목록 — 지금 주인이 목록(회원 조회)에 없어도 보이게
+const ownerItems = computed(() => {
+    const items = owners.value.map(o => ({ title: o.nickname, value: o.id }));
+    const dv = d.value;
+    return !dv || items.some(o => o.value === dv.ownerId) ? items : [{ title: dv.ownerNickname ?? String(dv.ownerId), value: dv.ownerId }, ...items];
+});
 
 const state = computed(() => d.value ? deviceState(d.value.instances) : 'none');
 const stateCls = computed(() => ({ on: 'mb-tag--success', off: '', none: 'dim' })[state.value]);
@@ -91,12 +98,10 @@ const changeKey = () => {
 }
 
 // ---- 주인(관리자) ----
-const changeOwner = (e: Event) => {
-    const sel = e.target as HTMLSelectElement;
-    const id = Number(sel.value);
-    if (!d.value || id === d.value.ownerId) return;
+// 칸은 d.ownerId에 묶여 있어 확인 전엔 원래 값 그대로
+const changeOwner = (id: number | null) => {
+    if (!d.value || id === null || id === d.value.ownerId) return;
     const to = owners.value.find(o => o.id === id)?.nickname ?? String(id);
-    sel.value = String(d.value.ownerId);    // 확인 전엔 원래 값
     openDialog({
         type: 'warning',
         title: `${mainKey} 주인 바꾸기`,
@@ -139,21 +144,15 @@ const remove = () => openDialog({
             <span class="mb-tag" :class="stateCls"><span class="mb-dot" :class="state" />{{ deviceStateText(d.instances) }}</span>
             <template v-if="admin">
                 <span class="mb-lbl">주인</span>
-                <label class="mb-select">
-                    <select class="mb-input" :value="d.ownerId" :disabled="busy" aria-label="주인" @change="changeOwner">
-                        <option v-if="!owners.some(o => o.id === d!.ownerId)" :value="d.ownerId">{{ d.ownerNickname ?? d.ownerId }}</option>
-                        <option v-for="o in owners" :key="o.id" :value="o.id">{{ o.nickname }}</option>
-                    </select>
-                    <v-icon icon="mdi-chevron-down" size="18" class="chev" />
-                </label>
+                <CtAutocomplete :model-value="d.ownerId" :items="ownerItems" size="sm" wall="r" :disabled="busy" aria-label="주인" @update:model-value="changeOwner" />
             </template>
             <span class="mb-lbl">등록</span>
             <span class="val">{{ dayText(d.createdAt) }} · 키 발급 {{ dayText(d.keyIssuedAt) }}</span>
             <span class="mb-lbl">API 키</span>
             <div class="keyrow">
                 <!-- 보기 = 고칠 수 없는 입력칸(한 줄, 커서로 끝까지 이동·선택) / 숨김 = 가림 글자. readonly는 Chromium에서 키보드 커서 이동이 안 돼서 입력만 막는다 -->
-                <input v-if="key" class="mb-input mb-mono code" :value="key" inputmode="none" spellcheck="false" autocomplete="off" aria-readonly="true" aria-label="API 키" @beforeinput.prevent @drop.prevent />
-                <code v-else class="mb-input mb-mono code hidden">{{ `${API_KEY_PREFIX}${'•'.repeat(18)}` }}</code>
+                <CtTextField v-if="key" :model-value="key" size="sm" wall="r" class="mb-mono code" hide-details inputmode="none" spellcheck="false" autocomplete="off" aria-readonly="true" aria-label="API 키" @beforeinput.prevent @drop.prevent />
+                <CtTextField v-else :model-value="`${API_KEY_PREFIX}${'•'.repeat(18)}`" size="sm" wall="r" class="mb-mono code hidden" hide-details readonly tabindex="-1" aria-label="API 키(가림)" />
                 <div class="mb-grp mb-grp--sm">
                     <button type="button" class="mb-btn" :disabled="busy" @click="toggleKey">{{ key ? '숨기기' : '보기' }}</button>
                     <button type="button" class="mb-btn" :disabled="busy" @click="copy('key')">{{ copied === 'key' ? '복사됨' : '복사' }}</button>
@@ -161,7 +160,7 @@ const remove = () => openDialog({
                 </div>
             </div>
             <div v-if="changing" class="full change">
-                <input v-model="pasted" class="mb-input mb-mono" :class="{ bad: !pastedValid }" placeholder="비우면 새로 발급 · 다른 supervisor 키는 붙여넣기" autocomplete="off" :disabled="busy" />
+                <CtTextField v-model="pasted" size="sm" class="mb-mono" hide-details :error="!pastedValid" placeholder="비우면 새로 발급 · 다른 supervisor 키는 붙여넣기" autocomplete="off" :disabled="busy" />
                 <div class="mb-grp mb-grp--sm">
                     <button type="button" class="mb-btn mb-btn--primary" :disabled="busy || !pastedValid" @click="changeKey">{{ pasted.trim() ? '이 키로' : '새로 발급' }}</button>
                 </div>
@@ -176,10 +175,10 @@ const remove = () => openDialog({
         <div v-for="i in d.instances" :key="i.subKey" class="inst">
             <div class="line">
                 <span class="mb-dot" :class="i.online ? 'on' : 'off'" />
-                <input class="mb-input" :value="labelOf(i)" maxlength="64" placeholder="라벨 달기 (예: 3번 라인 PC)" aria-label="라벨" :disabled="busy"
-                    @input="drafts = { ...drafts, [i.subKey]: ($event.target as HTMLInputElement).value }"
+                <CtTextField :model-value="labelOf(i)" size="sm" hide-details maxlength="64" placeholder="라벨 달기 (예: 3번 라인 PC)" aria-label="라벨" :disabled="busy"
+                    @update:model-value="(v: string) => drafts = { ...drafts, [i.subKey]: v }"
                     @keydown.enter="($event.target as HTMLInputElement).blur()"
-                    @blur="saveLabel(i)"
+                    @update:focused="(f: boolean) => !f && saveLabel(i)"
                 />
                 <button v-if="!admin && !i.online" type="button" class="mb-btn mb-btn--error rm" :disabled="busy" @click="removeInstance(i)">지우기</button>
             </div>
@@ -203,8 +202,7 @@ const remove = () => openDialog({
     min-width: 0;
     display: flex;
     align-items: center;
-    .code { flex: 1; min-width: 0; display: flex; align-items: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-radius: 999px 0 0 999px; border-right: 0;
-        &.hidden { opacity: 0.6; user-select: none; } }
+    .code { flex: 1; min-width: 0; &.hidden { opacity: 0.6; } }
     .mb-grp { height: 32px; border-radius: 0; }
 }
 .change {

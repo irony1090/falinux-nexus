@@ -2,7 +2,8 @@
 import { useAuthStore } from '@/feature/user/store/auth.store';
 import { useQueryClient } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
-import { VIcon } from 'vuetify/components';
+import CtAutocomplete from '@/feature/widget/component/CtAutocomplete.vue';
+import CtTextField from '@/feature/widget/component/CtTextField.vue';
 import { adminCreateDevice, createMyDevice, invalidateMember, useAdminUsers, useMyDevices } from '../api/device.api';
 import { useMemberBoard } from '../store/memberBoard.store';
 import { deviceKey, type MemberTile } from '../util/memberGrid.util';
@@ -15,7 +16,7 @@ const { auth } = useAuthStore();
 const queryClient = useQueryClient();
 
 const ownersQuery = admin ? useAdminUsers({ size: 0 }) : undefined;
-const owners = computed(() => ownersQuery?.data.value?.items ?? []);
+const owners = computed(() => (ownersQuery?.data.value?.items ?? []).map(o => ({ title: o.nickname, value: o.id })));
 const myQuery = admin ? undefined : useMyDevices({ size: 1 });
 const myCount = computed(() => myQuery?.data.value?.total ?? 0);
 
@@ -49,24 +50,15 @@ const submit = () => {
 <form class="mb-body" @submit.prevent="submit">
     <div class="mb-fields top">
         <label for="nf-name" class="mb-lbl">장비 이름</label>
-        <div class="col">
-            <input id="nf-name" v-model="name" class="mb-input" :class="{ bad: !nameOk }" placeholder="예: line3-pc" autocomplete="off" :disabled="busy" />
-            <span class="mb-hint" :class="{ bad: !nameOk }">{{ nameOk ? '영문·숫자·. _ - 로 64자까지 (worker env의 NAME과 같게)' : '쓸 수 없는 글자가 있습니다. 영문·숫자·. _ - 만 됩니다' }}</span>
-        </div>
+        <CtTextField id="nf-name" v-model="name" size="sm" placeholder="예: line3-pc" autocomplete="off" :disabled="busy" persistent-hint
+            hint="영문·숫자·. _ - 로 64자까지 (worker env의 NAME과 같게)" :error-messages="nameOk ? undefined : '쓸 수 없는 글자가 있습니다. 영문·숫자·. _ - 만 됩니다'" />
         <template v-if="admin">
             <label for="nf-owner" class="mb-lbl">주인</label>
-            <label class="mb-select">
-                <select id="nf-owner" v-model.number="owner" class="mb-input" :disabled="busy">
-                    <option v-for="o in owners" :key="o.id" :value="o.id">{{ o.nickname }}</option>
-                </select>
-                <v-icon icon="mdi-chevron-down" size="18" class="chev" />
-            </label>
+            <CtAutocomplete id="nf-owner" v-model="owner" size="sm" :items="owners" :disabled="busy" />
         </template>
         <label for="nf-key" class="mb-lbl">API 키</label>
-        <div class="col">
-            <input id="nf-key" v-model="apiKey" class="mb-input mb-mono" :class="{ bad: !keyOk }" placeholder="비우면 새로 발급" autocomplete="off" :disabled="busy" />
-            <span class="mb-hint" :class="{ bad: !keyOk }">{{ keyOk ? `다른 supervisor에서 받은 키(${API_KEY_PREFIX}…)를 그대로 쓰려면 붙여 넣습니다` : `${API_KEY_PREFIX}로 시작하는 키만 됩니다` }}</span>
-        </div>
+        <CtTextField id="nf-key" v-model="apiKey" size="sm" class="mb-mono" placeholder="비우면 새로 발급" autocomplete="off" :disabled="busy" persistent-hint
+            :hint="`다른 supervisor에서 받은 키(${API_KEY_PREFIX}…)를 그대로 쓰려면 붙여 넣습니다`" :error-messages="keyOk ? undefined : `${API_KEY_PREFIX}로 시작하는 키만 됩니다`" />
         <p v-if="message" class="mb-err full">{{ message }}</p>
     </div>
     <ol class="steps">
@@ -85,7 +77,6 @@ const submit = () => {
 </template>
 
 <style scoped lang="scss">
-.col { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .full { grid-column: 1 / -1; }
 .steps {
     margin: 0;

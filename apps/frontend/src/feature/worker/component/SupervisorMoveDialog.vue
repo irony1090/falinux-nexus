@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { VCard, VCardText, VCardTitle, VDialog, VForm, VSelect, VTextField } from 'vuetify/components';
+import { VCard, VCardText, VCardTitle, VDialog, VForm } from 'vuetify/components';
+import CtSelect from '@/feature/widget/component/CtSelect.vue';
+import CtTextField from '@/feature/widget/component/CtTextField.vue';
 import { listWorkerAddrs, moveAllWorkers, moveWorker, type MoveAllResult } from '../api/worker.api';
 
 // supervisor 주소 변경 — 주소-5(화면), REF-supervisor-move.md. instance가 있으면 그 장비 하나(장비 타일 메뉴), 없으면 접속 중 전부(헤더 메뉴, worker_move 권한)
@@ -70,16 +72,18 @@ const onSubmit = () => {
             <v-card-text class="body">
                 <p v-if="single" class="note mono">{{ instance }}</p>
                 <p v-else class="note">지금 접속 중인 worker 전부에 보냅니다</p>
-                <div class="addr">
-                    <v-select v-model="scheme" :items="['ws', 'wss']" density="compact" hide-details class="scheme" />
-                    <v-text-field v-model="host"
+                <div class="ct-join">
+                    <CtSelect v-model="scheme" :items="['ws', 'wss']" wall="r" aria-label="방식" class="scheme" />
+                    <CtTextField v-model="host"
+                        wall="l"
                         label="호스트:포트"
                         placeholder="example.com:8012"
-                        density="compact"
                         autofocus
-                        :error-messages="message"
+                        hide-details
+                        :error="!!message"
                         @update:model-value="message = undefined"
                     />
+                    <p v-if="message" class="ct-msg ct-msg--error">{{ message }}</p>
                 </div>
                 <span class="ct-grp ct-grp--sm mode" role="group" aria-label="옮기는 방식">
                     <button type="button" class="ct-seg" :class="{ 'ct-seg--primary': !now }" :aria-pressed="!now" @click="now = false">저장만</button>
@@ -115,9 +119,8 @@ const onSubmit = () => {
 
 <style scoped lang="scss">
 .body { display: flex; flex-direction: column; gap: vars.$spacing-md; }
-.addr { display: flex; gap: vars.$spacing-sm; align-items: flex-start; }
-.scheme { flex: 0 0 88px; }
-.mode { align-self: flex-start; }
+.scheme { flex: 0 0 88px !important; }   // .ct-join > .ct-field(flex: 1)보다 우선
+.mode { align-self: flex-end; }
 .note { margin: 0; @include vars.font('body-medium'); opacity: 0.7; &.ok { color: rgb(var(--v-theme-success)); opacity: 1; } }
 .label { margin: 0; @include vars.font('label-medium'); opacity: 0.7; }
 .list { margin: 0; padding-left: 20px; @include vars.font('body-medium'); }
