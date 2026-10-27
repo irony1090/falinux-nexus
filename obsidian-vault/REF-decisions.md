@@ -35,7 +35,7 @@
 - **공유 판정 = DB 함수 한 곳**(2026-10-06, 공유-a): 가까운 공유 단계 계산은 `node_permission`/`process_permission`(`00007_shares.sql`)에만 두고 쿼리·Go는 호출만. 단계 = 0 차단·10 보기·20 조작·30 편집·40 소유자(함수 반환만), 비교는 `>=`. 볼 수 없음 = 404 / 단계 미달 = 403. **공유 단위 = 폴더 + process 단독**(스크립트 노드 공유 금지, 2026-10-07 SH1 개정) (→ `REF-process-share-db.md`, `REF-process-share-authz.md`, `REF-process-share.md`)
 
 ## 실시간 push
-- **실시간 push = 인가/라우팅 분리**(2026-06-30): 인가=DB(구독 시점 1회) / 라우팅=메모리(`subscribe.Hub` topic Publish, DB 무접촉). 수신자=presence(구독)≠소유자 → 공유·다중 유저 동일 화면 흡수. 토픽 단위: process 출력 = `PROCESS:<uid>` / **node 변경 = 볼 수 있는 접속 계정의 `USER:<userId>`(옛 문서의 `TILES:<userId>` = 같은 것), 발행 시점 DB 판정**(옛 "펼친 폴더 `NODE:`" 폐기, → `REF-node-list-sync.md`). "DB≠라우팅 authority"를 browser 평면으로 확장. 비대칭: 브라우저 call→서버 Handle / 서버 Emit→브라우저 on (→ `REF-realtime.md`)
+- **실시간 push = 인가/라우팅 분리**(2026-06-30): 인가=DB(구독 시점 1회) / 라우팅=메모리(`subscribe.Hub` topic Publish, DB 무접촉). 수신자=presence(구독)≠소유자 → 공유·다중 유저 동일 화면 흡수. 토픽 단위: process 출력 = `PROCESS:<uid>` / **node 변경 = 볼 수 있는 접속 계정의 `USER:<userId>`(옛 문서의 `TILES:<userId>` = 같은 것), 발행 시점 DB 판정**(옛 "펼친 폴더 `NODE:`" 폐기, → `REF-node-list-sync.md`). "DB≠라우팅 authority"를 browser 평면으로 확장. **장비 상태**(2026-10-27) = `USER:<userId>`로 `DEVICE:CHANGE {mainKey}` 신호만 → 받은 화면이 기존 API로 재조회, 폴링 60초 안전망, 소켓 connect = `App.vue`(로그인 중 모든 페이지) (→ `REF-device-push.md`). 비대칭: 브라우저 call→서버 Handle / 서버 Emit→브라우저 on (→ `REF-realtime.md`)
 
 ## 모바일 키보드
 - **모바일 키보드 = `resizes-content` + 열린 동안 배치 영역은 키보드 전 높이(px) 고정**(2026-10-14): 타일 재배치 금지. `dvh`로 배치하는 새 영역도 지킬 것 (→ `REF-mobile-viewport.md` 4). **2026-10-20 개정**: 포커스 터미널 타일만 키보드 위 영역에 맞춤(그 PTY rows만 바뀜) (→ `REF-board-keyboard.md` "맞춤 계획")

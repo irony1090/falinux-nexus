@@ -504,6 +504,13 @@ const MsgShareChange MsgType = "SHARE:CHANGE" // sup→browser EVENT: ShareChang
 
 type ShareChangeEvent struct{}
 
+// 장비 상태 변경(접속·끊김·라벨·등록·삭제·주인 변경) — USER:<userId> 토픽, 받은 쪽이 장비 목록을 다시 조회한다(REF-device-push.md)
+const MsgDeviceChange MsgType = "DEVICE:CHANGE" // sup→browser EVENT: DeviceChangeEvent
+
+type DeviceChangeEvent struct {
+	MainKey string `json:"mainKey"`
+}
+
 // 작업 공간 목록 변경(만들기·이름·삭제) — USER:<userId> 토픽, 목록 전체를 보낸다 (REF-workspace-impl.md)
 const MsgWorkspacesUpdate MsgType = "WORKSPACES:UPDATE" // sup→browser EVENT: WorkspacesUpdateEvent
 

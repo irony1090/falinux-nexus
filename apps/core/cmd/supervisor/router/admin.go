@@ -361,7 +361,9 @@ func (r *supervisorRouter) adminCreateDevice(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		panic(web.Err(400, "%v", err))
 	}
-	return c.JSON(200, createDevice(c, body.OwnerID, deviceCreateRequest{MainKey: body.MainKey, APIKey: body.APIKey}, false))
+	res := createDevice(c, body.OwnerID, deviceCreateRequest{MainKey: body.MainKey, APIKey: body.APIKey}, false)
+	AfterCommit(c, func() { r.publishDevice(res.MainKey) })
+	return c.JSON(200, res)
 }
 
 // adminChangeOwner: 주인 바꾸기(회원-Q18). 옛 주인 폴더에 지정된 이 장비는 실행이 막힌다(requireDeviceOwner)
@@ -376,13 +378,14 @@ func (r *supervisorRouter) adminChangeOwner(c echo.Context) error {
 	if _, err := TxQueries(c).UpdateDeviceOwner(c.Request().Context(), superdb.UpdateDeviceOwnerParams{MainKey: d.MainKey, OwnerUserID: body.OwnerID}); err != nil {
 		panic(web.Err(500, "%v", err))
 	}
+	AfterCommit(c, func() { r.publishDevice(d.MainKey, d.OwnerUserID) }) // 옛 주인 목록에서도 빠지게
 	return c.JSON(200, map[string]any{})
 }
 
 func (r *supervisorRouter) adminDeleteDevice(c echo.Context) error {
 	r.requireAdmin(c)
 	d := requireDevice(c, pathParam(c, "mainKey"))
-	r.deleteDevice(c, d.MainKey)
+	r.deleteDevice(c, d)
 	return c.JSON(200, map[string]any{})
 }
 
@@ -405,5 +408,6 @@ func (r *supervisorRouter) adminLabelInstance(c echo.Context) error {
 	r.requireAdmin(c)
 	d := requireDevice(c, pathParam(c, "mainKey"))
 	labelInstance(c, d.MainKey, pathParam(c, "subKey"))
+	AfterCommit(c, func() { r.publishDevice(d.MainKey) })
 	return c.JSON(200, map[string]any{})
 }

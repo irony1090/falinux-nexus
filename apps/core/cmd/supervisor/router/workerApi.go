@@ -170,6 +170,7 @@ func (r *supervisorRouter) deleteWorkerInstance(c echo.Context) error {
 	if n == 0 {
 		panic(web.Err(404, "명부에 없는 인스턴스입니다"))
 	}
+	AfterCommit(c, func() { r.publishDevice(mainKey) })
 	return c.JSON(200, map[string]any{})
 }
 

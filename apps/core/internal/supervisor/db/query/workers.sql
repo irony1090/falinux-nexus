@@ -42,5 +42,13 @@ WHERE (sqlc.arg(main_key)::text = '' OR wi.main_key = sqlc.arg(main_key)::text)
                        WHERE n.device_key IS NOT NULL AND node_permission(sqlc.arg(user_id), n.id) >= 10))
 ORDER BY wi.main_key, wi.sub_key;
 
+-- name: FilterDeviceWatchers :many
+-- 장비 상태 알림(DEVICE:CHANGE) 받을 계정 = user_ids 중 관리자 + 주인 + 그 장비가 지정된 폴더를 볼 수 있는 계정(ListVisibleWorkerInstances와 같은 범위)
+SELECT u.id FROM users u
+WHERE u.id = ANY(sqlc.arg(user_ids)::bigint[])
+  AND ('admin' = ANY(u.perms)
+    OR EXISTS (SELECT 1 FROM devices d WHERE d.main_key = sqlc.arg(main_key)::text AND d.owner_user_id = u.id)
+    OR EXISTS (SELECT 1 FROM nodes n WHERE n.device_key = sqlc.arg(main_key)::text AND node_permission(u.id, n.id) >= 10));
+
 -- name: ListOwnedMainKeys :many
 SELECT main_key FROM devices WHERE owner_user_id = $1;
