@@ -64,7 +64,7 @@
 - **이동(move)/이름변경(rename) = 별도 kind 없이 `NODE:UPDATE`에 흡수** — payload의 `parent_id`/`name` 필드 변화로 프론트가 판별. 기존 **"이동/삭제=old parent+new parent 2토픽 발행"** 원칙은 그대로 유지(라우팅은 topic이 담당, kind와 무관 — 서버가 mutation 직전 old `parent_id` 캡처해 두 토픽에 동일 payload 발행).
 - **`NODE:DELETE`도 전체 구조체 payload**(id만 보내지 않음) — C/U/D 포맷 통일, 프론트 파싱 분기 단순화.
 - 프론트 사용 형태: `socket.on<Node>('NODE:CREATE', handler)` 식으로 kind별 개별 등록(`websocket.hook.ts`의 `on(type, handler)` 그대로 재사용, 제네릭 payload=Node 구조체).
-- **미정**: device presence(worker main#sub online/offline) kind 스타일 — 같은 개별-kind 패턴(`DEVICE:ONLINE`/`DEVICE:OFFLINE`)으로 갈지 별도 결정 필요.
+- **(2026-10-27 결정)** device presence = 개별 kind 대신 신호 하나 `DEVICE:CHANGE {mainKey}`(받은 쪽이 다시 조회) → `REF-device-push.md`
 
 ## 현재 상태 / 다음
 

@@ -47,12 +47,12 @@ export const deleteWorkerInstance = (mainKey: string, subKey: string) => BaseAxi
 ).then(throwThen<{}>)
 .catch(throwCatch)
 
-const WORKER_POLL_MS = 10 * 1000
+const WORKER_POLL_MS = 60 * 1000   // 안전망 — 평소엔 DEVICE:CHANGE 알림으로 다시 조회(deviceChange.hook.ts)
 const ROSTER_KEY = ['WORKER', 'ROSTER']
 
 export const invalidateWorkerRoster = (queryClient: QueryClient) => queryClient.invalidateQueries({ queryKey: ROSTER_KEY })
 
-// main_key별 명부 요약. 접속·끊김 알림이 없어 주기 조회한다(같은 키라 화면 전체가 요청 하나를 공유)
+// main_key별 명부 요약. 접속·끊김은 알림으로 다시 조회 + 긴 주기 조회(같은 키라 화면 전체가 요청 하나를 공유)
 export const useWorkerRoster = () => {
     const query = useQuery({
         queryKey: ROSTER_KEY,

@@ -28,7 +28,7 @@
 - **에러 처리**: `panic(web.Err(...))` -> `PanicMiddleware`
 - **process 동기화 범위**: 계정(탭·기기 무관). 인가 = DB / 출력 라우팅·PTY 크기 우선권 = 메모리
 - **공유 판정**: DB 함수 한 곳(`node_permission`/`process_permission`), 쿼리·Go는 호출만. 공유 단위 = 폴더 + process 단독
-- **실시간 push**: 인가(DB, 구독 때 1회) / 라우팅(메모리 Hub) 분리. 토픽 `PROCESS:<uid>`·`USER:<userId>`·`TRANSFER:*`
+- **실시간 push**: 인가(DB, 구독 때 1회) / 라우팅(메모리 Hub) 분리. 토픽 `PROCESS:<uid>`·`USER:<userId>`·`TRANSFER:*`. 장비 상태 = `DEVICE:CHANGE` 신호 -> 재조회, 소켓 connect = `App.vue`(로그인 중 모든 페이지)
 - **모바일 키보드**: `resizes-content` + 열린 동안 배치 영역 높이 고정(타일 재배치 금지), 포커스 터미널만 키보드 위에 맞춤 (→ 반복 주제 `REF-mobile-viewport.md`)
 - **타일 이동**: 타일로 가는 경로는 전부 `reveal`(화면 밖일 때만)
 - **앱 단축키**: `appShortcutsOff` 검사를 맨 앞에 — **새 단축키도 반드시**
@@ -79,7 +79,7 @@ sqlc.yaml  README.md  .gitignore
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
 - 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-decisions.md`(확정 결정 상세) · `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어)
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
-- **진행 중 파트**: 없음(2026-10-27 폴더에서 터미널 마감 → `INDEX-dir-shell`)
+- **진행 중 파트**: 없음(직전 = 장비 상태 push(마감) → `INDEX-device-push.md`)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`

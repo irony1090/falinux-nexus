@@ -109,8 +109,12 @@ export const moveDevices = (admin: boolean, targets: string[], url: string, now:
 export const instanceAddrs = (admin: boolean, mainKey: string, subKey: string) => BaseAxios.get(`${deviceBase(admin)}/${enc(mainKey)}/instances/${enc(subKey)}/addrs`)
 .then(throwThen<{ addrs: string[] }>).catch(throwCatch)
 
+// 장비 목록·장비 하나(내 장비·관리자) 전부 — 장비 상태 알림 때
+export const invalidateMemberDevices = (queryClient: QueryClient) => Promise.all(
+    [['MEMBER', 'DEVICES'], ['MEMBER', 'DEVICE'], ['ADMIN', 'DEVICES'], ['ADMIN', 'DEVICE']].map(queryKey => queryClient.invalidateQueries({ queryKey })))
+
 // ---- 조회 훅 ----
-const POLL_MS = 10 * 1000   // 접속 여부는 알림이 없어 주기 조회
+const POLL_MS = 60 * 1000   // 안전망 — 평소엔 DEVICE:CHANGE 알림으로 다시 조회(deviceChange.hook.ts)
 type P = MaybeRefOrGetter<ListParams>
 
 // 목록 — 페이지를 넘길 때 앞 결과를 둬서 줄이 깜빡이지 않게

@@ -45,6 +45,7 @@ func (r *supervisorRouter) register(conn *transport.Conn, body *protocol.Registe
 		r.workerOS.Append(key, os) // workers보다 먼저 — 보이는 worker는 OS도 있게
 		r.workers.Append(key, conn)
 		recordSeen(key, true, os)
+		go r.publishDevice(body.Key)
 
 		// q := store.GetStorePool().Queries()
 		// ctx := context.Background()

@@ -26,3 +26,9 @@
 - **새 BACKLOG(10-26)**: Windows 터미널 출력 줄 빠짐(ConPTY 의심, 사용자가 시험 넘김) · 주소 목록 3개 상한이 지금 주소를 밀어냄
 - 오늘 이력: 회원 관리 머지·집 서버 Nexus 터미널 배포 → `history/home-server.md` / `/api` 정리·주소 일괄 변경 → `history/api-prefix.md` / 폰 수정 → `history/member-ui.md`·`history/board-preview.md`. 옛 CURRENT 줄 원문 → `history/current-archive.md` "2026-10-26 밤"
 - **최근 마감 파트**(상세는 각 INDEX, 목록 = `HISTORY.md` "마감 파트"): supervisor 주소 실시간 변경 `INDEX-supervisor-move`(10-26) · 빈 곳 길게 누르기 `INDEX-press-pager`(10-25) · 목록 아이콘 보기 `INDEX-dir-grid`(10-24) · 타일 머리 줄 버튼 `INDEX-tile-head`(10-24) · Ctrl+Alt 팝업 버튼·터치 스크롤 양 `INDEX-pager-tools`(10-23) · 글자 크기 규칙 `INDEX-typography`(10-23) · 경로 직접 입력 `INDEX-path-input`(10-23) · 내려받기·worker 간 전송 `INDEX-transfer-down`(10-23) · 파일 전송 확장 `INDEX-transfer-ext`(10-23) · worker 폴더 타일 `INDEX-worker-dir`(10-23) · 타일 종류 정리 `INDEX-tile-kinds`(10-23) · process 살려 두기 `INDEX-process-keep`(10-22) · 새 보드·IUTF8 `INDEX-fix-board-iutf8`(10-22) · 빌드본 분리 `INDEX-build`(10-22) · 리팩터링 `INDEX-refactor`(10-21) · 페이지 이동 `INDEX-tile-move`(10-21) · 한글 입력 중복 `INDEX-term-ime` · 파일 전송 `INDEX-transfer-e2e` · 헤더·푸터 개편 `INDEX-board-chrome` · 페이지 표시 개편 `INDEX-board-pager`(10-20) · URL 바인딩 `INDEX-tile-url` · 터미널 터치 스크롤 `INDEX-term-touch` · Windows worker `INDEX-windows-worker` · PgUp·PgDn 버튼 `INDEX-term-page-keys` · 고아 스크립트 `INDEX-worker-orphan` · 보드 미리보기 `INDEX-board-preview`(10-15~19)
+
+## 2026-10-27 오후 (파트(장비 상태 push) 마감 때 내려보냄)
+- **(2026-10-27 오후) 진행 중 파트 = 장비 상태 push** → `REF-device-push.md` / 브랜치 `feat/device-push`(master `4cf6855`에서, **미커밋**)
+  - 장비 접속·끊김·라벨·등록/삭제·주인 변경 → `DEVICE:CHANGE` 신호 → 보드·내 장비·관리자 화면이 다시 조회. 폴링 60초 안전망. 소켓 connect를 `App.vue`로 옮김(사용자 승인)
+  - 격리 확인 끝(받는 사람 10/10·보드 0.4초·관리 페이지 1.5초 안), 격리 정리 끝. **다음: 사용자 확인 → 마감·커밋·머지**
+  - (14:08) 사용자 확인용 격리 다시 띄움: supervisor 5051 + DB `nexus_dp_tmp` + vite 3001 + worker `dp-dev`(scratchpad `dp/on.sh`·`off.sh`). 계정 a1 관리자·o2 주인·v3 공유받음·x4 무관(pw123456). 끝나면 정리

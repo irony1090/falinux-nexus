@@ -32,7 +32,7 @@ import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { VBtn, VProgressCircular } from 'vuetify/components';
 
-const { connect, disconnect, emit } = useTestSocket();
+const { emit } = useTestSocket();
 const { auth } = useAuthStore();
 const { openDialog } = useAppDialog();
 const route = useRoute();
@@ -53,14 +53,6 @@ const { clear: clearNotices } = useTileNotices();
 useTerminalRestore(tileTree, processTerm, boardTrees.uids);
 useShareChange();
 useNodeChange();
-
-watch(auth, val => {
-    if (val) {
-        connect();
-    } else {
-        disconnect();
-    }
-}, { immediate: true })
 
 // 계정이 바뀔 때만 xterm을 비운다 — 3-d④(계정 바뀜). 같은 계정의 세션 재확인(auth 객체 교체)에는 미확정 변경을 버리지 않도록 다시 불러오지 않는다
 watch(() => auth.value?.identification, id => {

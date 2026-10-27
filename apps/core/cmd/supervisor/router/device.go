@@ -177,7 +177,9 @@ func (r *supervisorRouter) createMyDevice(c echo.Context) error {
 	if err := c.Bind(&body); err != nil {
 		panic(web.Err(400, "%v", err))
 	}
-	return c.JSON(200, createDevice(c, sess.Data.ID, body, true))
+	res := createDevice(c, sess.Data.ID, body, true)
+	AfterCommit(c, func() { r.publishDevice(res.MainKey) })
+	return c.JSON(200, res)
 }
 
 func showDeviceKey(d superdb.Device) deviceKeyResponse {
@@ -216,8 +218,9 @@ func (r *supervisorRouter) reissueMyDeviceKey(c echo.Context) error {
 	return c.JSON(200, reissueDeviceKey(c, d.MainKey, body.APIKey))
 }
 
-// deleteDevice: 접속 중 인스턴스가 있으면 409. 명부(worker_instances)·폴더 device_key는 남긴다
-func (r *supervisorRouter) deleteDevice(c echo.Context, mainKey string) {
+// deleteDevice: 접속 중 인스턴스가 있으면 409. 명부(worker_instances)·폴더 device_key는 남긴다. 알림은 지우기 전 주인에게도
+func (r *supervisorRouter) deleteDevice(c echo.Context, d superdb.Device) {
+	mainKey := d.MainKey
 	if online := r.workers.FindAll(func(key string, _ *transport.Conn) bool {
 		main, _ := splitInstanceKey(key)
 		return main == mainKey
@@ -227,12 +230,13 @@ func (r *supervisorRouter) deleteDevice(c echo.Context, mainKey string) {
 	if _, err := TxQueries(c).DeleteDevice(c.Request().Context(), mainKey); err != nil {
 		panic(web.Err(500, "%v", err))
 	}
+	AfterCommit(c, func() { r.publishDevice(mainKey, d.OwnerUserID) })
 }
 
 func (r *supervisorRouter) deleteMyDevice(c echo.Context) error {
 	sess := r.requireSession(c)
 	d := requireMyDevice(c, sess.Data.ID, pathParam(c, "mainKey"))
-	r.deleteDevice(c, d.MainKey)
+	r.deleteDevice(c, d)
 	return c.JSON(200, map[string]any{})
 }
 
@@ -259,6 +263,7 @@ func (r *supervisorRouter) labelMyInstance(c echo.Context) error {
 	sess := r.requireSession(c)
 	d := requireMyDevice(c, sess.Data.ID, pathParam(c, "mainKey"))
 	labelInstance(c, d.MainKey, pathParam(c, "subKey"))
+	AfterCommit(c, func() { r.publishDevice(d.MainKey) })
 	return c.JSON(200, map[string]any{})
 }
 

@@ -166,6 +166,7 @@ func (router *supervisorRouter) handleWorkerWS(c echo.Context) error {
 		router.workerOS.Remove(key)
 		router.unregistered.drop(key)
 		recordSeen(key, false, "")
+		router.publishDevice(auth.Key)
 		router.reconcileDisconnect(key)
 		// 미완 전송의 reader는 여기서 닫지 않는다 — send가 재접속을 기다려 이어 보내므로
 		// 수명은 send의 defer Close만 정한다(닫으면 다음 시도 SeekTo 실패) — F1(재시도 창)

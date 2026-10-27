@@ -8,6 +8,9 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
+- **(2026-10-27 오후) 진행 중 파트 없음** — 파트(장비 상태 push) 마감 → `INDEX-device-push.md`. master = `feat/device-push` 머지, push = 사용자. 격리 전부 정리
+  - **다음 후보(사용자 요청, 조율 중)**: 디렉토리(폴더) 타일 항목 메뉴에 "장비 디렉토리 열기" — 공유받은 사람에겐 안 보임, 주인 = 장비 온라인일 때만 켜짐. 이해 확인 후 착수
+  - test3(8013) = 젤리·셸·장비 push 미반영(supervisor·worker·웹 다시 빌드)
 - **(2026-10-27 낮) 진행 중 파트 없음** — 파트(폴더에서 터미널) 마감 → `INDEX-dir-shell.md`(그 전 파트(젤리·관리 기록) → `INDEX-jelly.md`). 다음 파트는 `BACKLOG.md`에서 사용자와 고른다
   - git: master = `feat/dir-shell` 머지(10-27), push = 사용자. 개발 서버 8011·8012 꺼짐, VM `nexus-win` 꺼짐, 격리 전부 정리. test3(8013) = 젤리·셸 둘 다 미반영(worker도 새 빌드여야 셸이 됨)
   - 개발 DB `nexus`에 장비 등록 없음(회원 관리 이후) → 개발 환경에서 장비 타일을 쓰려면 아이로니 계정 "내 장비"에서 `irony-MAC-ADDress1`·`win-dev` 등록 + worker env `API_KEY`

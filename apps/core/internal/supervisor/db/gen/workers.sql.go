@@ -27,6 +27,40 @@ func (q *Queries) DeleteWorkerInstance(ctx context.Context, arg DeleteWorkerInst
 	return result.RowsAffected(), nil
 }
 
+const filterDeviceWatchers = `-- name: FilterDeviceWatchers :many
+SELECT u.id FROM users u
+WHERE u.id = ANY($1::bigint[])
+  AND ('admin' = ANY(u.perms)
+    OR EXISTS (SELECT 1 FROM devices d WHERE d.main_key = $2::text AND d.owner_user_id = u.id)
+    OR EXISTS (SELECT 1 FROM nodes n WHERE n.device_key = $2::text AND node_permission(u.id, n.id) >= 10))
+`
+
+type FilterDeviceWatchersParams struct {
+	UserIds []int64
+	MainKey string
+}
+
+// 장비 상태 알림(DEVICE:CHANGE) 받을 계정 = user_ids 중 관리자 + 주인 + 그 장비가 지정된 폴더를 볼 수 있는 계정(ListVisibleWorkerInstances와 같은 범위)
+func (q *Queries) FilterDeviceWatchers(ctx context.Context, arg FilterDeviceWatchersParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, filterDeviceWatchers, arg.UserIds, arg.MainKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOwnedMainKeys = `-- name: ListOwnedMainKeys :many
 SELECT main_key FROM devices WHERE owner_user_id = $1
 `
