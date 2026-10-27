@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VIcon, VSpacer } from 'vuetify/components';
+import { VCard, VCardText, VCardTitle, VDialog, VIcon } from 'vuetify/components';
 import { useProcessPresence } from '../../api/presence.api';
 import { levelTitle, PERM_OWNER } from '../../util/shareView.util';
 import { agoText, lastSeenText, parseUserAgent } from '../../util/presenceView.util';
@@ -31,7 +31,7 @@ const tabText = (t: { connected: boolean, viewing: boolean, sizeOwner: boolean, 
 
 <template>
 <v-dialog v-model="open" max-width="460" min-width="296">
-    <v-card :loading="query.isFetching.value">
+    <v-card :loading="query.isFetching.value" class="ct-card">
         <v-card-title>{{ name }} 접속 상태</v-card-title>
         <v-card-text>
             <p v-if="query.isPending.value" class="note">불러오는 중…</p>
@@ -50,10 +50,11 @@ const tabText = (t: { connected: boolean, viewing: boolean, sizeOwner: boolean, 
                 </div>
             </div>
         </v-card-text>
-        <v-card-actions>
-            <v-spacer />
-            <v-btn variant="flat" color="primary" @click="open = false">닫기</v-btn>
-        </v-card-actions>
+        <div class="ct-actions">
+            <span class="ct-grp ct-grp--r">
+                <button type="button" class="ct-seg ct-seg--primary" @click="open = false">닫기</button>
+            </span>
+        </div>
     </v-card>
 </v-dialog>
 </template>

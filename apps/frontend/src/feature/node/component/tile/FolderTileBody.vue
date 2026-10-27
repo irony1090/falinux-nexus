@@ -52,6 +52,7 @@ const error = computed(() => listQuery.error.value ?? pathQuery.error.value);
 // 지금 보는 폴더와 실제로 적용되는 장비(자기 것, 없으면 가장 가까운 상위 폴더 것)
 const current = computed(() => path.value[path.value.length - 1]);
 const deviceOwner = computed(() => [...path.value].reverse().find(p => !!p.deviceKey));
+const isShort = (name: string) => [...name].length <= 2;   // 경로 줄 칸 최소 폭(2.2em)을 안 주는 이름
 const deviceInherited = computed(() => !!deviceOwner.value && deviceOwner.value.id !== current.value?.id);
 
 // 경로 직접 입력 — 경로-7(화면: 폴더 타일 입력), REF-path-input.md. 시작 = 기본 목록(앞의 `기본/`은 있어도 없어도)
@@ -347,12 +348,12 @@ const onDrop = (e: DragEvent) => {
             <!-- [경로·새로고침] / [도구] — 경로 자리가 최소 폭보다 좁아지면 도구가 둘째 줄(오른쪽 끝)로 -->
             <span class="lead">
                 <span class="path">
-                    <button v-if="nodeId !== null" @click="navigate(tileId, null)">기본</button>
+                    <button v-if="nodeId !== null" class="short" @click="navigate(tileId, null)">기본</button>
                     <span v-else class="cur">기본</span>
                     <template v-for="(p, i) in path" :key="p.id">
                         <span class="sep">/</span>
                         <span v-if="i === path.length - 1" class="cur">{{ p.name }}</span>
-                        <button v-else @click="navigate(tileId, p.id)">{{ p.name }}</button>
+                        <button v-else :class="{ short: isShort(p.name) }" @click="navigate(tileId, p.id)">{{ p.name }}</button>
                     </template>
                     <span v-if="nodeId !== null && !path.length">/ …</span>
                 </span>
@@ -537,6 +538,7 @@ const onDrop = (e: DragEvent) => {
         > * { flex: 0 1000 auto; min-width: 2.2em; overflow: hidden; text-overflow: ellipsis; }   // 앞쪽 경로는 글자 하나 + …까지만 줄어든다
         > .sep { flex: none; min-width: 0; }
         > .cur { flex-shrink: 1; min-width: 0; }
+        > .short { flex: none; min-width: 0; }   // 글자가 최소 폭보다 짧은 칸은 빈 여백이 생기지 않게
         button { color: rgb(var(--v-theme-primary)); }
     }
     .cur { font-weight: vars.$weight-md; }

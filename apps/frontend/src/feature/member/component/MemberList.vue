@@ -119,8 +119,8 @@ const loading = computed(() => (usersTab.value ? usersQuery?.isPending.value : d
             <v-icon icon="mdi-magnify" size="18" class="ico" />
             <input v-model="qInput" type="search" class="mb-input" :placeholder="usersTab ? '닉네임 검색' : admin ? '이름·주인·라벨 검색' : '이름·라벨 검색'" aria-label="검색" />
         </label>
-        <div class="chips" role="group" aria-label="필터">
-            <button v-for="c in chips" :key="c.key" type="button" class="mb-btn chip" :class="{ 'mb-btn--on': filter === c.key }"
+        <div class="mb-grp mb-grp--sm chips" role="group" aria-label="필터">
+            <button v-for="c in chips" :key="c.key" type="button" class="mb-btn" :class="{ 'mb-btn--on': filter === c.key }"
                 :aria-pressed="filter === c.key" @click="pickFilter(c.key)"
             >{{ c.label }} <span class="n">{{ c.n }}</span></button>
         </div>
@@ -193,7 +193,7 @@ const loading = computed(() => (usersTab.value ? usersQuery?.isPending.value : d
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 10px 12px;
+    padding: 10px;   // 좌우 = 위 여백
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
 .search {
@@ -202,18 +202,13 @@ const loading = computed(() => (usersTab.value ? usersQuery?.isPending.value : d
     .ico { position: absolute; left: 12px; top: 7px; opacity: 0.6; pointer-events: none; }
     .mb-input { padding-left: 36px; }
 }
+// 필터 묶음 = 왼쪽 끝 곧게 / 한 페이지 묶음 = 오른쪽 끝 곧게(줄 좌우 여백 10px, REF-ui-chaltteok.md 시안 A′)
 .chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-.chip {
-    height: 28px;
-    padding: 0 12px;
-    border-radius: 999px;
-    box-shadow: none !important;
-    @include vars.font('label-medium');
-    font-weight: vars.$weight-md;
+    align-self: flex-start;
+    border-radius: 0 999px 999px 0;
+    > .mb-btn { padding: 0 12px; }
+    > .mb-btn:first-child { padding-left: 12px; }
+    > .mb-btn:last-child { padding-right: 14px; }
 }
 .per {
     display: flex;
@@ -221,8 +216,8 @@ const loading = computed(() => (usersTab.value ? usersQuery?.isPending.value : d
     gap: 8px;
     @include vars.font('body-small');
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    .range { flex: 1; min-width: 0; }
-    .sizes { height: 26px; > .mb-btn { min-width: 34px; padding: 0 8px; } }
+    .range { flex: 1; min-width: 0; padding-left: 2px; }
+    .sizes { height: 26px; border-radius: 999px 0 0 999px; > .mb-btn { min-width: 34px; padding: 0 8px; } > .mb-btn:first-child { padding-left: 12px; } > .mb-btn:last-child { padding-right: 10px; } }
 }
 .pager {
     flex: none;

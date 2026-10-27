@@ -42,6 +42,8 @@
 
 - **VM에서 보이는 주소로 화면 시험(2026-10-23)**: `http://172.17.0.1:3001`은 보안 컨텍스트가 아니라 `crypto.randomUUID()`가 없음 -> 새 타일이 안 열림(콘솔 에러만). Chrome `--unsafely-treat-insecure-origin-as-secure=<주소>`로 띄움. 쿠키 때문에 API·화면을 같은 호스트(172.17.0.1)로 맞출 것 → `REF-worker-dir-list.md` "Windows 확인"
 
+- 함정(2026-10-27): `setsid cmd &`의 `$!` = setsid pid(실제 프로세스 아님) → 끄기는 `/proc/<pid>/exe` 경로로 고른다 · `pgrep -f '<문자열>'`은 그 문자열을 담은 **내 bash 명령도** 잡아 자기를 죽임 → exe가 node인지 확인 후 kill · 헤드리스 `<input readonly>`는 키보드 커서가 안 움직임(Chromium) → 상세 `REF-ui-chaltteok.md`
+
 ## 테스트 클라이언트 함정
 - 테스트 클라이언트 함정 모음: `PATCH /nodes/:id` 본문은 필드마다 `{valid: true, value: x}`(`internal/patch`, 그냥 값이면 400) / Vuetify 다이얼로그 선택자는 `.v-dialog.v-overlay--active`(두 클래스가 같은 요소) / 소켓 프레임 binary / exec는 `X-Tab-Id` 필수 / STATUS `status` 숫자 / 브라우저 쿠키 도메인 `localhost` / `users.identification`은 해시 저장 / 화면 밖 Grid xterm은 `innerText`에 안 잡힘(`.xterm-rows` `textContent`) / API로 만든 노드는 열린 목록에 안 뜸(`[title="새로고침"]`) / Vite가 heredoc으로 막 만든 파일을 빈 내용으로 캐시할 수 있음(`touch`) / 세션 쿠키 값에 `=` 있을 수 있음(첫 `=`에서 자를 것) / exec 직후 크기 0x0이라 resize 먼저(소유 탭) / vim 테스트는 파일 이름을 매번 다르게(swap 파일)
 

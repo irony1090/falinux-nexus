@@ -2,7 +2,7 @@
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { computed, ref, watch, type PropType } from 'vue';
 import { useDisplay } from 'vuetify';
-import { VBtn, VCard, VCardActions, VCardTitle, VDialog, VTextarea } from 'vuetify/components';
+import { VCard, VCardTitle, VDialog, VTextarea } from 'vuetify/components';
 import { getNode, useNodeActions, type NodeResponse } from '../../api/node.api';
 
 // 스크립트 내용(nodes.content) 브라우저 편집 — REF-node-ui-link.md "4(스크립트 편집)"
@@ -88,7 +88,7 @@ const onTab = (e: KeyboardEvent) => {
 
 <template>
 <v-dialog :model-value="open" max-width="760" :height="xs ? undefined : 640" :fullscreen="xs" @update:model-value="onClose">
-    <v-card class="ScriptEditDialog"
+    <v-card class="ScriptEditDialog ct-card"
         :loading="loading || saving"
         @keydown.ctrl.s.prevent="save"
         @keydown.meta.s.prevent="save"
@@ -109,11 +109,13 @@ const onTab = (e: KeyboardEvent) => {
             :disabled="loading"
             @keydown.tab.exact.prevent="onTab"
         />
-        <v-card-actions>
+        <div class="ct-actions">
             <span class="hint">Ctrl+S 저장</span>
-            <v-btn variant="text" :disabled="saving" @click="onClose">닫기</v-btn>
-            <v-btn variant="flat" color="primary" :disabled="loading || saving || !dirty" @click="save">저장</v-btn>
-        </v-card-actions>
+            <span class="ct-grp ct-grp--r">
+                <button type="button" class="ct-seg" :disabled="saving" @click="onClose">닫기</button>
+                <button type="button" class="ct-seg ct-seg--primary" :disabled="loading || saving || !dirty" @click="save">저장</button>
+            </span>
+        </div>
     </v-card>
 </v-dialog>
 </template>
@@ -155,6 +157,7 @@ const onTab = (e: KeyboardEvent) => {
     }
 }
 .hint {
+    align-self: center;
     margin-right: auto;
     padding-left: vars.$spacing-md;
     @include vars.font('body-small');

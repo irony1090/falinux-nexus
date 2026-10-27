@@ -53,12 +53,19 @@
 .ct-seg--share { --c: var(--v-theme-share); background: rgba(var(--c), 0.14); }
 .ct-seg--error { --c: var(--v-theme-error); background: rgba(var(--c), 0.12); }
 .ct-seg--accent { --c: var(--v-theme-primary); background: rgba(var(--c), 0.14); }
+.ct-seg--warning { --c: var(--v-theme-warning); background: rgba(var(--c), 0.14); }
 .ct-seg--primary {
 	background: rgb(var(--v-theme-primary));
 	color: rgb(var(--v-theme-on-primary));
 	&:is(button):hover:not(:disabled) { background: rgba(var(--v-theme-primary), 0.85); }
 }
-.ct-seg--primary + .ct-seg, .ct-seg + .ct-seg--primary { box-shadow: none; }
+.ct-seg--danger {
+	background: rgb(var(--v-theme-error));
+	color: rgb(var(--v-theme-on-error));
+	&:is(button):hover:not(:disabled) { background: rgba(var(--v-theme-error), 0.85); }
+}
+.ct-seg--primary + .ct-seg, .ct-seg + .ct-seg--primary,
+.ct-seg--danger + .ct-seg, .ct-seg + .ct-seg--danger { box-shadow: none; }
 
 // 창 아래 버튼 = 창 오른쪽 아래 모서리에 붙는 끝 블록. 모서리 곡선은 창(.ct-card)이 자른다
 .ct-card { overflow: hidden; }

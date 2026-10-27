@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VForm, VTextField } from 'vuetify/components';
+import { VCard, VCardText, VCardTitle, VDialog, VForm, VTextField } from 'vuetify/components';
 
 // 노드 이름 입력 — 생성·이름 변경 공용
 const props = defineProps({
@@ -42,7 +42,7 @@ const onSubmit = () => {
 
 <template>
 <v-dialog v-model="open" max-width="396" min-width="296" :persistent="loading">
-    <v-card :loading="loading" :disabled="loading">
+    <v-card :loading="loading" :disabled="loading" class="ct-card">
         <v-card-title>{{ title }}</v-card-title>
         <v-form @submit.prevent="onSubmit">
             <v-card-text>
@@ -53,10 +53,12 @@ const onSubmit = () => {
                     @update:model-value="message = undefined"
                 />
             </v-card-text>
-            <v-card-actions>
-                <v-btn variant="text" @click="open = false">취소</v-btn>
-                <v-btn type="submit" variant="flat" color="primary">확인</v-btn>
-            </v-card-actions>
+            <div class="ct-actions">
+                <span class="ct-grp ct-grp--r">
+                    <button type="button" class="ct-seg" @click="open = false">취소</button>
+                    <button type="submit" class="ct-seg ct-seg--primary">확인</button>
+                </span>
+            </div>
         </v-form>
     </v-card>
 </v-dialog>

@@ -281,7 +281,7 @@ watch(lastDone, d => {
                         <span v-if="i === crumbs.length - 1" class="cur">
                             <v-icon v-if="!c.name" size="13" icon="mdi-harddisk" />{{ c.name || '드라이브' }}
                         </span>
-                        <button v-else @click="go(c.path)">
+                        <button v-else :class="{ short: !!c.name && [...c.name].length <= 2 }" @click="go(c.path)">
                             <v-icon v-if="!c.name" size="13" icon="mdi-harddisk" />{{ c.name || '드라이브' }}
                         </button>
                     </template>
@@ -443,6 +443,7 @@ watch(lastDone, d => {
         > * { flex: 0 1000 auto; min-width: 2.2em; overflow: hidden; }   // 앞쪽 경로는 글자 하나 + …까지만 줄어든다
         > .sep { flex: none; min-width: 0; opacity: 0.5; }
         > .cur { flex-shrink: 1; min-width: 0; }
+        > .short { flex: none; min-width: 0; }   // 글자가 최소 폭보다 짧은 칸(`/` 등)은 빈 여백이 생기지 않게
         button { color: rgb(var(--v-theme-primary)); }
     }
     .path > button, .cur { display: inline-flex; align-items: center; gap: 2px; }
