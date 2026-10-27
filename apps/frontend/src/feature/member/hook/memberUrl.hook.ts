@@ -13,12 +13,10 @@ type Query = Record<string, string>
 const str = (v: LocationQuery[string]) => typeof v === 'string' && v ? v : undefined
 const norm = (q: LocationQuery): Query => Object.fromEntries(Object.entries(q).flatMap(([k, v]) => { const s = str(v); return s ? [[k, s]] : [] }))
 const same = (a: Query, b: Query) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort())
-// 기록이 쌓이는 값 — 주소-1(push): 타일 구성 t · 목록 종류 tab · 필터 f. 나머지(p·n·q·view)는 replace(주소-2)
-const pushPart = (q: Query) => JSON.stringify([q.t, q.tab, q.f])
 
 // 관리 페이지 URL 저장 — 새로고침·뒤로 가기·보드 메뉴로 다시 들어와도 같은 화면. REF-member-ui.md 주소-1~주소-6(보드 tileUrl.hook과 같은 틀)
 export const useMemberUrl = (ctx: ReturnType<typeof provideMemberBoard>) => {
-    const { page, admin, tab, q, filter, pageNo, size, tiles, grids, anchorKey, restoreView, replaceNext } = ctx
+    const { page, admin, tab, q, filter, pageNo, size, tiles, grids, anchorKey, restoreView } = ctx
     const route = useRoute()
     const router = useRouter()
     const lastKey = `member.last.${page}`
@@ -41,16 +39,14 @@ export const useMemberUrl = (ctx: ReturnType<typeof provideMemberBoard>) => {
     let pending = false
     let viewTimer: ReturnType<typeof setTimeout> | undefined
 
-    const write = (force?: 'replace') => {
+    // 주소-1(진입만 push): 페이지 안에서 바뀌는 값은 전부 replace — 새로고침은 유지, 뒤로 가기는 바로 나감
+    const write = () => {
         if (pending) return
         const next = current()
         const now = norm(route.query)
         written = next
         writeUserPref(lastKey, next)   // 주소-6(마지막 구성)
-        if (same(next, now)) return
-        const push = !force && !replaceNext.value && pushPart(next) !== pushPart(now)
-        replaceNext.value = false
-        void (push ? router.push({ query: next as LocationQueryRaw }) : router.replace({ query: next as LocationQueryRaw }))
+        if (!same(next, now)) void router.replace({ query: next as LocationQueryRaw })
     }
 
     const apply = (raw: Query) => {
@@ -82,7 +78,7 @@ export const useMemberUrl = (ctx: ReturnType<typeof provideMemberBoard>) => {
         if (waitGrid) return     // Grid 측정 전 — 스크롤할 자리가 없다
         if (raw.view) await restoreView(raw.view)
         pending = false
-        write('replace')
+        write()
     }
     // 원천은 route 글자열만 — Grid 유무를 원천에 넣으면 화면에서 연 첫 타일(push가 아직 안 돌아온 때)에
     // 옛 URL을 다시 적용해 타일을 지운다(폰에서 첫 타일로 안 넘어가던 원인, 2026-10-26)

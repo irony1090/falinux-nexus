@@ -121,12 +121,8 @@ export const provideMemberBoard = (page: MemberPageKind) => {
         // 다 닫으면 목록으로(폰 = 첫 칸, PC는 목록이 늘 보여 그대로)
         if (!tiles.value.length) void nextTick(() => goCol(0))
     }
-    // 주소-5(없는 대상): 지워진 회원·장비 타일은 닫고, URL은 기록을 쌓지 않고 덮는다(뒤로 가기가 같은 자리에서 맴돌지 않게)
-    const replaceNext = ref(false)
-    const dropMissing = (key: string) => {
-        replaceNext.value = true
-        close(key)
-    }
+    // 주소-5(없는 대상): 지워진 회원·장비 타일은 닫는다(URL은 늘 replace라 기록이 쌓이지 않음)
+    const dropMissing = close
     // 화-11(경로): 앞 조각 = 그 타일로, 닫혀 있으면 자식 바로 앞에 다시 엶
     const openParent = (child: MemberTile) => {
         const p = child.parent
@@ -199,7 +195,7 @@ export const provideMemberBoard = (page: MemberPageKind) => {
         tab, q, filter, pageNo, size, pickTab,
         tiles, activeKey, area, layout, grids, lead,
         scrollEl, scrollX, viewW, span, step, maxCol, pos, dotCount, scrubbing,
-        pager, goCol, goDot, colRange, reveal, anchorKey, restoreView, setActive, open, close, dropMissing, replaceNext, openParent, setSize, posOf, activate, freshKeys, replaceTile,
+        pager, goCol, goDot, colRange, reveal, anchorKey, restoreView, setActive, open, close, dropMissing, openParent, setSize, posOf, activate, freshKeys, replaceTile,
     }
     provide(MEMBER_BOARD_KEY, ctx)
     return ctx

@@ -79,7 +79,7 @@ watch(overview, o => { if (o) close(); });
 <template>
 <teleport to="body">
     <!-- 늘 마운트(폭 측정·드래그 상태 유지), 보이기만 바꾼다. mousedown 막기 = xterm 포커스를 뺏지 않게 -->
-    <div ref="boxEl" class="PagerPopup" :class="{ shown }"
+    <div ref="boxEl" class="PagerPopup jelly-pop" :class="{ shown }"
         :style="{ left: `${at.x}px`, top: `${at.y}px`, width: `${boxW}px` }"
         aria-hidden="true"
         @mousedown.prevent
@@ -124,7 +124,8 @@ watch(overview, o => { if (o) close(); });
     display: flex;
     height: 38px;
     --pill-h: 38px;
-    transform: translate(-50%, -50%);
+    // transform이면 젤리 scale이 옮기기 전 상자 가운데(= 화면상 오른쪽 아래) 기준이 된다 — translate 속성으로(REF-jelly.md)
+    translate: -50% -50%;
     visibility: hidden;
     pointer-events: none;
     &.shown { visibility: visible; }
