@@ -3,6 +3,7 @@ package router
 import (
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -65,4 +66,12 @@ func directRunner(body protocol.ProcessSpec) protocol.ProcessSpec {
 		return body
 	}
 	return scriptRunner(body, body.Cmd)
+}
+
+// shellPath: "여기서 셸"의 셸 = Windows PowerShell(사용자 결정 2026-10-27). PATH에 없으면 기본 설치 위치
+func shellPath() string {
+	if p, err := exec.LookPath("powershell.exe"); err == nil && filepath.IsAbs(p) {
+		return p
+	}
+	return filepath.Join(os.Getenv("SystemRoot"), `System32\WindowsPowerShell\v1.0\powershell.exe`)
 }
