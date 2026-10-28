@@ -70,6 +70,9 @@
 - 함정: v-input은 `flex: 1 1 auto` + 칸 줄 `1fr` -> 세로 flex 상자에서 칸이 늘어나 글자가 위로 쏠림. `.ct-field`에서 막아 둠 → `REF-ct-field.md` "함정"
 - 예외: 경로 직접 입력칸(`PathInput.vue`, 자체 자동완성) · 숨은 파일 선택
 
+## 닫은 뒤 active
+- 2026-10-28 파트(닫은 뒤 active). active 타일이 닫히면(패널·머리 줄 ×·터미널 종료 뒤·다른 보드로 이동) 위치 번호 이웃 = 같은 번호(다음 타일), 마지막이면 앞 번호를 active + 화면 밖이면 `reveal`(포커스는 안 옮김). 최소화·보드 바꾸기 = 해제만. 보드 = `tileGrids.store` `watch([posOf, hash])`, 관리 = `memberBoard.store` `close` → `REF-close-active.md`
+
 ## 패널 창 버튼
 - 2026-10-28 파트(패널 창 버튼). Ctrl+Alt 컨트롤 패널(보드 `PagerPopup`·관리 `MemberPagerPopup`) 왼쪽 = active 타일 머리 줄 창 버튼 `[숨기기 | 크기 | 닫기]` 중 그 타일에 있는 것만(비활성으로 자리 차지 X), 동작 = 머리 줄과 같음. 보드는 `TileFrame`이 `node/store/tileHeadActs.store.ts`에 등록 -> 머리 줄 창 버튼 조건·동작을 바꾸면 등록도 같이. 패널엔 위치 글자 없음·도트 자리 최소 3개 폭
 - 미해결 1건(사용자 브라우저에서 2번 타일 패널이 빔, 재현 못 함) → `REF-pager-head-btns.md` "미해결"

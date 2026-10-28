@@ -50,3 +50,6 @@
 
 ## 2026-10-28 파트(패널 창 버튼) 마감 때 내려보냄
 - **(2026-10-28) 진행 중 파트 = 패널 창 버튼**(브랜치 `feat/pager-head-btns`, 커밋 전) → `REF-pager-head-btns.md`. 패널-1~3 끝, 격리 헤드리스 확인 OK. **사용자 화면 확인 대기** — 격리 띄워 둠: http://localhost:3001 (alice/pw), 관리 페이지 `/admin`. 격리 worker에 시험 셸 터미널 2개(하나 최소화) 남음 -> 마감 때 정리. "타일 ESC로 닫기"는 `BACKLOG.md` 첫 줄 그대로
+
+## 2026-10-28 파트(닫은 뒤 active) 마감 때 내려보냄
+- **(2026-10-28) 진행 중 파트 = 닫은 뒤 active**(브랜치 `feat/close-active`, 커밋 전) → `REF-close-active.md`. 구현·격리 헤드리스 확인 OK. **사용자 화면 확인 대기** — 격리 띄워 둠: http://localhost:3001 (alice/pw), worker TMPDIR `/tmp/claude-1000/pr-t`, 시험 셸 1개(최소화) 남음 -> 마감 때 정리
