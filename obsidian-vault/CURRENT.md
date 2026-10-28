@@ -9,7 +9,7 @@
 
 ## ⚠️ 다음 세션 시작 시
 - **(2026-10-28) 진행 중 파트 없음** — 오늘 마감: 파트(경로 줄 정리) `INDEX-path-row` → 파트(패널 창 버튼) `INDEX-pager-head-btns`(미해결 1건 → `BACKLOG.md`) → 파트(닫은 뒤 active) `INDEX-close-active`. 셋 다 master 머지, push = 사용자. 격리 환경 끔, DB `nexus_member_tmp`는 원래대로 남김. 다음 파트 후보 = `BACKLOG.md`(첫 줄 "타일 ESC로 닫기")
-  - 집 서버 = mochi 배포 OK(10-27 밤) → `REF-home-deploy.md` "mochi 배포 묶음" / 보드 worker 2대 mochi → `REF-build.md` "보드 worker 교체" / test3(8013) = `build/mochi` exe(Go 변경 없음) + **웹만 오늘 3파트 반영본으로 교체**(`build/mochi/web`, 옛 웹 `web.bak-*`)
+  - 집 서버 = mochi exe + **웹만 10-28 3파트 반영본으로 교체 완료(사용자)** → `REF-home-deploy.md` "웹만 교체" · cloudflared 공지 = 조치 불필요(10.3) / 보드 worker 2대 mochi → `REF-build.md` "보드 worker 교체" / test3(8013) = `build/mochi` exe(Go 변경 없음) + **웹만 오늘 3파트 반영본으로 교체**(`build/mochi/web`, 옛 웹 `web.bak-*`)
 - **오늘 마감**(2026-10-27): 파트(폴더에서 터미널) `INDEX-dir-shell` → 파트(장비 상태 push) `INDEX-device-push` → 파트(칸 메뉴 장비 디렉토리) `INDEX-row-open-dir` → 파트(찰떡 마무리) `INDEX-ui-chaltteok` → 파트(찰떡 입력칸) `INDEX-ct-field`. push = 사용자
   - test3(8013) = **`build/mochi`**(태그 `MOCHI-261027`, 사용자 빌드·재시작 2026-10-27 밤, master `28053b7` = 오늘 6파트 전부 반영) / 개발 DB `nexus`에 장비 등록 없음 → 장비 타일 쓰려면 "내 장비"에서 `irony-MAC-ADDress1`·`win-dev` 등록 + worker env `API_KEY` / VM `nexus-win` 꺼짐 / 옛 줄 원문 → `history/current-archive.md`
 - **(2026-10-28) 보드 worker 2대 mochi로 교체 끝** — `fa24-PID`·`imx8mp-f24` test3 등록 OK → `REF-build.md` "보드 worker 교체" / 집 서버 cloudflared 공지 = 조치 불필요 → `REF-home-server.md` "cloudflared 보안 공지"
