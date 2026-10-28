@@ -26,7 +26,7 @@
 - 수정: 감시 원천 = route 글자열만 + `waitGrid`(URL에 타일이 있는데 측정 전이라 미룬 적용) 있을 때만 `grids 있음` 감시에서 `sync` 다시. 확인 = 첫·두 번째 열기 이동, 새로고침 뒤 보던 타일·타일 2개 복원
 
 ## 2026-10-26 밤 — 빈 페이지 도트 · 다 닫으면 목록으로 (브랜치 `fix/phone-layout`)
-- 사용자(폰 사진 `user/Screenshot_20261026_193456_Edge.jpg`): 내 장비에서 마지막 상세 타일을 닫으면 푸터 도트 알약이 찌그러짐
+- 사용자(폰 사진 `user/phone-bug-1026/Screenshot_20261026_193456_Edge.jpg`): 내 장비에서 마지막 상세 타일을 닫으면 푸터 도트 알약이 찌그러짐
 - 원인: 타일 0개여도 빈 안내 페이지(`MemberPage` `.empty`)는 한 칸으로 남고 화면도 거기 있는데 `dotCount = lead + grids.length` = 1 -> 위치 표시(pos 1)가 도트 줄 폭 밖에 그려져 잘림
 - 수정: `dotCount = lead + max(1, grids.length)` + 사용자 요청 가(화면 이동만) — `close`에서 0개가 되면 `nextTick` 뒤 `goCol(0)`(폰 = 목록 칸, PC 변화 없음). 나(목록에 active 표시)는 안 함. 관리자 페이지도 같은 store라 같이 적용
 - 확인 = 사용자 폰(test3 `build/api_prefix` 웹 교체본)

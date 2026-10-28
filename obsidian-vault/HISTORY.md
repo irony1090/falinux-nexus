@@ -69,8 +69,9 @@
 | `history/windows-vm.md` | Windows VM `nexus-win`(2026-10-23 `windows-worker`에서 분할) | 10-23 경로 직접 입력 확인, win-dev를 test3에 다시 붙임 |
 | `history/demo.md` | 시연 데이터(2026-10-16 신설) | 10-16 안 C(생산 지그 시나리오) 등록, 브라우저 경유 실행 미확인 |
 | `history/design-chaltteok.md` | 찰떡 규칙(디자인 규칙, 2026-10-25 신설) | 10-25 이름 확정·아티팩트·REF 정리 → 파트(찰떡 UI) 시안·다′·구현·test3 웹 교체 |
-| `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 cloudflared 보안 공지(eMudhra) = 10.3이라 조치 불필요 |
+| `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환(iptime + Caddy) 회사 몫 끝, 집에서 1·2·6 남음 |
 | `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-27 밤 mochi 묶음 `update.ps1` OK |
+| `history/file-view.md` | 장비 파일 편집기·보기 타일(2026-10-28 신설, 구상) | 10-28 파트(파일 편집기) 마감(편집·새 파일·칸 메뉴 내려받기, Windows 확인) · 보기 타일 V1~V5 확인 대기 |
 | `history/worker-screen.md` | worker 화면 송출(아이디어) | 10-15 나(VNC 터널 + noVNC) 추천 · 10-25 VNC 서버 준비 방식(내려받기·설치) 재논의, 보류 |
 | `history/node-ui.md` | node 카탈로그 UI 컨셉 | 08-10 그리드 직접 제작 확정, termspace 영감 피벗 |
 | `history/node-ui-overview.md` | 전체보기 · 화면 내비게이션 | 10-06 active 타일 표시 = 나(약하게 흐림) + 위치 번호 단축키 |
