@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import { usePagerOpen, type PagerPoint } from '@/feature/widget/hook/pagerOpen.hook';
+import { tileHeadActs } from '../store/tileHeadActs.store';
 import { useTileGrids } from '../store/tileGrids.store';
 import GridPager from './GridPager.vue';
 import TileSizeCard from './tile/TileSizeCard.vue';
@@ -65,6 +66,8 @@ const openSize = async (e: MouseEvent) => {
     const w = cardEl.value?.offsetWidth ?? 0, h = cardEl.value?.offsetHeight ?? 0;
     cardAt.value = { x: clamp(cardAt.value.x, EDGE + w / 2, vw - EDGE - w / 2), y: clamp(cardAt.value.y, EDGE + h / 2, vh - EDGE - h / 2) };
 }
+// 창 버튼 = active 타일 머리 줄 [숨기기 | 크기 | 닫기] 중 그 타일에 있는 것만(파트(패널 창 버튼))
+const acts = computed(() => tileHeadActs(activeId.value));
 const goOverview = () => {
     close();
     enterOverview();
@@ -85,16 +88,27 @@ watch(overview, o => { if (o) close(); });
         @mousedown.prevent
         @click="onPillClick"
     >
-        <grid-pager ref="pagerRef" pull="both">
+        <grid-pager ref="pagerRef" pull="both" :count="false" :min-dots="3">
             <!-- Q54(버튼 모양·자리): 크기 = 맨 왼쪽 / 전체보기 = 푸터와 같은 모양, 아이콘만 -->
+            <!-- 창 버튼 = active 타일 머리 줄과 같은 것만, 투명 칸 + 1px 선. 슬롯은 늘 둔다(비면 폭 0 — GridPager가 폭을 다시 잼) -->
             <template #start>
-                <v-btn class="size" variant="text" rounded="0" height="100%" icon
-                    :disabled="!activeId"
-                    title="active 타일 크기"
-                    aria-label="active 타일 크기"
+                <v-btn v-if="acts?.minimize" class="hb" variant="text" rounded="0" height="100%" icon
+                    title="숨기기" aria-label="active 타일 숨기기"
+                    @click.stop="acts?.minimize?.()"
+                >
+                    <v-icon icon="mdi-window-minimize" size="18" />
+                </v-btn>
+                <v-btn v-if="acts?.sizable" class="hb" variant="text" rounded="0" height="100%" icon
+                    title="active 타일 크기" aria-label="active 타일 크기"
                     @click.stop="openSize"
                 >
                     <v-icon icon="mdi-resize" size="18" />
+                </v-btn>
+                <v-btn v-if="acts?.close" class="hb" variant="text" rounded="0" height="100%" icon
+                    :disabled="acts?.closeDisabled" :title="acts?.closeTitle" aria-label="active 타일 닫기"
+                    @click.stop="acts?.close?.()"
+                >
+                    <v-icon icon="mdi-close" size="18" />
                 </v-btn>
             </template>
             <template #end>
@@ -132,7 +146,7 @@ watch(overview, o => { if (o) close(); });
     // 상자는 클릭을 통과시키고 알약만 받는다
     &.shown :deep(.FootPill) { pointer-events: auto; }
 }
-.size { border-right: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+.hb { border-right: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
 .PagerPopup__card {
     position: fixed;
     z-index: 2060;

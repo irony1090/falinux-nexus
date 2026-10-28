@@ -11,9 +11,9 @@ import MemberSizeCard from './MemberSizeCard.vue';
 const EDGE = 16;
 
 // 관리 페이지 컨트롤 패널 — 보드 PagerPopup과 같은 여는 길(Ctrl+Alt 누르는 동안 / 길게 누르기, usePagerOpen).
-// 알약 = [크기 | Grid 도트](전체보기 없음), 도트 끌기·당기기 = 보드와 같음. 크기 = active 타일, 카드는 버튼 가운데(Q56)·카드 뜨면 알약 숨김(Q55)
+// 알약 = [크기 | 닫기 | Grid 도트](전체보기 없음, 창 버튼 = 관리 타일 머리 줄과 같음 — 파트(패널 창 버튼)), 도트 끌기·당기기 = 보드와 같음. 크기 = active 타일, 카드는 버튼 가운데(Q56)·카드 뜨면 알약 숨김(Q55)
 // Ctrl+Alt+숫자 = 위치 번호로 active 이동(useDigitShortcut)
-const { activeKey, tiles, activate } = useMemberBoard();
+const { activeKey, tiles, activate, close: closeTile } = useMemberBoard();
 
 const dotsRef = ref<InstanceType<typeof MemberDots>>();
 const boxEl = ref<HTMLElement>();
@@ -80,16 +80,22 @@ watch(dragging, d => { if (!d && touchOpen.value) touchOpen.value = false; });
         @mousedown.prevent
         @click="onPillClick"
     >
-        <member-dots ref="dotsRef" pull="both">
+        <member-dots ref="dotsRef" pull="both" :min-dots="3">
             <template #start>
-                <v-btn class="size" variant="text" rounded="0" height="100%" icon
-                    :disabled="!activeKey"
-                    title="active 타일 크기"
-                    aria-label="active 타일 크기"
-                    @click.stop="openSize"
-                >
-                    <v-icon icon="mdi-resize" size="18" />
-                </v-btn>
+                <template v-if="activeKey">
+                    <v-btn class="hb" variant="text" rounded="0" height="100%" icon
+                        title="active 타일 크기" aria-label="active 타일 크기"
+                        @click.stop="openSize"
+                    >
+                        <v-icon icon="mdi-resize" size="18" />
+                    </v-btn>
+                    <v-btn class="hb" variant="text" rounded="0" height="100%" icon
+                        title="닫기" aria-label="active 타일 닫기"
+                        @click.stop="closeTile(activeKey)"
+                    >
+                        <v-icon icon="mdi-close" size="18" />
+                    </v-btn>
+                </template>
             </template>
         </member-dots>
     </div>
@@ -115,7 +121,7 @@ watch(dragging, d => { if (!d && touchOpen.value) touchOpen.value = false; });
     pointer-events: none;
     &.shown { visibility: visible; pointer-events: auto; }
 }
-.size { border-right: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+.hb { border-right: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
 .MemberPagerPopup__card {
     position: fixed;
     z-index: 2060;

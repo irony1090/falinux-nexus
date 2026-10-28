@@ -52,7 +52,8 @@
 - 칸 메뉴 장비 디렉토리(마감, 폴더 칸 ⋮ "장비 디렉토리 열기") → `INDEX-row-open-dir.md` (row-open-dir)
 - 찰떡 마무리(마감, 경로 줄 여백·관리자 필터·남은 창 5개·상세 상태 칸) → `INDEX-ui-chaltteok.md` (ui-chaltteok)
 - 찰떡 입력칸(마감, 입력칸·고르기·체크 = Ct* 컴포넌트 + 관리 타일 포커스 선) → `INDEX-ct-field.md` (ct-field)
-- **경로 줄 정리(마감, 경로 줄 버튼 묶음·이동 버튼 경로 왼쪽·가로 스크롤)** → `INDEX-path-row.md` (path-row)
+- 경로 줄 정리(마감, 경로 줄 버튼 묶음·이동 버튼 경로 왼쪽·가로 스크롤) → `INDEX-path-row.md` (path-row)
+- **패널 창 버튼(마감, 컨트롤 패널에 active 타일 [숨기기|크기|닫기]·위치 글자 빼기·도트 최소 폭, 미해결 1건)** → `INDEX-pager-head-btns.md` (pager-head-btns)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.
