@@ -17,7 +17,6 @@ import FolderTileBody from './FolderTileBody.vue';
 import RootTabs from './RootTabs.vue';
 import RootTerminalList from './RootTerminalList.vue';
 import TileFrame from './TileFrame.vue';
-import TileNavButtons from './TileNavButtons.vue';
 
 // 폴더 타일 — 계정 폴더 노드 목록. 루트면 탭 `[파일] [터미널 N · 최소화 n]`
 const props = defineProps({
@@ -95,10 +94,6 @@ const remoteUsers = computed(() => {
         <v-icon v-if="pinned" size="14" icon="mdi-pin" color="warning" title="타일 고정 — 다른 계정이 실행한 터미널을 이 타일이 받음" />
         <v-chip v-if="shareRoot" size="x-small" variant="flat" color="share" prepend-icon="mdi-account" :title="`${shareOwner}님이 공유한 폴더`">{{ shareOwner }}</v-chip>
         <span v-if="opener" class="opener text-warning">← {{ opener }}</span>
-    </template>
-
-    <template v-if="!unavailable" #controls>
-        <tile-nav-buttons :tile-id="tile.id" />
     </template>
 
     <template #menu>

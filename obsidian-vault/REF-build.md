@@ -97,3 +97,14 @@ embed된 `cmd/*/env` = **배포 값**으로 단정. 빌드 전에 이 파일을 
 
 ## MEMORY에서 옮긴 줄 (2026-10-26 원문)
 - 빌드본 = 사용용(2026-10-22~): 개발(8011·8012, `nexus`)과 분리. Claude가 띄우면 `CLAUDE*` 변수 지움. 빌드본 worker 교체 = 그 위 process 전부 종료(2026-10-22 기록 — 그 뒤 K4(기본 종료 동작)로 보관 프로세스는 남음, `REF-process-keep.md`). embed `cmd/*/env` = 배포 값
+
+## 보드 worker 교체 (arm64, 2026-10-28)
+- 대상 = i.MX 보드 2대(aarch64, NXP nanbield), 둘 다 systemd `nexus-worker.service` + `KillMode=process`(재시작해도 `-hold` 터미널 살아남음) -> test3(`wss://test3.falinux.com`). **IP가 자주 바뀜** -> 접속 전 사용자에게 지금 IP 확인, 호스트 키 경고 = IP 재사용 탓(사용자 확인 뒤 `ssh-keygen -R`)
+
+| 메인키 | 접속 | 폴더 · env |
+|---|---|---|
+| `fa24-PID` | `root@<IP>`(비밀번호 없음, 10-28 = 192.168.40.211) | `/home/root/nexus-worker` · `env` |
+| `imx8mp-f24` | `falinux@<IP>`(비밀번호·sudo = `falinux`, 10-28 = 192.168.80.119) | `/opt/nexus-worker` · `worker.env`(root 600) |
+
+- 절차: `CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build ./cmd/worker` -> `worker.new`로 올려 sha256 확인 -> `worker` -> `worker.old-<stamp>`(실행 중 파일 위에 못 씀) -> `systemctl restart nexus-worker` -> journal "등록 완료"·"[hold] 다시 붙음" 확인
+- 이 PC엔 `sshpass` 없음 -> 비밀번호 = `SSH_ASKPASS`(scratchpad 스크립트) + `SSH_ASKPASS_REQUIRE=force`, sudo = `echo <pw> | sudo -S`

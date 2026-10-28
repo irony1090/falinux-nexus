@@ -3,7 +3,7 @@
 > 2026-10-26 밤 vault 색인 정리 때 `current-archive.md`에서 분할(10k자 기준). 그 전 → `history/current-archive-1.md` / 그 뒤 → `history/current-archive.md` / → `CURRENT.md`
 
 ## 2026-10-26 밤 세션 끝 (CURRENT "다음 세션 시작 시"에서 내림, 원문)
-- **(2026-10-26 오후) `feat/member` master 머지 끝(`4ae97a7`, push = 사용자) · 집 서버 회원 관리 배포 진행 중 = Nexus 터미널만으로** → `REF-home-server.md` "회원 관리 배포 — Nexus만으로" **집 서버 배포 완료(16:59 `state=DONE`)**. 파트(회원 관리) 마감 정리는 아직(사용자 확인 대기)
+- **(2026-10-26 오후) `feat/member` master 머지 끝(`4ae97a7`, push = 사용자) · 집 서버 회원 관리 배포 진행 중 = Nexus 터미널만으로** → `REF-home-deploy.md` "회원 관리 배포 — Nexus만으로" **집 서버 배포 완료(16:59 `state=DONE`)**. 파트(회원 관리) 마감 정리는 아직(사용자 확인 대기)
 - **(2026-10-26 저녁 세션 끝, 사용자 퇴근 -> 집에선 집 서버 ssh·원격 가능)** 브랜치 `refactor/api-prefix`(작업 폴더 = 원래 폴더, **커밋 전**) = ① 브라우저 API 전부 `/api`(`REF-api-prefix.md`, 격리 14/14) ② 열린 장비 타일 supervisor 주소 일괄 변경 + 푸터 액션 자리(`REF-device-move.md`, 격리 23/24 — 실패 1 = 주소 3개 상한 함정, BACKLOG)
   - 커밋 `9c1651d` + master 머지 `c5f9749`(2026-10-26 저녁, 사용자 요청). push = 사용자
   - worktree `nexus-member` 삭제 + 로컬 `feat/member` 삭제(master에 포함 확인). 원격 `origin/feat/member`는 사용자가 정리. 지우기 전 `KEY_SECRET` 줄을 원래 폴더 `cmd/supervisor/env`(git 밖)로 옮김
@@ -22,5 +22,5 @@
   - **보드 worker 교체 끝(2026-10-26, 사용자 요청)**: `fa24-PID`(transitBoard 보드 `root@192.168.40.203`, `/home/root/nexus-worker`) · `imx8mp-f24`(mirror-info 보드 `falinux@192.168.80.206`, `/opt/nexus-worker`, sudo) — `fa50c64` arm64 정적 + env `API_KEY` + `systemctl restart` -> 둘 다 test3 등록 성공·보관 process 다시 붙음. 기록 = 각 작업공간 vault(transitBoard `REF-board-nexus.md` · mirror-info `REF-board.md` "Nexus worker")
   - 배포 전 확인 나머지 → `REF-member.md` "배포 전 확인"(`KEY_SECRET`·worker 실행 파일 + `API_KEY`·기존 폴더 403). 새 supervisor DB면 장비를 **같은 키로** 등록해야 worker가 붙음(→ `REF-supervisor-move.md` "가져오기 구현" 함정)
   - 배포 뒤 = 파트(회원 관리) 마감: MEMORY 불변 결정 정리(판 계약·회원 권한 등) + `INDEX-member` 접기 + `feat/member` master 머지
-  - 이번 세션 경위 → `history/member-ui.md`·`history/member-impl.md`·`history/supervisor-move.md` 2026-10-26 오후. 옛 줄(재부팅 직전·UI 계획·집 서버·supervisor-move 확인 대기)은 `history/current-archive.md` "2026-10-26 세션 끝"
+  - 이번 세션 경위 → `history/member-ui.md`·`history/member-impl.md`·`history/supervisor-move.md` 2026-10-26 오후. 옛 줄(재부팅 직전·UI 계획·집 서버·supervisor-move 확인 대기)은 `history/current-archive-1.md` "2026-10-26 세션 끝"
 - **지금 떠 있는 것**(2026-10-26 세션 끝): 파트(회원 관리) 격리 **전부 닫음**(5051~5053·3001~3003·worker `jig-a`) — DB `nexus_member_tmp`는 남김(다시 띄우는 법 `REF-member-impl.md`), 임시 `nexus_adopt_b`·`_c` 지움. **test3(8013) = `build/take_process`**(DB `nexus_build`, goose v14, 사용자가 2026-10-26 배포). 8012는 다른 프로젝트(`irony/community`) vite. test1(8011)·개발(8012) 꺼짐. 보관 프로세스 19096·19684·61491 = `build/keep/worker -hold` -> **`build/keep` 지우지 말 것**. VM `nexus-win` 꺼짐(→ `REF-windows-vm.md` "VM 실행"). 웹 백업(`web.bak*`)은 2026-10-25 전부 지움

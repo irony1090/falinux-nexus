@@ -1,25 +1,28 @@
 # CURRENT
 
 ## 현재 날짜
-2026-10-27
+2026-10-28
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`, 마감 파트는 `INDEX-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **(2026-10-27 밤) 진행 중 파트 없음** — 파트(찰떡 입력칸) 마감·머지 → `INDEX-ct-field.md`. 격리 환경(5051·3001·`dp-dev`·DB `nexus_dp_tmp`) 정리함. 다음 파트 후보 = `BACKLOG.md`
+- **(2026-10-28) 진행 중 파트 없음** — 파트(경로 줄 정리) 마감·커밋·master 머지 → `INDEX-path-row.md`. 격리 환경(5051·3001·worker `jig-a`) 끔, DB `nexus_member_tmp`는 원래대로 남김. push = 사용자
+  - **다음 작업(사용자 2026-10-28) = Ctrl+Alt 컨트롤 패널 수정 몇 가지** — 내용 듣기 전(조율부터). 그전 예정이던 "타일 ESC로 닫기"는 `BACKLOG.md` 첫 줄 그대로
+  - 집 서버 = mochi 배포 OK(10-27 밤) → `REF-home-deploy.md` "mochi 배포 묶음" / 보드 worker 2대 mochi → `REF-build.md` "보드 worker 교체" / test3(8013) = `build/mochi`(경로 줄 정리는 아직 미반영)
 - **오늘 마감**(2026-10-27): 파트(폴더에서 터미널) `INDEX-dir-shell` → 파트(장비 상태 push) `INDEX-device-push` → 파트(칸 메뉴 장비 디렉토리) `INDEX-row-open-dir` → 파트(찰떡 마무리) `INDEX-ui-chaltteok` → 파트(찰떡 입력칸) `INDEX-ct-field`. push = 사용자
-  - test3(8013) = 젤리·셸·장비 push·칸 메뉴·찰떡 마무리·찰떡 입력칸 미반영(supervisor·worker·웹 다시 빌드) / 개발 DB `nexus`에 장비 등록 없음 → 장비 타일 쓰려면 "내 장비"에서 `irony-MAC-ADDress1`·`win-dev` 등록 + worker env `API_KEY` / VM `nexus-win` 꺼짐 / 옛 줄 원문 → `history/current-archive.md`
+  - test3(8013) = **`build/mochi`**(태그 `MOCHI-261027`, 사용자 빌드·재시작 2026-10-27 밤, master `28053b7` = 오늘 6파트 전부 반영) / 개발 DB `nexus`에 장비 등록 없음 → 장비 타일 쓰려면 "내 장비"에서 `irony-MAC-ADDress1`·`win-dev` 등록 + worker env `API_KEY` / VM `nexus-win` 꺼짐 / 옛 줄 원문 → `history/current-archive.md`
+- **(2026-10-28) 보드 worker 2대 mochi로 교체 끝** — `fa24-PID`·`imx8mp-f24` test3 등록 OK → `REF-build.md` "보드 worker 교체" / 집 서버 cloudflared 공지 = 조치 불필요 → `REF-home-server.md` "cloudflared 보안 공지"
 - **(2026-10-26 밤 vault 색인 정리)** 그때 기준 진행 중 파트 없음
-  - 오늘 끝난 것: 파트(회원 관리) 마감(`/api` 정리·열린 장비 주소 일괄 변경·폰 수정 포함) → `INDEX-member.md` · 집 서버 배포 22:19 OK → `REF-home-server.md` · worker 폴더 타일 전체 계획(`REF-worker-dir.md`)도 `INDEX-worker-dir`로 접음
+  - 오늘 끝난 것: 파트(회원 관리) 마감(`/api` 정리·열린 장비 주소 일괄 변경·폰 수정 포함) → `INDEX-member.md` · 집 서버 배포 22:19 OK → `REF-home-deploy.md` · worker 폴더 타일 전체 계획(`REF-worker-dir.md`)도 `INDEX-worker-dir`로 접음
   - MEMORY 슬림화(9.9k -> 5.8k자): 확정 결정은 한 줄 요약, 원문 = `REF-decisions.md`(같은 이름 절)
-  - 사용자 쪽 남은 것: 집 서버 PC 옛 파일 정리(기준 = `REF-home-server.md` "서버 PC 정리 기준") · push · 원격 `origin/feat/member` 정리
+  - 사용자 쪽 남은 것: 집 서버 PC 옛 파일 정리(기준 = `REF-home-deploy.md` "서버 PC 정리 기준") · push · 원격 `origin/feat/member` 정리
 - **git**: master = 파트(찰떡 입력칸) 머지(10-27, 직전 파트 머지 `d5b4963`), push = 사용자. 로컬 브랜치 `refactor/api-prefix`·`fix/phone-layout`(둘 다 머지됨). worktree는 원래 폴더 하나
-- **지금 떠 있는 것**(2026-10-26 밤): test3(8013) = supervisor **`build/api_prefix`**(사용자 빌드, **웹만 10-26 밤 `fix/phone-layout` 내용(= master `8de3e05`)으로 교체** — supervisor 재시작 없음) + worker **`build/take_process/worker`**(이번 변경에 worker 없음, 재시작 안 함) -> **`build/take_process/` 지우지 말 것**. 보관 프로세스 771160 = 실행 파일(`build/supervisor_move/worker`)은 지워졌지만 계속 돎(12:12 터미널, take_process worker가 붙어 있음). 격리 5051·VM `nexus-win` 꺼짐. 남긴 DB = `nexus_api_tmp`·`nexus_member_tmp`(시험 계정, 필요 없으면 DROP)
-- **`build/`**(2026-10-26 정리): `api_prefix/`·`take_process/`·`supervisor.env`·`worker.env`·`worker-sqlite.db*`·`home-update/`(ps1 스크립트 + `api_prefix/` 묶음·`nexus-api-prefix.zip`)
+- **지금 떠 있는 것**(2026-10-27 밤): test3(8013) = supervisor·worker **`build/mochi`**. 보관 프로세스 3개(59377·72815·145915)는 실행 파일이 **`build/api_prefix/worker`** -> 그 터미널을 닫기 전엔 `build/api_prefix/` 지우지 말 것. `build/take_process/`는 쓰는 프로세스 없음 확인 뒤 지움(2026-10-27 밤, 사용자). 격리 5051·VM `nexus-win` 꺼짐. 남긴 DB = `nexus_api_tmp`·`nexus_member_tmp`(시험 계정, 필요 없으면 DROP)
+- **`build/`**(2026-10-27): `mochi/`(지금 test3)·`api_prefix/`·`supervisor.env`·`worker.env`·`worker-sqlite.db*`·`home-update/`(ps1 스크립트 + `api_prefix/` 묶음·`nexus-api-prefix.zip`)
 - **BACKLOG(10-26 추가)**: Windows 터미널 출력 줄 빠짐(ConPTY 의심, 사용자가 시험 넘김) · 주소 목록 3개 상한이 지금 주소를 밀어냄
-- 옛 CURRENT 줄 원문 → `history/current-archive.md`(마지막 = "2026-10-26 밤 vault 색인 정리")
+- 옛 CURRENT 줄 원문 → `history/current-archive.md`(마지막 = "2026-10-28 파트(경로 줄 정리) 마감"), 10-26 밤 것은 `-3`·`-2`·`-1`
 - 빌드 = 태그(`apps/core/cmd/*/env` 첫 줄) 바꾸고 `scripts/build.sh <이름>`(태그 출력·같은 태그 경고) → `REF-build.md` "빌드 태그"
 - 남은 흔적(정리 여부 사용자 미정): test1용 DB `nexus_keep`(시험 계정 `smoke<시각>` 1개)·`build/keep`의 env·sqlite(test1 = 재부팅 뒤 안 켬) · `nexus_build`에 `smoke1792672658797`·`smoke1792672663267`(폴더 233·스크립트 234). 보관 프로세스 일괄 종료 `pkill -f 'worker -hold'`는 **이 Claude 세션도 죽으니 금지**
 - 두 빌드를 나란히 띄우는 법(env 분리·DB 복사) → `REF-build.md` "두 빌드 나란히"

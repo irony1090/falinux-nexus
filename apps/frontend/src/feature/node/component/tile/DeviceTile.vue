@@ -17,7 +17,6 @@ import DeviceTileBody from './DeviceTileBody.vue';
 import RootTabs from './RootTabs.vue';
 import RootTerminalList from './RootTerminalList.vue';
 import TileFrame from './TileFrame.vue';
-import TileNavButtons from './TileNavButtons.vue';
 
 // 장비 타일 — worker 디렉토리(폴더-2(장비 타일), REF-worker-dir-list.md). 연 폴더 = nodeId. 루트면 탭 `[파일] [터미널 N · 최소화 n]`(이동-2(루트 탭))
 const props = defineProps({
@@ -75,10 +74,6 @@ const unregOpen = ref(false);
         <span class="name">{{ name }}</span>
         <span class="inst" :title="`인스턴스 ${tile.instance}`">{{ instLabel || tile.instance }}</span>
         <span v-if="opener" class="opener text-warning">← {{ opener }}</span>
-    </template>
-
-    <template v-if="!unavailable" #controls>
-        <tile-nav-buttons :tile-id="tile.id" />
     </template>
 
     <template v-if="!unavailable" #menu>

@@ -19,10 +19,12 @@ import { useTileTree } from '../../store/tileTree.store';
 import { agoText } from '../../util/presenceView.util';
 import { PERM_EDIT, PERM_OWNER } from '../../util/shareView.util';
 import ShareDialog from '../dialog/ShareDialog.vue';
+import HScroll from '@/feature/widget/component/HScroll.vue';
 import DirGridCell from './DirGridCell.vue';
 import NodeRowMenu, { type RowMenuItem } from './NodeRowMenu.vue';
 import PathInput, { type PathCand } from './PathInput.vue';
 import ScriptRunList from './ScriptRunList.vue';
+import TileNavButtons from './TileNavButtons.vue';
 
 const props = defineProps({
     tileId: {
@@ -345,8 +347,9 @@ const onDrop = (e: DragEvent) => {
         <path-input v-if="editing" :value="pathText" :suggest="suggestPath" :submit="submitPath" @pick="onPick" @close="editing = false" />
         <!-- 입력 중엔 도구를 숨겨 입력칸이 줄 전체를 쓴다(좁은 타일에서 자동완성 목록 폭 확보) -->
         <template v-else>
-            <!-- [경로·새로고침] / [도구] — 경로 자리가 최소 폭보다 좁아지면 도구가 둘째 줄(오른쪽 끝)로 -->
+            <!-- [이동·경로] / [도구] — 경로 자리가 최소 폭보다 좁아지면 도구가 둘째 줄(오른쪽 끝)로, 그래도 넘치면 가운데 묶음만 가로 스크롤 -->
             <span class="lead">
+                <tile-nav-buttons :tile-id="tileId" :busy="busy" @refresh="onRefresh" />
                 <span class="path">
                     <button v-if="nodeId !== null" class="short" @click="navigate(tileId, null)">기본</button>
                     <span v-else class="cur">기본</span>
@@ -357,39 +360,40 @@ const onDrop = (e: DragEvent) => {
                     </template>
                     <span v-if="nodeId !== null && !path.length">/ …</span>
                 </span>
-                <button class="tile-btn refresh" title="새로고침" :disabled="busy" @click="onRefresh">
-                    <v-icon size="15" icon="mdi-refresh" />
-                </button>
             </span>
             <span class="tools tile-btn-row-end">
-                <button v-if="current" class="tile-btn dev"
-                    :class="{ on: isOnline(deviceOwner?.deviceKey) }"
-                    :title="`${deviceTitle(deviceOwner?.deviceKey, deviceInherited ? deviceOwner?.name : undefined)}\n(눌러서 장비 지정·명부 관리)`"
-                    :disabled="saving"
-                    @click="ops.editDevice(tileId, current)"
-                >
-                    <i /><span class="key">{{ deviceOwner?.deviceKey ?? '장비 없음' }}</span><span v-if="deviceCount(deviceOwner?.deviceKey)" class="cnt">{{ deviceCount(deviceOwner?.deviceKey) }}</span><span v-if="deviceInherited">(상속)</span>
-                </button>
-                <span v-if="current && (canOpenDir || canShare)" class="tile-btn-sep" />
-                <button v-if="canOpenDir" class="tile-btn" :class="{ 'text-success': isOnline(deviceOwner?.deviceKey) }"
-                    :disabled="saving || !isOnline(deviceOwner?.deviceKey)"
-                    :title="isOnline(deviceOwner?.deviceKey) ? '장비 디렉토리 열기' : '접속 중인 인스턴스 없음'"
-                    @click="current && ops.openDir(tileId, current)"
-                >
-                    <v-icon size="16" icon="mdi-folder-network" />
-                </button>
-                <button v-if="canShare" class="tile-btn share" title="이 폴더 공유" @click="current && openShare(current)">
-                    <v-icon size="16" icon="mdi-account-multiple-plus" /><span v-if="shareCount" class="share-count">{{ shareCount }}</span>
-                </button>
-                <template v-if="clip.nodes.length">
-                    <span v-if="current || canOpenDir || canShare" class="tile-btn-sep" />
-                    <button class="tile-btn paste" :class="{ 'tile-btn--text tile-btn--tonal': !!pasteText }" :title="pasteTitle"
-                        :disabled="saving || pasting || !!pasteReason" @click="onPaste"
-                    >
-                        <v-icon size="16" :icon="clip.mode === 'cut' ? 'mdi-folder-move-outline' : 'mdi-content-paste'" /><span v-if="pasteText">{{ pasteText }}</span><span class="paste-count">{{ clip.nodes.length }}</span>
-                    </button>
-                    <button class="tile-btn" title="클립보드 비우기" @click="clearClip"><v-icon size="14" icon="mdi-close" /></button>
-                </template>
+                <h-scroll>
+                    <span v-if="current" class="ct-grp ct-grp--keep">
+                        <button type="button" class="ct-seg ct-seg--dim dev"
+                            :class="{ on: isOnline(deviceOwner?.deviceKey) }"
+                            :title="`${deviceTitle(deviceOwner?.deviceKey, deviceInherited ? deviceOwner?.name : undefined)}\n(눌러서 장비 지정·명부 관리)`"
+                            :disabled="saving"
+                            @click="ops.editDevice(tileId, current)"
+                        >
+                            <i /><span class="key">{{ deviceOwner?.deviceKey ?? '장비 없음' }}</span><span v-if="deviceCount(deviceOwner?.deviceKey)" class="cnt">{{ deviceCount(deviceOwner?.deviceKey) }}</span><span v-if="deviceInherited">(상속)</span>
+                        </button>
+                        <button v-if="canOpenDir" type="button" class="ct-seg ct-seg--dim" :class="{ 'ct-seg--ok': isOnline(deviceOwner?.deviceKey) }"
+                            :disabled="saving || !isOnline(deviceOwner?.deviceKey)"
+                            :title="isOnline(deviceOwner?.deviceKey) ? '장비 디렉토리 열기' : '접속 중인 인스턴스 없음'"
+                            @click="current && ops.openDir(tileId, current)"
+                        >
+                            <v-icon size="16" icon="mdi-folder-network" />
+                        </button>
+                    </span>
+                    <span v-if="canShare" class="ct-grp ct-grp--keep">
+                        <button type="button" class="ct-seg ct-seg--share" title="이 폴더 공유" @click="current && openShare(current)">
+                            <v-icon size="16" icon="mdi-account-multiple-plus" /><span v-if="shareCount" class="cnt">{{ shareCount }}</span>
+                        </button>
+                    </span>
+                    <span v-if="clip.nodes.length" class="ct-grp ct-grp--keep">
+                        <button type="button" class="ct-seg ct-seg--accent" :title="pasteTitle"
+                            :disabled="saving || pasting || !!pasteReason" @click="onPaste"
+                        >
+                            <v-icon size="16" :icon="clip.mode === 'cut' ? 'mdi-folder-move-outline' : 'mdi-content-paste'" /><span v-if="pasteText">{{ pasteText }}</span><span class="cnt">{{ clip.nodes.length }}</span>
+                        </button>
+                        <button type="button" class="ct-seg ct-seg--dim" title="클립보드 비우기" @click="clearClip"><v-icon size="14" icon="mdi-close" /></button>
+                    </span>
+                </h-scroll>
                 <span class="tile-btn-end tile-btn-end--primary">
                     <v-menu location="bottom end">
                         <template #activator="{ props: act }">
@@ -494,7 +498,7 @@ const onDrop = (e: DragEvent) => {
     min-height: 0;
     overflow: auto;
     @include vars.font('body-medium');
-    button:where(:not(.v-btn, .tile-btn, .dg-btn, .dg-lbl)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
+    button:where(:not(.v-btn, .tile-btn, .ct-seg, .dg-btn, .dg-lbl)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
         padding: 0;
         border: 0;
         background: none;
@@ -517,12 +521,12 @@ const onDrop = (e: DragEvent) => {
     align-items: center;
     gap: 0 2px;
     min-height: 28px;
-    padding: 0 0 0 vars.$spacing-md;
+    padding: 0;
     @include vars.font('body-small');
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     .lead {
-        flex: 1 1 160px;
-        min-width: 160px;
+        flex: 1 1 270px;    // 이 폭(이동 묶음 + 경로)이 안 되면 도구가 둘째 줄로
+        min-width: 0;
         height: 28px;
         display: flex;
         align-items: center;
@@ -543,20 +547,19 @@ const onDrop = (e: DragEvent) => {
     }
     .cur { font-weight: vars.$weight-md; }
     &:not(.editing) { cursor: text; }
-    .refresh { min-width: 38px; margin-left: 2px; }
     .tools {
-        flex: none;
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: 100%;
         height: 28px;
         cursor: default;
         margin-left: auto;
+        padding-left: vars.$spacing-sm;     // 둘째 줄로 내려가도 타일 왼쪽 벽에 붙지 않게
         display: flex;
         align-items: stretch;
-        > .tile-btn:not(.tile-btn--text, .dev) { min-width: 42px; }
+        gap: 4px;
     }
-    .dev { padding: 0 10px; opacity: 1; }
-    .share { color: rgb(var(--v-theme-share)); .share-count { @include vars.font('body-small'); } }
-    .paste-count { @include vars.font('body-small'); font-family: monospace; }
-    .paste.tile-btn--tonal { --c: var(--v-theme-primary); }
+    .cnt { @include vars.font('body-small'); font-family: monospace; }
 }
 .bar { height: 2px; }
 .state {
@@ -571,15 +574,11 @@ const onDrop = (e: DragEvent) => {
     &.drop :deep(.box) { outline: 1px dashed rgb(var(--v-theme-primary)); outline-offset: -1px; }
 }
 .FolderTileBody.drop { box-shadow: inset 0 0 0 1px rgb(var(--v-theme-primary)); }
-// 지정된 장비 + 접속 여부(점 색)
+// 지정된 장비 + 접속 여부(점 색) — 이름이 길면 …
 .dev {
-    display: inline-flex;
-    align-items: center;
+    max-width: 150px;
     gap: 3px;
-    max-width: 140px;
-    white-space: nowrap;
     @include vars.font('label-small');
-    opacity: 0.75;
     .key {
         min-width: 0;
         overflow: hidden;
@@ -592,7 +591,7 @@ const onDrop = (e: DragEvent) => {
         border-radius: 50%;
         background: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
     }
-    .cnt { flex: none; font-family: monospace; }
+    .cnt { flex: none; }
     &.on i { background: rgb(var(--v-theme-success)); }
     &.on .cnt { color: rgb(var(--v-theme-success)); }
 }

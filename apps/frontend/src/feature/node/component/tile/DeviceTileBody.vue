@@ -15,9 +15,11 @@ import { usePathEditKey } from '../../hook/pathEdit.hook';
 import { useNodeOps } from '../../store/nodeOps.store';
 import { useTileTree } from '../../store/tileTree.store';
 import { SHELL_CMD } from '../../util/tileLabel.util';
+import HScroll from '@/feature/widget/component/HScroll.vue';
 import DirGridCell from './DirGridCell.vue';
 import NodeRowMenu, { type RowMenuItem } from './NodeRowMenu.vue';
 import PathInput, { type PathCand } from './PathInput.vue';
+import TileNavButtons from './TileNavButtons.vue';
 
 // 장비 타일 본문 — 경로 줄 + 목록(스크롤 끝에서 다음 페이지). 폴더-2(장비 타일), REF-worker-dir-list.md
 const props = defineProps({
@@ -273,8 +275,9 @@ watch(lastDone, d => {
         <path-input v-if="editing" :value="here" :suggest="suggestPath" :submit="submitPath" @close="editing = false" />
         <!-- 입력 중엔 도구를 숨겨 입력칸이 줄 전체를 쓴다(좁은 타일에서 자동완성 목록 폭 확보) -->
         <template v-else>
-            <!-- [경로·새로고침] / [도구] — 경로 자리가 최소 폭보다 좁아지면 도구가 둘째 줄(오른쪽 끝)로 -->
+            <!-- [이동·경로] / [도구] — 경로 자리가 최소 폭보다 좁아지면 도구가 둘째 줄(오른쪽 끝)로, 그래도 넘치면 가운데 묶음만 가로 스크롤 -->
             <span class="lead">
+                <tile-nav-buttons :tile-id="tileId" :busy="loading" @refresh="dir.reload()" />
                 <span class="path">
                     <template v-for="(c, i) in crumbs" :key="c.path">
                         <span v-if="i > 0 && sepAfter(crumbs[i - 1]!.name)" class="sep">/</span>
@@ -286,36 +289,37 @@ watch(lastDone, d => {
                         </button>
                     </template>
                 </span>
-                <button class="tile-btn refresh" title="새로고침" :disabled="loading" @click="dir.reload()">
-                    <v-icon size="15" icon="mdi-refresh" />
-                </button>
-                <button class="tile-btn shell" title="여기서 셸 열기(새 터미널 타일)" :disabled="!canRun || !cur || !!error" @click="openShell">
-                    <v-icon size="15" icon="mdi-console" />
-                </button>
             </span>
             <span class="tools tile-btn-row-end">
-                <template v-if="selEntries.length">
-                    <span class="sel">{{ selEntries.length }}개</span>
-                    <button class="tile-btn" title="내려받기(여러 개·폴더는 zip)" :disabled="!canUpload" @click="onDownload">
-                        <v-icon size="16" icon="mdi-download" />
-                    </button>
-                    <v-menu location="bottom end">
-                        <template #activator="{ props: act }">
-                            <button v-bind="act" class="tile-btn" title="다른 장비로 보내기(파일만)" :disabled="!canUpload || !selFiles.length">
-                                <v-icon size="16" icon="mdi-content-copy" />
-                            </button>
-                        </template>
-                        <v-list density="compact" class="targets">
-                            <v-list-item v-for="sp in targets" :key="sp.tileId" :title="sp.instance" :subtitle="sp.dir" @click="onSendTo(sp)" />
-                            <v-list-item v-if="!targets.length" disabled title="보드에 받을 장비 타일이 없습니다" />
-                        </v-list>
-                    </v-menu>
-                    <button class="tile-btn" title="선택 해제" @click="clearSel">
-                        <v-icon size="16" icon="mdi-close" />
-                    </button>
-                    <span class="tile-btn-sep" />
-                </template>
-                <span class="dev" :class="{ on: online }" :title="online ? '접속 중' : '접속 끊김'"><i /></span>
+                <h-scroll>
+                    <span v-if="selEntries.length" class="ct-grp ct-grp--keep">
+                        <span class="ct-seg ct-seg--txt sel">{{ selEntries.length }}개</span>
+                        <button type="button" class="ct-seg ct-seg--dim" title="내려받기(여러 개·폴더는 zip)" :disabled="!canUpload" @click="onDownload">
+                            <v-icon size="16" icon="mdi-download" />
+                        </button>
+                        <v-menu location="bottom end">
+                            <template #activator="{ props: act }">
+                                <button v-bind="act" type="button" class="ct-seg ct-seg--dim" title="다른 장비로 보내기(파일만)" :disabled="!canUpload || !selFiles.length">
+                                    <v-icon size="16" icon="mdi-content-copy" />
+                                </button>
+                            </template>
+                            <v-list density="compact" class="targets">
+                                <v-list-item v-for="sp in targets" :key="sp.tileId" :title="sp.instance" :subtitle="sp.dir" @click="onSendTo(sp)" />
+                                <v-list-item v-if="!targets.length" disabled title="보드에 받을 장비 타일이 없습니다" />
+                            </v-list>
+                        </v-menu>
+                        <button type="button" class="ct-seg ct-seg--dim" title="선택 해제" @click="clearSel">
+                            <v-icon size="16" icon="mdi-close" />
+                        </button>
+                    </span>
+                    <!-- [접속 상태 | 여기서 셸] — 점은 표시만 -->
+                    <span class="ct-grp ct-grp--keep">
+                        <span class="ct-seg dev" :class="{ on: online }" :title="online ? '접속 중' : '접속 끊김'"><i /></span>
+                        <button type="button" class="ct-seg ct-seg--dim" title="여기서 셸 열기(새 터미널 타일)" :disabled="!canRun || !cur || !!error" @click="openShell">
+                            <v-icon size="15" icon="mdi-console" />
+                        </button>
+                    </span>
+                </h-scroll>
                 <span class="tile-btn-end tile-btn-end--primary">
                     <button class="tile-btn tile-btn--text" title="이 폴더에 올리기" :disabled="!canUpload" @click="fileEl?.click()">
                         <v-icon size="15" icon="mdi-upload" />올리기
@@ -395,7 +399,7 @@ watch(lastDone, d => {
     min-height: 0;
     overflow: auto;
     @include vars.font('body-medium');
-    button:where(:not(.v-btn, .tile-btn, .dg-btn, .dg-lbl)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
+    button:where(:not(.v-btn, .tile-btn, .ct-seg, .dg-btn, .dg-lbl)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
         padding: 0;
         border: 0;
         background: none;
@@ -421,13 +425,13 @@ watch(lastDone, d => {
     align-items: center;
     gap: 0 2px;
     min-height: 28px;
-    padding: 0 0 0 vars.$spacing-md;
+    padding: 0;
     @include vars.font('body-small');
     background: rgb(var(--v-theme-surface));
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     .lead {
-        flex: 1 1 160px;
-        min-width: 160px;
+        flex: 1 1 270px;    // 이 폭(이동 묶음 + 경로)이 안 되면 도구가 둘째 줄로
+        min-width: 0;
         height: 28px;
         display: flex;
         align-items: center;
@@ -449,18 +453,20 @@ watch(lastDone, d => {
     .path > button, .cur { display: inline-flex; align-items: center; gap: 2px; }
     .cur { font-weight: vars.$weight-md; }
     &:not(.editing) { cursor: text; }
-    .refresh, .shell { min-width: 38px; margin-left: 2px; }
     .tools {
-        flex: none;
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: 100%;
         height: 28px;
         cursor: default;
         margin-left: auto;
+        padding-left: vars.$spacing-sm;     // 둘째 줄로 내려가도 타일 왼쪽 벽에 붙지 않게
         display: flex;
         align-items: stretch;
-        > .tile-btn { min-width: 42px; }
+        gap: 4px;
     }
-    .sel { align-self: center; margin-right: 2px; color: rgb(var(--v-theme-primary)); font-weight: vars.$weight-md; }
-    .dev { align-self: center; padding: 0 vars.$spacing-sm; }
+    .sel { cursor: default; }
+    .dev { cursor: default; padding-right: 6px; }
 }
 .bar { height: 2px; }
 .state {
@@ -474,7 +480,6 @@ watch(lastDone, d => {
 }
 // 접속 여부 점 — 폴더 타일 장비 칩과 같은 색
 .dev {
-    display: inline-flex;
     i {
         width: 6px;
         height: 6px;
