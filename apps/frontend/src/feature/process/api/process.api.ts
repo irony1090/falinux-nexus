@@ -107,8 +107,9 @@ export const execProcess = (param: ExecProcessRequest) => BaseAxios.post(
 
 export type ExecFileRequest = {
     folderId: number    // 장비 타일을 연 폴더(Q15(장비 디렉토리 id))
-    cmd: string         // 파일 전체 경로(worker 기준)
+    cmd: string         // 파일 전체 경로(worker 기준) / 셸·편집 = 치환 토큰(tileLabel.util)
     cwd: string         // 보고 있던 폴더
+    args?: string[]     // 편집 대상 파일 하나(cmd = EDITOR_CMD일 때만)
     workspace?: string
     parentTileId?: string   // 장비 타일
     size?: TileSize

@@ -120,8 +120,8 @@ export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
 
     // 장비 타일 행 "실행"(폴더-4(실행), Q23(누르는 방식)) — 인스턴스는 장비 타일 것. 터미널 타일은 장비 타일의 자식
     // 저장 대기분을 먼저 보낸다 — 막 열거나 옮긴 부모 타일이 서버 트리에 없으면 서버가 루트에 붙인다(2026-10-23 확인)
-    const execFile = (tileId: string, folderId: number, instance: string, cmd: string, cwd: string) =>
-        run(tileId, flush().then(() => execTermFile(instance, folderId, cmd, cwd, { workspace: boardHash.value, parentTileId: tileId, size: newSize.value })), res => {
+    const execFile = (tileId: string, folderId: number, instance: string, cmd: string, cwd: string, args?: string[]) =>
+        run(tileId, flush().then(() => execTermFile(instance, folderId, cmd, cwd, { workspace: boardHash.value, parentTileId: tileId, size: newSize.value }, args)), res => {
             if (res.tile && res.tileVersion) activate(applyServerTile(res.tile, res.tileVersion))
         })
 

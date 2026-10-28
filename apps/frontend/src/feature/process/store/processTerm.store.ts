@@ -272,7 +272,7 @@ export const provideProcessTerm = () => {
         })
 
     // 장비 디렉토리 파일 실행(폴더-4(실행)) — 등록은 exec와 같음
-    const execFile = (instance: string, folderId: number, cmd: string, cwd: string, place: ExecPlace) => execWorkerFile(instance, { folderId, cmd, cwd, ...place })
+    const execFile = (instance: string, folderId: number, cmd: string, cwd: string, place: ExecPlace, args?: string[]) => execWorkerFile(instance, { folderId, cmd, cwd, args, ...place })
         .then(res => {
             register(res.proc)
             return res
