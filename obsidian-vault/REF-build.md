@@ -108,3 +108,6 @@ embed된 `cmd/*/env` = **배포 값**으로 단정. 빌드 전에 이 파일을 
 
 - 절차: `CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build ./cmd/worker` -> `worker.new`로 올려 sha256 확인 -> `worker` -> `worker.old-<stamp>`(실행 중 파일 위에 못 씀) -> `systemctl restart nexus-worker` -> journal "등록 완료"·"[hold] 다시 붙음" 확인
 - 이 PC엔 `sshpass` 없음 -> 비밀번호 = `SSH_ASKPASS`(scratchpad 스크립트) + `SSH_ASKPASS_REQUIRE=force`, sudo = `echo <pw> | sudo -S`
+
+## 웹만 교체 (2026-10-28, 재시작 없이)
+- supervisor는 `WEB_DIR`(실행 파일 폴더 기준 `./web`)을 요청 때 디스크에서 읽음 -> Go 변경이 없으면 웹만 바꿔도 됨: `VITE_API_URL= npx vite build --outDir build/<이름>/web.new --emptyOutDir` -> `mv web web.bak-<시각>` -> `mv web.new web`. 열린 탭은 새로고침해야 새 화면(옛 조각 파일은 bak로 옮겨져 늦게 불러오면 404)
