@@ -10,7 +10,8 @@ const SP = 22;
 
 // Grid 도트 + 지금 위치(칼럼 사이면 작은 도트). 폰은 맨 앞 도트 = 목록(진하게). 양 끝 슬롯 = 커서 팝업 버튼 — 화-13(전체 헤더)
 // 끌기 = 칼럼 이동, 당긴 채 끌기 = 타일 하나씩 active(보드 GridPager와 같음, usePagerDrag). pull = 당기는 쪽(푸터 = 위, 컨트롤 패널 = 위·아래)
-const props = withDefaults(defineProps<{ pull?: PagerPull }>(), { pull: 'up' });
+// minDots = 도트 자리 최소 폭(도트 수), 컨트롤 패널 = 3 — 파트(패널 창 버튼)
+const props = withDefaults(defineProps<{ pull?: PagerPull; minDots?: number }>(), { pull: 'up', minDots: 0 });
 const { pos, dotCount, lead, goDot } = useMemberBoard();
 const { mode, pullDir, down, move, up } = usePagerDrag(props.pull);
 defineExpose({ mode });
@@ -28,6 +29,7 @@ const label = (i: number) => i < lead.value ? '목록' : `Grid ${i - lead.value 
 <foot-pill class="MemberDots">
     <span v-if="$slots.start" class="end"><slot name="start" /></span>
     <nav ref="barEl" class="bar" :class="{ held: mode !== 'idle' }" aria-label="Grid 위치"
+        :style="{ minWidth: `${minDots * SP + 24}px` }"
         @pointerdown="down"
         @pointermove="move"
         @pointerup="up"
@@ -60,6 +62,8 @@ const label = (i: number) => i < lead.value ? '목록' : `Grid ${i - lead.value 
 }
 .bar {
     min-width: 0;
+    display: flex;
+    justify-content: center;
     height: 100%;
     padding: 0 12px;
     overflow: hidden;
@@ -72,6 +76,7 @@ const label = (i: number) => i < lead.value ? '목록' : `Grid ${i - lead.value 
 }
 .row {
     position: relative;
+    flex: none;
     display: flex;
     height: 100%;
     transition: opacity 0.2s;

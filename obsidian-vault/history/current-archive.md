@@ -47,3 +47,6 @@
   - **집 서버 묶음 `build/home-update/nexus-mochi.zip`**(master `28053b7`, exe 2개 + web, 2026-10-27 밤) = 사용자가 집에서 배포 `OK`(10-27 밤) → `REF-home-deploy.md` "mochi 배포 묶음"
   - **다음 파트(예정, 사용자 2026-10-27) = 타일 ESC로 닫기** → `BACKLOG.md` 첫 줄(착수 때 조율할 것 포함). 기록만, 착수 전
 - **(2026-10-28) 진행 중 파트 = 경로 줄 정리**(브랜치 `feat/path-row`, 커밋 전) → `REF-path-row.md`. 구현-1~5 끝, 격리 헤드리스 확인 OK(`vue-tsc` 통과). **사용자 화면 확인 대기** — 격리 띄워 둠: 화면 http://localhost:3001 (alice/pw) · supervisor 5051(`nexus_member_tmp`) · worker `jig-a`(scratchpad `iso/wrk`, TMPDIR `/tmp/claude-1000/pr-t`). 미확인 = 실제 폰 터치 끌기·어두운 테마
+
+## 2026-10-28 파트(패널 창 버튼) 마감 때 내려보냄
+- **(2026-10-28) 진행 중 파트 = 패널 창 버튼**(브랜치 `feat/pager-head-btns`, 커밋 전) → `REF-pager-head-btns.md`. 패널-1~3 끝, 격리 헤드리스 확인 OK. **사용자 화면 확인 대기** — 격리 띄워 둠: http://localhost:3001 (alice/pw), 관리 페이지 `/admin`. 격리 worker에 시험 셸 터미널 2개(하나 최소화) 남음 -> 마감 때 정리. "타일 ESC로 닫기"는 `BACKLOG.md` 첫 줄 그대로

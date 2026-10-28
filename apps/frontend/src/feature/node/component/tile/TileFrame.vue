@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, toRef, type PropType } from 'vue';
+import { computed, onBeforeUnmount, ref, toRef, watchEffect, type PropType } from 'vue';
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
 import { VIcon, VList, VMenu, VProgressCircular } from 'vuetify/components';
 import { useTileFloat } from '../../hook/tileFloat.hook';
 import { useTileSize } from '../../hook/tileSize.hook';
+import { clearTileHeadActs, setTileHeadActs, type TileHeadActs } from '../../store/tileHeadActs.store';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
 import type { ActiveUser } from '../../store/remoteActive.store';
@@ -73,6 +74,17 @@ useResizeCallback(frameEl, relocateSizeMenu);
 
 // 맞춤-1(타일 띄우기) — 키보드가 열린 동안 포커스된 터미널 타일만 띄운다
 const floatStyle = useTileFloat(frameEl, computed(() => props.floatUid), overview);
+
+// 컨트롤 패널이 쓸 창 버튼 — 머리 줄 [최소화 | 크기 | ×]와 같은 조건·동작(파트(패널 창 버튼))
+let headActs: TileHeadActs | undefined;
+watchEffect(() => setTileHeadActs(props.tileId, headActs = {
+    minimize: props.minimizable && !props.unavailable ? () => emit('minimize') : undefined,
+    sizable: !props.unavailable,
+    close: tile.value && !isRoot.value ? () => emit('close') : undefined,
+    closeTitle: props.closeTitle,
+    closeDisabled: props.closeDisabled,
+}));
+onBeforeUnmount(() => clearTileHeadActs(props.tileId, headActs));
 
 // active 표시 — AT3(표시). active가 있을 때만 나머지를 흐린다
 const activeClass = computed(() => activeId.value ? (activeId.value === props.tileId ? 'TileFrame--active' : 'TileFrame--dim') : undefined);

@@ -13,7 +13,8 @@ const COUNT_W = 72;
 
 // 푸터 인디케이터: Grid마다 도트 + 지금 위치(반 칸 = 두 도트 사이 작은 도트). 드래그 = 칼럼 이동, 당기면 타일 이동 — REF-board-pager.md
 // pull = 타일 이동으로 당기는 쪽(푸터 = 위, 커서 팝업 = 위·아래)
-const props = withDefaults(defineProps<{ pull?: PagerPull }>(), { pull: 'up' });
+// count = 위치 글자(1-2 / 3) — 컨트롤 패널은 끔(푸터에 보이므로) / minDots = 도트 자리 최소 폭(도트 수), 컨트롤 패널 = 3 — 파트(패널 창 버튼)
+const props = withDefaults(defineProps<{ pull?: PagerPull; count?: boolean; minDots?: number }>(), { pull: 'up', count: true, minDots: 0 });
 const { grids, pos, range, goGrid, goColumn } = useTileGrids();
 const { mode, pullDir, down, move, up } = usePagerDrag(props.pull);
 defineExpose({ mode });
@@ -22,7 +23,7 @@ const wrapEl = ref<HTMLElement>();
 const barEl = ref<HTMLElement>();
 const width = ref(0);
 useResizeCallback(wrapEl, () => width.value = wrapEl.value?.clientWidth ?? 0);
-// 알약 양 끝 슬롯(왼쪽 = 크기 버튼, 오른쪽 = 전체보기 버튼) 폭 — 도트 자리에서 뺀다
+// 알약 양 끝 슬롯(왼쪽 = 창 버튼, 오른쪽 = 전체보기 버튼) 폭 — 도트 자리에서 뺀다
 const startEl = ref<HTMLElement>();
 const startW = ref(0);
 useResizeCallback(startEl, () => startW.value = startEl.value?.offsetWidth ?? 0);
@@ -34,7 +35,7 @@ useResizeCallback(endEl, () => endW.value = endEl.value?.offsetWidth ?? 0);
 const fit = computed(() => {
     const n = grids.value.length;
     const w = width.value - PAD - startW.value - endW.value;
-    const count = w - COUNT_W >= Math.min(n, 5) * SP;
+    const count = props.count && w - COUNT_W >= Math.min(n, 5) * SP;
     const k = Math.max(3, Math.floor((w - (count ? COUNT_W : 0)) / SP));
     return { count, k: Math.min(n, k) };
 })
@@ -77,6 +78,7 @@ const onKey = (e: KeyboardEvent) => {
     <foot-pill class="shell">
         <span v-if="$slots.start" ref="startEl" class="end"><slot name="start" /></span>
         <nav ref="barEl" class="bar" :class="{ held: mode !== 'idle' }" aria-label="보드 Grid 위치"
+            :style="{ minWidth: `${minDots * SP + 24}px` }"
             @pointerdown="down"
             @pointermove="move"
             @pointerup="up"
@@ -125,6 +127,7 @@ const onKey = (e: KeyboardEvent) => {
     flex: none;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     height: 100%;
     padding: 0 12px;
