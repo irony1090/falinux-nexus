@@ -15,3 +15,6 @@
 
 # embed env = 배포 값(비밀번호) -> git 제외, 개발 값은 dev.env (REF-build.md "env 내뱉기 계획")
 /cmd/*/env
+
+# 이미지 사본(VIEW_CACHE_DIR 기본값, 개발 실행 = 소스 폴더 기준)
+/cmd/supervisor/view-cache/

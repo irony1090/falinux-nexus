@@ -56,3 +56,10 @@
 
 ## 2026-10-28 세션 끝 — CURRENT에서 내려보냄
 - **(2026-10-28 오후) 집 서버 직통 전환 진행 중(코드 무관, 운영)** — 원인 = Cloudflare 엣지 LAX 경유. iptime 포트포워딩 + Caddy로 직통. 회사에서 할 것(DNS `direct`·Caddy·방화벽·서비스 등록) 끝, **오늘 밤 집에서(사용자) 1(내부 IP 고정)·2(포트포워딩)·6(시험 실행)** -> `direct` 확인되면 8(주소 전환, 구름만 회색 금지 = 대상도 iptime으로) → 체크리스트 user vault `user/home-server/직통-전환.md` · 근거 `REF-home-server.md` "터널 속도"·"직통 전환 계획(안)"
+
+- (2026-10-28 밤 내려보냄, ② 바이너리 판정 = 사용자 OK로 해결) **(2026-10-28 세션 끝) 다음 = 파트(보기 타일)** — D(더블클릭 열기) 답: ① 해석 맞음 ③ 영상 전엔 아무 일 없음 ④ 보기 타일에 같이. **② 바이너리 판정 제안(앞 8KB NUL, 더블클릭 때만) 확인 대기** → `REF-file-view.md` "다음 파트(보기 타일) 결정". V1~V5 확정, 읽기 전용 텍스트 안 함. 브랜치는 착수 때
+
+- (2026-10-28 밤 마감 때 내려보냄) **(2026-10-28 밤 세션 끝) 진행 중 = 파트(보기 타일)** `feat/file-view` **미커밋**(코드 전부 작업 트리에) — 1단계(사본 없는 뷰어 + D(더블클릭 열기))·2단계(이미지 사본 · 터미널 탭 보기 줄 · 편집 줄 이름) 구현·격리 확인 끝 → `REF-view-tile.md`
+  - **다음 세션 첫 일**: 파트(보기 타일) 마감·커밋(+ master 머지) 할지 사용자에게 묻기. 그다음 후보 = 파트(영상 Range, 영상은 계정 전체 한 타일) → `BACKLOG.md`
+  - 격리 환경 끔(supervisor 5051·worker `fv-dev`·vite 3001). **남긴 것**: DB `nexus_fv_tmp`(계정 `fv1`/`pw123456`, 장비 `fv-dev`, 폴더 id 1) · `/run/user/1000/fviso` · 이 세션 scratchpad(`iso/`, 재부팅 시 사라짐). 다시 띄우는 법 = `REF-view-tile.md` "격리 확인" + `REF-member-impl.md` "격리 환경 다시 띄우기". 필요 없으면 DROP
+  - 커밋 때 빼지 말 것: `apps/core/.gitignore`(view-cache) · 생성 코드 `internal/supervisor/db/gen`. embed `cmd/supervisor/env`에도 `VIEW_CACHE_DIR` 주석 줄 추가함(git 제외 파일)

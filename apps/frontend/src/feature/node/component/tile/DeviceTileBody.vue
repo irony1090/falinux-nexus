@@ -2,7 +2,8 @@
 import type { CatchErrorResponse } from '@/common/api/api.util';
 import { tabReady } from '@/common/util/tabId.util';
 import type { DirEntry } from '@/feature/worker/api/worker.api';
-import { suggestWorkerDir, useWorkerRoster } from '@/feature/worker/api/worker.api';
+import { instanceOnline, probeWorkerFile, suggestWorkerDir, useWorkerRoster } from '@/feature/worker/api/worker.api';
+import { viewKindOf } from '@/feature/worker/util/fileKind.util';
 import { useWorkerDir } from '@/feature/worker/hook/workerDir.hook';
 import TransferRow from '@/feature/worker/component/TransferRow.vue';
 import { useTransfers, type UploadSource } from '@/feature/worker/store/transfers.store';
@@ -46,11 +47,7 @@ const { entries, cur, crumbs, parent, total, loading, error } = dir;
 
 // 접속 여부 = 명부 주기 조회. 다시 접속하면 다시 읽는다
 const { devices } = useWorkerRoster();
-const online = computed(() => {
-    const key = instance.value;
-    if (!key) return false;
-    return !!devices.value.get(key.slice(0, key.lastIndexOf('#')))?.instances.find(i => i.instanceKey === key)?.online;
-})
+const online = computed(() => !!instance.value && instanceOnline(devices.value, instance.value));
 watch(online, (on, was) => {
     if (on && was === false && error.value) void dir.reload();
 })
@@ -99,7 +96,7 @@ const submitPath = async (t: string) => {
 }
 
 // 폴더-4(실행): 실행 가능한 파일(Q24(실행 대상), 판정 = worker)만 "실행"(Q23(누르는 방식)). cwd = 그 파일이 든 폴더
-const { saving, busyTile, execFile } = useNodeOps();
+const { saving, busyTile, execFile, viewFile } = useNodeOps();
 const runFile = (e: DirEntry) => {
     const t = tile.value;
     if (t) void execFile(props.tileId, t.nodeId, t.instance, e.path, parentPathOf(e.path));
@@ -113,6 +110,24 @@ const openShell = () => {
 const editFile = (path: string) => {
     const t = tile.value;
     if (t) void execFile(props.tileId, t.nodeId, t.instance, EDITOR_CMD, parentPathOf(path), [path]);
+}
+// 파트(보기 타일): 이미지 = 보기 타일. 링크는 이름에 확장자가 없으면 원본 경로로(서버가 확장자로 형식을 고름)
+const viewPath = (e: DirEntry) => !isFileLike(e) ? undefined : viewKindOf(e.path) ? e.path : e.targetPath && viewKindOf(e.targetPath) ? e.targetPath : undefined;
+const viewKind = (e: DirEntry) => { const p = viewPath(e); return p ? viewKindOf(p) : undefined; };
+const viewEntry = (e: DirEntry) => {
+    const t = tile.value, p = viewPath(e);
+    if (t && p) viewFile(props.tileId, t.nodeId, t.instance, p);
+}
+// D(더블클릭 열기) 그 밖 파일: 앞 8KB에 NUL이 없으면 편집기, 있으면 안내(칸 메뉴 "편집"은 그대로 열 수 있음)
+const openOther = async (e: DirEntry) => {
+    const t = tile.value;
+    if (!t) return;
+    try {
+        if (!(await probeWorkerFile(t.instance, t.nodeId, e.path)).binary) editFile(e.path);
+        else openDialog({ type: 'warning', content: `바이너리 파일입니다: ${escHtml(e.name)}<br>편집하려면 칸 메뉴의 "편집"을 쓰세요.` });
+    } catch (err) {
+        openDialog({ type: 'error', content: (err as CatchErrorResponse).message || '파일을 확인하지 못했습니다' });
+    }
 }
 const newFileOpen = ref(false);
 const onNewFile = (name: string) => {
@@ -147,7 +162,7 @@ const toggle = (e: DirEntry) => {
 }
 const clearSel = () => { selected.value = new Set(); };
 
-// 칸 누르기 — 더블 = 디렉토리(링크 폴더는 링크 경로 그대로)는 들어가기, 실행 파일은 실행
+// 칸 누르기 — 더블 = 디렉토리(링크 폴더는 링크 경로 그대로)는 들어가기, 실행 파일은 실행, 그 밖 파일은 D(더블클릭 열기)
 const canRun = computed(() => !saving.value && tabReady.value && online.value);
 const press = useItemPress<DirEntry, string>({
     key: e => e.path,
@@ -155,7 +170,9 @@ const press = useItemPress<DirEntry, string>({
     check: toggle,
     open: e => {
         if (isDirLike(e)) go(e.path);
-        else if (e.exec && canRun.value) runFile(e);
+        else if (e.exec) { if (canRun.value) runFile(e); }
+        else if (viewKind(e) === 'image') viewEntry(e);
+        else if (isFileLike(e) && !viewKind(e) && canRun.value) void openOther(e);
     },
 });
 const { focused, dragOk } = press;
@@ -165,16 +182,18 @@ const onBodyClick = (e: MouseEvent) => {
 
 // 칸 메뉴(⋮·우클릭) — 맨 위 정보 카드(판 D′: 크기·수정 시각·링크 원본은 여기서만)
 // 내려받기 = 선택된 칸이면 선택 전부(끌어 놓기와 같은 규칙), 아니면 그 칸 하나. 끊긴 링크는 받을 게 없음
-type EntryAct = 'select' | 'edit' | 'download' | 'goto';
+type EntryAct = 'select' | 'view' | 'edit' | 'download' | 'goto';
 const dlList = (e: DirEntry) => selected.value.has(e.path) ? selEntries.value : [e];
 const menuItems = (e: DirEntry): RowMenuItem<EntryAct>[] => [
     { act: 'select', icon: selected.value.has(e.path) ? 'mdi-checkbox-blank-outline' : 'mdi-checkbox-marked-outline', title: selected.value.has(e.path) ? '선택 해제' : '선택' },
+    ...(viewKind(e) === 'image' ? [{ act: 'view' as const, icon: 'mdi-image-outline', title: '보기', disabled: !online.value }] : []),
     ...(isFileLike(e) ? [{ act: 'edit' as const, icon: 'mdi-pencil-outline', title: '편집', disabled: !canRun.value }] : []),
     ...(e.kind !== 'link' || e.targetPath ? [{ act: 'download' as const, icon: 'mdi-download', title: dlList(e).length > 1 ? `내려받기(선택 ${dlList(e).length}개)` : '내려받기', disabled: !canUpload.value }] : []),
     ...(linkDest(e) ? [{ act: 'goto' as const, icon: 'mdi-arrow-top-right', title: '원본 위치로' }] : []),
 ];
 const onAct = (act: EntryAct, e: DirEntry) => {
     if (act === 'select') toggle(e);
+    else if (act === 'view') viewEntry(e);
     else if (act === 'edit') editFile(e.path);
     else if (act === 'download') downloadEntries(e);
     else go(linkDest(e)!);

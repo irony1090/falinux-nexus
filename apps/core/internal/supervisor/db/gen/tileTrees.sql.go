@@ -393,6 +393,39 @@ func (q *Queries) ListTreesWithTerminal(ctx context.Context, uid string) ([]List
 	return items, nil
 }
 
+const listViewerTiles = `-- name: ListViewerTiles :many
+SELECT DISTINCT t.user_id, (e.tile->>'instance')::text AS instance, (e.tile->>'path')::text AS path
+FROM tile_trees t, jsonb_each(t.tree->'tiles') AS e(id, tile)
+WHERE e.tile->>'type' = 'viewer'
+`
+
+type ListViewerTilesRow struct {
+	UserID   int64
+	Instance string
+	Path     string
+}
+
+// 보기 타일 전부(계정 무관) — 이미지 사본 정리(파트(보기 타일), REF-view-tile.md)
+func (q *Queries) ListViewerTiles(ctx context.Context) ([]ListViewerTilesRow, error) {
+	rows, err := q.db.Query(ctx, listViewerTiles)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListViewerTilesRow
+	for rows.Next() {
+		var i ListViewerTilesRow
+		if err := rows.Scan(&i.UserID, &i.Instance, &i.Path); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const renameTileTree = `-- name: RenameTileTree :one
 UPDATE tile_trees
 SET name = $1, updated_at = NOW()

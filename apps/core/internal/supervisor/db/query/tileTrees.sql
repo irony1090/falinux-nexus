@@ -98,3 +98,9 @@ SELECT DISTINCT tt.user_id, (t.value->>'uid')::text AS uid
 FROM tile_trees tt, jsonb_each(tt.tree->'tiles') t
 WHERE t.value->>'type' = 'terminal'
   AND t.value->>'uid' = ANY(sqlc.arg(uids)::text[]);
+
+-- name: ListViewerTiles :many
+-- 보기 타일 전부(계정 무관) — 이미지 사본 정리(파트(보기 타일), REF-view-tile.md)
+SELECT DISTINCT t.user_id, (e.tile->>'instance')::text AS instance, (e.tile->>'path')::text AS path
+FROM tile_trees t, jsonb_each(t.tree->'tiles') AS e(id, tile)
+WHERE e.tile->>'type' = 'viewer';

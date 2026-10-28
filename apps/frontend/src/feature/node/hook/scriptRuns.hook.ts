@@ -1,7 +1,8 @@
 import { useTestSocket } from '@/common/websocket/websocket.hook'
-import { useQueryClient } from '@tanstack/vue-query'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, onUnmounted, ref, type Ref } from 'vue'
 import { invalidateNodeRuns, useDeviceRuns, useNodeRuns, type RunResponse } from '../api/node.api'
+import { listViewers } from '../api/tile.api'
 import { useTileTree } from '../store/tileTree.store'
 
 // 실행·종료·종료 요청·타일 변화·공유 변화가 오면 process 목록을 다시 받는다
@@ -48,4 +49,25 @@ export const useRootRuns = (enabled: Ref<boolean> = ref(true)) => {
     useRunsRefresh()
 
     return computed(() => (device.value ? deviceRuns.data.value : folderRuns.data.value) ?? [])
+}
+
+const VIEWERS_KEY = ['TILES', 'VIEWERS']
+
+// 루트 타일 터미널 탭의 보기 줄 — 범위는 useRootRuns와 같음. 다른 보드·탭 변화 = TILES:UPDATE, 이 보드 = 보기 타일 목록이 바뀌면(키에 포함)
+export const useRootViewers = (enabled: Ref<boolean> = ref(true)) => {
+    const { tiles, rootId } = useTileTree()
+    const root = computed(() => tiles.value[rootId.value])
+    const folderId = computed(() => root.value?.type === 'folder' || root.value?.type === 'device' ? root.value.nodeId ?? 0 : 0)
+    const mainKey = computed(() => root.value?.type === 'device' ? root.value.instance.slice(0, root.value.instance.lastIndexOf('#')) : '')
+    const here = computed(() => Object.values(tiles.value).filter(t => t.type === 'viewer').map(t => t.id).sort().join())
+    const query = useQuery({
+        enabled: computed(() => enabled.value && !!root.value),
+        queryKey: [...VIEWERS_KEY, folderId, mainKey, here],
+        queryFn: ({ queryKey }) => listViewers(queryKey[2] as number, queryKey[3] as string),
+    })
+    const queryClient = useQueryClient()
+    const { on } = useTestSocket()
+    const off = on('TILES:UPDATE', () => { void queryClient.invalidateQueries({ queryKey: VIEWERS_KEY }) })
+    onUnmounted(off)
+    return computed(() => query.data.value ?? [])
 }

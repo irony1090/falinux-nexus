@@ -6,7 +6,7 @@ import { VChip, VIcon } from 'vuetify/components';
 import { useGetNode } from '../../api/node.api';
 import { TILE_KINDS } from '@/feature/widget/util/tileKind.util';
 import { isProcTile, type Tile } from '../../store/tileTree.store';
-import { deviceLabel, nodeLabel } from '../../util/tileLabel.util';
+import { deviceLabel, fileLabel, nodeLabel } from '../../util/tileLabel.util';
 
 // 전체보기의 다른 보드 타일 — 읽기 전용(조작·입력 없음, 누르면 그 보드로). TileFrame은 지금 보드 스토어를 inject하므로 따로 둔다 — 미리보기-4(그리기)
 const props = defineProps({
@@ -21,9 +21,14 @@ const props = defineProps({
 })
 
 const { procs } = useProcessTerm();
-const { data: node } = useGetNode(computed(() => props.tile.type === 'device' ? NaN : props.tile.nodeId ?? NaN));
+const { data: node } = useGetNode(computed(() => props.tile.type === 'device' || props.tile.type === 'viewer' ? NaN : props.tile.nodeId ?? NaN));
 
-const name = computed(() => props.tile.type === 'device' ? deviceLabel(props.tile.instance, props.tile.path) : nodeLabel(props.tile.nodeId, node.value?.name));
+const name = computed(() => {
+    const t = props.tile;
+    if (t.type === 'device') return deviceLabel(t.instance, t.path);
+    if (t.type === 'viewer') return fileLabel(t.path);
+    return nodeLabel(t.nodeId, node.value?.name);
+});
 const proc = computed(() => isProcTile(props.tile) ? procs.value[props.tile.uid] : undefined);
 const pill = computed(() => pillOf(proc.value?.status, proc.value?.terminating));
 </script>

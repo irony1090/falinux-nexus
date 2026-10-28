@@ -116,7 +116,7 @@ func toRunResponses(rows []superdb.ListVisibleRunsInFolderRow, where map[string]
 		loc := where[row.Uid]
 		name, cwd := row.Name, ""
 		if !row.NodeID.Valid {
-			name, cwd = fileBase(row.Cmd), row.Cwd
+			name, cwd = execName(row.Cmd, row.Args), row.Cwd
 		}
 		out[i] = runResponse{Uid: row.Uid, NodeID: nullID(row.NodeID), Name: name, Cwd: cwd, Status: row.Status, Permission: row.Permission,
 			StartedBy: row.StartedByNickname, StartedByMe: row.StartedBy == userID,

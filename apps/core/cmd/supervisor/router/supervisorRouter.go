@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"nexus/cmd/supervisor/constants"
 	"sync"
 
 	"nexus/cmd/supervisor/process"
@@ -52,6 +53,7 @@ type supervisorRouter struct {
 	copySlots      chan struct{}                                 // worker 간 중계 동시 수(copy.go)
 	unregistered   *unregisteredSet                              // 인스턴스별 미등록 process(workerMove.go)
 	blocked        *blockedUsers                                 // 정지·삭제된 회원(admin.go)
+	view           *viewCache                                    // 이미지 사본(viewCache.go)
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -93,9 +95,11 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 		copySlots:      make(chan struct{}, copyParallel),
 		unregistered:   newUnregisteredSet(),
 		blocked:        loadBlockedUsers(),
+		view:           newViewCache(constants.GetEnv()),
 	}
 	go router.runPurge() // 끝난 process 주기 삭제(K2(supervisor 정리))
 	go router.runTransferSweep()
+	go router.runViewSweep()
 
 	e := echo.New()
 	e.Validator = &CustomValidator{validator: validator.New()}

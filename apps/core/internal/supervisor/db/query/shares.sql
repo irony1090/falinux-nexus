@@ -285,7 +285,7 @@ ORDER BY u.nickname, n.name, n.id;
 -- 단계 판정은 process_permission만.
 SELECT p.uid, p.node_id, p.status, process_permission(sqlc.arg(user_id), p.uid)::smallint AS permission,
        p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
-       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name, p.cmd, p.cwd
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name, p.cmd, p.cwd, p.args
 FROM processes p
 JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by
@@ -305,7 +305,7 @@ WITH RECURSIVE sub AS (
 )
 SELECT p.uid, p.node_id, p.status, process_permission(sqlc.arg(user_id), p.uid)::smallint AS permission,
        p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
-       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, COALESCE(n.name, '')::text AS name, p.cmd, p.cwd
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, COALESCE(n.name, '')::text AS name, p.cmd, p.cwd, p.args
 FROM processes p
 LEFT JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by
@@ -320,7 +320,7 @@ ORDER BY p.created_at ASC;
 -- 어느 타일·폴더에서 띄웠든, 단독 공유 포함. 서브키는 마지막 '#' 뒤(splitInstanceKey와 같게)
 SELECT p.uid, p.node_id, p.status, process_permission(sqlc.arg(user_id), p.uid)::smallint AS permission,
        p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
-       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, COALESCE(n.name, '')::text AS name, p.cmd, p.cwd
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, COALESCE(n.name, '')::text AS name, p.cmd, p.cwd, p.args
 FROM processes p
 LEFT JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by

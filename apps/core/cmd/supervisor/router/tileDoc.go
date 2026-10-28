@@ -32,8 +32,8 @@ type tileItem struct {
 	ShortcutsOff bool     `json:"shortcutsOff,omitempty"` // terminal: 이 타일이 active인 동안 앱 단축키 끔 — 이동-3(타일별 단축키 끔)
 	ShownAt      int64    `json:"shownAt,omitempty"`      // folder: 지금 노드를 보여 주기 시작한 시각(unix ms, 서버만 씀) — BD3(저장 위치)
 	Bound        bool     `json:"bound,omitempty"`        // folder: 터미널 받는 타일로 고정(서버만 씀) — BD4(설정 방법)
-	Instance     string   `json:"instance,omitempty"`     // device: worker 인스턴스(main#sub)
-	Path         string   `json:"path,omitempty"`         // device: 지금 경로("" = 최상위)
+	Instance     string   `json:"instance,omitempty"`     // device·viewer: worker 인스턴스(main#sub)
+	Path         string   `json:"path,omitempty"`         // device: 지금 경로("" = 최상위) / viewer: 파일 경로
 	Back         []string `json:"back,omitempty"`         // 이동 기록(folder = 노드 id, "" = 루트 목록 / device = 경로) — 뒤로-1(타일 안 이동 기록)
 	Fwd          []string `json:"fwd,omitempty"`
 }

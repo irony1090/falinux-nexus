@@ -14,7 +14,8 @@ type NavBase = { back?: ReadonlyArray<string>; fwd?: ReadonlyArray<string> }   /
 export type FolderTile = TileBase & NavBase & { type: 'folder'; nodeId: number | null; uid?: string; bound?: boolean }  // null = 루트 목록, uid = 서버 발급(새 타일은 저장 뒤 생김), 공유로 받은 타일은 공유한 타일과 같음, bound = 수동 타일 고정(서버만 씀, 표시는 pins)
 export type TerminalTile = TileBase & { type: 'terminal'; nodeId: number | null; uid: string; shortcutsOff?: true }   // nodeId null = 장비 파일 실행(폴더-4(실행)), shortcutsOff = active인 동안 앱 단축키 끔(이동-3(타일별 단축키 끔))
 export type DeviceTile = TileBase & NavBase & { type: 'device'; nodeId: number; instance: string; path?: string }    // nodeId = 연 폴더(Q15(장비 디렉토리 id)), instance = main#sub, path 없음 = 최상위
-export type Tile = FolderTile | TerminalTile | DeviceTile
+export type ViewerTile = TileBase & { type: 'viewer'; nodeId: number; instance: string; path: string }    // 보기 타일 — 장비 타일과 같은 필드, path = 파일(파트(보기 타일), REF-file-view.md)
+export type Tile = FolderTile | TerminalTile | DeviceTile | ViewerTile
 
 // 능력별 타일 — 가드가 TILE_KINDS를 믿으므로 종류를 더하면 이 두 타입도 같이 (REF-tile-kinds.md)
 export type ParentTile = FolderTile | DeviceTile     // 능력-2(자식 가능)
@@ -378,6 +379,13 @@ export const provideTileTree = () => {
         return tile.id
     }
 
+    // 보기 타일 — 연 장비 타일의 자식
+    const openViewer = (parentId: string, nodeId: number, instance: string, path: string, size: TileSize) => {
+        const tile: ViewerTile = { id: crypto.randomUUID(), type: 'viewer', parent: parentId, kids: [], size, nodeId, instance, path }
+        run(attachOp(parentId, tile))
+        return tile.id
+    }
+
     const navigate = (tileId: string, nodeId: number | null) => run(navigateOp(tileId, nodeId))
 
     const navigateDevice = (tileId: string, path: string) => run(navigateDeviceOp(tileId, path))
@@ -471,6 +479,7 @@ export const provideTileTree = () => {
         reset,
         openFolder,
         openDevice,
+        openViewer,
         navigate,
         navigateDevice,
         goHistory,

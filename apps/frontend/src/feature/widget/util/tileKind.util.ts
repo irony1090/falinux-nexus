@@ -14,6 +14,7 @@ export const TILE_KINDS: Record<TileType, TileKind> = {
 	folder: { canRoot: true, canParent: true, holdsProc: false, icon: 'mdi-folder', color: 'warning' },
 	terminal: { canRoot: false, canParent: false, holdsProc: true, icon: 'mdi-console', color: 'primary' },
 	device: { canRoot: true, canParent: true, holdsProc: false, icon: 'mdi-folder-network', color: 'info' },   // 장비 타일 — worker 디렉토리(폴더-2(장비 타일))
+	viewer: { canRoot: false, canParent: false, holdsProc: false, icon: 'mdi-image-outline', color: 'success' },   // 보기 타일 — 장비 파일 하나(파트(보기 타일))
 };
 
 type Typed = { type: TileType };
