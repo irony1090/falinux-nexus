@@ -87,10 +87,15 @@ func procName(ctx context.Context, q *superdb.Queries, p superdb.Process) string
 	if p.NodeID.Valid {
 		return nodeName(ctx, q, p.NodeID.Int64)
 	}
-	if p.Cmd == protocol.PlaceholderWorkerEditor && len(p.Args) > 0 {
-		return "편집 " + fileBase(p.Args[0])
+	return execName(p.Cmd, p.Args)
+}
+
+// execName: 장비 실행 이름 — 편집 = "편집 <파일 이름>", 그 밖은 fileBase
+func execName(cmd string, args []string) string {
+	if cmd == protocol.PlaceholderWorkerEditor && len(args) > 0 {
+		return "편집 " + fileBase(args[0])
 	}
-	return fileBase(p.Cmd)
+	return fileBase(cmd)
 }
 
 // fileBase: 경로 끝 이름 — worker가 Windows일 수 있어 `\`도 구분자로. "여기서 셸" = "셸", 편집 = "편집"
@@ -99,7 +104,7 @@ func fileBase(p string) string {
 	case protocol.PlaceholderWorkerShell:
 		return "셸"
 	case protocol.PlaceholderWorkerEditor:
-		return "편집" // 인자를 모르는 자리(실행 목록 SQL) — 파일 이름까지는 procName
+		return "편집" // 인자가 없을 때 — 파일 이름까지는 execName
 	}
 	return p[strings.LastIndexAny(p, `/\`)+1:]
 }

@@ -25,6 +25,7 @@ func (r *supervisorRouter) mountTiles(e *echo.Group) {
 	g.GET("/:hash", r.getTiles)
 	g.PUT("/:hash", r.putTiles, middleware.BodyLimit("256K"))
 	g.POST("/bind", r.bindTile)
+	g.GET("/viewers", r.listViewers) // viewerList.go
 }
 
 // Hash = 그 트리의 보드 hash — 프론트가 TILES:UPDATE의 hash와 비교해 자기 보드 것만 받는다(WS6(TILES 이벤트 구분))

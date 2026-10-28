@@ -2,7 +2,7 @@
 export type TileSpan = 0.5 | 1;
 export type TileSize = { w: TileSpan; h: TileSpan };
 
-export type TileType = 'folder' | 'terminal' | 'device';
+export type TileType = 'folder' | 'terminal' | 'device' | 'viewer';
 
 // 순서·채우기 유틸이 요구하는 최소 필드 (여는 관계 트리의 노드)
 export interface TileNode {

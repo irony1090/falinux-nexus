@@ -52,6 +52,10 @@ const ROSTER_KEY = ['WORKER', 'ROSTER']
 
 export const invalidateWorkerRoster = (queryClient: QueryClient) => queryClient.invalidateQueries({ queryKey: ROSTER_KEY })
 
+// 인스턴스(main#sub)가 명부에서 접속 중인지
+export const instanceOnline = (devices: ReadonlyMap<string, WorkerDevice>, instance: string) =>
+    !!devices.get(instance.slice(0, instance.lastIndexOf('#')))?.instances.find(i => i.instanceKey === instance)?.online
+
 // main_key별 명부 요약. 접속·끊김은 알림으로 다시 조회 + 긴 주기 조회(같은 키라 화면 전체가 요청 하나를 공유)
 export const useWorkerRoster = () => {
     const query = useQuery({
@@ -129,6 +133,18 @@ const instanceUrl = (instance: string, rest: string) => {
     const i = instance.lastIndexOf('#')
     return `/workers/${encodeURIComponent(instance.slice(0, i))}/${encodeURIComponent(instance.slice(i + 1))}/${rest}`
 }
+
+// ---- 보기 타일 — 파트(보기 타일), REF-file-view.md ----
+// GET .../file — <img src>에 그대로(쿠키 세션). ETag가 같으면 304
+export const viewFileUrl = (instance: string, folderId: number, path: string) =>
+    `${BaseAxios.defaults.baseURL}${instanceUrl(instance, 'file')}?folderId=${folderId}&path=${encodeURIComponent(path)}`
+
+// GET .../file/probe — 앞 8KB에 NUL이 있으면 바이너리(D(더블클릭 열기)). 화면 표시 실패의 원인 확인에도 씀
+export const probeWorkerFile = (instance: string, folderId: number, path: string) => BaseAxios.get(
+    instanceUrl(instance, 'file/probe'),
+    { params: { folderId, path } }
+).then(throwThen<{ binary: boolean }>)
+.catch(throwCatch)
 
 // worker에 저장된 supervisor 주소 목록(1순위부터, 최대 3)
 export type AddrsResponse = { addrs: string[] }

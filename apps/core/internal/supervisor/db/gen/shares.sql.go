@@ -859,7 +859,7 @@ const listVisibleRunsInFolder = `-- name: ListVisibleRunsInFolder :many
 
 SELECT p.uid, p.node_id, p.status, process_permission($1, p.uid)::smallint AS permission,
        p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
-       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name, p.cmd, p.cwd
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, n.name, p.cmd, p.cwd, p.args
 FROM processes p
 JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by
@@ -888,6 +888,7 @@ type ListVisibleRunsInFolderRow struct {
 	Name              string
 	Cmd               string
 	Cwd               string
+	Args              []string
 }
 
 // ===== 스크립트 행 "실행 중 N"(실시간-6a) =====
@@ -914,6 +915,7 @@ func (q *Queries) ListVisibleRunsInFolder(ctx context.Context, arg ListVisibleRu
 			&i.Name,
 			&i.Cmd,
 			&i.Cwd,
+			&i.Args,
 		); err != nil {
 			return nil, err
 		}
@@ -933,7 +935,7 @@ WITH RECURSIVE sub AS (
 )
 SELECT p.uid, p.node_id, p.status, process_permission($1, p.uid)::smallint AS permission,
        p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
-       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, COALESCE(n.name, '')::text AS name, p.cmd, p.cwd
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, COALESCE(n.name, '')::text AS name, p.cmd, p.cwd, p.args
 FROM processes p
 LEFT JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by
@@ -962,6 +964,7 @@ type ListVisibleRunsInSubtreeRow struct {
 	Name              string
 	Cmd               string
 	Cwd               string
+	Args              []string
 }
 
 // 터미널 탭(개편-3(목록 API)): 폴더와 그 하위 전체 스크립트의 process — 위와 같은 조건. folder_id NULL = 기본 루트 = 볼 수 있는 process 전부
@@ -987,6 +990,7 @@ func (q *Queries) ListVisibleRunsInSubtree(ctx context.Context, arg ListVisibleR
 			&i.Name,
 			&i.Cmd,
 			&i.Cwd,
+			&i.Args,
 		); err != nil {
 			return nil, err
 		}
@@ -1001,7 +1005,7 @@ func (q *Queries) ListVisibleRunsInSubtree(ctx context.Context, arg ListVisibleR
 const listVisibleRunsOnDevice = `-- name: ListVisibleRunsOnDevice :many
 SELECT p.uid, p.node_id, p.status, process_permission($1, p.uid)::smallint AS permission,
        p.started_by, COALESCE(u.nickname, '')::text AS started_by_nickname,
-       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, COALESCE(n.name, '')::text AS name, p.cmd, p.cwd
+       (p.kill_requested_at IS NOT NULL)::boolean AS terminating, p.kill_forced, COALESCE(n.name, '')::text AS name, p.cmd, p.cwd, p.args
 FROM processes p
 LEFT JOIN nodes n ON n.id = p.node_id
 LEFT JOIN users u ON u.id = p.started_by
@@ -1030,6 +1034,7 @@ type ListVisibleRunsOnDeviceRow struct {
 	Name              string
 	Cmd               string
 	Cwd               string
+	Args              []string
 }
 
 // 루트 장비 타일 터미널 탭(이동-3(장비 목록 API), Q25(루트 장비 탭 범위)): 그 장비(main_key, 인스턴스 전부)의 process — 위와 같은 조건.
@@ -1055,6 +1060,7 @@ func (q *Queries) ListVisibleRunsOnDevice(ctx context.Context, arg ListVisibleRu
 			&i.Name,
 			&i.Cmd,
 			&i.Cwd,
+			&i.Args,
 		); err != nil {
 			return nil, err
 		}

@@ -29,6 +29,8 @@ func (r *supervisorRouter) mountWorkers(e *echo.Group) {
 	g.GET("/:mainKey/:subKey/dir/suggest", r.suggestWorkerDir)  // workerDir.go
 	g.POST("/:mainKey/:subKey/uploads", r.startUpload)          // upload.go
 	g.POST("/:mainKey/:subKey/downloads", r.startDownload)      // download.go
+	g.GET("/:mainKey/:subKey/file", r.viewWorkerFile)           // workerFile.go
+	g.GET("/:mainKey/:subKey/file/probe", r.probeWorkerFile)    // workerFile.go
 	g.POST("/:mainKey/:subKey/exec", r.execWorkerFile)          // workerExec.go
 	g.GET("/:mainKey/runs", r.listDeviceRuns)                   // nodeRuns.go
 	g.GET("/:mainKey/:subKey/addrs", r.listWorkerAddrs)         // workerMove.go

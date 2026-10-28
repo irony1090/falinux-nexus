@@ -87,6 +87,7 @@ func (w *workerReader) call(t protocol.MsgType, body any) (protocol.Frame, error
 func (w *workerReader) Name() string   { return w.info.Name }
 func (w *workerReader) Size() int64    { return w.info.Size }
 func (w *workerReader) Mode() uint32   { return w.info.Mode }
+func (w *workerReader) ModTime() int64 { return w.info.ModTime }
 func (w *workerReader) Current() int64 { return w.pos }
 
 // Hash: 빈 값 = 받는 worker가 hash 검사를 건너뜀(크기는 검사). 미리 구하려면 보내는 쪽이 파일을 한 번 더 다 읽어야 해서 안 함

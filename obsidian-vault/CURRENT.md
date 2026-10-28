@@ -8,7 +8,9 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **(2026-10-28 세션 끝) 다음 = 파트(보기 타일)** — D(더블클릭 열기) 답: ① 해석 맞음 ③ 영상 전엔 아무 일 없음 ④ 보기 타일에 같이. **② 바이너리 판정 제안(앞 8KB NUL, 더블클릭 때만) 확인 대기** → `REF-file-view.md` "다음 파트(보기 타일) 결정". V1~V5 확정, 읽기 전용 텍스트 안 함. 브랜치는 착수 때
+- **(2026-10-28 밤) 파트(보기 타일) 마감** — `feat/file-view` 커밋 + master 머지, push = 사용자. 진행 중 파트 없음 → `REF-view-tile.md`
+  - 다음 후보 = 파트(영상 Range, 영상은 계정 전체 한 타일) → `BACKLOG.md`
+  - 남긴 것: DB `nexus_fv_tmp`(격리 확인용, 필요 없으면 DROP) · `/run/user/1000/fviso`. test3(8013)·집 서버엔 아직 안 깖(사용자: 작업 더 끝낸 뒤 한꺼번에 배포) — 배포 때 `VIEW_CACHE_DIR`(기본 = exe 옆 `view-cache`) 안내
 - **오늘 밤 사용자(집)**: 직통 전환 1(내부 IP 고정)·2(포트포워딩)·6(시험 실행) → `user/home-server/직통-전환.md` · 집 서버 편집기는 일부러 안 깖(새 빌드에서 거절 메시지 본 뒤 `winget install Microsoft.Edit`로 비교) · 집 서버 웹·exe는 아직 파일 편집기 전 빌드 — **사용자: 작업을 어느 정도 더 끝낸 뒤 한꺼번에 배포**
 - **(2026-10-28 저녁) 파트(파일 편집기) 마감** · `feat/file-edit` 커밋 + master 머지, push = 사용자 · 장비 타일 칸 메뉴 "편집"(worker 편집기)·"새 파일"·칸 메뉴 "내려받기", Windows VM 확인 → `REF-file-view.md` · 다음 후보 = 보기 타일(V1~V5 기본안 확인부터) → `BACKLOG.md` · 집 서버엔 편집기 일부러 안 깖(사용자가 차이 볼 예정)
 - **(2026-10-28) 진행 중 파트 없음** — 오늘 마감: 파트(경로 줄 정리) `INDEX-path-row` → 파트(패널 창 버튼) `INDEX-pager-head-btns`(미해결 1건 → `BACKLOG.md`) → 파트(닫은 뒤 active) `INDEX-close-active`. 셋 다 master 머지, push = 사용자. 격리 환경 끔, DB `nexus_member_tmp`는 원래대로 남김. 다음 파트 후보 = `BACKLOG.md`(첫 줄 "타일 ESC로 닫기")

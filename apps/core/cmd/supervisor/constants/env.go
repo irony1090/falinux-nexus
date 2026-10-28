@@ -27,6 +27,7 @@ type EnvVars struct {
 	SessionKey  string // 세션 쿠키 서명 키
 	KeySecret   string // 장비 API 키 암호화 비밀값 — 잃으면 저장된 키를 다시 볼 수 없음(REF-member.md 회원-Q16)
 	WebDir      string // 빌드된 웹 파일 폴더(비면 서빙 안 함). 상대 경로 = 실행 파일 폴더 기준
+	ViewCache   string // 이미지 사본 폴더(빈 값 = 사본 안 만듦). 키가 없으면 ./view-cache, 상대 경로 = WEB_DIR과 같음(REF-view-tile.md)
 }
 
 var env *EnvVars
@@ -135,6 +136,19 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 		webDir = filepath.Join(projectDir, webDir)
 	}
 
+	// 빈 값(VIEW_CACHE_DIR="") = 끔이라 키가 있는지로 가린다
+	viewCache, ok := os.LookupEnv("VIEW_CACHE_DIR")
+	if !ok {
+		if isNil {
+			viewCache = "view-cache"
+		} else {
+			viewCache = env.ViewCache
+		}
+	}
+	if viewCache != "" && !filepath.IsAbs(viewCache) {
+		viewCache = filepath.Join(projectDir, viewCache)
+	}
+
 	if isNil {
 		// 환경 변수 값으로 구조체 초기화
 		env = &EnvVars{
@@ -154,6 +168,7 @@ func LoadEnv(envPath string, projectDir string) (*EnvVars, error) {
 	env.SessionKey = sessionKey
 	env.KeySecret = keySecret
 	env.WebDir = webDir
+	env.ViewCache = viewCache
 
 	log.Printf("root path %s", projectDir)
 	log.Printf("Loaded %v", env)

@@ -13,6 +13,7 @@ const (
 	tileFolder   = "folder"
 	tileTerminal = "terminal"
 	tileDevice   = "device" // 장비 타일 — worker 디렉토리(폴더-2(장비 타일), REF-worker-dir-list.md)
+	tileViewer   = "viewer" // 보기 타일 — 장비 파일 하나(파트(보기 타일), REF-file-view.md)
 )
 
 // tileHistMax: 이동 기록 뒤로·앞으로 합친 수 — Q16(기록 보관 위치)
@@ -41,6 +42,16 @@ var tileKinds = map[string]tileKind{
 		}
 		if t.UID != "" {
 			return errors.New("장비 타일에는 uid가 없습니다")
+		}
+		return nil
+	}},
+	// 장비 타일과 같은 필드, path = 파일 경로. 이미지·영상은 확장자로 나눔(프론트)
+	tileViewer: {check: func(t tileItem) error {
+		if t.NodeID == nil || !strings.Contains(t.Instance, "#") || t.Path == "" {
+			return errors.New("보기 타일에 nodeId·instance·path가 없습니다")
+		}
+		if t.UID != "" {
+			return errors.New("보기 타일에는 uid가 없습니다")
 		}
 		return nil
 	}},

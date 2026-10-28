@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRootRuns } from '../../hook/scriptRuns.hook';
+import { useRootRuns, useRootViewers } from '../../hook/scriptRuns.hook';
 import { useTileGrids } from '../../store/tileGrids.store';
 
-// 루트 타일 탭 `[파일] [터미널 N · 최소화 n]` — 폴더·장비 루트 공용. 숫자 = 터미널 탭 목록(RootTerminalList와 같은 조회)
+// 루트 타일 탭 `[파일] [터미널 N · 보기 n · 최소화 n]` — 폴더·장비 루트 공용. 숫자 = 터미널 탭 목록(RootTerminalList와 같은 조회)
 const { rootTab, overview } = useTileGrids();
 const runs = useRootRuns();
+const viewers = useRootViewers();
 const minCount = computed(() => runs.value.filter(r => r.minimized).length);
 </script>
 
@@ -13,7 +14,7 @@ const minCount = computed(() => runs.value.filter(r => r.minimized).length);
 <div class="RootTabs" data-pager-press :inert="overview">
     <button :class="{ on: rootTab === 'files' }" @click="rootTab = 'files'">파일</button>
     <button :class="{ on: rootTab === 'terminals' }" @click="rootTab = 'terminals'">
-        터미널 {{ runs.length }}<template v-if="minCount"> · 최소화 {{ minCount }}</template>
+        터미널 {{ runs.length }}<template v-if="viewers.length"> · 보기 {{ viewers.length }}</template><template v-if="minCount"> · 최소화 {{ minCount }}</template>
     </button>
 </div>
 </template>

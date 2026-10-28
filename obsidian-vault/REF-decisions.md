@@ -49,6 +49,10 @@
 ## 타일 종류
 - **타일 종류 = 능력으로 묻는다**(2026-10-22, 파트(타일 종류 정리)): 여러 종류가 같이 쓰는 로직은 `type` 비교 대신 능력-1(루트 가능)·2(자식 가능)·3(process 담음) — 서버 `router/tileKind.go` `tileKinds` / 프론트 `widget/util/tileKind.util.ts` `TILE_KINDS`(두 표를 같게). 화면 = 공통 틀 `TileFrame` + 종류 컴포넌트(`tileComponents.ts`). 새 종류 추가 절차 → `REF-tile-kinds.md` "새 종류를 더할 때"
 
+## process 범위
+- **process = worker에서 실제로 무언가를 실행한 것(PTY)만**(스크립트 EXEC·EDIT, 장비 파일 실행, 셸, 편집기, 가져오기). worker에서 아무것도 켜지 않는 것(보기 타일 등)은 `processes` 행 없이 **타일만**
+- 이유: process에는 상태 전이(PENDING·종료)·kill·worker 재동기화가 붙어 있어 실행 없는 것에 넣으면 예외 분기만 늘어남. 목록에 같이 보여야 하면 서버가 타일 트리를 조회해 붙인다(2026-10-28 사용자 확인, 파트(보기 타일) `REF-view-tile.md`)
+
 ## 전송
 - **전송 = supervisor 전송 목록(메모리) + 계정 토픽 `TRANSFER:*` push**(2026-10-23, 파트(파일 전송 확장)): 업로드·내려받기·worker 간 전송 공용. 브라우저 -> supervisor 본문은 **HTTP 조각 512KB**(앞단 nginx `client_max_body_size` 기본 1MB). worker -> supervisor 읽기는 끌어오기(`FILE_OPEN`·`READ`·`CLOSE`). 장비 디렉토리 인가 = `requireDeviceDir` (→ `REF-transfer-ext.md`·`REF-transfer-down.md`)
 

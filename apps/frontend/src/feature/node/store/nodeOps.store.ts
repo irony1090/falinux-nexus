@@ -40,7 +40,7 @@ export const nodeActItems = (node: NodeResponse, viDisabled: boolean): NodeActIt
 type NameTarget = { kind: NodeKind; parentId: number | null } | { node: NodeResponse }
 
 export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
-    const { tiles, hash: boardHash, openFolder, openDevice, applyServerTile, flush } = useTileTree()
+    const { tiles, hash: boardHash, openFolder, openDevice, openViewer, applyServerTile, flush } = useTileTree()
     const { newSize, activate } = grids
     const { open: appDialogOpen, openDialog } = useAppDialog()
     const { exec: execTerm, execFile: execTermFile, adopt: adoptTerm } = useProcessTerm()
@@ -124,6 +124,15 @@ export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
         run(tileId, flush().then(() => execTermFile(instance, folderId, cmd, cwd, { workspace: boardHash.value, parentTileId: tileId, size: newSize.value }, args)), res => {
             if (res.tile && res.tileVersion) activate(applyServerTile(res.tile, res.tileVersion))
         })
+
+    // 보기 타일(파트(보기 타일)) — 이 장비 타일이 이미 연 같은 파일이면 그 타일로
+    const viewFile = (tileId: string, folderId: number, instance: string, path: string) => {
+        const open = tiles.value[tileId]?.kids.find(k => {
+            const t = tiles.value[k]
+            return t?.type === 'viewer' && t.instance === instance && t.path === path
+        })
+        activate(open ?? openViewer(tileId, folderId, instance, path, newSize.value))
+    }
 
     // 미등록 process 가져오기(가져오기-4(화면)) — 서버가 장비 타일 아래 터미널 타일을 넣는다. 실패는 호출부(미등록 창)가 보여 준다
     const adopt = (tileId: string, folderId: number, instance: string, uid: string) =>
@@ -243,6 +252,7 @@ export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
         startDir,
         openDir,
         execFile,
+        viewFile,
         adopt,
         name,
         nameTitle,

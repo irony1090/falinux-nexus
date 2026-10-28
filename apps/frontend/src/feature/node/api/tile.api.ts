@@ -74,3 +74,13 @@ export const putTiles = (hash: string, tree: TileTree, version: number, keepaliv
             : { ok: true as const, version: (res.data as { version: number }).version })
         .catch(throwCatch)
 }
+
+// GET /tiles/viewers — 터미널 탭의 보기 줄. 보기 타일은 process가 아니라 내 보드 트리에서 찾음(REF-view-tile.md)
+// 범위는 터미널 탭과 같음: folderId 0 = 전부 / 폴더 = 연 폴더가 그 하위 / mainKey = 그 장비
+export type ViewerResponse = { hash: string; tileId: string; nodeId: number; instance: string; path: string }
+
+export const listViewers = (folderId: number, mainKey?: string) => BaseAxios.get(
+    '/tiles/viewers',
+    { params: { folderId, mainKey: mainKey || undefined } }
+).then(throwThen<ViewerResponse[]>)
+.catch(throwCatch)

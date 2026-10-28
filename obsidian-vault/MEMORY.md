@@ -33,6 +33,7 @@
 - **타일 이동**: 타일로 가는 경로는 전부 `reveal`(화면 밖일 때만)
 - **앱 단축키**: `appShortcutsOff` 검사를 맨 앞에 — **새 단축키도 반드시**
 - **타일 종류**: `type` 비교 말고 능력으로 묻는다. 서버 `tileKinds`·프론트 `TILE_KINDS` 두 표를 같게
+- **process 범위**: worker에서 실제로 실행한 것(PTY)만. 보기 타일처럼 실행 없는 것은 타일만, 목록엔 트리 조회로 붙임
 - **전송**: supervisor 전송 목록 + `TRANSFER:*` push. 브라우저 본문 = 조각 512KB
 - **브라우저 API**: 전부 `/api` 아래. 새 API는 `mount*` 그룹에만, 프론트는 `getBaseURL()` + 문자열(`new URL` 금지)
 - **회원·장비 인가**: worker 접속에 API 키(메인키마다 하나, env `KEY_SECRET` 필수). 실행 권한 = 장비 주인 + 지정 폴더 공유받은 사람
@@ -81,9 +82,9 @@ sqlc.yaml  README.md  .gitignore
 
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
-- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-decisions.md`(확정 결정 상세) · `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-file-view.md`(장비 파일 편집기·보기 타일·칸 메뉴 내려받기, 구상)
+- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-decisions.md`(확정 결정 상세) · `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-file-view.md`(장비 파일 편집기·보기 타일·칸 메뉴 내려받기, 구상) · `REF-view-tile.md`(파트(보기 타일) 구현)
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
-- **진행 중 파트**: 없음 (직전 = 파일 편집기(마감, 10-28) → `REF-file-view.md` — 보기 타일·영상 파트가 이어서 같은 REF를 써서 INDEX로 안 접음)
+- **진행 중 파트**: 없음 (직전 = 보기 타일(마감, 10-28, `feat/file-view` 머지) → `REF-view-tile.md` · 그 전 파일 편집기 → `REF-file-view.md`. 다음 영상 파트가 두 REF를 이어 써서 INDEX로 안 접음)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`
