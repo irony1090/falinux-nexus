@@ -8,8 +8,9 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
+- **(2026-10-28 세션 끝) 다음 = 파트(보기 타일) 착수 전 조율** — 먼저 D(더블클릭 열기: 실행 파일 아님 -> 이미지 보기 / 영상 보기 / 그 밖 편집기) 해석 + 질문 ①~④ 확인 → `REF-file-view.md` "다음 파트(보기 타일) 결정". V1~V5 확정, 읽기 전용 텍스트 안 함. 브랜치는 착수 때 만듦
+- **오늘 밤 사용자(집)**: 직통 전환 1(내부 IP 고정)·2(포트포워딩)·6(시험 실행) → `user/home-server/직통-전환.md` · 집 서버 편집기는 일부러 안 깖(새 빌드에서 거절 메시지 본 뒤 `winget install Microsoft.Edit`로 비교) · 집 서버 웹·exe는 아직 파일 편집기 전 빌드
 - **(2026-10-28 저녁) 파트(파일 편집기) 마감** · `feat/file-edit` 커밋 + master 머지, push = 사용자 · 장비 타일 칸 메뉴 "편집"(worker 편집기)·"새 파일"·칸 메뉴 "내려받기", Windows VM 확인 → `REF-file-view.md` · 다음 후보 = 보기 타일(V1~V5 기본안 확인부터) → `BACKLOG.md` · 집 서버엔 편집기 일부러 안 깖(사용자가 차이 볼 예정)
-- **(2026-10-28 오후) 집 서버 직통 전환 진행 중(코드 무관, 운영)** — 원인 = Cloudflare 엣지 LAX 경유. iptime 포트포워딩 + Caddy로 직통. 회사에서 할 것(DNS `direct`·Caddy·방화벽·서비스 등록) 끝, **오늘 밤 집에서(사용자) 1(내부 IP 고정)·2(포트포워딩)·6(시험 실행)** -> `direct` 확인되면 8(주소 전환, 구름만 회색 금지 = 대상도 iptime으로) → 체크리스트 user vault `user/home-server/직통-전환.md` · 근거 `REF-home-server.md` "터널 속도"·"직통 전환 계획(안)"
 - **(2026-10-28) 진행 중 파트 없음** — 오늘 마감: 파트(경로 줄 정리) `INDEX-path-row` → 파트(패널 창 버튼) `INDEX-pager-head-btns`(미해결 1건 → `BACKLOG.md`) → 파트(닫은 뒤 active) `INDEX-close-active`. 셋 다 master 머지, push = 사용자. 격리 환경 끔, DB `nexus_member_tmp`는 원래대로 남김. 다음 파트 후보 = `BACKLOG.md`(첫 줄 "타일 ESC로 닫기")
   - 집 서버 = mochi exe + **웹만 10-28 3파트 반영본으로 교체 완료(사용자)** → `REF-home-deploy.md` "웹만 교체" · cloudflared 공지 = 조치 불필요(10.3) / 보드 worker 2대 mochi → `REF-build.md` "보드 worker 교체" / test3(8013) = `build/mochi` exe(Go 변경 없음) + **웹만 오늘 3파트 반영본으로 교체**(`build/mochi/web`, 옛 웹 `web.bak-*`)
 - **오늘 마감**(2026-10-27): 파트(폴더에서 터미널) `INDEX-dir-shell` → 파트(장비 상태 push) `INDEX-device-push` → 파트(칸 메뉴 장비 디렉토리) `INDEX-row-open-dir` → 파트(찰떡 마무리) `INDEX-ui-chaltteok` → 파트(찰떡 입력칸) `INDEX-ct-field`. push = 사용자

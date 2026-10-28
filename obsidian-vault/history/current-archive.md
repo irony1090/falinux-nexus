@@ -53,3 +53,6 @@
 
 ## 2026-10-28 파트(닫은 뒤 active) 마감 때 내려보냄
 - **(2026-10-28) 진행 중 파트 = 닫은 뒤 active**(브랜치 `feat/close-active`, 커밋 전) → `REF-close-active.md`. 구현·격리 헤드리스 확인 OK. **사용자 화면 확인 대기** — 격리 띄워 둠: http://localhost:3001 (alice/pw), worker TMPDIR `/tmp/claude-1000/pr-t`, 시험 셸 1개(최소화) 남음 -> 마감 때 정리
+
+## 2026-10-28 세션 끝 — CURRENT에서 내려보냄
+- **(2026-10-28 오후) 집 서버 직통 전환 진행 중(코드 무관, 운영)** — 원인 = Cloudflare 엣지 LAX 경유. iptime 포트포워딩 + Caddy로 직통. 회사에서 할 것(DNS `direct`·Caddy·방화벽·서비스 등록) 끝, **오늘 밤 집에서(사용자) 1(내부 IP 고정)·2(포트포워딩)·6(시험 실행)** -> `direct` 확인되면 8(주소 전환, 구름만 회색 금지 = 대상도 iptime으로) → 체크리스트 user vault `user/home-server/직통-전환.md` · 근거 `REF-home-server.md` "터널 속도"·"직통 전환 계획(안)"
