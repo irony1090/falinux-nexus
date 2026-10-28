@@ -15,3 +15,6 @@
 
 ## 2026-10-27 밤 — mochi 묶음
 - 사용자 요청(집에서 직접 올림): master `28053b7` Windows 빌드 -> `build/home-update/nexus-mochi.zip`. worker 포함(사용자: 집 서버 = 회사 업데이트 전 버전과 같아 worker도 필요). 배포 `OK`(사용자, 10-27 밤) → REF-home-deploy "mochi 배포 묶음"
+
+## 2026-10-28 — 웹만 교체
+- 사용자: 웹 빌드 zip을 Nexus로 집 서버에 올림 -> 압축 풀기·폴더 바꿔치기 명령 안내 -> 교체 완료(사용자) → REF-home-deploy "웹만 교체"

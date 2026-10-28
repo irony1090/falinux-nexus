@@ -45,3 +45,6 @@
 - `build/home-update/nexus-mochi.zip`(폴더 `mochi/`): master `28053b7`(오늘 6파트) Windows `supervisor.exe`·**`worker.exe`**(여기서 셸 `{WORKER_SHELL}` = powershell) + `web/` + `update.ps1` + README. 태그 `MOCHI-HOMESERVER-261027`(빌드 뒤 `MOCHI-261027`로 되돌림). 마이그레이션 없음, 관리자 `irony1090` 그대로
 - `update.ps1` 바뀐 점: 교체 대상에 `worker.exe` 추가 / 새 빌드 판정 = supervisor 프로세스 시작 시각 > 교체 시각 + `/api/nope` 404(옛 빌드도 404라 예전 판정으로는 구분 안 됨) / 주 worker 안 뜨면 WARN만(되돌리지 않음)
 - **배포 결과(2026-10-27 밤)**: 사용자 `update.ps1` -> `OK`. 남은 것 정리 기준 = 위 "서버 PC 정리 기준"(+ 이번 `*.old-<stamp>` 3개·`mochi\`·zip)
+
+## 웹만 교체 (2026-10-28)
+- 사용자가 test3 웹 빌드(`build/mochi/web`, master `02dc54c` = 경로 줄 정리·패널 창 버튼·닫은 뒤 active)를 압축해 Nexus 전송으로 서버 PC에 올림 -> PowerShell `Expand-Archive` -> `web.new` -> `web` -> `web.bak-<시각>`, `web.new` -> `web`(재시작 없음, `WEB_DIR="./web"`는 요청 때 디스크에서 읽음) -> **완료(사용자)**. exe는 mochi 그대로(Go 변경 없음). 되돌리기 = 폴더 이름만 바꾸기
