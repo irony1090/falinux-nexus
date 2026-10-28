@@ -10,7 +10,7 @@
 - 반복 주제(프로젝트 무관): `REF-mobile-viewport.md` / `history/mobile-viewport.md`
 - Nexus 구현: `REF-mobile-keyboard.md`(구조안·결정 VK1~VK4·구현표·헤드리스 결과·확인 목록) / `history/mobile-keyboard.md`(측정·실험 경위 2026-10-14(1)~(7))
 - 결정 근거(A+B 방향, 위험 5가지): `REF-node-ui-overview.md` "모바일 가상 키보드"
-- 실기기 사진 44장: user vault `user/vrKeyboad/`(git 제외) — 어느 사진이 무엇인지는 `history/mobile-keyboard.md` 각 날짜 항목
+- 실기기 사진 44장: user vault `user/vrKeyboard/`(git 제외) — 어느 사진이 무엇인지는 `history/mobile-keyboard.md` 각 날짜 항목
 - 확인 스크립트 명세: `REF-test-scripts.md`(`pw/kb.mjs` 22 · `kb2.mjs` 10 · `kb3.mjs` 12) / 폰 사진 올리기: `REF-test-env.md` "폰 사진 올리기"
 
 ## HISTORY 색인 행 (원문)

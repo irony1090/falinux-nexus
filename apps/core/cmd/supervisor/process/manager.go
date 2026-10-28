@@ -135,8 +135,8 @@ func (p *ProcessManager) execScript(
 }
 
 // ExecFile은 장비 디렉토리의 파일을 그대로 실행하도록 등록한다(폴더-4(실행)) — 노드 없음, 본문 선배치 없음.
-// cmd = 파일 전체 경로, cwd = 보고 있던 폴더, dirNodeID = 장비 타일을 연 폴더(Q15(장비 디렉토리 id)). 소유·실행 = 같은 계정(Q5)
-func (p *ProcessManager) ExecFile(worker *transport.Conn, workerKey, cmd, cwd string, dirNodeID, userID int64) (*ProcessEntry, error) {
+// cmd = 파일 전체 경로(편집 = 편집기 토큰 + args[0] = 파일), cwd = 보고 있던 폴더, dirNodeID = 장비 타일을 연 폴더(Q15(장비 디렉토리 id)). 소유·실행 = 같은 계정(Q5)
+func (p *ProcessManager) ExecFile(worker *transport.Conn, workerKey, cmd string, args []string, cwd string, dirNodeID, userID int64) (*ProcessEntry, error) {
 	if worker == nil {
 		return nil, fmt.Errorf("전송할 대상이 존재하지 않습니다: %s", workerKey)
 	}
@@ -150,7 +150,7 @@ func (p *ProcessManager) ExecFile(worker *transport.Conn, workerKey, cmd, cwd st
 		OwnerUserID: userID,
 		DeviceKey:   workerKey,
 		Cmd:         cmd,
-		Args:        []string{},
+		Args:        append([]string{}, args...),
 		Env:         []string{},
 		Cwd:         cwd,
 		StartedBy:   userID,

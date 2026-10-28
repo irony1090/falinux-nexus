@@ -28,6 +28,6 @@
 - 마감 뒤 사용자 모바일 확인 "자동완성을 눌러도 키보드 안내려가서 좋더라" -> 반복 주제 `REF-mobile-viewport.md` 5-1절에 기록
 
 ## 2026-10-26 밤 — 장비 타일 자동완성 목록이 뒤 칸에 비침 (브랜치 `fix/phone-layout`)
-- 사용자(폰 사진 `user/Screenshot_20261026_193545_Edge.jpg`): 자동완성 목록 위로 목록 칸의 `⋮`·`링크` 라벨이 보임
+- 사용자(폰 사진 `user/phone-bug-1026/Screenshot_20261026_193545_Edge.jpg`): 자동완성 목록 위로 목록 칸의 `⋮`·`링크` 라벨이 보임
 - 원인: 장비 타일 경로 줄 `.crumbs` = sticky + `z-index: 1` -> 쌓임 맥락 1 안에 목록(z 5)이 갇힘, 칸의 `.dg-btn`(z 2)·`.dg-r/.dg-l`(z 1, DOM 뒤)이 위로
 - 수정: `DeviceTileBody.vue` `.crumbs` z-index 3. 폴더 타일은 `.crumbs`가 sticky 아니라 해당 없음. 확인 = 사용자 폰

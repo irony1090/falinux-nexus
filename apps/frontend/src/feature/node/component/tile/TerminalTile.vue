@@ -41,7 +41,7 @@ const { data: node } = useGetNode(computed(() => tile.value?.nodeId ?? NaN));
 const name = computed(() => {
     const t = tile.value;
     if (!t) return '';
-    if (t.nodeId === null) return proc.value ? fileLabel(proc.value.cmd) : '실행 파일';
+    if (t.nodeId === null) return proc.value ? fileLabel(proc.value.cmd, proc.value.args) : '실행 파일';
     const no = instanceOf.value.get(t.id);
     return nodeLabel(t.nodeId, node.value?.name) + (no ? ` (${no})` : '');
 })

@@ -57,9 +57,9 @@ func (r *supervisorRouter) Exec(startedBy int64, authKey string, kind protocol.E
 }
 
 // ExecFile: 장비 디렉토리 파일 실행(폴더-4(실행)) — 본문 선배치 없이 Exec의 3~5단계만. 소유·실행 = userID
-func (r *supervisorRouter) ExecFile(userID int64, authKey, cmd, cwd string, dirNodeID int64, tabID string) (string, error) {
+func (r *supervisorRouter) ExecFile(userID int64, authKey, cmd string, args []string, cwd string, dirNodeID int64, tabID string) (string, error) {
 	worker, _ := r.workers.Get(authKey)
-	entry, err := r.processManager.ExecFile(worker, authKey, cmd, cwd, dirNodeID, userID)
+	entry, err := r.processManager.ExecFile(worker, authKey, cmd, args, cwd, dirNodeID, userID)
 	if err != nil {
 		return "", err
 	}

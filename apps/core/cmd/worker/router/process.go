@@ -92,6 +92,8 @@ func (r *workerRouter) exec(req protocol.Frame) (any, error) {
 		return protocol.ExecResponse{Accept: false, Reason: err.Error()}, nil
 	}
 
+	// 장비 파일 편집 = Direct + 편집기 토큰 — 지역화하면 토큰이 사라지므로 그 전에 판정(파트(파일 편집기))
+	editFile := body.Direct && body.Cmd == protocol.PlaceholderWorkerEditor
 	// placeholder 지역화: Cmd/Args/Cwd/Env 전부. Cmd는 {WORKER_EDITOR}(EDIT)도 치환된다.
 	body = allLocalize(body)
 	// log.Printf("[WORKER-EXEC] %v", body)
@@ -100,6 +102,8 @@ func (r *workerRouter) exec(req protocol.Frame) (any, error) {
 	var err error
 	if kind == protocol.ExecTypeEdit {
 		body, editPath, err = prepareEdit(body)
+	} else if editFile {
+		body, err = prepareDirectEdit(body)
 	} else if body.Direct {
 		body, err = prepareDirect(body)
 	} else {

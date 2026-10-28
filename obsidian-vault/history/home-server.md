@@ -11,3 +11,10 @@
 
 ## 2026-10-28 — cloudflared 업데이트 메일
 - 사용자: "인증서가 취약한 개인키 사용 중, 업데이트하라" 메일 -> Nexus로 원격 업데이트 방법 질문. 확인(Nexus 터미널): `cloudflared --version` = 2026.10.3, 서비스 Running·Automatic, 대시보드 커넥터 2026.10.3. 공지(eMudhra) 기준 2026.10.2 이상이라 조치 불필요 → REF-home-server "cloudflared 보안 공지". 최신 10.5는 집에 있을 때 선택
+
+## 2026-10-28 터널 속도 질문(`--protocol quic` + `--token-file`)
+- 사용자가 찾은 ImagePath 변경 명령 검토 -> 속도 효과 거의 없음·token 파일 없으면 서비스 시작 실패 위험. 판단 근거 → `REF-home-server.md` "터널 속도". 적용 여부 미정(사용자)
+- 같은 날: 증상 = 첫 로딩·타자 지연. 코드상 입력 지연 없음 확인, `colo=LAX` 측정 + 회사 supervisor에 붙이면 빠름 -> 원인 = Cloudflare 엣지 배정(LAX). 대안 비교 중 → REF "터널 속도"
+- 같은 날: 대안 비교(안 A Tailscale / 안 B 포트포워딩 / 안 C 유지) -> 사용자가 안 B 쪽 질문 진행(HTTPS = Caddy, 유동 IP = 이미 있는 iptime DDNS). 계획(안) → REF "직통 전환 계획(안)"
+- 같은 날: DNS `direct` 추가 완료(3단계). Caddy 설치 = PowerShell zip 직접 받기. 사용자 요청으로 user vault에 체크리스트 `user/home-server/직통-전환.md` 작성 + user vault 이미지 주제별 폴더 정리(`board-keyboard`·`phone-bug-1026`·`ct-field`·`term-ime`·`home-server`, `vrKeyboad` -> `vrKeyboard` 철자 수정), Claude vault 참조 11개 파일 경로 갱신
+- 같은 날 오후: 회사에서 4(방화벽)·Caddyfile 전역 설정 판(storage·log)·7(서비스 `caddy` 수동 등록, Stopped) 완료. 외부 접속 시험 = `125.143.1.21:443` 시간 초과(포트포워딩 전, 예상대로). 설명: Caddy 역할(리버스 프록시 + 인증서), CNAME 조회 순서, `nexus` 구름만 회색 금지. **사용자: 오늘 밤 집에서 1·2·6 진행 예정**

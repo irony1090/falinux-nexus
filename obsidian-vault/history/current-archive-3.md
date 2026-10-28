@@ -4,7 +4,7 @@
 
 ## 2026-10-26 밤 — fix/phone-layout 머지 때 내려보낸 줄(원문)
   1. **`fix/phone-layout` 브랜치(작업 폴더 = 원래 폴더, 코드 커밋 전)** 사용자 화면 확인 -> 커밋 + master 머지 -> 이 PC supervisor·웹 재빌드. 내용: ① 폰 관리 페이지 첫 타일로 안 넘어가던 버그(`memberUrl.hook.ts`, 원인·수정 → `history/member-ui.md` 10-26 밤) ② 보드 전체보기 폰도 가로 한 줄 + 보드 여럿이면 이름을 줄 위(EV2 개정 → `REF-board-preview.md`). 격리 `phonefix.mjs` 7/7 + 보드 2개 이름 위치 통과
-- **새 버그 2개(10-26 밤, 사용자 폰 확인 중 발견) — 수정·`build/api_prefix` 웹 교체 완료, 사용자 확인 대기(`fix/phone-layout`에 같이 커밋)** — 사진 `obsidian-vault/user/Screenshot_20261026_193456_Edge.jpg`(푸터)·`..._193545_Edge.jpg`(자동완성)
+- **새 버그 2개(10-26 밤, 사용자 폰 확인 중 발견) — 수정·`build/api_prefix` 웹 교체 완료, 사용자 확인 대기(`fix/phone-layout`에 같이 커밋)** — 사진 `obsidian-vault/user/phone-bug-1026/Screenshot_20261026_193456_Edge.jpg`(푸터)·`..._193545_Edge.jpg`(자동완성)
   - 버그(빈 페이지 도트): 폰 내 장비 관리에서 마지막 타일을 닫으면 빈 안내 페이지(`MemberPage` `.empty`)는 남는데 `dotCount = lead + grids.length` = 1 -> 지금 위치 표시(pos 1)가 도트 줄 폭 밖에 그려져 잘림. 수정 = `lead + max(1, grids.length)`(`memberBoard.store.ts`)
   - 버그(자동완성 비침): 장비 타일 경로 줄 `.crumbs`가 sticky + `z-index: 1` -> 쌓임 맥락이 1이라 목록 칸 `⋮`(`.dg-btn` 2)·`링크` 라벨(`.dg-r/.dg-l` 1)이 자동완성 위로. 수정 = `.crumbs` z-index 3(`DeviceTileBody.vue`). 폴더 타일은 `.crumbs`가 sticky 아니라 해당 없음
   - 추가(10-26 밤, 사용자 요청 가(화면 이동만)): 상세 타일을 다 닫으면 목록으로 — `memberBoard.store` `close`에서 0개면 `goCol(0)`(폰 = 첫 칸, PC 변화 없음). 관리자 페이지도 같은 store라 같이 적용(도트 수정 포함), 자동완성 비침은 보드 장비 타일 전용이라 관리 쪽 해당 없음. 웹 3번째 교체(직전 웹 = scratchpad `web-prev-2`), 사용자 확인 대기

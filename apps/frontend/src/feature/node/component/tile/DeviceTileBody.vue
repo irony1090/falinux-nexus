@@ -14,7 +14,9 @@ import { useItemPress } from '../../hook/itemPress.hook';
 import { usePathEditKey } from '../../hook/pathEdit.hook';
 import { useNodeOps } from '../../store/nodeOps.store';
 import { useTileTree } from '../../store/tileTree.store';
-import { SHELL_CMD } from '../../util/tileLabel.util';
+import { EDITOR_CMD, SHELL_CMD } from '../../util/tileLabel.util';
+import { escHtml } from '../../hook/nodePaste.hook';
+import NodeNameDialog from '../dialog/NodeNameDialog.vue';
 import HScroll from '@/feature/widget/component/HScroll.vue';
 import DirGridCell from './DirGridCell.vue';
 import NodeRowMenu, { type RowMenuItem } from './NodeRowMenu.vue';
@@ -107,6 +109,21 @@ const openShell = () => {
     const t = tile.value;
     if (t && cur.value) void execFile(props.tileId, t.nodeId, t.instance, SHELL_CMD, cur.value);
 }
+// 파트(파일 편집기): worker 편집기로 새 터미널 타일에서 연다(REF-file-view.md). 새 파일 = 없는 경로를 열면 편집기가 저장할 때 생김
+const editFile = (path: string) => {
+    const t = tile.value;
+    if (t) void execFile(props.tileId, t.nodeId, t.instance, EDITOR_CMD, parentPathOf(path), [path]);
+}
+const newFileOpen = ref(false);
+const onNewFile = (name: string) => {
+    if (!cur.value) return;
+    if (name === '.' || name === '..' || (win.value ? /[\\/]/ : /\//).test(name)) {
+        openDialog({ type: 'warning', content: `파일 이름에 경로를 넣을 수 없습니다: ${escHtml(name)}` });
+        return;
+    }
+    newFileOpen.value = false;
+    editFile(sepEnd(cur.value) + name);
+}
 
 const bodyEl = ref<HTMLElement>();
 const onScroll = () => {
@@ -147,12 +164,27 @@ const onBodyClick = (e: MouseEvent) => {
 }
 
 // 칸 메뉴(⋮·우클릭) — 맨 위 정보 카드(판 D′: 크기·수정 시각·링크 원본은 여기서만)
-type EntryAct = 'select' | 'goto';
+// 내려받기 = 선택된 칸이면 선택 전부(끌어 놓기와 같은 규칙), 아니면 그 칸 하나. 끊긴 링크는 받을 게 없음
+type EntryAct = 'select' | 'edit' | 'download' | 'goto';
+const dlList = (e: DirEntry) => selected.value.has(e.path) ? selEntries.value : [e];
 const menuItems = (e: DirEntry): RowMenuItem<EntryAct>[] => [
     { act: 'select', icon: selected.value.has(e.path) ? 'mdi-checkbox-blank-outline' : 'mdi-checkbox-marked-outline', title: selected.value.has(e.path) ? '선택 해제' : '선택' },
+    ...(isFileLike(e) ? [{ act: 'edit' as const, icon: 'mdi-pencil-outline', title: '편집', disabled: !canRun.value }] : []),
+    ...(e.kind !== 'link' || e.targetPath ? [{ act: 'download' as const, icon: 'mdi-download', title: dlList(e).length > 1 ? `내려받기(선택 ${dlList(e).length}개)` : '내려받기', disabled: !canUpload.value }] : []),
     ...(linkDest(e) ? [{ act: 'goto' as const, icon: 'mdi-arrow-top-right', title: '원본 위치로' }] : []),
 ];
-const onAct = (act: EntryAct, e: DirEntry) => act === 'select' ? toggle(e) : go(linkDest(e)!);
+const onAct = (act: EntryAct, e: DirEntry) => {
+    if (act === 'select') toggle(e);
+    else if (act === 'edit') editFile(e.path);
+    else if (act === 'download') downloadEntries(e);
+    else go(linkDest(e)!);
+}
+const downloadEntries = (e: DirEntry) => {
+    if (!spot.value) return;
+    const list = dlList(e);
+    void download(spot.value, list);
+    if (list.length > 1 || selected.value.has(e.path)) clearSel();
+}
 const kindText = (e: DirEntry) => {
     if (e.kind === 'dir') return '디렉토리';
     if (e.kind === 'link') return !e.targetPath ? '끊긴 링크' : e.targetDir ? '링크 → 디렉토리' : '링크 → 파일';
@@ -318,6 +350,9 @@ watch(lastDone, d => {
                         <button type="button" class="ct-seg ct-seg--dim" title="여기서 셸 열기(새 터미널 타일)" :disabled="!canRun || !cur || !!error" @click="openShell">
                             <v-icon size="15" icon="mdi-console" />
                         </button>
+                        <button type="button" class="ct-seg ct-seg--dim" title="새 파일(편집기로 열기)" :disabled="!canRun || !cur || !!error" @click="newFileOpen = true">
+                            <v-icon size="15" icon="mdi-file-plus-outline" />
+                        </button>
                     </span>
                 </h-scroll>
                 <span class="tile-btn-end tile-btn-end--primary">
@@ -386,6 +421,7 @@ watch(lastDone, d => {
     <node-row-menu v-if="ctxMenu" v-model="ctxOpen" :at="ctxMenu.at" :items="menuItems(ctxMenu.entry)" @act="a => ctxMenu && onAct(a, ctxMenu.entry)">
         <template #head><div class="dg-info"><span class="t">{{ ctxMenu.entry.name }}</span><template v-for="[k, v] in infoRows(ctxMenu.entry)" :key="k"><span class="k">{{ k }}</span><span class="v mono">{{ v }}</span></template></div></template>
     </node-row-menu>
+    <node-name-dialog v-model="newFileOpen" title="새 파일" :loading="saving" @submit="onNewFile" />
     <!-- 이 타일에서 시작한 전송 — Q27(타일 막대 범위) -->
     <div v-if="mine.length" class="xfer">
         <transfer-row v-for="t in mine" :key="t.id" :item="t" />

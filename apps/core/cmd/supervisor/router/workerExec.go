@@ -3,6 +3,7 @@ package router
 import (
 	"errors"
 
+	"nexus/internal/protocol"
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/web"
 
@@ -11,9 +12,10 @@ import (
 
 // workerExecRequest: POST /workers/:mainKey/:subKey/exec
 type workerExecRequest struct {
-	FolderID int64  `json:"folderId" validate:"required"` // 장비 타일을 연 폴더(Q15(장비 디렉토리 id))
-	Cmd      string `json:"cmd" validate:"required"`      // 파일 전체 경로(worker 기준) / "여기서 셸" = protocol.PlaceholderWorkerShell
-	Cwd      string `json:"cwd" validate:"required"`      // 보고 있던 폴더
+	FolderID int64    `json:"folderId" validate:"required"` // 장비 타일을 연 폴더(Q15(장비 디렉토리 id))
+	Cmd      string   `json:"cmd" validate:"required"`      // 파일 전체 경로(worker 기준) / "여기서 셸" = protocol.PlaceholderWorkerShell / 편집 = protocol.PlaceholderWorkerEditor
+	Cwd      string   `json:"cwd" validate:"required"`      // 보고 있던 폴더
+	Args     []string `json:"args"`                         // 편집 대상 파일 경로 1개(Cmd가 편집 토큰일 때만) — 파트(파일 편집기)
 
 	Workspace    string    `json:"workspace"`
 	ParentTileID string    `json:"parentTileId"` // 장비 타일. 없거나 닫혔으면 루트
@@ -33,11 +35,14 @@ func (r *supervisorRouter) execWorkerFile(c echo.Context) error {
 	if err := c.Validate(&body); err != nil {
 		panic(web.Err(400, "%v", err))
 	}
+	if (body.Cmd == protocol.PlaceholderWorkerEditor) != (len(body.Args) == 1) || len(body.Args) > 1 {
+		panic(web.Err(400, "편집은 파일 경로 하나가 필요하고, 그 밖의 실행에는 인자를 줄 수 없습니다"))
+	}
 	size := execTileSize(c, sess.Data.ID, body.Workspace, body.Size)
 	r.requireDeviceDir(c, sess.Data.ID, body.FolderID, mainKey, subKey)
 	EndTx(c) // 인가 끝 — worker 실행 응답을 기다리는 동안 DB 연결을 잡지 않게
 
-	uid, err := r.ExecFile(sess.Data.ID, mainKey+"#"+subKey, body.Cmd, body.Cwd, body.FolderID, tabID)
+	uid, err := r.ExecFile(sess.Data.ID, mainKey+"#"+subKey, body.Cmd, body.Args, body.Cwd, body.FolderID, tabID)
 	if errors.Is(err, errExecRejected) {
 		panic(web.Err(400, "%v", err))
 	}
