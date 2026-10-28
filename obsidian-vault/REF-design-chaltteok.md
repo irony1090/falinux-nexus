@@ -42,6 +42,7 @@
 | 목록 칸 위쪽 버튼 | `.dg-btn--l`(`0 999px 999px 0`) / `.dg-btn--r`(`999px 0 0 999px`) · `styles/dir-grid.scss` | 칸(10px 둥근 상자, `overflow: hidden`) 모서리 곡선에 잘림 |
 | 목록 칸 상태 라벨 | `.dg-l > .dg-lbl` / `.dg-r > .dg-lbl` · 같은 파일 | 칸 왼쪽·오른쪽 벽에 붙음 |
 | 행 끝 묶음(창 목록·터미널 목록 행) | `.ct-grp`(+`--r`/`--l`/`--sm`) > `.ct-seg`(+`--txt`·`--icon`·`--share`·`--error`·`--accent`·`--primary`) · `styles/chaltteok.scss` | 칸마다 바탕, 칸 사이 바탕색 1px. 글자만 있는 칸도 `--txt`로 칠해 안쪽 반원이 보이게(다′) |
+| 경로 줄 도구(폴더·장비 타일) | `.ct-grp`(+`--l` 이동 묶음, `--keep` 꺼진 칸 바탕 유지) > `.ct-seg`(+`--dim`·`--ok`·`--share`·`--accent`) · 같은 파일 + `HScroll.vue` | 이동 묶음은 타일 왼쪽 벽에 붙음, 가운데 묶음은 넘치면 가로 스크롤(→ `REF-path-row.md`) |
 | 창 아래 버튼 | `.ct-actions` + 카드에 `.ct-card`(`overflow: hidden`) · 같은 파일 | 창 오른쪽 아래 끝 블록, 모서리는 카드가 자름 |
 | 푸터 보드 메뉴·앱 버튼 | `FootPill edge="left"/"right"` · `FootPill.vue` | 상자가 안 보이는 자리 — 알약이 `0 999px 999px 12px` / `999px 0 12px 999px`를 직접 그림, 안쪽 버튼은 칸으로 꽉 채움 |
 - 유래: 파트(타일 머리 줄 버튼) `REF-tile-head.md` 조정-2(끝 블록 직각)의 정정(2026-10-24, C2a·C2b) → 파트(목록 아이콘 보기) `REF-dir-grid.md` "판 D 조율"(상태 박스)에서 같은 규칙을 칸에 적용

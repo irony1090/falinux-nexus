@@ -5,6 +5,7 @@
 > 착수하면 CURRENT로 올리고 여기서 지운다. 해결되면 지운다(이력은 history에).
 
 ## 다음 파트 후보 (기능)
+- **타일 ESC로 닫기** · 2026-10-27 · **다음 파트로 예정(사용자)** · 타일별로 ESC 등 키를 누르면 그 타일을 끄는 동작. 착수 때 조율: ① 터미널 타일 안 ESC = 프로그램 입력(vim 등)과 충돌 ② "끄다" = 닫기인지 최소화인지 ③ "등" = 다른 키도? ④ 어느 타일이 대상인지(active 타일만?) ⑤ 앱 단축키 규칙(`appShortcutsOff` 검사 맨 앞, MEMORY "앱 단축키") · REF 없음, 착수 때 신설
 - **업로드 한계 보강** · 2026-10-23 · 필요해지면 · 대기 파일 목록 표시·탭 닫은 뒤 이어 올리기·폴더째 올리기(Q26)·worker 간 폴더 전송(Q36, → `REF-transfer-down.md`) → `REF-transfer-ext.md` "알려진 한계"
 - **SFTP 접근** · 2026-10-22 · **진행할 작업이 전혀 없을 때 이야기**(2026-10-23 Q21) · supervisor SFTP 서버로 `/{메인키}/{서브키}/...` 접근, 답 3개 대기 → `REF-worker-dir.md` "나중에"
 - **worker 화면 송출 + 조작** · 2026-10-15 아이디어(2026-10-25 재논의 보류) · 다시 시작하면 SC1(VNC 서버 준비) 방향부터(제안 = 안내 + 내려받기 -> 동봉, 원격 자동 설치 비추천) · 나(VNC 터널 + noVNC) 추천 → `REF-worker-screen.md` "VNC 서버 준비 방식 재논의"
@@ -40,6 +41,7 @@
 - **집 서버 Cloudflare Access** · 2026-10-25 미룸(사용자) · (2026-10-26) 파트(회원 관리)의 worker API 키가 배포되면 가짜 worker 등록은 막히므로 필요성 다시 볼 것(`REF-member.md`) · 집 서버를 다른 사람에게 알리기 전 / `/worker` 무인증이라 열어 둔 동안 가짜 worker 등록 가능 · 걸 때 회사 worker용 `/worker` 경로 예외 필요 · → `REF-home-server.md` "코드 쪽 확인 결과"
 
 ## 보류한 설계 · 정리
+- **집 서버 cloudflared 올리기** · 2026-10-28 · 집에 있을 때(선택, 보안 공지 기준은 10.3으로 이미 충족) · 관리자 PowerShell `winget upgrade Cloudflare.cloudflared` → `REF-home-server.md` "cloudflared 보안 공지"
 - **주소 목록 3개 상한이 지금 주소를 밀어냄** · 2026-10-26 · 사용자 판단 대기 · "저장만"을 3번 넘게 하면 지금 붙어 있는 supervisor 주소가 목록에서 지워져, 새 주소가 다 실패하면 돌아올 곳이 없음(주소-1 "3개 넘으면 꼴찌 삭제") · 후보 = 지금 붙은 주소는 지우지 않기 → `REF-device-move.md` "확인"
 - **Label 모듈** · 2026-10-12 · 다시 볼 조건 → `REF-node-label.md` "Label 모듈"
 - **드래그 인프라(DraggableSession/useDragGhost)** · 2026-10-12 · 드래그 UX(아래 분할 UX 등)를 넣을 때 → `REF-util-drag.md`

@@ -49,6 +49,11 @@
 // 글자만 있는 칸 — 조금 진하게 칠해 묶음의 안쪽 반원이 보이게
 .ct-seg--txt { background: rgba(var(--c), 0.12); }
 .ct-seg--icon { padding: 0 7px; }
+// 바탕은 그대로 두고 글자·아이콘 색만 — 경로 줄 도구(파트(경로 줄 정리))
+.ct-seg--dim { color: rgba(var(--c), var(--v-medium-emphasis-opacity)); }
+.ct-seg--ok { color: rgb(var(--v-theme-success)); }
+// 꺼진 칸도 바탕은 그대로(묶음이 얼룩지지 않게), 글자·아이콘만 흐리게
+.ct-grp--keep > .ct-seg:disabled { opacity: 1; color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity)); }
 // 기능 색 칸
 .ct-seg--share { --c: var(--v-theme-share); background: rgba(var(--c), 0.14); }
 .ct-seg--error { --c: var(--v-theme-error); background: rgba(var(--c), 0.12); }

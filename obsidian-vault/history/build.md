@@ -25,3 +25,6 @@
 ## 2026-10-23 test3 운영 (CURRENT에서 내림)
 - 오전: 사용자가 test3를 자기 터미널에서 다시 켬(`CLAUDE*` 변수 0개) -> 계획한 PC 재부팅 -> test1(8011)은 다시 안 켬(test1.falinux.com 502), `build/iutf`는 사용자가 지움
 - `build/worker-dir`를 옛 태그(`IUTF-261022`)로 빌드한 것을 사용자가 짚음 -> `build.sh`에 태그 출력·경고 추가(→ `REF-build.md` "빌드 태그") -> 사용자가 태그 `WORKERDIR-261023`으로 다시 빌드·재실행(supervisor 281076·worker 282039). 보관 프로세스(`build/keep/worker -hold`)는 남고 새 worker가 다시 붙음, 첫 시작 때 `nexus_build`에 00012 적용
+
+## 2026-10-28 — 보드 worker 2대 mochi로
+- 사용자 요청: `fa24-PID`(40.211)·`imx8mp-f24`(80.119) worker 최신화(supervisor = test3, 버전 = mochi). 둘 다 `WORKER-261026-TAKE_PROCESS` -> master `28053b7` arm64(`WORKER-MOCHI-261027`, sha256 `a86e7e41…`). 10:29·10:30 재시작 -> test3 등록 성공, 보관 process 다시 붙음(713·16119 유지). 옛 파일 `worker.old-20261028-1029*`/`-1030*`(+ 원래 있던 `worker.prev`) 남김 → REF-build "보드 worker 교체"

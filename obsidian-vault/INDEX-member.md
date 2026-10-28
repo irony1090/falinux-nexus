@@ -9,7 +9,7 @@
 - 후속(같은 파트로 묶음): supervisor-move 미등록 process 가져오기(`fa50c64`, `INDEX-supervisor-move`) · **`/api` 정리**(브라우저 API 전부 `/api` 아래, `REF-api-prefix.md`) · **열린 장비 주소 일괄 변경**(푸터 액션 `FootActions` + `DeviceMoveDialog`, `REF-device-move.md`) · **폰 수정**(첫 타일 이동·빈 페이지 도트·다 닫으면 목록, `history/member-ui.md`)
 - 확인: 격리 회귀 17/17 · `/api` 14/14 · 주소 일괄 변경 23/24(실패 1 = 시험 탓) · 사용자 test3·폰 확인
 - 커밋: `feat/member` -> master `4ae97a7` · `refactor/api-prefix` -> `c5f9749` · `fix/phone-layout` -> `8de3e05`
-- 배포: test3(`build/api_prefix`, 웹은 `8de3e05`) · 집 서버(Nexus 터미널로 회원 관리 16:56, `update.ps1`로 `/api`+폰 수정 22:19) → `REF-home-server.md`
+- 배포: test3(`build/api_prefix`, 웹은 `8de3e05`) · 집 서버(Nexus 터미널로 회원 관리 16:56, `update.ps1`로 `/api`+폰 수정 22:19) → `REF-home-deploy.md`
 
 ## REF / history 목록 (MEMORY 인덱스에서 옮김)
 - `REF-member.md`(결정 회원-Q1~Q23 · 배포 전 확인) / `history/member.md`
