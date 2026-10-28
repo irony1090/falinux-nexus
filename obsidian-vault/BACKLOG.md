@@ -30,7 +30,6 @@
 
 ## 알려진 한계 · 보안 (지금 손대지 않음)
 - **패널 창 버튼이 빈 2번 타일** · 2026-10-28 · 다시 보이면(증상 상태를 그대로 두고 그 탭을 Claude in Chrome으로 읽기) · 사용자 브라우저에서만, 새로고침 뒤에도, 헤드리스 재현 못 함 → `REF-pager-head-btns.md` "미해결"
-- **패널에서 닫은 뒤 active 없음** · 2026-10-28 · 불편하면 · 이웃 타일 자동 active 제안(다음 번호, 마지막이면 앞 번호, 머리 줄 ×도 같이?) 답 없이 마감 → `REF-pager-head-btns.md`
 - **Windows 터미널 출력 줄 빠짐** · 2026-10-26 · 원인 좁히기 중(번호 줄 시험 결과 대기) · 집 서버 `check.ps1` 3번 실행 중 2·3번째에서 5번 항목(`Get-ChildItem` 한꺼번에 약 20줄)이 화면·스크롤에 없음, 빠진 범위가 매번 다름 · 유력 = ConPTY가 한 프레임에 화면 높이 넘게 지나간 줄을 버림(`REF-windows-worker.md` 63행 "ConPTY 출력 = 다시 그린 화면") → `REF-windows-worker.md`
 - **서브키 위조** · RS6(위조 검증) 보류 · key-subkey 결속 검증 없음, 명부를 인가에 안 쓰는 동안 보류 → `REF-node-label.md`
 - **supervisor 레지스트리 영속** · registry 메모리 -> PostgreSQL 미착수

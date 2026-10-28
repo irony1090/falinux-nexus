@@ -227,9 +227,19 @@ export const provideTileGrids = () => {
 
     // ---- active 타일 = 키 입력 대상. 탭 메모리만, 보드 화면마다 1개 — REF-node-ui-active.md AT1(상태 위치) ----
     const activeId = ref<string | null>(null)
-    // 닫힘·최소화·다른 보드로 이동 = 배치에서 빠짐 -> 해제(다시 나타나도 되살리지 않음)
-    watch(posOf, m => {
-        if (activeId.value && !m.has(activeId.value)) activeId.value = null
+    // 닫힘·최소화·다른 보드로 이동 = 배치에서 빠짐 -> 해제(다시 나타나도 되살리지 않음).
+    // 닫힘·다른 보드로 이동은 이웃(같은 번호 = 다음 타일, 마지막이면 앞 번호)을 active로 — 파트(닫은 뒤 active). 보드 바꾸기는 제외
+    watch([posOf, hash], ([m, h], [old, oldH]) => {
+        const id = activeId.value
+        if (!id || m.has(id)) return
+        activeId.value = null
+        if (h !== oldH || tiles.value[id]?.minimized) return
+        const p = old?.get(id)
+        if (!p) return
+        const next = [...m].find(([, i]) => i === p) ?? [...m].find(([, i]) => i === p - 1)
+        if (!next) return
+        activeId.value = next[0]
+        void reveal(next[0])
     })
     watch(hash, () => activeId.value = null)
 

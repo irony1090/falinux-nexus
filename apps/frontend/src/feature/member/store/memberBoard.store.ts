@@ -115,9 +115,15 @@ export const provideMemberBoard = (page: MemberPageKind) => {
         void reveal(key)
     }
     // 부모를 닫아도 자식은 남김(화-9)
+    // active를 닫으면 이웃(다음 타일, 마지막이면 앞 타일)이 active — 파트(닫은 뒤 active)
     const close = (key: string) => {
+        const i = tiles.value.findIndex(t => t.key === key)
         tiles.value = tiles.value.filter(t => t.key !== key)
-        if (activeKey.value === key) activeKey.value = null
+        if (activeKey.value === key) {
+            const next = tiles.value[i] ?? tiles.value[i - 1]
+            activeKey.value = next?.key ?? null
+            if (next) void reveal(next.key)
+        }
         // 다 닫으면 목록으로(폰 = 첫 칸, PC는 목록이 늘 보여 그대로)
         if (!tiles.value.length) void nextTick(() => goCol(0))
     }
