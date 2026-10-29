@@ -18,3 +18,7 @@
 
 ## 2026-10-28 — 웹만 교체
 - 사용자: 웹 빌드 zip을 Nexus로 집 서버에 올림 -> 압축 풀기·폴더 바꿔치기 명령 안내 -> 교체 완료(사용자) → REF-home-deploy "웹만 교체"
+
+## 2026-10-28 밤 — viewer-image 묶음
+- 사용자 요청: 오늘 뷰어 기능 포함 최신으로, 이름 viewer-image, worker·supervisor 둘 다 -> master `709095c` Windows 빌드 -> `build/home-update/nexus-viewer-image.zip`. web은 새로 빌드(test2 주소 안 들어감 확인). 배포 완료(사용자, 10-28 밤) → REF-home-deploy "viewer-image 배포 묶음"
+- 같은 밤: 집 서버 "편집" 거절 메시지(EDITOR 안내) 확인 -> `winget install Microsoft.Edit` + worker 재시작(`Start-ScheduledTask Nexus`) -> 정상(사용자). 명령 = user vault `user/home-server/편집기-설치.md`

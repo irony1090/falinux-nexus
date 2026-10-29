@@ -103,10 +103,12 @@ embed된 `cmd/*/env` = **배포 값**으로 단정. 빌드 전에 이 파일을 
 
 | 메인키 | 접속 | 폴더 · env |
 |---|---|---|
-| `fa24-PID` | `root@<IP>`(비밀번호 없음, 10-28 = 192.168.40.211) | `/home/root/nexus-worker` · `env` |
+| `fa24-PID` | `root@<IP>`(비밀번호 없음, 10-28 = 192.168.40.211, 10-29 = 192.168.40.228 — 같은 호스트 키, **보드 hostname은 `imx8mp-f24`라 헷갈림** = NAME으로 구분) | `/home/root/nexus-worker` · `env` |
 | `imx8mp-f24` | `falinux@<IP>`(비밀번호·sudo = `falinux`, 10-28 = 192.168.80.119) | `/opt/nexus-worker` · `worker.env`(root 600) |
 
 - 절차: `CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build ./cmd/worker` -> `worker.new`로 올려 sha256 확인 -> `worker` -> `worker.old-<stamp>`(실행 중 파일 위에 못 씀) -> `systemctl restart nexus-worker` -> journal "등록 완료"·"[hold] 다시 붙음" 확인
+- 2026-10-28 18:26 `imx8mp-f24` -> `VIEWER_IMAGE-261028`(옛 = `worker.old-20261028-182611`). 붙은 곳 = **`wss://nexus.irony1090.app`(집 서버)** — env는 test3인데 sqlite 주소 목록 1순위가 집 서버(supervisor 주소 변경 기능). `[hold] 다시 붙음` 1개
+- 2026-10-29 10:05 `fa24-PID` -> `VIEWER_IMAGE-261028`(master `709095c`, 옛 = `worker.old-20261029-100536` = MOCHI). test3 등록 완료, `-hold` 0개라 다시 붙음 로그 없음
 - 이 PC엔 `sshpass` 없음 -> 비밀번호 = `SSH_ASKPASS`(scratchpad 스크립트) + `SSH_ASKPASS_REQUIRE=force`, sudo = `echo <pw> | sudo -S`
 
 ## 웹만 교체 (2026-10-28, 재시작 없이)

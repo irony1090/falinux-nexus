@@ -42,6 +42,7 @@
 - **패널 창 버튼**: 컨트롤 패널 왼쪽 = active 타일 머리 줄 `[숨기기 | 크기 | 닫기]`(있는 것만). 머리 줄 창 버튼을 바꾸면 `TileFrame`의 `tileHeadActs` 등록도 같이
 - **경로 줄 도구**: 폴더·장비 타일 경로 줄 버튼 = `.ct-grp` 묶음(`chaltteok.scss`) + 넘치면 `HScroll`, 이동 묶음은 경로 왼쪽. 몸통의 버튼 초기화 제외 목록에 새 버튼 클래스 넣기
 - **입력칸**: input·select·textarea·체크 = `Ct*` 컴포넌트(`feature/widget/component`, 모양 = `styles/ct-field.scss` 한 곳). 기본 `<select>`·직접 그린 입력칸 금지
+- **타일 추가 주체**: 하나만 있어야 하는 타일(터미널·영상 보기) = 서버가 넣음(PUT은 추가 거절), 나머지 타일·배치 = 프론트 PUT
 - **배포 전 필수**: 회원이 있는 DB에 배포하기 전에 관리자로 지정할 회원을 사용자에게 묻는다
 
 ## 기술 스택 (확정)
@@ -82,9 +83,9 @@ sqlc.yaml  README.md  .gitignore
 
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
-- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-decisions.md`(확정 결정 상세) · `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-file-view.md`(장비 파일 편집기·보기 타일·칸 메뉴 내려받기, 구상) · `REF-view-tile.md`(파트(보기 타일) 구현)
+- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-decisions.md`(확정 결정 상세) · `REF-test-env.md`(테스트 환경·함정) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-file-view.md`(장비 파일 편집기·보기 타일·칸 메뉴 내려받기, 구상) · `REF-view-tile.md`(파트(보기 타일) 구현) · **집 서버(운영)**: `REF-home-server.md`(서버 PC·옛 터널) · `REF-home-direct.md`(지금 경로 = iptime + Caddy 직통) · `REF-home-deploy.md`(배포·업데이트)
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
-- **진행 중 파트**: 없음 (직전 = 보기 타일(마감, 10-28, `feat/file-view` 머지) → `REF-view-tile.md` · 그 전 파일 편집기 → `REF-file-view.md`. 다음 영상 파트가 두 REF를 이어 써서 INDEX로 안 접음)
+- **진행 중 파트**: 없음 (직전 = 영상 Range(마감, 10-29, `feat/video-view` 머지) → `REF-video-view.md` · 그 전 보기 타일 `REF-view-tile.md` · 파일 편집기 `REF-file-view.md` — 세 파트 아직 INDEX로 안 접음)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"
 - 통신/PTY 상세 PLAN: `PLAN-agent-comm.md` / 구독 모델: `PLAN-subscription.md`

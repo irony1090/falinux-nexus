@@ -48,3 +48,10 @@
 
 ## 웹만 교체 (2026-10-28)
 - 사용자가 test3 웹 빌드(`build/mochi/web`, master `02dc54c` = 경로 줄 정리·패널 창 버튼·닫은 뒤 active)를 압축해 Nexus 전송으로 서버 PC에 올림 -> PowerShell `Expand-Archive` -> `web.new` -> `web` -> `web.bak-<시각>`, `web.new` -> `web`(재시작 없음, `WEB_DIR="./web"`는 요청 때 디스크에서 읽음) -> **완료(사용자)**. exe는 mochi 그대로(Go 변경 없음). 되돌리기 = 폴더 이름만 바꾸기
+
+## viewer-image 배포 묶음 (2026-10-28 밤)
+- `build/home-update/nexus-viewer-image.zip`(폴더 `viewer-image/`): master `709095c`(경로 줄 정리·패널 창 버튼·닫은 뒤 active·파일 편집기·보기 타일) Windows `supervisor.exe`·`worker.exe` + `web/`(`VITE_API_URL=`) + `update.ps1`(mochi 것 그대로) + README. 태그 `VIEWER_IMAGE-HOMESERVER-261028`(빌드 뒤 `VIEWER_IMAGE-261028`로 되돌림). 마이그레이션 없음(28053b7 이후 supervisor·worker 둘 다 변경 없음)
+- env 변경 없음: `VIEW_CACHE_DIR` 키가 없으면 `view-cache`, 상대 경로는 projectDir 기준 -> `C:\Nexus\view-cache`(첫 기동 때 생김). 끄기 = `VIEW_CACHE_DIR=""`
+- 편집기: 서버 PC엔 일부러 안 깖(거절 메시지 확인 뒤 `winget install Microsoft.Edit`로 비교, 사용자)
+  - 2026-10-28 밤 거절 메시지 확인(사용자) -> 설치·worker 재시작 명령 = user vault `user/home-server/편집기-설치.md`(worker는 켜질 때 PATH를 쓰므로 설치 뒤 `Start-ScheduledTask Nexus`로 재시작 필요) -> **설치·재시작 후 "편집" 정상(사용자, 10-28 밤)**
+- **배포 결과(2026-10-28 밤)**: 사용자 `update.ps1` -> 완료. 서버 PC에 `*.old-<stamp>`(exe 2개·web)·`viewer-image\`·zip 남음 -> 정리 기준 = 위 "서버 PC 정리 기준"(+ 10-28 낮 `web.bak-*`)

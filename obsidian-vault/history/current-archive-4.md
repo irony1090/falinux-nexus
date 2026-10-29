@@ -1,6 +1,7 @@
 # history — CURRENT에서 내려보낸 줄 (원문 보존)
 
 → `CURRENT.md` · 각 줄의 상세는 그 줄이 가리키는 INDEX/REF
+> 2026-10-29 분할: 이 파일 = 10-27 ~ 10-28 파트(경로 줄 정리). 그 뒤 줄 → `history/current-archive.md`
 > 2026-10-26 낮까지의 줄 → `history/current-archive-1.md` / 밤 세션 끝 → `history/current-archive-2.md` / 10-26 밤 fix/phone-layout ~ vault 색인 정리 → `history/current-archive-3.md`(분할)
 
 ## 2026-10-27 오후 (파트(장비 상태 push) 마감 때 내려보냄)
@@ -55,7 +56,7 @@
 - **(2026-10-28) 진행 중 파트 = 닫은 뒤 active**(브랜치 `feat/close-active`, 커밋 전) → `REF-close-active.md`. 구현·격리 헤드리스 확인 OK. **사용자 화면 확인 대기** — 격리 띄워 둠: http://localhost:3001 (alice/pw), worker TMPDIR `/tmp/claude-1000/pr-t`, 시험 셸 1개(최소화) 남음 -> 마감 때 정리
 
 ## 2026-10-28 세션 끝 — CURRENT에서 내려보냄
-- **(2026-10-28 오후) 집 서버 직통 전환 진행 중(코드 무관, 운영)** — 원인 = Cloudflare 엣지 LAX 경유. iptime 포트포워딩 + Caddy로 직통. 회사에서 할 것(DNS `direct`·Caddy·방화벽·서비스 등록) 끝, **오늘 밤 집에서(사용자) 1(내부 IP 고정)·2(포트포워딩)·6(시험 실행)** -> `direct` 확인되면 8(주소 전환, 구름만 회색 금지 = 대상도 iptime으로) → 체크리스트 user vault `user/home-server/직통-전환.md` · 근거 `REF-home-server.md` "터널 속도"·"직통 전환 계획(안)"
+- **(2026-10-28 오후) 집 서버 직통 전환 진행 중(코드 무관, 운영)** — 원인 = Cloudflare 엣지 LAX 경유. iptime 포트포워딩 + Caddy로 직통. 회사에서 할 것(DNS `direct`·Caddy·방화벽·서비스 등록) 끝, **오늘 밤 집에서(사용자) 1(내부 IP 고정)·2(포트포워딩)·6(시험 실행)** -> `direct` 확인되면 8(주소 전환, 구름만 회색 금지 = 대상도 iptime으로) → 체크리스트 user vault `user/home-server/직통-전환.md` · 근거 `REF-home-server.md` "터널 속도"·`REF-home-direct.md`
 
 - (2026-10-28 밤 내려보냄, ② 바이너리 판정 = 사용자 OK로 해결) **(2026-10-28 세션 끝) 다음 = 파트(보기 타일)** — D(더블클릭 열기) 답: ① 해석 맞음 ③ 영상 전엔 아무 일 없음 ④ 보기 타일에 같이. **② 바이너리 판정 제안(앞 8KB NUL, 더블클릭 때만) 확인 대기** → `REF-file-view.md` "다음 파트(보기 타일) 결정". V1~V5 확정, 읽기 전용 텍스트 안 함. 브랜치는 착수 때
 
