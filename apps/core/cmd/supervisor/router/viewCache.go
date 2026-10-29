@@ -164,13 +164,18 @@ func (w *viewWriter) commit() {
 }
 
 // runViewSweep: 시작 때 한 번 + 주기 정리 — 트리를 쓰는 곳이 여러 곳(PUT·배치·정리·보드)이라 저장마다가 아니라 주기로(REF-view-tile.md)
+// 영상 이어보기 위치도 같이(닫기는 PUT이 바로 지움, 여기는 저장·닫기가 엇갈려 남은 것 — REF-video-view.md)
 func (r *supervisorRouter) runViewSweep() {
-	if r.view.dir == "" {
-		return
-	}
 	for {
-		if err := r.view.sweep(); err != nil {
-			log.Printf("[view] 사본 정리 실패: %v", err)
+		if r.view.dir != "" {
+			if err := r.view.sweep(); err != nil {
+				log.Printf("[view] 사본 정리 실패: %v", err)
+			}
+		}
+		if n, err := store.GetStorePool().Queries().DeleteOrphanVideoPositions(context.Background()); err != nil {
+			log.Printf("[view] 영상 위치 정리 실패: %v", err)
+		} else if n > 0 {
+			log.Printf("[view] 영상 위치 %d개 정리(타일 없음)", n)
 		}
 		time.Sleep(viewSweepEvery)
 	}

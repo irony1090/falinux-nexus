@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { TILE_KINDS } from '@/feature/widget/util/tileKind.util';
 import { useWorkerRoster } from '@/feature/worker/api/worker.api';
+import { viewIcon, viewKindOf } from '@/feature/worker/util/fileKind.util';
 import { computed } from 'vue';
 import { useGetNode } from '../../api/node.api';
 import { useTerminalKill } from '../../hook/terminalKill.hook';
@@ -8,6 +9,7 @@ import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
 import { fileLabel } from '../../util/tileLabel.util';
 import TileFrame from './TileFrame.vue';
+import VideoViewBody from './VideoViewBody.vue';
 import ViewerTileBody from './ViewerTileBody.vue';
 
 // 보기 타일 — 장비 파일 하나(파트(보기 타일), REF-file-view.md). 권한·연결은 연 폴더(nodeId) + 인스턴스로 장비 타일과 같음
@@ -42,7 +44,7 @@ const unavailable = computed(() => (folderError.value as { status?: number } | n
 <template>
 <tile-frame v-if="tile" :tile-id="tile.id"
     :name="name"
-    :icon="TILE_KINDS.viewer.icon"
+    :icon="viewIcon(tile.path)"
     :color="TILE_KINDS.viewer.color"
     :unavailable="unavailable"
     @close="closeTile(tile.id)"
@@ -52,7 +54,8 @@ const unavailable = computed(() => (folderError.value as { status?: number } | n
         <span class="inst" :title="`인스턴스 ${tile.instance}`">{{ instLabel || tile.instance }}</span>
     </template>
 
-    <viewer-tile-body :tile-id="tile.id" :inert="overview" />
+    <video-view-body v-if="viewKindOf(tile.path) === 'video'" :tile-id="tile.id" :inert="overview" />
+    <viewer-tile-body v-else :tile-id="tile.id" :inert="overview" />
 </tile-frame>
 </template>
 

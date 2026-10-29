@@ -1,6 +1,7 @@
 import { BaseAxios, throwCatch, throwThen } from '@/common/api/api.util'
 import { readTabId, TAB_ID_HEADER } from '@/common/util/tabId.util'
-import type { Tile } from '../store/tileTree.store'
+import type { TileSize } from '@/feature/widget/util/tile.type'
+import type { Tile, ViewerTile } from '../store/tileTree.store'
 
 // 백엔드: apps/core/cmd/supervisor/router/tile.go (group "/tiles") — ⑪(타일 트리 서버 저장), REF-node-ui-save.md.
 // 보드(작업 공간)마다 트리 하나: hash 빈 값 = 기본 보드(`/tiles`), 그 외 `/tiles/:hash` — WS1(트리 주소)
@@ -84,3 +85,36 @@ export const listViewers = (folderId: number, mainKey?: string) => BaseAxios.get
     { params: { folderId, mainKey: mainKey || undefined } }
 ).then(throwThen<ViewerResponse[]>)
 .catch(throwCatch)
+
+// POST /tiles/viewers/video — 영상은 같은 파일이 계정 전체에서 타일 하나라 서버가 넣는다(MEMORY "타일 추가 주체", videoTile.go)
+// tile 있음 = 새로 넣음(hash 보드) / 없음 = 이미 있던 타일(hash 보드의 tileId)로 이동
+export type VideoTileRequest = { folderId: number; instance: string; path: string; workspace: string; parentTileId: string; size: TileSize }
+export type VideoTileResponse = { hash: string; tileId: string; tile?: ViewerTile; tileVersion?: number }
+
+export const openVideoTile = (body: VideoTileRequest) => BaseAxios.post(
+    '/tiles/viewers/video',
+    body,
+).then(throwThen<VideoTileResponse>)
+.catch(throwCatch)
+
+// S1(이어보기): 영상 재생 위치 — 키 = 파일, 계정마다. 그 파일의 보기 타일이 없으면 서버가 저장하지 않음(닫힌 뒤 늦게 온 저장)
+const VIDEO_POS = '/tiles/viewers/video/position'
+
+export const getVideoPosition = (instance: string, path: string) => BaseAxios.get(
+    VIDEO_POS,
+    { params: { instance, path } }
+).then(throwThen<{ pos: number | null }>)
+.catch(throwCatch)
+
+// keepalive = 창을 닫는 중에도 전송을 끝낸다(axios는 지원하지 않아 fetch)
+export const saveVideoPosition = (instance: string, path: string, pos: number, keepalive = false): Promise<unknown> => {
+    const body = { instance, path, pos }
+    if (!keepalive) return BaseAxios.put(VIDEO_POS, body).catch(throwCatch)
+    return fetch(`${BaseAxios.defaults.baseURL}${VIDEO_POS}`, {
+        method: 'PUT',
+        keepalive: true,
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    })
+}

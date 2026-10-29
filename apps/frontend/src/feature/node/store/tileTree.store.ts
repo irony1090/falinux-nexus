@@ -172,8 +172,9 @@ const shortcutsOffOp = (tileId: string, on: boolean): Op => ({ tiles }) => {
     else delete tile.shortcutsOff
 }
 
-// exec 응답의 타일 넣기 — 이미 있으면 그대로(재적용 때 서버 트리에 있음), 부모가 닫혔으면 루트 (서버 appendTerminalTile과 같은 규칙)
-const upsertOp = (tile: TerminalTile): Op => tree => {
+// 서버가 넣은 타일(터미널·영상 보기, MEMORY "타일 추가 주체")을 넣기 — 이미 있으면 그대로(재적용 때 서버 트리에 있음), 부모가 닫혔으면 루트 (서버 appendTerminalTile과 같은 규칙)
+export type ServerTile = TerminalTile | ViewerTile
+const upsertOp = (tile: ServerTile): Op => tree => {
     if (tree.tiles[tile.id]) return
     const parentId = tile.parent && isParentTile(tree.tiles[tile.parent]) ? tile.parent : tree.rootId
     attachOp(parentId, { ...tile, parent: parentId })(tree)
@@ -379,7 +380,7 @@ export const provideTileTree = () => {
         return tile.id
     }
 
-    // 보기 타일 — 연 장비 타일의 자식
+    // 이미지 보기 타일 — 연 장비 타일의 자식. 영상은 서버가 넣음(openVideoTile)
     const openViewer = (parentId: string, nodeId: number, instance: string, path: string, size: TileSize) => {
         const tile: ViewerTile = { id: crypto.randomUUID(), type: 'viewer', parent: parentId, kids: [], size, nodeId, instance, path }
         run(attachOp(parentId, tile))
@@ -405,9 +406,9 @@ export const provideTileTree = () => {
 
     const setShortcutsOff = (tileId: string, on: boolean) => run(shortcutsOffOp(tileId, on))
 
-    // exec 응답의 터미널 타일(서버가 이미 트리에 넣음, ⑪-4). 서버 version이 바로 다음이고 저장할 게 없으면 PUT 없이 반영,
+    // 서버가 이미 트리에 넣은 타일(exec 응답의 터미널 ⑪-4 · 영상 보기). 서버 version이 바로 다음이고 저장할 게 없으면 PUT 없이 반영,
     // 아니면 동작으로 쌓는다 — 다음 PUT이 409를 받고 서버 트리(타일 있음) 위에 재적용되며 이 동작은 건너뛴다
-    const applyServerTile = (tile: TerminalTile, tileVersion: number) => {
+    const applyServerTile = (tile: ServerTile, tileVersion: number) => {
         if (tileVersion <= version) return tile.id      // 이미 받은 서버 트리에 반영돼 있음
         if (tileVersion === version + 1 && !pending.length && !inFlight) {
             upsertOp(tile)(tree())

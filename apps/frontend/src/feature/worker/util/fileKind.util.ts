@@ -11,3 +11,6 @@ export const viewKindOf = (path: string): ViewKind | undefined => {
     const ext = name.slice(i + 1).toLowerCase()
     return IMAGE_EXT.has(ext) ? 'image' : VIDEO_EXT.has(ext) ? 'video' : undefined
 }
+
+// 보기 타일 아이콘 — 종류(TILE_KINDS.viewer)는 하나, 영상만 다른 아이콘
+export const viewIcon = (path: string) => viewKindOf(path) === 'video' ? 'mdi-movie-outline' : 'mdi-image-outline'

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ProcessTerminal from '@/feature/process/component/ProcessTerminal.vue';
 import { pillOf, useProcessTerm } from '@/feature/process/store/processTerm.store';
+import { viewIcon } from '@/feature/worker/util/fileKind.util';
 import { computed, type PropType } from 'vue';
 import { VChip, VIcon } from 'vuetify/components';
 import { useGetNode } from '../../api/node.api';
@@ -38,7 +39,7 @@ const pill = computed(() => pillOf(proc.value?.status, proc.value?.terminating))
     <div class="ov-name">
         <span v-if="pos" class="pos">{{ pos }}</span>
         <v-icon size="14"
-            :icon="TILE_KINDS[tile.type].icon"
+            :icon="tile.type === 'viewer' ? viewIcon(tile.path) : TILE_KINDS[tile.type].icon"
             :color="TILE_KINDS[tile.type].color"
         />
         <span class="name">{{ name }}</span>
