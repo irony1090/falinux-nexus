@@ -9,7 +9,7 @@ export const useTileShortcut = () => {
         count: () => posOf.value.size,
         go: pos => {
             const t = order.value[pos - 1]
-            if (t) activate(t.tile.id)
+            if (t) activate(t.id)
         },
     })
 }

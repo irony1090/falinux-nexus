@@ -1,23 +1,8 @@
-import type { Cell, CellSpan, GridItem, GridPlan, GridSlot, TileNode, TileSize } from './tile.type';
-import { holdsProc } from './tileKind.util';
+import type { Cell, CellSpan, GridItem, GridPlan, GridSlot, TileSize } from './tile.type';
 
-export type OrderedTile<T> = { tile: T; depth: number };
-
-// 폴더 -> 직접 실행한 프로세스 -> 넘겨받은 프로세스 -> 연 하위 타일(재귀, process 타일 말고 전부), 묶음 안은 kids 순 (REF-node-ui-layout.md "타일 순서 규칙")
-export function flatten<T extends TileNode>(tiles: Record<string, T>, rootId: string): Array<OrderedTile<T>> {
-	const out: Array<OrderedTile<T>> = [];
-	const walk = (id: string, depth: number) => {
-		const tile = tiles[id];
-		if (!tile) return;
-		out.push({ tile, depth });
-		const kids = tile.kids.map(k => tiles[k]).filter((k): k is T => !!k);
-		const terminals = kids.filter(holdsProc);
-		[...terminals.filter(k => !k.adopted), ...terminals.filter(k => k.adopted)]
-			.forEach(k => out.push({ tile: k, depth: depth + 1 }));
-		kids.filter(k => !holdsProc(k)).forEach(k => walk(k.id, depth + 1));
-	};
-	walk(rootId, 0);
-	return out;
+// 화면 순서 = 문서 order 그대로, 연 곳(parent)과 무관 (REF-tile-drag.md 구조-1(순서 배열))
+export function ordered<T>(order: ReadonlyArray<string>, tiles: Readonly<Record<string, T>>): Array<T> {
+	return order.flatMap(id => tiles[id] ? [tiles[id]] : []);
 }
 
 // 칸 찾는 순서 [c, r] = 위->아래, 다음 칼럼 (모든 기기 공통)

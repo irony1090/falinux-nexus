@@ -300,6 +300,45 @@ func (q *Queries) ListNodeAncestors(ctx context.Context, nodeID int64) ([]int64,
 	return items, nil
 }
 
+const listSiblingOrds = `-- name: ListSiblingOrds :many
+SELECT id, ord FROM nodes
+WHERE owner_user_id = $1
+  AND parent_id IS NOT DISTINCT FROM $2
+ORDER BY ord, name, id
+FOR UPDATE
+`
+
+type ListSiblingOrdsParams struct {
+	OwnerUserID int64
+	ParentID    pgtype.Int8
+}
+
+type ListSiblingOrdsRow struct {
+	ID  int64
+	Ord int64
+}
+
+// 형제 순서 다시 매기기(칸-1(node 순서 API)) — 안 보이는(차단) 형제 포함. 잠가서 동시 순서 바꾸기를 차례로
+func (q *Queries) ListSiblingOrds(ctx context.Context, arg ListSiblingOrdsParams) ([]ListSiblingOrdsRow, error) {
+	rows, err := q.db.Query(ctx, listSiblingOrds, arg.OwnerUserID, arg.ParentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListSiblingOrdsRow
+	for rows.Next() {
+		var i ListSiblingOrdsRow
+		if err := rows.Scan(&i.ID, &i.Ord); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const maxChildOrd = `-- name: MaxChildOrd :one
 SELECT COALESCE(MAX(ord), 0)::BIGINT AS max_ord
 FROM nodes
@@ -544,6 +583,24 @@ func (q *Queries) ResolveDeviceKey(ctx context.Context, arg ResolveDeviceKeyPara
 	var device_key pgtype.Text
 	err := row.Scan(&device_key)
 	return device_key, err
+}
+
+const setNodeOrds = `-- name: SetNodeOrds :exec
+UPDATE nodes
+SET ord = ($1::bigint[])[array_position($2::bigint[], id)]
+WHERE id = ANY($2::bigint[]) AND owner_user_id = $3
+`
+
+type SetNodeOrdsParams struct {
+	Ords        []int64
+	Ids         []int64
+	OwnerUserID int64
+}
+
+// ids[i]의 ord = ords[i]. 두 배열 unnest는 sqlc 분석기가 못 읽어 array_position으로
+func (q *Queries) SetNodeOrds(ctx context.Context, arg SetNodeOrdsParams) error {
+	_, err := q.db.Exec(ctx, setNodeOrds, arg.Ords, arg.Ids, arg.OwnerUserID)
+	return err
 }
 
 const updateNodeContent = `-- name: UpdateNodeContent :one

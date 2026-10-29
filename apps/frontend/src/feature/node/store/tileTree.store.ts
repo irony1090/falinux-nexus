@@ -5,11 +5,11 @@ import { useTestSocket } from '@/common/websocket/websocket.hook'
 import { readTabId } from '@/common/util/tabId.util'
 import { computed, inject, onBeforeUnmount, provide, readonly, ref, watch } from 'vue'
 import { getTiles, putTiles, type TilePin, type TileTree, type TileTreeResponse } from '../api/tile.api'
-import { createBoard, moveBoardFolder, type BoardChangeResult } from '../api/board.api'
+import { createBoard, moveBoardTile, type BoardChangeResult } from '../api/board.api'
 
 const TILE_TREE_STORE_KEY = Symbol('TileTreeStore')
 
-type TileBase = TileNode & { parent: string | null }    // parent = 이 타일을 연 폴더 타일 (노드 트리의 부모 아님)
+type TileBase = TileNode & { parent: string | null }    // parent = 연 곳(이 타일을 연 자식 가능 타일, 순서와 무관). 루트만 null — 터미널 탭이 이걸로 루트를 가림
 type NavBase = { back?: ReadonlyArray<string>; fwd?: ReadonlyArray<string> }   // 이동 기록(folder = 노드 id, "" = 루트 목록 / device = 경로) — 뒤로-1(타일 안 이동 기록)
 export type FolderTile = TileBase & NavBase & { type: 'folder'; nodeId: number | null; uid?: string; bound?: boolean }  // null = 루트 목록, uid = 서버 발급(새 타일은 저장 뒤 생김), 공유로 받은 타일은 공유한 타일과 같음, bound = 수동 타일 고정(서버만 씀, 표시는 pins)
 export type TerminalTile = TileBase & { type: 'terminal'; nodeId: number | null; uid: string; shortcutsOff?: true }   // nodeId null = 장비 파일 실행(폴더-4(실행)), shortcutsOff = active인 동안 앱 단축키 끔(이동-3(타일별 단축키 끔))
@@ -61,12 +61,12 @@ const tileIn = (tiles: Record<string, Tile>, id: string) => {
     return tile
 }
 
-// 부모 kids 끝에 붙인다 (= 타일 순서 규칙의 "연 순서"). 재적용마다 새 객체 — 반응형 트리에 넣은 객체가 이후 변경돼도 동작은 그대로
-const attachOp = (parentId: string, tile: Tile): Op => ({ tiles }) => {
+// 연 곳 바로 뒤에 넣는다(최신이 앞, 서버 tileDoc.openTile과 같은 규칙). 재적용마다 새 객체 — 반응형 트리에 넣은 객체가 이후 변경돼도 동작은 그대로
+const attachOp = (openerId: string, tile: Tile): Op => ({ order, tiles }) => {
     if (tiles[tile.id]) throw new Error(`[TILE_TREE] already attached: ${tile.id}`)
-    const parent = parentIn(tiles, parentId)
+    parentIn(tiles, openerId)
     tiles[tile.id] = clone(tile)
-    parent.kids = [...parent.kids, tile.id]
+    order.splice(order.indexOf(openerId) + 1, 0, tile.id)
 }
 
 // ---- 타일 안 위치 + 이동 기록(뒤로-1) ----
@@ -131,26 +131,22 @@ const navigateDeviceOp = (tileId: string, path: string): Op => tree => {
     moveOp(tileId, path)(tree)
 }
 
-// 폴더를 닫으면 그 폴더가 연 타일들이 부모 소속이 된다 (⑩ 타일 닫기 규칙):
-// process 타일(터미널)은 adopted로 표시해 kids 끝에 붙이고(= 부모가 직접 실행한 프로세스 뒤), 나머지(하위 폴더)는 닫힌 자리로.
+// 닫으면 그 타일이 연 타일들의 연 곳을 한 단계 위로, 화면 순서는 닫힌 타일만 빠진다(서버 tileDoc.remove와 같음)
 // 실행 중 터미널의 닫기 금지(kill 먼저)는 UI가 막는다 — 스토어는 process 상태를 모른다
-const closeOp = (tileId: string): Op => ({ tiles }) => {
+const closeOp = (tileId: string): Op => ({ order, tiles }) => {
     const tile = tileIn(tiles, tileId)
     if (!tile.parent) return   // 루트는 닫을 수 없음
-    const parent = parentIn(tiles, tile.parent)
-    const kids = tile.kids.map(k => tiles[k]).filter(k => !!k)
-    const folders = kids.filter(k => !isProcTile(k))
-    const terminals = kids.filter(isProcTile)
-    // 닫힌 폴더 안에서 보이던 순서(직접 실행 -> 넘겨받음) 그대로 넘긴다
-    const lifted = [...terminals.filter(k => !k.adopted), ...terminals.filter(k => k.adopted)]
-
-    kids.forEach(k => { k.parent = parent.id })
-    lifted.forEach(k => { k.adopted = true })
-    parent.kids = [
-        ...parent.kids.flatMap(k => k === tileId ? folders.map(f => f.id) : [k]),
-        ...lifted.map(k => k.id),
-    ]
+    Object.values(tiles).forEach(t => { if (t.parent === tileId) t.parent = tile.parent })
+    order.splice(order.indexOf(tileId), 1)
     delete tiles[tileId]
+}
+
+// 끌어서 옮기기 — X를 Y 바로 뒤로(Y가 없으면 맨 뒤, 409 뒤 재적용도 같은 규칙). 연 곳(parent)은 그대로, 루트는 맨 앞 고정
+const placeOp = (tileId: string, afterId: string): Op => ({ order, tiles }) => {
+    if (!tileIn(tiles, tileId).parent) throw new Error(`[TILE_TREE] root cannot move: ${tileId}`)
+    order.splice(order.indexOf(tileId), 1)
+    const i = order.indexOf(afterId)
+    order.splice(i < 0 ? order.length : i + 1, 0, tileId)
 }
 
 const resizeOp = (tileId: string, size: TileSize): Op => ({ tiles }) => {
@@ -172,7 +168,7 @@ const shortcutsOffOp = (tileId: string, on: boolean): Op => ({ tiles }) => {
     else delete tile.shortcutsOff
 }
 
-// 서버가 넣은 타일(터미널·영상 보기, MEMORY "타일 추가 주체")을 넣기 — 이미 있으면 그대로(재적용 때 서버 트리에 있음), 부모가 닫혔으면 루트 (서버 appendTerminalTile과 같은 규칙)
+// 서버가 넣은 타일(터미널·영상 보기, MEMORY "타일 추가 주체")을 넣기 — 이미 있으면 그대로(재적용 때 서버 트리에 있음), 연 곳이 닫혔으면 루트 (서버 openTile과 같은 규칙)
 export type ServerTile = TerminalTile | ViewerTile
 const upsertOp = (tile: ServerTile): Op => tree => {
     if (tree.tiles[tile.id]) return
@@ -191,6 +187,7 @@ export const provideTileTree = () => {
     const { on, status: socketStatus } = useTestSocket()
 
     const tiles_ = ref<Record<string, Tile>>({})
+    const order_ = ref<string[]>([])
     const rootId_ = ref('')
     const ready_ = ref(false)               // 서버 트리를 받기 전엔 타일 UI를 그리지 않는다
     const loadError_ = ref<string | null>(null)
@@ -208,10 +205,12 @@ export const provideTileTree = () => {
     const pins_ = ref<TilePin[]>([])        // 계정 전체 고정 지도(보드와 무관, 개편-1(고정 지도)) — 보드를 바꿔도 비우지 않음
     let pinsPushed = false                  // GET 도중 TILES:PINS가 왔으면 GET의 (더 옛) 지도로 덮지 않는다
 
-    const tree = (): TileTree => ({ rootId: rootId_.value, tiles: tiles_.value })
+    // op는 order·tiles를 제자리에서 바꾼다 — 반응형 값 그대로 넘김
+    const tree = (): TileTree => ({ rootId: rootId_.value, order: order_.value, tiles: tiles_.value })
 
     const setTree = (t: TileTree) => {
         rootId_.value = t.rootId
+        order_.value = t.order
         tiles_.value = t.tiles
     }
 
@@ -299,7 +298,7 @@ export const provideTileTree = () => {
         clearSaving()
         version = 0
         hash_.value = ''
-        setTree({ rootId: '', tiles: {} })
+        setTree({ rootId: '', order: [], tiles: {} })
         ready_.value = false
         loadError_.value = null
     }
@@ -368,21 +367,21 @@ export const provideTileTree = () => {
 
     // 새 타일 id는 동작을 만들 때 정한다 — 재적용해도 같은 id라 화면·reveal이 흔들리지 않는다
     const openFolder = (parentId: string, nodeId: number | null, size: TileSize) => {
-        const tile: FolderTile = { id: crypto.randomUUID(), type: 'folder', parent: parentId, kids: [], size, nodeId }
+        const tile: FolderTile = { id: crypto.randomUUID(), type: 'folder', parent: parentId, size, nodeId }
         run(attachOp(parentId, tile))
         return tile.id
     }
 
     // 장비 타일 — 연 폴더의 자식, 최상위부터(Q6(처음 여는 위치)). 폴더-3(여는 곳)
     const openDevice = (parentId: string, nodeId: number, instance: string, size: TileSize) => {
-        const tile: DeviceTile = { id: crypto.randomUUID(), type: 'device', parent: parentId, kids: [], size, nodeId, instance }
+        const tile: DeviceTile = { id: crypto.randomUUID(), type: 'device', parent: parentId, size, nodeId, instance }
         run(attachOp(parentId, tile))
         return tile.id
     }
 
     // 이미지 보기 타일 — 연 장비 타일의 자식. 영상은 서버가 넣음(openVideoTile)
     const openViewer = (parentId: string, nodeId: number, instance: string, path: string, size: TileSize) => {
-        const tile: ViewerTile = { id: crypto.randomUUID(), type: 'viewer', parent: parentId, kids: [], size, nodeId, instance, path }
+        const tile: ViewerTile = { id: crypto.randomUUID(), type: 'viewer', parent: parentId, size, nodeId, instance, path }
         run(attachOp(parentId, tile))
         return tile.id
     }
@@ -401,6 +400,8 @@ export const provideTileTree = () => {
     const close = (tileId: string) => run(closeOp(tileId))
 
     const resize = (tileId: string, size: TileSize) => run(resizeOp(tileId, size))
+
+    const place = (tileId: string, afterId: string) => run(placeOp(tileId, afterId))
 
     const setMinimized = (tileId: string, on: boolean) => run(minimizeOp(tileId, on))
 
@@ -463,14 +464,22 @@ export const provideTileTree = () => {
         return res.workspace
     }
 
-    // 폴더 타일을 하위째 다른 보드 루트 끝으로(W3(이동 범위))
-    const moveToBoard = (folderTileId: string, to: string) => serverChange(v => moveBoardFolder(hash_.value, { folderTileId, to, version: v }))
+    // 폴더 타일을 하위째 다른 보드 루트 바로 뒤로(W3(이동 범위), 메뉴 "다른 보드로")
+    const moveToBoard = (folderTileId: string, to: string) => serverChange(v => moveBoardTile(hash_.value, { tileId: folderTileId, to, after: '', version: v }))
+
+    // 전체보기 끌기(보드-1) — 출발이 이 보드면 version 검사(serverChange), 다른 보드면 대기분만 보내고 검사 없이. 결과는 push로도 온다
+    const moveTile = async (from: string, tileId: string, to: string, after: string) => {
+        if (from === hash_.value) return serverChange(v => moveBoardTile(from, { tileId, to, after, version: v }))
+        await flush()
+        return moveBoardTile(from, { tileId, to, after })
+    }
 
     // 노드별 고정 타일(타일 2개 이상인 노드만) — 핀 표시·"여기로 타일 고정" 메뉴(개편-7(고정 표시 UI))
     const pinByNode = computed(() => new Map(pins_.value.map(p => [p.nodeId, p])))
 
     const ctx = {
         tiles: readonly(tiles_),
+        order: readonly(order_),
         pinByNode,
         rootId: readonly(rootId_),
         ready: readonly(ready_),
@@ -486,12 +495,14 @@ export const provideTileTree = () => {
         goHistory,
         close,
         resize,
+        place,
         setMinimized,
         setShortcutsOff,
         applyServerTile,
         flush,
         detachToBoard,
         moveToBoard,
+        moveTile,
     }
 
     provide(TILE_TREE_STORE_KEY, ctx)

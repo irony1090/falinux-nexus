@@ -55,15 +55,8 @@ func appendTerminalTile(ctx context.Context, userID int64, hash, parentTileID st
 		if rec.Hash == "" {
 			rec, doc = def, defDoc
 		}
-		// 부모 타일을 그 사이 다른 탭이 닫았으면 루트에 붙인다
-		parent, ok := doc.Tiles[parentTileID]
-		if !ok || !parent.canParent() {
-			parent = doc.Tiles[doc.RootID]
-		}
-		tile := newTerminalTile(&parent.ID, nodeID, uid, size)
-		parent.Kids = append(parent.Kids, tile.ID)
-		doc.Tiles[parent.ID] = parent
-		doc.Tiles[tile.ID] = tile
+		// 실행한 타일을 그 사이 다른 탭이 닫았으면 루트 바로 뒤(openTile)
+		tile := doc.openTile(parentTileID, newTerminalTile(nodeID, uid, size))
 		tree, err := doc.marshal()
 		if err != nil {
 			return tileItem{}, superdb.TileTree{}, err
@@ -134,11 +127,7 @@ func insertTerminal(ctx context.Context, q *superdb.Queries, userID, nodeID int6
 		return nil, nil
 	}
 	doc := &docs[at]
-	parent := doc.Tiles[parentID]
-	tile := newTerminalTile(&parent.ID, &nodeID, uid, defaultTileSize)
-	parent.Kids = append(parent.Kids, tile.ID)
-	doc.Tiles[parent.ID] = parent
-	doc.Tiles[tile.ID] = tile
+	doc.openTile(parentID, newTerminalTile(&nodeID, uid, defaultTileSize))
 	if err := doc.validate(); err != nil {
 		return nil, err
 	}
@@ -210,7 +199,7 @@ func betterBinding(t, best tileItem) bool {
 	return (t.Bound && !best.Bound) || (t.Bound == best.Bound && t.ShownAt < best.ShownAt)
 }
 
-// adoptOrphans: 타일 없는 살아 있는 process(내가 실행한 것만, BD8(고아 안전망))를 기본 루트 끝에 — WS3(고아 안전망 위치)
+// adoptOrphans: 타일 없는 살아 있는 process(내가 실행한 것만, BD8(고아 안전망))를 기본 루트 바로 뒤에(연곳-B) — WS3(고아 안전망 위치)
 // 잠그지 않고 먼저 보고, 고아가 있을 때만 잠근 뒤 다시 본다
 func (r *supervisorRouter) adoptOrphans(c echo.Context, userID int64) {
 	ctx := c.Request().Context()
@@ -249,16 +238,11 @@ func (r *supervisorRouter) adoptOrphans(c echo.Context, userID int64) {
 		return
 	}
 	doc := mustParseDoc(def.Tree)
-	root := doc.Tiles[doc.RootID]
 	uids := make([]string, 0, len(orphans))
 	for _, p := range orphans {
-		t := newTerminalTile(&root.ID, nullID(p.NodeID), p.Uid, defaultTileSize)
-		t.Adopted = true
-		doc.Tiles[t.ID] = t
-		root.Kids = append(root.Kids, t.ID)
+		doc.openTile(doc.RootID, newTerminalTile(nullID(p.NodeID), p.Uid, defaultTileSize))
 		uids = append(uids, p.Uid)
 	}
-	doc.Tiles[root.ID] = root
 	upd := saveLockedTree(c, def, &doc)
 	log.Printf("[tiles] 고아 터미널 %d개를 기본 작업 공간에 붙임 user=%d", len(orphans), userID)
 	AfterCommit(c, func() {

@@ -6,15 +6,19 @@ import { useWorkerRoster } from '@/feature/worker/api/worker.api';
 import { osName } from '@/feature/worker/util/workerOs.util';
 import { computed, ref, watch } from 'vue';
 import { VBtn, VIcon, VList, VListItem, VMenu, VProgressLinear } from 'vuetify/components';
-import { suggestNodes, useListChildren, useNodePath, type NodeResponse } from '../../api/node.api';
+import { orderNodes, suggestNodes, useListChildren, useNodePath, useNodeQueryClient, type NodeResponse } from '../../api/node.api';
+import { useAppDialog } from '@/feature/layout/store/appDialog.store';
+import { useQueryClient } from '@tanstack/vue-query';
 import { useNodeShares } from '../../api/share.api';
 import { useItemPress } from '../../hook/itemPress.hook';
-import { dragging, pasteBlock, useNodePaste, type PasteDest } from '../../hook/nodePaste.hook';
+import { pasteBlock, useNodePaste, type PasteDest } from '../../hook/nodePaste.hook';
+import { cellIcon, cellTone, useCellDrag } from '../../hook/cellDrag.hook';
 import { usePathEditKey } from '../../hook/pathEdit.hook';
 import { useScriptRuns } from '../../hook/scriptRuns.hook';
-import { toClip, useNodeClipboard, type ClipMode, type ClipNode } from '../../store/nodeClipboard.store';
+import { useNodeClipboard, type ClipMode, type ClipNode } from '../../store/nodeClipboard.store';
 import { nodeActItems, useNodeOps, type NodeAct } from '../../store/nodeOps.store';
 import { useNodeSelection } from '../../store/nodeSelection.store';
+import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
 import { agoText } from '../../util/presenceView.util';
 import { PERM_EDIT, PERM_OWNER } from '../../util/shareView.util';
@@ -232,12 +236,13 @@ const press = useItemPress<NodeResponse, number>({
     key: n => n.id,
     selecting: () => sel.on.value,
     check: pick,
+    hold: false,
     open: n => {
         if (n.kind === 'FOLDER') navigate(props.tileId, n.id);
         else if (!saving.value && tabReady.value) void ops.exec(props.tileId, n);
     },
 });
-const { focused, dragOk } = press;
+const { focused } = press;
 watch(nodeId, () => focused.value = null);
 const onBodyClick = (e: MouseEvent) => {
     if (!(e.target as HTMLElement).closest('.DirGridCell')) focused.value = null;
@@ -275,73 +280,50 @@ const doPaste = async (mode: ClipMode, nodes: ReadonlyArray<ClipNode>, destId: n
         const done = await paste(mode, nodes, destId);
         if (fromClip && mode === 'cut') removeIds(done);    // CP4(붙여넣은 뒤): 잘라내기만 비움, 실패한 건 남겨 다시 시도
         if (mode === 'cut' && done.length && sel.on.value) sel.exit();   // SM5(끝낸 뒤): 이동 뒤 모드 종료
+        return done;
     } finally {
         pasting.value = false;
     }
 }
 const onPaste = () => doPaste(clip.value.mode, clip.value.nodes, nodeId.value, true);
 
-// 드래그: 선택 중인 행을 끌면 고른 전체, 아니면 그 행. 클립보드는 건드리지 않는다 — SD4(드롭 = 이동, Ctrl = 복사)·SD6(HTML5 DnD)
-const dropAt = ref<number | 'tile' | null>(null);   // 놓을 자리 표시: 폴더 행 id / 타일 본문(지금 폴더)
+// 칸 끌기 — 칸-2(node 칸 끌기), REF-tile-drag.md 칸Q1~Q5. 순서 = 칸-1(node 순서 API), 넣기 = 붙여넣기와 같은 길(SD4(드롭 = 이동, Ctrl = 복사))
 const rootEl = ref<HTMLElement>();
-
-const onDragStart = (e: DragEvent, n: NodeResponse) => {
-    const nodes = sel.on.value && isSel(n) ? sel.selected.value.map(it => it.node) : [n];
-    dragging.value = nodes.map(toClip);
-    e.dataTransfer?.setData('application/x-nexus-nodes', nodes.map(v => v.id).join(','));
-    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copyMove';
-}
-const onDragEnd = () => dragging.value = null;
-watch(dragging, v => {
-    if (!v) dropAt.value = null;
-})
-
-// SD7(드롭 위치): 폴더 행 위 = 그 폴더(끄는 노드 자신은 제외), 그 밖 = 지금 폴더
-const dropTarget = (e: DragEvent, nodes: ReadonlyArray<ClipNode>): { key: number | 'tile'; dest: PasteDest } => {
-    const row = (e.target as HTMLElement).closest<HTMLElement>('[data-folder-id]');
-    const n = row ? children.value.find(c => c.id === Number(row.dataset.folderId)) : undefined;
-    if (n && !nodes.some(d => d.id === n.id)) return { key: n.id, dest: { id: n.id, node: n, path: [...path.value, n] } };
-    return { key: 'tile', dest: here.value };
-}
-const dropMode = (e: DragEvent): ClipMode => e.ctrlKey ? 'copy' : 'cut';
-
-// 막힌 자리면 preventDefault를 안 한다 = 브라우저가 놓기 금지 커서
-const onDragOver = (e: DragEvent) => {
-    const nodes = dragging.value;
-    if (!nodes || error.value) return;
-    const t = dropTarget(e, nodes);
-    const mode = dropMode(e);
-    if (pasteBlock(mode, nodes, t.dest)) {
-        dropAt.value = null;
-        return;
-    }
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = mode === 'copy' ? 'copy' : 'move';
-    dropAt.value = t.key;
-}
-const onDragLeave = (e: DragEvent) => {
-    if (!rootEl.value?.contains(e.relatedTarget as Node | null)) dropAt.value = null;
-}
-const onDrop = (e: DragEvent) => {
-    const nodes = dragging.value;
-    dropAt.value = null;
-    if (!nodes) return;
-    const t = dropTarget(e, nodes);
-    const mode = dropMode(e);
-    if (pasteBlock(mode, nodes, t.dest)) return;
-    e.preventDefault();
-    dragging.value = null;
-    void doPaste(mode, nodes, t.dest.id, false);
-}
+const { invalidateChanged } = useNodeQueryClient(useQueryClient());
+const grids = useTileGrids();
+const { openDialog } = useAppDialog();
+const canOrder = computed(() => nodeId.value === null || (current.value?.permission ?? 0) >= PERM_EDIT);
+const drag = useCellDrag({
+    tileId: () => props.tileId,
+    root: rootEl,
+    list: () => children.value,
+    here: () => here.value.id !== null && !here.value.node ? null : here.value,
+    destOf: n => ({ id: n.id, node: n, path: [...path.value, n] }),
+    canOrder: () => canOrder.value,
+    movable: n => !n.ownerNickname,
+    group: n => sel.on.value && isSel(n) ? sel.selected.value.filter(it => it.tileId === props.tileId).map(it => it.node) : [n],
+    check: pick,
+    order: async (ids, after) => {
+        const parentId = nodeId.value;
+        try {
+            await orderNodes(parentId, ids, after);
+        } catch (err) {
+            openDialog({ type: 'error', content: (err as { message?: string })?.message || '순서를 바꾸지 못했습니다' });
+            throw err;
+        } finally {
+            invalidateChanged({ id: ids[0]!, parentId });
+        }
+    },
+    into: (mode, nodes, destId) => doPaste(mode, nodes, destId, false),
+    pager: { el: () => grids.stripEl.value, start: grids.edgeStart, track: grids.edgeTrack, end: grids.edgeEnd },
+});
+const { shown, draggingIds, lifted, dwellId, intoKey, landing, landed } = drag;
 </script>
 
 <template>
 <div ref="rootEl" data-pager-press class="FolderTileBody"
-    :class="{ drop: dropAt === 'tile' }"
+    :class="{ drop: intoKey === 'tile', 'jelly-land': landed === 'tile' }"
     @click="onBodyClick"
-    @dragover="onDragOver"
-    @dragleave="onDragLeave"
-    @drop="onDrop"
 >
     <div class="crumbs" :class="{ editing }" :data-pager-press-off="editing || undefined" @click="onCrumbsClick">
         <path-input v-if="editing" :value="pathText" :suggest="suggestPath" :submit="submitPath" @pick="onPick" @close="editing = false" />
@@ -418,25 +400,28 @@ const onDrop = (e: DragEvent) => {
         <v-btn size="x-small" variant="tonal" :disabled="busy" @click="onRefresh">다시 시도</v-btn>
     </div>
     <template v-else>
-        <div v-if="children.length" class="dir-grid">
-            <dir-grid-cell v-for="n in children" :key="n.id"
-                :class="{ cut: cutIds.has(n.id), drop: dropAt === n.id }"
+        <!-- 비켜 가기만. 들어오고 빠지는 칸은 바로(:css false) — 칸의 scale 전환 시간만큼 빠지는 칸이 남아 다른 폴더로 가면 옛 칸이 잠깐 보였다(10-29) -->
+        <transition-group v-if="children.length" tag="div" name="dg" :css="false" class="dir-grid">
+            <dir-grid-cell v-for="n in shown" :key="n.id"
+                :class="{
+                    cut: cutIds.has(n.id), slot: draggingIds.has(n.id), lifted: lifted === n.id,
+                    dwell: dwellId === n.id && intoKey !== n.id, into: intoKey === n.id,
+                    landing: landing.has(n.id), 'jelly-land': landed === n.id,
+                }"
+                :data-node-id="n.id"
                 :data-folder-id="n.kind === 'FOLDER' ? n.id : undefined"
-                :draggable="dragOk"
-                :icon="n.kind === 'FOLDER' ? (n.ownerNickname ? 'mdi-folder-account' : 'mdi-folder') : 'mdi-console'"
-                :tone="n.kind === 'FOLDER' ? 'warning' : 'primary'"
+                :icon="cellIcon(n)"
+                :tone="cellTone(n)"
                 :name="n.name"
                 :checking="sel.on.value"
                 :checked="isSel(n)"
                 :focused="focused === n.id"
                 @click="press.onClick($event, n)"
-                @pointerdown="press.onPointerDown($event, n)"
+                @pointerdown="press.onPointerDown($event, n); drag.down($event, n)"
                 @pointermove="press.onPointerMove"
                 @pointerup="press.cancelPress"
                 @pointercancel="press.cancelPress"
                 @contextmenu="onContextMenu($event, n)"
-                @dragstart="onDragStart($event, n)"
-                @dragend="onDragEnd"
             >
                 <template #action>
                     <button v-if="n.kind === 'FOLDER'" class="dg-btn dg-btn--l" style="--c: var(--v-theme-warning)" title="새 타일에서 열기" @click="ops.open(tileId, n.id)">새 타일</button>
@@ -481,7 +466,7 @@ const onDrop = (e: DragEvent) => {
                     </span>
                 </template>
             </dir-grid-cell>
-        </div>
+        </transition-group>
         <p v-if="!listQuery.isPending.value && !children.length" class="empty">비어 있음</p>
     </template>
 
@@ -569,10 +554,45 @@ const onDrop = (e: DragEvent) => {
     margin: vars.$spacing-md;
     color: rgb(var(--v-theme-error));
 }
+// 칸 끌기 모양 — 칸Q5(애니메이션), REF-tile-drag.md. 판정은 offset(배치 위치)로 하므로 격자가 기준 상자
+.dir-grid { position: relative; }
+.dg-move { transition: transform 180ms ease; }      // 비켜 가기(TransitionGroup)
 .DirGridCell {
+    transition: scale 150ms ease;
     &.cut { opacity: 0.45; }    // CP2(표시 구분): 잘라낸 것만 흐리게
-    &.drop :deep(.box) { outline: 1px dashed rgb(var(--v-theme-primary)); outline-offset: -1px; }
+    // 빈 자리 = 내용 숨김 + 불투명 바탕(반투명이면 GPU 잔상, REF-tile-drag-impl.md 함정)
+    &.slot :deep(.box) {
+        background: color-mix(in srgb, rgb(var(--v-theme-primary)) 8%, rgb(var(--v-theme-surface)));
+        box-shadow: none;
+        outline: 1.5px dashed rgba(var(--v-theme-primary), 0.6);
+        outline-offset: -1.5px;
+        > * { visibility: hidden; }
+    }
+    &.lifted { scale: 1.06; }   // 터치: 길게 눌러 들림 — 움직이면 끌기, 떼면 체크
+    &.lifted :deep(.box) { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18), inset 0 0 0 1px rgb(var(--v-theme-primary)); }
+    // 머무는 중 = 테두리가 0.6초 동안 차오름(cellDrag DWELL_MS와 같게)
+    &.dwell::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        border-radius: 10px;
+        padding: 2px;
+        background: conic-gradient(rgb(var(--v-theme-primary)) var(--dg-dwell), transparent 0);
+        mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+        animation: dg-dwell 600ms linear forwards;
+        pointer-events: none;
+    }
+    &.into { scale: 1.05; }
+    &.into :deep(.box) {
+        background: color-mix(in srgb, rgb(var(--v-theme-primary)) 13%, rgb(var(--v-theme-surface)));
+        box-shadow: inset 0 0 0 2px rgb(var(--v-theme-primary));
+    }
+    &.landing { animation: dg-land 240ms ease-in forwards; pointer-events: none; }
 }
+@property --dg-dwell { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+@keyframes dg-dwell { to { --dg-dwell: 100%; } }
+@keyframes dg-land { to { opacity: 0; scale: 0.4; } }
 .FolderTileBody.drop { box-shadow: inset 0 0 0 1px rgb(var(--v-theme-primary)); }
 // 지정된 장비 + 접속 여부(점 색) — 이름이 길면 …
 .dev {

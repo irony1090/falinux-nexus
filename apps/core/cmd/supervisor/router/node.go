@@ -22,6 +22,7 @@ func (router *supervisorRouter) mountNodes(e *echo.Group) {
 	g.POST("", router.createNode)
 	g.GET("", router.listChildren)
 	g.POST("/suggest", router.suggestNodes) // nodeSuggest.go
+	g.POST("/order", router.orderNodes)     // nodeOrder.go
 	g.GET("/:id", router.getNode)
 	g.GET("/:id/runs", router.listNodeRuns)
 	g.PATCH("/:id", router.patchNode)
@@ -224,7 +225,15 @@ func (router *supervisorRouter) patchNode(c echo.Context) error {
 		requireDeviceOwner(ctx, q, *body.DeviceKey.Value, target.OwnerUserID)
 	}
 
-	node, err := q.PatchNode(ctx, body.toParams(id, target.OwnerUserID))
+	params := body.toParams(id, target.OwnerUserID)
+	if reparent && !body.Ord.Set { // 옮겨 간 폴더의 끝 — 옛 ord를 들고 가면 새 폴더 아무 데나 끼어든다(칸-2(node 칸 끌기) 넣기)
+		mx, err := q.MaxChildOrd(ctx, superdb.MaxChildOrdParams{OwnerUserID: target.OwnerUserID, ParentID: params.ParentID})
+		if err != nil {
+			panic(web.Err(500, "%v", err))
+		}
+		params.Ord = pgtype.Int8{Int64: mx + 1, Valid: true}
+	}
+	node, err := q.PatchNode(ctx, params)
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}

@@ -56,6 +56,20 @@ FROM nodes
 WHERE owner_user_id = sqlc.arg(owner_user_id)
   AND parent_id IS NOT DISTINCT FROM sqlc.narg(parent_id);
 
+-- name: ListSiblingOrds :many
+-- 형제 순서 다시 매기기(칸-1(node 순서 API)) — 안 보이는(차단) 형제 포함. 잠가서 동시 순서 바꾸기를 차례로
+SELECT id, ord FROM nodes
+WHERE owner_user_id = sqlc.arg(owner_user_id)
+  AND parent_id IS NOT DISTINCT FROM sqlc.narg(parent_id)
+ORDER BY ord, name, id
+FOR UPDATE;
+
+-- name: SetNodeOrds :exec
+-- ids[i]의 ord = ords[i]. 두 배열 unnest는 sqlc 분석기가 못 읽어 array_position으로
+UPDATE nodes
+SET ord = (sqlc.arg(ords)::bigint[])[array_position(sqlc.arg(ids)::bigint[], id)]
+WHERE id = ANY(sqlc.arg(ids)::bigint[]) AND owner_user_id = sqlc.arg(owner_user_id);
+
 -- name: MoveNode :one
 -- 재부모화 + 그리드 순서 갱신(같은 부모로 넘기면 단순 reorder). 캔버스 좌표는 PlaceNode.
 UPDATE nodes

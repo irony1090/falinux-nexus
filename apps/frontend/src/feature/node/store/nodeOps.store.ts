@@ -143,11 +143,8 @@ export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
                 } else activate(res.tile && res.tileVersion ? applyServerTile(res.tile, res.tileVersion) : res.tileId)
             })
         }
-        const open = tiles.value[tileId]?.kids.find(k => {
-            const t = tiles.value[k]
-            return t?.type === 'viewer' && t.instance === instance && t.path === path
-        })
-        activate(open ?? openViewer(tileId, folderId, instance, path, newSize.value))
+        const open = Object.values(tiles.value).find(t => t.type === 'viewer' && t.parent === tileId && t.instance === instance && t.path === path)
+        activate(open?.id ?? openViewer(tileId, folderId, instance, path, newSize.value))
     }
 
     // 미등록 process 가져오기(가져오기-4(화면)) — 서버가 장비 타일 아래 터미널 타일을 넣는다. 실패는 호출부(미등록 창)가 보여 준다

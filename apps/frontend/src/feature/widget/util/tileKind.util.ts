@@ -4,7 +4,7 @@ import type { TileType } from './tile.type';
 // 서버 tileKind.go와 같은 표를 유지한다 (REF-tile-kinds.md)
 export interface TileKind {
 	canRoot: boolean;       // 능력-1(루트 가능): 보드 루트·새 보드로 분리
-	canParent: boolean;     // 능력-2(자식 가능): 다른 타일을 열어 kids로 가짐
+	canParent: boolean;     // 능력-2(자식 가능): 다른 타일을 연다(연 곳 = parent가 될 수 있음)
 	holdsProc: boolean;     // 능력-3(process 담음): uid = process uid, 최소화·단축키 끔·종료
 	icon: string;
 	color: string;          // Vuetify 테마 색 이름

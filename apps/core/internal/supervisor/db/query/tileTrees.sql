@@ -104,3 +104,10 @@ WHERE t.value->>'type' = 'terminal'
 SELECT DISTINCT t.user_id, (e.tile->>'instance')::text AS instance, (e.tile->>'path')::text AS path
 FROM tile_trees t, jsonb_each(t.tree->'tiles') AS e(id, tile)
 WHERE e.tile->>'type' = 'viewer';
+
+-- name: ListTileTreesWithoutOrder :many
+-- order 없는 옛 타일 문서 — 시작 때 한 번 변환(REF-tile-drag.md 변환-B(시작 때 한 번)), 다 바뀐 뒤엔 변환기와 같이 지워도 됨
+SELECT * FROM tile_trees
+WHERE tree->'order' IS NULL
+ORDER BY id
+FOR UPDATE;

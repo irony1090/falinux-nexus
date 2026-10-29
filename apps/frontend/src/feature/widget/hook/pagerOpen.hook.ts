@@ -1,20 +1,19 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
-// 터치 길게 누르기 — Q57-4(누르는 시간): 행 선택과 같은 시간, 이만큼 움직이면 취소
-const LONG_PRESS_MS = 500
-const PRESS_MOVE_MAX = 10
+// 두 손가락 펼치기 — 처음 거리보다 이만큼 벌어지면 연다
+const PINCH_MIN = 40
 
 export type PagerPoint = { x: number; y: number }
 export type PagerOpenOptions = {
     off: () => boolean                          // 아예 안 띄움(전체보기 중)
     keyOff: () => boolean                       // 키로 안 띄움(앱 단축키 끈 타일)
-    pressable: (t: Element) => boolean          // 길게 누를 자리(버튼·입력은 이미 뺌)
+    pinchable: (t: Element) => boolean          // 펼치기를 받을 자리(두 손가락 모두)
     inside: (t: EventTarget | null) => boolean  // 팝업 안 — 바깥 탭에서 뺀다
-    onOpen: (at: PagerPoint | null) => void     // 열기 직전 자리 잡기(키 = 마지막 커서, 터치 = 누른 자리)
+    onOpen: (at: PagerPoint | null) => void     // 열기 직전 자리 잡기(키 = 마지막 커서, 터치 = 두 손가락 가운데)
 }
 
 // 커서 팝업(컨트롤 패널)을 여는 길 둘 — 보드 PagerPopup·관리 페이지 MemberPagerPopup이 같이 씀, REF-pager-tools.md 팝업-6
-// 키 = Ctrl+Alt 누르는 동안(떼면 닫힘, Q53) / 터치 = 길게 누르기(바깥 탭·동작으로 닫힘, Q57-2). 키는 PC(pointer: fine)에서만
+// 키 = Ctrl+Alt 누르는 동안(떼면 닫힘, Q53) / 터치 = 두 손가락 펼치기(바깥 탭·동작으로 닫힘) — 제스처-1(펼치기 패널), 길게 누르기는 타일 끌기로 넘김(REF-tile-drag.md)
 export const usePagerOpen = (opt: PagerOpenOptions) => {
     const held = ref(false)
     const touchOpen = ref(false)
@@ -45,58 +44,31 @@ export const usePagerOpen = (opt: PagerOpenOptions) => {
     // 창 전환(Ctrl+Alt+화살표 등)으로 keyup을 못 받는 경우
     const onBlur = () => held.value = false
 
-    let press: { timer: ReturnType<typeof setTimeout>; id: number; x: number; y: number } | null = null
-    const cancelPress = () => {
-        if (press) clearTimeout(press.timer)
-        press = null
-    }
-    const pressable = (t: EventTarget | null) => {
-        if (!(t instanceof Element) || opt.off()) return false
-        if (t.closest('button, a, input, textarea, select, [role="button"], .v-btn')) return false
-        return opt.pressable(t)
-    }
-    // 길게 누르기가 브라우저 기본 메뉴를 띄우지 않게(누르는 중·뜬 직후) + 손 뗄 때의 click이 막 뜬 알약을 누르지 않게
-    let eatMenu = false
-    let eatClick = false
-    const onContextMenu = (e: Event) => {
-        if (!press && !eatMenu) return
-        eatMenu = false
-        e.preventDefault()
-    }
-    const onClickCapture = (e: Event) => {
-        if (!eatClick) return
-        eatClick = false
-        e.preventDefault()
-        e.stopPropagation()
-    }
+    // 터치로 연 것 = 바깥 탭에 닫힘(그 탭은 원래 동작도 함) — Q57-2(닫는 법)
     const onPointerDown = (e: PointerEvent) => {
-        eatClick = false
-        if (e.pointerType === 'mouse') return
-        // 터치로 연 것 = 바깥 탭에 닫힘(그 탭은 원래 동작도 함) — Q57-2(닫는 법)
-        if (touchOpen.value && !opt.inside(e.target)) close()
-        cancelPress()
-        if (!e.isPrimary || !pressable(e.target)) return
-        press = {
-            id: e.pointerId, x: e.clientX, y: e.clientY,
-            timer: setTimeout(() => {
-                const p = press
-                press = null
-                if (!p || opt.off()) return
-                held.value = false
-                opt.onOpen({ x: p.x, y: p.y })
-                touchOpen.value = true
-                eatMenu = true
-                eatClick = true
-                window.getSelection()?.removeAllRanges()
-            }, LONG_PRESS_MS),
-        }
+        if (e.pointerType !== 'mouse' && touchOpen.value && !opt.inside(e.target)) close()
     }
-    const onPressMove = (e: PointerEvent) => {
-        if (press && e.pointerId === press.id && Math.hypot(e.clientX - press.x, e.clientY - press.y) > PRESS_MOVE_MAX) cancelPress()
+
+    // 펼치기는 touch 이벤트로 잰다 — 브라우저가 두 손가락 이동을 스크롤로 가져가면 pointer 이벤트는 pointercancel로 끊긴다
+    let pinch: { d0: number } | null = null
+    const span = (t: TouchList) => Math.hypot(t[0]!.clientX - t[1]!.clientX, t[0]!.clientY - t[1]!.clientY)
+    const onTouchStart = (e: TouchEvent) => {
+        pinch = null
+        if (e.touches.length !== 2 || opt.off()) return
+        const ok = [...e.touches].every(t => t.target instanceof Element && opt.pinchable(t.target))
+        if (ok) pinch = { d0: span(e.touches) }
     }
-    const onPressEnd = (e: PointerEvent) => {
-        if (press && e.pointerId === press.id) cancelPress()
-        if (eatMenu || eatClick) setTimeout(() => eatMenu = eatClick = false, 400)
+    const onTouchMove = (e: TouchEvent) => {
+        if (!pinch || e.touches.length !== 2 || span(e.touches) - pinch.d0 < PINCH_MIN) return
+        pinch = null
+        if (opt.off()) return
+        const [a, b] = [e.touches[0]!, e.touches[1]!]
+        held.value = false
+        opt.onOpen({ x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 })
+        touchOpen.value = true
+    }
+    const onTouchEnd = (e: TouchEvent) => {
+        if (e.touches.length < 2) pinch = null
     }
 
     onMounted(() => {
@@ -106,25 +78,22 @@ export const usePagerOpen = (opt: PagerOpenOptions) => {
         window.addEventListener('pointermove', onPointerMove, { capture: true, passive: true })
         window.addEventListener('mouseout', onMouseOut)
         window.addEventListener('pointerdown', onPointerDown, true)
-        window.addEventListener('pointermove', onPressMove, { capture: true, passive: true })
-        window.addEventListener('pointerup', onPressEnd, true)
-        window.addEventListener('pointercancel', onPressEnd, true)
-        window.addEventListener('contextmenu', onContextMenu, true)
-        window.addEventListener('click', onClickCapture, true)
+        window.addEventListener('touchstart', onTouchStart, { capture: true, passive: true })
+        window.addEventListener('touchmove', onTouchMove, { capture: true, passive: true })
+        window.addEventListener('touchend', onTouchEnd, { capture: true, passive: true })
+        window.addEventListener('touchcancel', onTouchEnd, { capture: true, passive: true })
     })
     onBeforeUnmount(() => {
-        cancelPress()
         window.removeEventListener('keydown', onKeyDown, true)
         window.removeEventListener('keyup', onKeyUp, true)
         window.removeEventListener('blur', onBlur)
         window.removeEventListener('pointermove', onPointerMove, { capture: true })
         window.removeEventListener('mouseout', onMouseOut)
         window.removeEventListener('pointerdown', onPointerDown, true)
-        window.removeEventListener('pointermove', onPressMove, { capture: true })
-        window.removeEventListener('pointerup', onPressEnd, true)
-        window.removeEventListener('pointercancel', onPressEnd, true)
-        window.removeEventListener('contextmenu', onContextMenu, true)
-        window.removeEventListener('click', onClickCapture, true)
+        window.removeEventListener('touchstart', onTouchStart, { capture: true })
+        window.removeEventListener('touchmove', onTouchMove, { capture: true })
+        window.removeEventListener('touchend', onTouchEnd, { capture: true })
+        window.removeEventListener('touchcancel', onTouchEnd, { capture: true })
     })
 
     return { held, touchOpen, close }

@@ -9,6 +9,7 @@ type Opts<T, K> = {
     selecting: () => boolean   // 선택 모드 중이면 누르기 = 체크 토글
     check: (t: T) => void
     open: (t: T) => void
+    hold?: boolean             // false = 길게 누르기 체크를 쓰는 쪽이 한다(폴더 칸 = 칸끌기-A, cellDrag.hook)
 }
 
 // 목록 칸 누르기 — 파트(목록 아이콘 보기), REF-dir-grid.md "누르기 규칙"
@@ -33,7 +34,7 @@ export const useItemPress = <T, K>(o: Opts<T, K>) => {
         dragOk.value = e.pointerType === 'mouse';
         skipClick = false;
         cancelPress();
-        if (e.pointerType === 'mouse') return;
+        if (e.pointerType === 'mouse' || o.hold === false) return;
         press = {
             x: e.clientX,
             y: e.clientY,

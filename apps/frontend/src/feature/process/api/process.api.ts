@@ -83,7 +83,6 @@ export type ExecTile = {
     id: string
     type: 'terminal'
     parent: string
-    kids: string[]
     size: TileSize
     nodeId: number | null   // null = 장비 파일 실행
     uid: string

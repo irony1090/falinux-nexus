@@ -1,7 +1,6 @@
 import { useAppDialog } from '@/feature/layout/store/appDialog.store'
 import type { CatchErrorResponse } from '@/common/api/api.util'
 import { useQueryClient } from '@tanstack/vue-query'
-import { shallowRef } from 'vue'
 import { copyNode, patchNode, useNodeQueryClient, type NodeResponse } from '../api/node.api'
 import type { ClipMode, ClipNode } from '../store/nodeClipboard.store'
 import { PERM_EDIT, PERM_OWNER } from '../util/shareView.util'
@@ -24,9 +23,6 @@ export const pasteBlock = (mode: ClipMode, nodes: ReadonlyArray<ClipNode>, to: P
     if (!dest) return nodes.some(n => n.permission < PERM_OWNER) ? '내 노드만 기본으로 옮길 수 있습니다' : ''
     return nodes.some(n => n.ownerUserId !== dest.ownerUserId) ? '소유자가 다른 폴더로는 옮길 수 없습니다(복사는 가능)' : ''
 }
-
-// 드래그 중인 노드 — dragover에선 dataTransfer 내용을 못 읽어서 모듈에 둔다(이 탭 안의 드래그만)
-export const dragging = shallowRef<ClipNode[] | null>(null)
 
 // 노드마다 차례로 요청(일괄 API 없음, 담은 순서대로 끝에 붙음). 성공한 건 그대로 두고 실패만 알림 — CP-부분 실패. 반환 = 성공한 id
 export const useNodePaste = () => {

@@ -63,14 +63,7 @@ func (r *supervisorRouter) openVideoTile(c echo.Context) error {
 	}
 
 	doc := mustParseDoc(target.Tree)
-	parent, ok := doc.Tiles[body.ParentTileID]
-	if !ok || !parent.canParent() {
-		parent = doc.Tiles[doc.RootID]
-	}
-	tile := newViewerTile(&parent.ID, body.FolderID, body.Instance, body.Path, size)
-	parent.Kids = append(parent.Kids, tile.ID)
-	doc.Tiles[parent.ID] = parent
-	doc.Tiles[tile.ID] = tile
+	tile := doc.openTile(body.ParentTileID, newViewerTile(body.FolderID, body.Instance, body.Path, size))
 	upd := saveLockedTree(c, target, &doc)
 
 	tabID := r.requestTab(c, sess.Name())

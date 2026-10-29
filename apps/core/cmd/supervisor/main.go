@@ -7,6 +7,7 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"errors"
 	"flag"
@@ -65,6 +66,9 @@ func mountStore(env constants.EnvVars) {
 	}
 	if err := store.GetStorePool().Migrate(migrations.FS, "."); err != nil {
 		log.Fatalf("supervisor: 마이그레이션 실패 %v", err)
+	}
+	if err := router.MigrateTileOrder(context.Background()); err != nil {
+		log.Fatalf("supervisor: 타일 문서 변환 실패 %v", err)
 	}
 	log.Printf("supervisor: DB 준비됨 (%s@%s:%d/%s)", env.DBUser, env.DBHost, env.DBPort, env.DBName)
 }

@@ -4,13 +4,11 @@ export type TileSize = { w: TileSpan; h: TileSpan };
 
 export type TileType = 'folder' | 'terminal' | 'device' | 'viewer';
 
-// 순서·채우기 유틸이 요구하는 최소 필드 (여는 관계 트리의 노드)
+// 채우기 유틸이 요구하는 최소 필드. 화면 순서는 문서의 order 배열(REF-tile-drag.md)
 export interface TileNode {
 	id: string;
 	type: TileType;
-	kids: ReadonlyArray<string>;    // 이 폴더 타일이 연 타일들, 연 순서대로 (갱신은 배열 교체로)
 	size: TileSize;
-	adopted?: true;         // 닫힌 폴더에서 넘겨받은 터미널 — 직접 실행한 프로세스 뒤에 온다
 	minimized?: true;       // 최소화한 터미널 — 트리엔 남고 배치에서만 빠진다(SD3(실행 중 터미널 치우기))
 }
 
