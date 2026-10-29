@@ -5,11 +5,12 @@
 > 착수하면 CURRENT로 올리고 여기서 지운다. 해결되면 지운다(이력은 history에).
 
 ## 다음 파트 후보 (기능)
+- **집 서버 영상 배포** · 2026-10-29 · 사용자가 정식 빌드를 만든 뒤 · 파트(파일 편집기)·보기 타일까지는 배포됨(viewer-image), 영상 Range(마이그레이션 `00015`)는 아직. worker 변경 없음 → `REF-home-deploy.md` · `REF-video-view.md`
+- **업데이트 전용 app** · 2026-10-28 · 나중에 정함(사용자: 지금 아님) · worker·supervisor 교체(끄기 -> 바꾸기 -> 켜기 -> 확인 -> 되돌리기)만 하는 별도 실행 파일. 착수 때 조율: U1(실행 방식: 사람이 직접 / 웹 버튼으로 supervisor가 보냄) · U2(대상: 집 서버 Windows만 / Linux 보드·test3까지) · U3(새 파일 출처: zip 손 업로드 / supervisor 보관 / 외부 URL). 담을 함정 = 함정-A(Job) · 실행 중 exe 이름 바꾸기 · `-hold`는 옛 exe 사용 → 지금 방식 `REF-home-deploy.md`(update.ps1)·`REF-build.md` "보드 worker 교체", REF 없음(착수 때 신설)
 - **타일 ESC로 닫기** · 2026-10-27 · **다음 파트로 예정(사용자)** · 타일별로 ESC 등 키를 누르면 그 타일을 끄는 동작. 착수 때 조율: ① 터미널 타일 안 ESC = 프로그램 입력(vim 등)과 충돌 ② "끄다" = 닫기인지 최소화인지 ③ "등" = 다른 키도? ④ 어느 타일이 대상인지(active 타일만?) ⑤ 앱 단축키 규칙(`appShortcutsOff` 검사 맨 앞, MEMORY "앱 단축키") · REF 없음, 착수 때 신설
 - **업로드 한계 보강** · 2026-10-23 · 필요해지면 · 대기 파일 목록 표시·탭 닫은 뒤 이어 올리기·폴더째 올리기(Q26)·worker 간 폴더 전송(Q36, → `REF-transfer-down.md`) → `REF-transfer-ext.md` "알려진 한계"
 - **SFTP 접근** · 2026-10-22 · **진행할 작업이 전혀 없을 때 이야기**(2026-10-23 Q21) · supervisor SFTP 서버로 `/{메인키}/{서브키}/...` 접근, 답 3개 대기 → `REF-worker-dir.md` "나중에"
 - **worker 화면 송출 + 조작** · 2026-10-15 아이디어(2026-10-25 재논의 보류) · 다시 시작하면 SC1(VNC 서버 준비) 방향부터(제안 = 안내 + 내려받기 -> 동봉, 원격 자동 설치 비추천) · 나(VNC 터널 + noVNC) 추천 → `REF-worker-screen.md` "VNC 서버 준비 방식 재논의"
-- **영상 Range** · 2026-10-28 구상 · **다음 파트 후보**(파트(보기 타일) 10-28 마감) · 사본 없이 Range -> `workerReader.SeekTo` 재사용, **영상은 계정 전체에서 한 타일**(이미 열려 있으면 그 보드·타일로), 화면 표시 API·`viewTypes`에 영상 형식은 이미 있음 → `REF-file-view.md` "데이터 흐름" · `REF-view-tile.md`
 - **process 단독 공유 UI** · 지금 서버 API만, 두면 받는 쪽 진입점 = 기본 루트 터미널 탭 → `REF-tile-binding-rework.md` R3(경로 없는 process)
 - **닉네임 따로 받기** · 2026-10-26 · 회원-Q12(닉네임) = 지금은 닉네임 = 아이디(관리자 화면 아이디 확인용 임시 방편), 닉네임 변경·표시 이름이 필요해지면 → `REF-member.md`
 - **타일 판 통째 공통화(B안)** · 2026-10-26 · 파트(회원 관리)에서 A안(계약 `PagerBoard`만)으로 함 · 세 번째 타일 판을 만들 때 · 배치(pack)·스크롤·URL·패널까지 공통 모듈로, 보드 고유 동작(전체보기·Grid별 칼럼 수·미리보기)이 걸림 → `REF-member-ui.md` "판 계약"
@@ -39,10 +40,10 @@
 - **같은 메인키 worker 2개의 보관 소켓 폴더 공유** · 2026-10-22 · test1·test3이 `/tmp/nexus-hold-1000/<메인키>/`를 같이 씀. 지금은 sqlite 목록이 달라 무해, 폴더를 훑는 정리 코드를 넣거나 두 빌드를 계속 나란히 둘 때 다시 → `REF-process-keep.md` "test3 재배포"
 - **PTY 환경에서 `CLAUDE*` 빼기** · 2026-10-22 · Claude가 띄운 worker의 변수가 터미널로 넘어가 그 안의 Claude가 transcript 저장 안 함. worker가 PTY 환경을 만들 때 `CLAUDE*` 제거(코드 위치 미조사). 다음에 worker 실행 코드를 고칠 때 → `REF-build.md` "Claude가 띄운 빌드본"
 - **SendFile abort 구분** · 정상 중단 sentinel 에러는 필요해지면 → `REF-transfer.md`
-- **집 서버 Cloudflare Access** · 2026-10-25 미룸(사용자) · (2026-10-26) 파트(회원 관리)의 worker API 키가 배포되면 가짜 worker 등록은 막히므로 필요성 다시 볼 것(`REF-member.md`) · 집 서버를 다른 사람에게 알리기 전 / `/worker` 무인증이라 열어 둔 동안 가짜 worker 등록 가능 · 걸 때 회사 worker용 `/worker` 경로 예외 필요 · → `REF-home-server.md` "코드 쪽 확인 결과"
+- **집 서버 Cloudflare Access** · 2026-10-25 미룸(사용자) · (2026-10-28) 직통 전환으로 Cloudflare를 안 거치므로 **Access는 걸 수 없음** — 막는 것 = 회원 로그인 + worker API 키. 더 막으려면 Caddy 쪽(basic auth·IP 제한)으로 다시 볼 것 · (2026-10-26) 파트(회원 관리)의 worker API 키가 배포되면 가짜 worker 등록은 막히므로 필요성 다시 볼 것(`REF-member.md`) · 집 서버를 다른 사람에게 알리기 전 / `/worker` 무인증이라 열어 둔 동안 가짜 worker 등록 가능 · 걸 때 회사 worker용 `/worker` 경로 예외 필요 · → `REF-home-server.md` "코드 쪽 확인 결과"
 
 ## 보류한 설계 · 정리
-- **집 서버 cloudflared 올리기** · 2026-10-28 · 집에 있을 때(선택, 보안 공지 기준은 10.3으로 이미 충족) · 관리자 PowerShell `winget upgrade Cloudflare.cloudflared` → `REF-home-server.md` "cloudflared 보안 공지"
+- **cloudflared 삭제** · 2026-10-28 · **2026-10-29 써 보고 문제없으면(사용자)** · 관리자 PowerShell `cloudflared service uninstall` + Zero Trust 터널 삭제(지금 Stopped·Disabled) · 보드 `imx8mp-f24` online 확인은 안 함(사용자: 신경 끔) → `user/home-server/주소-전환-명령.md` "5(cloudflared 정지)" · `REF-home-direct.md`
 - **주소 목록 3개 상한이 지금 주소를 밀어냄** · 2026-10-26 · 사용자 판단 대기 · "저장만"을 3번 넘게 하면 지금 붙어 있는 supervisor 주소가 목록에서 지워져, 새 주소가 다 실패하면 돌아올 곳이 없음(주소-1 "3개 넘으면 꼴찌 삭제") · 후보 = 지금 붙은 주소는 지우지 않기 → `REF-device-move.md` "확인"
 - **Label 모듈** · 2026-10-12 · 다시 볼 조건 → `REF-node-label.md` "Label 모듈"
 - **드래그 인프라(DraggableSession/useDragGhost)** · 2026-10-12 · 드래그 UX(아래 분할 UX 등)를 넣을 때 → `REF-util-drag.md`

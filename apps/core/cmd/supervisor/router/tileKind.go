@@ -85,6 +85,11 @@ func newTerminalTile(parent *string, nodeID *int64, uid string, size tileSize) t
 	return tileItem{ID: uuid.NewString(), Type: tileTerminal, Parent: parent, Kids: []string{}, Size: size, NodeID: nodeID, UID: uid}
 }
 
+// newViewerTile: 영상은 서버만 만든다(openVideoTile), 이미지는 프론트 — parent·kids 연결은 호출부
+func newViewerTile(parent *string, nodeID int64, instance, path string, size tileSize) tileItem {
+	return tileItem{ID: uuid.NewString(), Type: tileViewer, Parent: parent, Kids: []string{}, Size: size, NodeID: &nodeID, Instance: instance, Path: path}
+}
+
 func newFolderTile(parent *string, nodeID *int64, uid string) tileItem {
 	return tileItem{ID: uuid.NewString(), Type: tileFolder, Parent: parent, Kids: []string{}, Size: defaultTileSize, NodeID: nodeID, UID: uid}
 }

@@ -3,7 +3,7 @@ import type { CatchErrorResponse } from '@/common/api/api.util';
 import { tabReady } from '@/common/util/tabId.util';
 import type { DirEntry } from '@/feature/worker/api/worker.api';
 import { instanceOnline, probeWorkerFile, suggestWorkerDir, useWorkerRoster } from '@/feature/worker/api/worker.api';
-import { viewKindOf } from '@/feature/worker/util/fileKind.util';
+import { viewIcon, viewKindOf } from '@/feature/worker/util/fileKind.util';
 import { useWorkerDir } from '@/feature/worker/hook/workerDir.hook';
 import TransferRow from '@/feature/worker/component/TransferRow.vue';
 import { useTransfers, type UploadSource } from '@/feature/worker/store/transfers.store';
@@ -111,7 +111,7 @@ const editFile = (path: string) => {
     const t = tile.value;
     if (t) void execFile(props.tileId, t.nodeId, t.instance, EDITOR_CMD, parentPathOf(path), [path]);
 }
-// 파트(보기 타일): 이미지 = 보기 타일. 링크는 이름에 확장자가 없으면 원본 경로로(서버가 확장자로 형식을 고름)
+// 파트(보기 타일)·파트(영상 Range): 이미지·영상 = 보기 타일. 링크는 이름에 확장자가 없으면 원본 경로로(서버가 확장자로 형식을 고름)
 const viewPath = (e: DirEntry) => !isFileLike(e) ? undefined : viewKindOf(e.path) ? e.path : e.targetPath && viewKindOf(e.targetPath) ? e.targetPath : undefined;
 const viewKind = (e: DirEntry) => { const p = viewPath(e); return p ? viewKindOf(p) : undefined; };
 const viewEntry = (e: DirEntry) => {
@@ -171,7 +171,7 @@ const press = useItemPress<DirEntry, string>({
     open: e => {
         if (isDirLike(e)) go(e.path);
         else if (e.exec) { if (canRun.value) runFile(e); }
-        else if (viewKind(e) === 'image') viewEntry(e);
+        else if (viewKind(e)) viewEntry(e);
         else if (isFileLike(e) && !viewKind(e) && canRun.value) void openOther(e);
     },
 });
@@ -186,7 +186,7 @@ type EntryAct = 'select' | 'view' | 'edit' | 'download' | 'goto';
 const dlList = (e: DirEntry) => selected.value.has(e.path) ? selEntries.value : [e];
 const menuItems = (e: DirEntry): RowMenuItem<EntryAct>[] => [
     { act: 'select', icon: selected.value.has(e.path) ? 'mdi-checkbox-blank-outline' : 'mdi-checkbox-marked-outline', title: selected.value.has(e.path) ? '선택 해제' : '선택' },
-    ...(viewKind(e) === 'image' ? [{ act: 'view' as const, icon: 'mdi-image-outline', title: '보기', disabled: !online.value }] : []),
+    ...(viewKind(e) ? [{ act: 'view' as const, icon: viewIcon(viewPath(e)!), title: '보기', disabled: !online.value }] : []),
     ...(isFileLike(e) ? [{ act: 'edit' as const, icon: 'mdi-pencil-outline', title: '편집', disabled: !canRun.value }] : []),
     ...(e.kind !== 'link' || e.targetPath ? [{ act: 'download' as const, icon: 'mdi-download', title: dlList(e).length > 1 ? `내려받기(선택 ${dlList(e).length}개)` : '내려받기', disabled: !canUpload.value }] : []),
     ...(linkDest(e) ? [{ act: 'goto' as const, icon: 'mdi-arrow-top-right', title: '원본 위치로' }] : []),

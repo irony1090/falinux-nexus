@@ -54,7 +54,8 @@
 - 찰떡 입력칸(마감, 입력칸·고르기·체크 = Ct* 컴포넌트 + 관리 타일 포커스 선) → `INDEX-ct-field.md` (ct-field)
 - 경로 줄 정리(마감, 경로 줄 버튼 묶음·이동 버튼 경로 왼쪽·가로 스크롤) → `INDEX-path-row.md` (path-row)
 - 패널 창 버튼(마감, 컨트롤 패널에 active 타일 [숨기기|크기|닫기]·위치 글자 빼기·도트 최소 폭, 미해결 1건) → `INDEX-pager-head-btns.md` (pager-head-btns)
-- **닫은 뒤 active(마감, active 닫으면 위치 번호 이웃 active, 보드·관리)** → `INDEX-close-active.md` (close-active)
+- 닫은 뒤 active(마감, active 닫으면 위치 번호 이웃 active, 보드·관리) → `INDEX-close-active.md` (close-active)
+- **파일 편집기(10-28) · 보기 타일(10-28) · 영상 Range(10-29) 마감 — 아직 INDEX로 안 접음**, REF·history는 아래 표(file-view·view-tile·video-view)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.
@@ -62,15 +63,18 @@
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
 | `history/decisions.md` | 확정 결정 상세(2026-10-26 MEMORY 슬림화 때 신설) ↔ `REF-decisions.md` | 10-26 밤 MEMORY 9.9k -> 5.8k자 |
-| `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-28 세션 끝(집 서버 직통 전환 줄) |
+| `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-29 영상 파트 마감 때 10-28 밤 ~ 10-26 밤 줄 |
+| `history/current-archive-4.md` | 위 파일에서 분할(2026-10-29: 10-27 ~ 10-28 파트(경로 줄 정리)) | 10-28 세션 끝(집 서버 직통 전환 줄) |
 | `history/current-archive-3.md` | 위 파일에서 분할(2026-10-28: 10-26 밤 fix/phone-layout ~ vault 색인 정리) | 10-26 밤 vault 색인 정리 |
 | `history/current-archive-2.md` | 위 파일에서 분할(2026-10-26 밤 세션 끝) | 10-26 밤 세션 끝 |
 | `history/current-archive-1.md` | 위 파일에서 분할(2026-10-26 낮까지: 재부팅 전·세션 끝 정리) | 10-26 세션 끝 |
 | `history/windows-vm.md` | Windows VM `nexus-win`(2026-10-23 `windows-worker`에서 분할) | 10-23 경로 직접 입력 확인, win-dev를 test3에 다시 붙임 |
 | `history/demo.md` | 시연 데이터(2026-10-16 신설) | 10-16 안 C(생산 지그 시나리오) 등록, 브라우저 경유 실행 미확인 |
 | `history/design-chaltteok.md` | 찰떡 규칙(디자인 규칙, 2026-10-25 신설) | 10-25 이름 확정·아티팩트·REF 정리 → 파트(찰떡 UI) 시안·다′·구현·test3 웹 교체 |
-| `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환(iptime + Caddy) 회사 몫 끝, 집에서 1·2·6 남음 |
-| `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-27 밤 mochi 묶음 `update.ps1` OK |
+| `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환 계획·회사 준비 |
+| `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝(`nexus`·`direct`), cloudflared 정지, 남은 것 BACKLOG "cloudflared 삭제"(10-29) |
+| `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-28 밤 viewer-image 묶음 배포 완료 |
+| `history/video-view.md` | 파트(영상 Range)(2026-10-29 신설, view-tile에서 분리) ↔ `REF-video-view.md` | 10-29 파트 마감(1·2단계, 커밋 + master 머지) |
 | `history/view-tile.md` | 파트(보기 타일) 구현(2026-10-28 신설) ↔ `REF-view-tile.md` | 10-28 밤 파트(보기 타일) 마감 — 1·2단계, 커밋 + master 머지 |
 | `history/file-view.md` | 장비 파일 편집기·보기 타일(2026-10-28 신설, 구상) | 10-28 파트(파일 편집기) 마감(편집·새 파일·칸 메뉴 내려받기, Windows 확인) · 보기 타일 V1~V5 확인 대기 |
 | `history/worker-screen.md` | worker 화면 송출(아이디어) | 10-15 나(VNC 터널 + noVNC) 추천 · 10-25 VNC 서버 준비 방식(내려받기·설치) 재논의, 보류 |

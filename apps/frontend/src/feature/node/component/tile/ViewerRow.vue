@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { viewIcon } from '@/feature/worker/util/fileKind.util';
 import { parentPathOf } from '@/feature/worker/util/workerDir.util';
 import { computed, type PropType } from 'vue';
 import { useRouter } from 'vue-router';
@@ -45,7 +46,7 @@ const onOpen = () => {
         <span v-else class="ct-seg pos none">-</span>
     </span>
     <span class="where">
-        <v-icon size="13" icon="mdi-image-outline" color="success" />
+        <v-icon size="13" :icon="viewIcon(viewer.path)" color="success" />
         <span class="path" :title="viewer.path"> {{ dirText }} / </span>{{ fileLabel(viewer.path) }}
         <span class="by"> · </span>
         <template v-if="local">이 보드</template>

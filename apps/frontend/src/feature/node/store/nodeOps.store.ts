@@ -3,11 +3,15 @@ import { useAppDialog } from '@/feature/layout/store/appDialog.store'
 import type { ProcessType } from '@/feature/process/api/process.api'
 import { useProcessTerm } from '@/feature/process/store/processTerm.store'
 import { listWorkers, useWorkerRoster, type WorkerInstanceResponse, type WorkerResponse } from '@/feature/worker/api/worker.api'
+import { viewKindOf } from '@/feature/worker/util/fileKind.util'
 import { computed, inject, provide, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useNodeActions, type NodeKind, type NodeResponse } from '../api/node.api'
+import { openVideoTile } from '../api/tile.api'
 import { escHtml } from '../hook/nodePaste.hook'
 import { useNodeRemove } from '../hook/nodeRemove.hook'
 import { PERM_EDIT } from '../util/shareView.util'
+import { focusPath, useBoards } from './boards.store'
 import type { provideTileGrids } from './tileGrids.store'
 import { useNodeClipboard } from './nodeClipboard.store'
 import { useNodeSelection } from './nodeSelection.store'
@@ -41,6 +45,8 @@ type NameTarget = { kind: NodeKind; parentId: number | null } | { node: NodeResp
 
 export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
     const { tiles, hash: boardHash, openFolder, openDevice, openViewer, applyServerTile, flush } = useTileTree()
+    const { list: boards } = useBoards()
+    const router = useRouter()
     const { newSize, activate } = grids
     const { open: appDialogOpen, openDialog } = useAppDialog()
     const { exec: execTerm, execFile: execTermFile, adopt: adoptTerm } = useProcessTerm()
@@ -125,8 +131,18 @@ export const provideNodeOps = (grids: ReturnType<typeof provideTileGrids>) => {
             if (res.tile && res.tileVersion) activate(applyServerTile(res.tile, res.tileVersion))
         })
 
-    // 보기 타일(파트(보기 타일)) — 이 장비 타일이 이미 연 같은 파일이면 그 타일로
+    // 보기 타일(파트(보기 타일)) — 이미지 = 이 장비 타일이 이미 연 같은 파일이면 그 타일로
+    // 영상 = 서버가 계정 전체에서 같은 파일을 찾아 없으면 넣음(MEMORY "타일 추가 주체"). 다른 보드에 있으면 그 보드로 가서 포커스
     const viewFile = (tileId: string, folderId: number, instance: string, path: string) => {
+        if (viewKindOf(path) === 'video') {
+            const req = () => openVideoTile({ folderId, instance, path, workspace: boardHash.value, parentTileId: tileId, size: newSize.value })
+            return run(tileId, flush().then(req), res => {
+                if (res.hash !== boardHash.value) {
+                    const board = boards.value.find(b => b.hash === res.hash)
+                    if (board) void router.push(focusPath(board, res.tileId))
+                } else activate(res.tile && res.tileVersion ? applyServerTile(res.tile, res.tileVersion) : res.tileId)
+            })
+        }
         const open = tiles.value[tileId]?.kids.find(k => {
             const t = tiles.value[k]
             return t?.type === 'viewer' && t.instance === instance && t.path === path

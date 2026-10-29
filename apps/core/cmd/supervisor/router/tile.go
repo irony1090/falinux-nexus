@@ -25,7 +25,10 @@ func (r *supervisorRouter) mountTiles(e *echo.Group) {
 	g.GET("/:hash", r.getTiles)
 	g.PUT("/:hash", r.putTiles, middleware.BodyLimit("256K"))
 	g.POST("/bind", r.bindTile)
-	g.GET("/viewers", r.listViewers) // viewerList.go
+	g.GET("/viewers", r.listViewers)          // viewerList.go
+	g.POST("/viewers/video", r.openVideoTile) // videoTile.go
+	g.GET("/viewers/video/position", r.getVideoPosition)
+	g.PUT("/viewers/video/position", r.saveVideoPosition)
 }
 
 // Hash = 그 트리의 보드 hash — 프론트가 TILES:UPDATE의 hash와 비교해 자기 보드 것만 받는다(WS6(TILES 이벤트 구분))
@@ -192,6 +195,9 @@ func (r *supervisorRouter) putTiles(c echo.Context) error {
 	if err := checkTerminalUIDs(&doc, &stored); err != nil {
 		panic(web.Err(400, "%v", err))
 	}
+	if err := checkVideoTiles(&doc, &stored); err != nil {
+		panic(web.Err(400, "%v", err))
+	}
 	doc.keepFolderMeta(&stored)
 
 	// 읽은 뒤 다른 저장이 끼었으면 version 조건으로 걸린다 — 위 검사의 기준이 바뀐 경우도 여기서 409
@@ -204,6 +210,12 @@ func (r *supervisorRouter) putTiles(c echo.Context) error {
 	}
 	if err != nil {
 		panic(web.Err(500, "%v", err))
+	}
+	// P1(위치 지우는 시점): 영상 타일을 닫으면 이어보기 위치도 — 저장이 된 뒤에만(409면 닫힌 게 아님)
+	for _, t := range closedVideos(&doc, &stored) {
+		if err := TxQueries(c).DeleteVideoPosition(c.Request().Context(), superdb.DeleteVideoPositionParams{UserID: userID, Instance: t.Instance, Path: t.Path}); err != nil {
+			panic(web.Err(500, "%v", err))
+		}
 	}
 	tabID := r.requestTab(c, sess.Name())
 	closed := closedTerminals(&doc, &stored)

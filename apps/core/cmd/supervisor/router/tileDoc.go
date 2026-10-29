@@ -206,6 +206,33 @@ func checkTerminalUIDs(next, stored *tileDoc) error {
 	return nil
 }
 
+// checkVideoTiles: 영상 보기 타일은 서버만 넣는다(openVideoTile, MEMORY "타일 추가 주체") — 저장본에 같은 id·파일로 있던 것만 통과
+func checkVideoTiles(next, stored *tileDoc) error {
+	for id, t := range next.Tiles {
+		if t.Type != tileViewer || !isVideoPath(t.Path) {
+			continue
+		}
+		if s, ok := stored.Tiles[id]; !ok || s.Type != tileViewer || s.Instance != t.Instance || s.Path != t.Path {
+			return fmt.Errorf("영상 보기 타일은 서버만 추가할 수 있습니다: %s", id)
+		}
+	}
+	return nil
+}
+
+// closedVideos: 저장본에 있었는데 새 트리에서 빠진 영상 보기 타일 — PUT에서 빠짐 = 닫기(보드 간 이동은 서버 동작이라 PUT으로 오지 않음)
+func closedVideos(next, stored *tileDoc) []tileItem {
+	var out []tileItem
+	for id, t := range stored.Tiles {
+		if t.Type != tileViewer || !isVideoPath(t.Path) {
+			continue
+		}
+		if _, ok := next.Tiles[id]; !ok {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
 // closedTerminals: 저장본에 있었는데 새 트리에서 빠진 터미널 uid(사용자 저장에서 빠짐 = 닫기, checkTerminalUIDs가 추가는 막음)
 func closedTerminals(next, stored *tileDoc) []string {
 	keep := map[string]bool{}

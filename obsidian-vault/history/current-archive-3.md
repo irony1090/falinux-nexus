@@ -1,6 +1,6 @@
 # history — CURRENT에서 내려보낸 줄 3 (원문 보존, 2026-10-26 밤 fix/phone-layout ~ vault 색인 정리)
 
-> 2026-10-28 `current-archive.md`에서 분할(10k자 기준). 그 전 → `history/current-archive-2.md` / 그 뒤 → `history/current-archive.md` / → `CURRENT.md`
+> 2026-10-28 `current-archive.md`에서 분할(10k자 기준). 그 전 → `history/current-archive-2.md` / 그 뒤 → `history/current-archive-4.md`(10-27~10-28) · `history/current-archive.md`(그 뒤) / → `CURRENT.md`
 
 ## 2026-10-26 밤 — fix/phone-layout 머지 때 내려보낸 줄(원문)
   1. **`fix/phone-layout` 브랜치(작업 폴더 = 원래 폴더, 코드 커밋 전)** 사용자 화면 확인 -> 커밋 + master 머지 -> 이 PC supervisor·웹 재빌드. 내용: ① 폰 관리 페이지 첫 타일로 안 넘어가던 버그(`memberUrl.hook.ts`, 원인·수정 → `history/member-ui.md` 10-26 밤) ② 보드 전체보기 폰도 가로 한 줄 + 보드 여럿이면 이름을 줄 위(EV2 개정 → `REF-board-preview.md`). 격리 `phonefix.mjs` 7/7 + 보드 2개 이름 위치 통과

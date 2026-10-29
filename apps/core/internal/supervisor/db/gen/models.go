@@ -98,6 +98,14 @@ type User struct {
 	SuspendedAt    pgtype.Timestamptz
 }
 
+type VideoPosition struct {
+	UserID    int64
+	Instance  string
+	Path      string
+	Pos       float64
+	UpdatedAt pgtype.Timestamptz
+}
+
 type WorkerInstance struct {
 	MainKey   string
 	SubKey    string

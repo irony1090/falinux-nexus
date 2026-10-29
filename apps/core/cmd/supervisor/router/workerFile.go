@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"nexus/internal/web"
 
@@ -62,21 +64,28 @@ func (r *supervisorRouter) fileQuery(c echo.Context) (userID int64, authKey, pat
 	return sess.Data.ID, authKey, path, online
 }
 
-// viewHeaders: 공통 헤더. true = If-None-Match가 같아 304로 끝냄(사본·worker 둘 다 ETag = 크기+수정 시각)
-func viewHeaders(c echo.Context, ctype, path string, m viewMeta) bool {
+// isVideoPath: 영상 = 사본 없이 Range(파트(영상 Range)), 보기 타일도 서버만 넣음(openVideoTile)
+func isVideoPath(path string) bool { return strings.HasPrefix(viewTypes[fileExt(path)], "video/") }
+
+// setViewHeaders: 공통 헤더(사본·worker 둘 다 ETag = 크기+수정 시각)
+func setViewHeaders(c echo.Context, ctype, path string, m viewMeta) {
 	h := c.Response().Header()
-	etag := fmt.Sprintf(`"%x-%x"`, m.Size, m.ModTime)
-	h.Set("ETag", etag)
+	h.Set("ETag", fmt.Sprintf(`"%x-%x"`, m.Size, m.ModTime))
 	h.Set("Cache-Control", "private, no-cache")
-	if c.Request().Header.Get("If-None-Match") == etag {
-		c.NoContent(304)
-		return true
-	}
 	h.Set(echo.HeaderContentType, ctype)
 	h.Set(echo.HeaderContentDisposition, mime.FormatMediaType("inline", map[string]string{"filename": fileBase(path)}))
 	h.Set("Content-Security-Policy", "sandbox") // V2(SVG 보안): SVG 안 스크립트가 Nexus 주소 권한으로 돌지 않게
 	h.Set("X-Content-Type-Options", "nosniff")
-	h.Set(echo.HeaderContentLength, strconv.FormatInt(m.Size, 10))
+}
+
+// viewHeaders: 이미지용. true = If-None-Match가 같아 304로 끝냄
+func viewHeaders(c echo.Context, ctype, path string, m viewMeta) bool {
+	setViewHeaders(c, ctype, path, m)
+	if c.Request().Header.Get("If-None-Match") == c.Response().Header().Get("ETag") {
+		c.NoContent(304)
+		return true
+	}
+	c.Response().Header().Set(echo.HeaderContentLength, strconv.FormatInt(m.Size, 10))
 	return false
 }
 
@@ -87,6 +96,9 @@ func (r *supervisorRouter) viewWorkerFile(c echo.Context) error {
 	ctype, ok := viewTypes[fileExt(path)]
 	if !ok {
 		panic(web.Err(415, "보기를 지원하지 않는 형식입니다"))
+	}
+	if isVideoPath(path) {
+		return r.serveVideo(c, ctype, authKey, path, online)
 	}
 	if !online {
 		f, m, ok := r.view.get(userID, authKey, path)
@@ -151,6 +163,55 @@ func serveViewCopy(c echo.Context, ctype, path string, m viewMeta, f *os.File) e
 		abortConn(c)
 	}
 	return nil
+}
+
+// serveVideo: 영상 = 사본 없이 요청마다 worker에서(탐색 = 새 Range 요청 = FILE_OPEN + SeekTo). Range·If-Range·304·416은 ServeContent가
+func (r *supervisorRouter) serveVideo(c echo.Context, ctype, authKey, path string, online bool) error {
+	if !online {
+		panic(web.Err(409, "접속 중인 인스턴스가 아닙니다"))
+	}
+	src, err := r.openWorkerFile(c.Request().Context(), authKey, path, nil)
+	if err != nil {
+		panicOpenError(err)
+	}
+	defer src.Close()
+	setViewHeaders(c, ctype, path, viewMeta{Size: src.Size(), ModTime: src.ModTime()})
+	// 중간 실패 = 덜 보낸 채 끝남 -> net/http가 Content-Length보다 짧은 응답의 연결을 닫아 브라우저가 실패로 봄
+	http.ServeContent(c.Response(), c.Request(), "", time.Time{}, &readSeeker{w: src})
+	return nil
+}
+
+// readSeeker: workerReader를 io.ReadSeeker로 — Seek은 위치만 옮기고 다음 Read가 그 offset부터 조각을 받는다
+type readSeeker struct {
+	w   *workerReader
+	buf []byte // 받은 조각 중 아직 안 넘긴 것
+}
+
+func (s *readSeeker) Read(p []byte) (int, error) {
+	if len(s.buf) == 0 {
+		data, err := s.w.Read(sendChunkSize)
+		if err != nil {
+			return 0, err
+		}
+		s.buf = data
+	}
+	n := copy(p, s.buf)
+	s.buf = s.buf[n:]
+	return n, nil
+}
+
+func (s *readSeeker) Seek(offset int64, whence int) (int64, error) {
+	switch whence {
+	case io.SeekCurrent:
+		offset += s.w.Current() - int64(len(s.buf))
+	case io.SeekEnd:
+		offset += s.w.Size()
+	}
+	if offset < 0 {
+		return 0, errors.New("음수 위치")
+	}
+	s.buf = nil
+	return offset, s.w.SeekTo(offset)
 }
 
 type workerFileProbeResponse struct {

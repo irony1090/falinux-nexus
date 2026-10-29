@@ -410,3 +410,47 @@ func TestDeviceNotFolder(t *testing.T) {
 		t.Fatalf("folderTilesOf(10) = %v", ids)
 	}
 }
+
+func TestCheckVideoTiles(t *testing.T) {
+	root := "root"
+	stored := sampleDoc()
+	stored.Tiles["v1"] = tileItem{ID: "v1", Type: "viewer", Parent: &root, NodeID: i64(1), Instance: "m#s", Path: "/a.mp4"}
+	same := sampleDoc()
+	same.Tiles["v1"] = stored.Tiles["v1"]
+	if err := checkVideoTiles(&same, &stored); err != nil {
+		t.Fatal(err)
+	}
+	added := sampleDoc()
+	added.Tiles["v2"] = tileItem{ID: "v2", Type: "viewer", Parent: &root, NodeID: i64(1), Instance: "m#s", Path: "/b.MP4"}
+	if err := checkVideoTiles(&added, &stored); err == nil {
+		t.Error("new video tile accepted")
+	}
+	// 있던 타일의 경로를 다른 영상으로 바꾸기 = 추가로 봄
+	img := sampleDoc()
+	img.Tiles["v1"] = tileItem{ID: "v1", Type: "viewer", Parent: &root, NodeID: i64(1), Instance: "m#s", Path: "/c.webm"}
+	if err := checkVideoTiles(&img, &stored); err == nil {
+		t.Error("path change to other video accepted")
+	}
+	// 이미지 보기 타일은 프론트가 넣음
+	pic := sampleDoc()
+	pic.Tiles["v3"] = tileItem{ID: "v3", Type: "viewer", Parent: &root, NodeID: i64(1), Instance: "m#s", Path: "/a.png"}
+	if err := checkVideoTiles(&pic, &stored); err != nil {
+		t.Errorf("image tile rejected: %v", err)
+	}
+}
+
+func TestClosedVideos(t *testing.T) {
+	root := "root"
+	stored := sampleDoc()
+	stored.Tiles["v1"] = tileItem{ID: "v1", Type: "viewer", Parent: &root, NodeID: i64(1), Instance: "m#s", Path: "/a.mp4"}
+	stored.Tiles["i1"] = tileItem{ID: "i1", Type: "viewer", Parent: &root, NodeID: i64(1), Instance: "m#s", Path: "/a.png"}
+	next := sampleDoc()
+	got := closedVideos(&next, &stored)
+	if len(got) != 1 || got[0].ID != "v1" {
+		t.Errorf("closed = %v", got)
+	}
+	next.Tiles["v1"] = stored.Tiles["v1"]
+	if got := closedVideos(&next, &stored); len(got) != 0 {
+		t.Errorf("kept video reported closed: %v", got)
+	}
+}
