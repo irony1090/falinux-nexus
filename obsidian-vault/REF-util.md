@@ -43,5 +43,5 @@
   - `useResize`에 `watchWindowResize` 옵션 추가(기본 꺼짐) — `ResizeObserver`/`MutationObserver`는 **크기는 그대로인데 위치(rect)만 바뀌는 경우**(예: `max-width`에 걸려 폭 고정, 중앙정렬 offset만 이동)를 못 잡음. rect 정확도가 중요한 호출부만 켜서 `window resize` 리스너를 추가 비용으로 문다.
   - `useElementsChange(targets, onChange)` 신설 — 배열(ref/computed)로 주어진 여러 엘리먼트의 scroll/resize/속성변화를 한 콜백으로 감시, `targets` 변경 시 필요한 것만 attach/detach(diff). `StickyBox`의 `relation` prop(다이얼로그 카드 등 바깥 재계산 트리거)이 이걸 씀.
 
-## 드래그 인프라 (DraggableSession / useDragGhost / GhostArea)
-> **별도 문서로 분리** — `REF-util-drag.md` 참조(2026-08-07, 10k자 기준 분할).
+## 드래그 인프라 (`DragSession`, 2026-10-29 구현)
+> **별도 문서로 분리** — `REF-util-drag.md` 참조(2026-08-07, 10k자 기준 분할). `common/listener/dragSession.ts` = 끌기 시작 판정(마우스 거리·터치 길게 누르기) + 추적 + 터치 스크롤 막기

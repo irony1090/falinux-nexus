@@ -55,7 +55,7 @@
 - 경로 줄 정리(마감, 경로 줄 버튼 묶음·이동 버튼 경로 왼쪽·가로 스크롤) → `INDEX-path-row.md` (path-row)
 - 패널 창 버튼(마감, 컨트롤 패널에 active 타일 [숨기기|크기|닫기]·위치 글자 빼기·도트 최소 폭, 미해결 1건) → `INDEX-pager-head-btns.md` (pager-head-btns)
 - 닫은 뒤 active(마감, active 닫으면 위치 번호 이웃 active, 보드·관리) → `INDEX-close-active.md` (close-active)
-- **파일 편집기(10-28) · 보기 타일(10-28) · 영상 Range(10-29) 마감 — 아직 INDEX로 안 접음**, REF·history는 아래 표(file-view·view-tile·video-view)
+- **파일 편집기(10-28) · 보기 타일(10-28) · 영상 Range(10-29) · 타일 끌기(10-29) 마감 — 아직 INDEX로 안 접음**, REF·history는 아래 표(file-view·view-tile·video-view·tile-drag·tile-drag-impl·tile-order)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.
@@ -63,6 +63,7 @@
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
 | `history/decisions.md` | 확정 결정 상세(2026-10-26 MEMORY 슬림화 때 신설) ↔ `REF-decisions.md` | 10-26 밤 MEMORY 9.9k -> 5.8k자 |
+| `history/decisions-ui.md` | 확정 결정 상세: 화면(2026-10-29 분할) ↔ `REF-decisions-ui.md` | 10-29 터치 제스처·끌기(파트(타일 끌기) 마감) |
 | `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-29 영상 파트 마감 때 10-28 밤 ~ 10-26 밤 줄 |
 | `history/current-archive-4.md` | 위 파일에서 분할(2026-10-29: 10-27 ~ 10-28 파트(경로 줄 정리)) | 10-28 세션 끝(집 서버 직통 전환 줄) |
 | `history/current-archive-3.md` | 위 파일에서 분할(2026-10-28: 10-26 밤 fix/phone-layout ~ vault 색인 정리) | 10-26 밤 vault 색인 정리 |
@@ -74,6 +75,9 @@
 | `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환 계획·회사 준비 |
 | `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝(`nexus`·`direct`), cloudflared 정지, 남은 것 BACKLOG "cloudflared 삭제"(10-29) |
 | `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-28 밤 viewer-image 묶음 배포 완료 |
+| `history/tile-drag.md` | 파트(타일 끌기)(2026-10-29 신설) ↔ `REF-tile-drag.md` | 10-29 끌기 착수 전까지(방향·계획·끄는 모양) |
+| `history/tile-drag-impl.md` | 파트(타일 끌기) 끌기-1·2·제스처-1·보드-1·칸-1·2 구현(2026-10-29 분할) ↔ `REF-tile-drag-impl.md` | 10-29 파트 마감(칸-1·2·끝 띠, 커밋 + master 머지) |
+| `history/tile-order.md` | 파트(타일 끌기) 구조-1~3 순서 구조(2026-10-29 분할) ↔ `REF-tile-order.md` | 10-29 구현 + 격리 확인 |
 | `history/video-view.md` | 파트(영상 Range)(2026-10-29 신설, view-tile에서 분리) ↔ `REF-video-view.md` | 10-29 파트 마감(1·2단계, 커밋 + master 머지) |
 | `history/view-tile.md` | 파트(보기 타일) 구현(2026-10-28 신설) ↔ `REF-view-tile.md` | 10-28 밤 파트(보기 타일) 마감 — 1·2단계, 커밋 + master 머지 |
 | `history/file-view.md` | 장비 파일 편집기·보기 타일(2026-10-28 신설, 구상) | 10-28 파트(파일 편집기) 마감(편집·새 파일·칸 메뉴 내려받기, Windows 확인) · 보기 타일 V1~V5 확인 대기 |

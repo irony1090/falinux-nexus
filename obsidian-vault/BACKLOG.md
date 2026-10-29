@@ -5,6 +5,7 @@
 > 착수하면 CURRENT로 올리고 여기서 지운다. 해결되면 지운다(이력은 history에).
 
 ## 다음 파트 후보 (기능)
+- **회원 관리 판 타일 끌기** · 2026-10-29 · 파트(타일 끌기) 뒤 · 순서 코드 `memberGrid.util.ts`(`pack`·`insertBefore`)가 따로, 끌기-1(끌기 기반)을 가져다 씀 → `REF-tile-drag.md` · 10-29 덧붙임: 관리 페이지는 제스처-1 뒤 길게 누르기 동작 없음(패널 = 펼치기) — 끌기 넣을 때 `DragSession`·`tileDrag.store` 방식 재사용
 - **집 서버 영상 배포** · 2026-10-29 · 사용자가 정식 빌드를 만든 뒤 · 파트(파일 편집기)·보기 타일까지는 배포됨(viewer-image), 영상 Range(마이그레이션 `00015`)는 아직. worker 변경 없음 → `REF-home-deploy.md` · `REF-video-view.md`
 - **업데이트 전용 app** · 2026-10-28 · 나중에 정함(사용자: 지금 아님) · worker·supervisor 교체(끄기 -> 바꾸기 -> 켜기 -> 확인 -> 되돌리기)만 하는 별도 실행 파일. 착수 때 조율: U1(실행 방식: 사람이 직접 / 웹 버튼으로 supervisor가 보냄) · U2(대상: 집 서버 Windows만 / Linux 보드·test3까지) · U3(새 파일 출처: zip 손 업로드 / supervisor 보관 / 외부 URL). 담을 함정 = 함정-A(Job) · 실행 중 exe 이름 바꾸기 · `-hold`는 옛 exe 사용 → 지금 방식 `REF-home-deploy.md`(update.ps1)·`REF-build.md` "보드 worker 교체", REF 없음(착수 때 신설)
 - **타일 ESC로 닫기** · 2026-10-27 · **다음 파트로 예정(사용자)** · 타일별로 ESC 등 키를 누르면 그 타일을 끄는 동작. 착수 때 조율: ① 터미널 타일 안 ESC = 프로그램 입력(vim 등)과 충돌 ② "끄다" = 닫기인지 최소화인지 ③ "등" = 다른 키도? ④ 어느 타일이 대상인지(active 타일만?) ⑤ 앱 단축키 규칙(`appShortcutsOff` 검사 맨 앞, MEMORY "앱 단축키") · REF 없음, 착수 때 신설

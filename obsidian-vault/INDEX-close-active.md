@@ -19,4 +19,4 @@
 
 ## 이 파트에만 해당하는 결정 · 남은 것
 - 이웃 = 위치 번호(화면 거리 아님), 새 active로 포커스는 옮기지 않음(폰 키보드)
-- 다른 파트에서도 지킬 것(active가 배치에서 빠질 때의 규칙)은 MEMORY·`REF-decisions.md` "닫은 뒤 active"에 남김
+- 다른 파트에서도 지킬 것(active가 배치에서 빠질 때의 규칙)은 MEMORY·`REF-decisions-ui.md` "닫은 뒤 active"에 남김
