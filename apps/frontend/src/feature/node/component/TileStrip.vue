@@ -13,17 +13,21 @@ import { useTileShortcut } from '../hook/tileShortcut.hook';
 import { useTileNavShortcut } from '../hook/tileNav.hook';
 import { boardLabel, focusPath, useBoards } from '../store/boards.store';
 import { TILE_GAP as GAP, useTileGrids, type BoardGrids } from '../store/tileGrids.store';
-import { isProcTile, useTileTree } from '../store/tileTree.store';
+import { useTileDrag } from '../store/tileDrag.store';
+import { isProcTile, useTileTree, type Tile as TileData } from '../store/tileTree.store';
+import { TILE_KINDS } from '@/feature/widget/util/tileKind.util';
+import { viewIcon } from '@/feature/worker/util/fileKind.util';
 import OverviewTile from './tile/OverviewTile.vue';
 import { TILE_COMPONENTS } from './tile/tileComponents';
 
 const {
-    grids, cap, area, stripEl, scrollX, viewW,
+    grids, cap, area, barH, stripEl, scrollX, viewW,
     overview, ovScale, otherBoards, leaveOverview, activate, scrubbing,
 } = useTileGrids();
 useTileShortcut();
 useTileNavShortcut();
-const { hash } = useTileTree();
+const { hash, tiles } = useTileTree();
+const drag = useTileDrag();
 const { byHash } = useBoards();
 const { procs } = useProcessTerm();
 const router = useRouter();
@@ -38,6 +42,8 @@ useResizeCallback(stripEl, () => {
     if (!el) return;
     const { width, height } = el.getBoundingClientRect();
     const { paddingTop, paddingRight, paddingBottom, paddingLeft } = getComputedStyle(el);
+    // 선택 막대는 strip이 줄어든 같은 배치에서 읽어야 칸 수가 한 번도 안 바뀐다(따로 재면 한 프레임 다른 배치)
+    barH.value = el.closest('.TileWorkspace__body')?.querySelector<HTMLElement>(':scope > .NodeSelectionBar')?.offsetHeight ?? 0;
     area.value = {
         w: width - removeUnit(paddingLeft) - removeUnit(paddingRight),
         h: height - removeUnit(paddingTop) - removeUnit(paddingBottom),
@@ -105,6 +111,12 @@ const summaryOf = (b: BoardGrids) => {
 
 // 다른 보드 타일 누름 = 그 보드로 가서 그 타일 active(기존 ?focus 처리) — 미리보기-5(이동), EV5(누르면)
 const goOther = (board: BoardItem, tileId: string) => router.push(focusPath(board, tileId));
+
+// 전체보기 끌기(보드-1) — 타일 아무 데서나. 작은 표시 이름은 그 타일 라벨 글자
+const onOvDown = (e: PointerEvent, h: string, t: TileData) => {
+    const name = (e.currentTarget as HTMLElement).querySelector('.ov-name .name')?.textContent?.trim() ?? '';
+    drag.downOv(e, h, t.id, { icon: t.type === 'viewer' ? viewIcon(t.path) : TILE_KINDS[t.type].icon, color: TILE_KINDS[t.type].color, name });
+}
 const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();
@@ -124,7 +136,7 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     @wheel="onWheel"
 >
 <!-- .board·.board-cells는 평소 display: contents — 전체보기에서만 상자가 된다(위 재마운트 금지와 같은 이유로 두 모드 모두 둔다) -->
-<div class="board" :class="{ current: multi }">
+<div class="board" :class="{ current: multi }" :data-hash="hash">
     <div v-if="multi" class="board-cap">
         <b>{{ currentName }}</b>
         <span class="now">지금 보드</span>
@@ -139,12 +151,17 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
                 :style="layoutStyle(g.cols)"
             >
                 <tile v-for="it in g.items" :key="it.tile.id" :cell="it"
+                    :data-tile-id="it.tile.id"
+                    :class="{ 'drag-slot': drag.dragId.value === it.tile.id, 'drag-bundle': drag.bundleIds.value.includes(it.tile.id) }"
                     :tabindex="overview ? 0 : undefined"
                     :role="overview ? 'button' : undefined"
                     @click="overview && activate(it.tile.id)"
                     @keydown="onTileKey($event, it.tile.id)"
+                    @pointerdown="overview && onOvDown($event, hash, it.tile)"
                 >
-                    <component :is="TILE_COMPONENTS[it.tile.type]" :tile-id="it.tile.id" />
+                    <component :is="TILE_COMPONENTS[it.tile.type]" v-if="tiles[it.tile.id]" :tile-id="it.tile.id" />
+                    <!-- 끄는 동안 다른 보드에서 들어온 타일(미리보기) -->
+                    <overview-tile v-else :tile="it.tile" />
                 </tile>
                 <tile v-for="(e, ei) in g.empty" :key="`empty-${ei}`" :cell="e" empty />
 
@@ -158,7 +175,7 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
 </div>
 
 <!-- 다른 보드 줄 — 미리보기-4(그리기). 같은 cap·축소 비율로 배치 그대로 -->
-<div v-for="b in otherBoards" :key="b.board.hash" class="board">
+<div v-for="b in otherBoards" :key="b.board.hash" class="board" :data-hash="b.board.hash">
     <div class="board-cap">
         <b>{{ boardLabel(b.board) }}</b>
         <span>{{ b.loading ? '불러오는 중…' : b.error ?? summaryOf(b) }}</span>
@@ -169,11 +186,14 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
             <div class="box" :style="boxStyle(g.cols)">
                 <tile-layout :cols="g.cols" :gap="GAP" :style="layoutStyle(g.cols)">
                     <tile v-for="it in g.items" :key="it.tile.id" :cell="it"
+                        :data-tile-id="it.tile.id"
+                        :class="{ 'drag-slot': drag.dragId.value === it.tile.id, 'drag-bundle': drag.bundleIds.value.includes(it.tile.id) }"
                         tabindex="0"
                         role="button"
                         :aria-label="`${boardLabel(b.board)} 보드로 이동`"
                         @click="goOther(b.board, it.tile.id)"
                         @keydown="onOtherKey($event, b.board, it.tile.id)"
+                        @pointerdown="onOvDown($event, b.board.hash, it.tile)"
                     >
                         <overview-tile :tile="it.tile" :pos="b.posOf.get(it.tile.id)" />
                     </tile>
@@ -223,6 +243,29 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     display: flex;
     > .TileLayout { flex: 1; }
 }
+// 끄는 타일 자리 = 빈 자리(내용은 그대로 마운트, 안 보이게). 바탕은 불투명 — 반투명만 칠하면 Chrome GPU가 다시 쓰는 조각의 옛 그림(옆 칸 글자)이 비친다(10-29 실측)
+.Tile.drag-slot {
+    border: 2px dashed rgb(var(--v-theme-primary));
+    border-radius: 6px;
+    background: linear-gradient(rgba(var(--v-theme-primary), 0.08), rgba(var(--v-theme-primary), 0.08)) rgb(var(--v-theme-surface));
+    > * { visibility: hidden; }
+}
+// 다른 보드로 같이 가는 타일(보드-1 묶음) — 끄는 타일(점선)과 구분되게 실선 + 옅은 바탕, 내용은 보임
+.Tile.drag-bundle {
+    position: relative;
+    &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 4;
+        // 전체보기에서만 생긴다 — 축소 배율을 거꾸로 곱해 화면에서 3px
+        border: calc(3px / var(--s)) solid rgb(var(--v-theme-primary));
+        border-radius: 6px;
+        background: rgba(var(--v-theme-primary), 0.2);
+        pointer-events: none;
+    }
+}
+.TileStrip.overview .Tile.drag-slot { border-width: calc(2px / var(--s)); }
 .snap {
     position: absolute;
     top: 0;
@@ -287,6 +330,14 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     .cell {
         flex: none;
         gap: 4px;
+    }
+    // 칸 폭 = 상자 폭(캡션이 넓히지 않게) — 끌기 놓을 자리 계산이 상자 폭으로 Grid 위치를 잇는다(tileDrag.store ovFrame)
+    .cap {
+        width: 0;
+        min-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     .box {
         flex: none;

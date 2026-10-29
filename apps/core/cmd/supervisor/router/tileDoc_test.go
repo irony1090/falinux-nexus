@@ -12,17 +12,23 @@ func i64(v int64) *int64 { return new(v) }
 
 func half() tileSize { return tileSize{W: 0.5, H: 0.5} }
 
-// sampleDoc: root(루트 목록) -> f1(노드 10) -> [t1(터미널), f2(노드 20) -> [t2]], root -> t3
+// sampleDoc: 연 곳 root(루트 목록) -> [f1(노드 10) -> [t1(터미널), f2(노드 20) -> [t2]], t3], 화면 순서 = order
 func sampleDoc() tileDoc {
 	root, f1, f2 := "root", "f1", "f2"
-	return tileDoc{RootID: root, Tiles: map[string]tileItem{
-		"root": {ID: root, Type: "folder", Kids: []string{"f1", "t3"}, Size: half()},
-		"f1":   {ID: f1, Type: "folder", Parent: &root, Kids: []string{"t1", "f2"}, Size: half(), NodeID: i64(10), UID: "fu1"},
-		"f2":   {ID: f2, Type: "folder", Parent: &f1, Kids: []string{"t2"}, Size: half(), NodeID: i64(20), UID: "fu2"},
-		"t1":   {ID: "t1", Type: "terminal", Parent: &f1, Kids: []string{}, Size: half(), NodeID: i64(11), UID: "p1"},
-		"t2":   {ID: "t2", Type: "terminal", Parent: &f2, Kids: []string{}, Size: half(), NodeID: i64(21), UID: "p2", Minimized: true},
-		"t3":   {ID: "t3", Type: "terminal", Parent: &root, Kids: []string{}, Size: half(), NodeID: i64(31), UID: "p3", Adopted: true, ShortcutsOff: true},
+	return tileDoc{RootID: root, Order: []string{"root", "t3", "f1", "t1", "f2", "t2"}, Tiles: map[string]tileItem{
+		"root": {ID: root, Type: "folder", Size: half()},
+		"f1":   {ID: f1, Type: "folder", Parent: &root, Size: half(), NodeID: i64(10), UID: "fu1"},
+		"f2":   {ID: f2, Type: "folder", Parent: &f1, Size: half(), NodeID: i64(20), UID: "fu2"},
+		"t1":   {ID: "t1", Type: "terminal", Parent: &f1, Size: half(), NodeID: i64(11), UID: "p1"},
+		"t2":   {ID: "t2", Type: "terminal", Parent: &f2, Size: half(), NodeID: i64(21), UID: "p2", Minimized: true},
+		"t3":   {ID: "t3", Type: "terminal", Parent: &root, Size: half(), NodeID: i64(31), UID: "p3", ShortcutsOff: true},
 	}}
+}
+
+func setParent(d *tileDoc, id, parent string) {
+	x := d.Tiles[id]
+	x.Parent = &parent
+	d.Tiles[id] = x
 }
 
 func TestValidateOK(t *testing.T) {
@@ -40,9 +46,11 @@ func TestValidateRejects(t *testing.T) {
 	cases := map[string]func(d *tileDoc){
 		"root is terminal": func(d *tileDoc) {
 			d.RootID = "t3"
+			d.Order = []string{"t3", "root", "f1", "t1", "f2", "t2"}
 			x := d.Tiles["t3"]
 			x.Parent = nil
 			d.Tiles["t3"] = x
+			setParent(d, "root", "t3")
 		},
 		"root has parent": func(d *tileDoc) {
 			x := d.Tiles["root"]
@@ -71,11 +79,6 @@ func TestValidateRejects(t *testing.T) {
 			x.Minimized = true
 			d.Tiles["f2"] = x
 		},
-		"folder with adopted": func(d *tileDoc) {
-			x := d.Tiles["f2"]
-			x.Adopted = true
-			d.Tiles["f2"] = x
-		},
 		"folder with shortcutsOff": func(d *tileDoc) {
 			x := d.Tiles["f2"]
 			x.ShortcutsOff = true
@@ -86,42 +89,23 @@ func TestValidateRejects(t *testing.T) {
 			x.UID = ""
 			d.Tiles["t1"] = x
 		},
-		"terminal with kids": func(d *tileDoc) {
-			x := d.Tiles["t1"]
-			x.Kids = []string{"t2"}
-			d.Tiles["t1"] = x
-			y := d.Tiles["t2"]
-			p := "t1"
-			y.Parent = &p
-			d.Tiles["t2"] = y
-			f2 := d.Tiles["f2"]
-			f2.Kids = []string{}
-			d.Tiles["f2"] = f2
-		},
+		"opened by terminal": func(d *tileDoc) { setParent(d, "t2", "t1") },
+		"opened by missing":  func(d *tileDoc) { setParent(d, "t2", "ghost") },
 		"non-root without parent": func(d *tileDoc) {
 			x := d.Tiles["t1"]
 			x.Parent = nil
 			d.Tiles["t1"] = x
 		},
-		"parent not in kids": func(d *tileDoc) {
-			f1 := d.Tiles["f1"]
-			f1.Kids = []string{"f2"}
-			d.Tiles["f1"] = f1
-		},
-		"listed twice": func(d *tileDoc) {
-			f1 := d.Tiles["f1"]
-			f1.Kids = []string{"t1", "f2", "t1"}
-			d.Tiles["f1"] = f1
-		},
-		"kid missing": func(d *tileDoc) {
-			f1 := d.Tiles["f1"]
-			f1.Kids = append(slices.Clone(f1.Kids), "ghost")
-			d.Tiles["f1"] = f1
-		},
-		"cycle unreachable": func(d *tileDoc) {
+		"order missing tile": func(d *tileDoc) { d.Order = []string{"root", "t3", "f1", "f2", "t2"} },
+		"order listed twice": func(d *tileDoc) { d.Order = []string{"root", "t3", "f1", "t1", "f2", "t1"} },
+		"order unknown id":   func(d *tileDoc) { d.Order = []string{"root", "t3", "f1", "t1", "f2", "ghost"} },
+		"root not first":     func(d *tileDoc) { d.Order = []string{"t3", "root", "f1", "t1", "f2", "t2"} },
+		"order nil":          func(d *tileDoc) { d.Order = nil },
+		"parent cycle": func(d *tileDoc) {
 			a, b := "a", "b"
-			d.Tiles["a"] = tileItem{ID: a, Type: "folder", Parent: &b, Kids: []string{"b"}, Size: half()}
-			d.Tiles["b"] = tileItem{ID: b, Type: "folder", Parent: &a, Kids: []string{"a"}, Size: half()}
+			d.Tiles["a"] = tileItem{ID: a, Type: "folder", Parent: &b, Size: half()}
+			d.Tiles["b"] = tileItem{ID: b, Type: "folder", Parent: &a, Size: half()}
+			d.Order = append(d.Order, "a", "b")
 		},
 	}
 	for name, mutate := range cases {
@@ -146,28 +130,19 @@ func TestValidateTerminalWithoutNode(t *testing.T) {
 	}
 }
 
-// 부모가 터미널인 타일: 폴더가 아닌 부모 아래 붙으면 거부
-func TestValidateParentMustParent(t *testing.T) {
+// 순서는 연 곳과 무관 — 연 타일보다 앞에 와도 된다(끌어서 옮기기)
+func TestValidateOrderFree(t *testing.T) {
 	d := sampleDoc()
-	t1 := "t1"
-	f2 := d.Tiles["f2"]
-	f2.Kids = []string{}
-	d.Tiles["f2"] = f2
-	x := d.Tiles["t2"]
-	x.Parent = &t1
-	d.Tiles["t2"] = x
-	y := d.Tiles["t1"]
-	y.Kids = []string{"t2"}
-	d.Tiles["t1"] = y
-	if err := d.validate(); err == nil {
-		t.Fatal("validate passed, want error")
+	d.Order = []string{"root", "t2", "f2", "t1", "t3", "f1"}
+	if err := d.validate(); err != nil {
+		t.Fatal(err)
 	}
 }
 
 func TestMarshalIssuesFolderFields(t *testing.T) {
 	d := sampleDoc()
 	f2 := d.Tiles["f2"]
-	f2.UID, f2.Kids = "", nil
+	f2.UID = ""
 	d.Tiles["f2"] = f2
 	b, err := d.marshal()
 	if err != nil {
@@ -177,10 +152,10 @@ func TestMarshalIssuesFolderFields(t *testing.T) {
 	if err := json.Unmarshal(b, &out); err != nil {
 		t.Fatal(err)
 	}
+	if !slices.Equal(out.Order, d.Order) {
+		t.Errorf("order = %v", out.Order)
+	}
 	for id, x := range out.Tiles {
-		if x.Kids == nil {
-			t.Errorf("%s kids nil", id)
-		}
 		switch x.Type {
 		case "folder":
 			if x.UID == "" || x.ShownAt == 0 {
@@ -257,19 +232,16 @@ func TestCheckTerminalUIDs(t *testing.T) {
 	}
 }
 
-func TestClosedTerminalsAndRemoveLeaf(t *testing.T) {
+func TestClosedTerminalsAndRemove(t *testing.T) {
 	stored := sampleDoc()
 	next := sampleDoc()
-	next.removeLeaf("t2")
-	next.removeLeaf("t3")
+	next.remove("t2")
+	next.remove("t3")
 	if _, ok := next.Tiles["t2"]; ok {
 		t.Fatal("t2 still in tiles")
 	}
-	if k := next.Tiles["f2"].Kids; len(k) != 0 {
-		t.Errorf("f2 kids = %v", k)
-	}
-	if k := next.Tiles["root"].Kids; !slices.Equal(k, []string{"f1"}) {
-		t.Errorf("root kids = %v", k)
+	if !slices.Equal(next.Order, []string{"root", "f1", "t1", "f2"}) {
+		t.Errorf("order = %v", next.Order)
 	}
 	if err := next.validate(); err != nil {
 		t.Fatal(err)
@@ -278,6 +250,92 @@ func TestClosedTerminalsAndRemoveLeaf(t *testing.T) {
 	slices.Sort(got)
 	if !slices.Equal(got, []string{"p2", "p3"}) {
 		t.Errorf("closed = %v", got)
+	}
+}
+
+// 폴더를 빼면 그 폴더가 연 타일은 한 단계 위가 연 것으로, 화면 순서는 그 타일만 빠짐
+func TestRemoveLiftsOpened(t *testing.T) {
+	d := sampleDoc()
+	d.remove("f1")
+	if p := d.Tiles["t1"].Parent; p == nil || *p != "root" {
+		t.Errorf("t1 parent = %v", p)
+	}
+	if p := d.Tiles["f2"].Parent; p == nil || *p != "root" {
+		t.Errorf("f2 parent = %v", p)
+	}
+	if p := d.Tiles["t2"].Parent; p == nil || *p != "f2" {
+		t.Errorf("t2 parent = %v", p)
+	}
+	if !slices.Equal(d.Order, []string{"root", "t3", "t1", "f2", "t2"}) {
+		t.Errorf("order = %v", d.Order)
+	}
+	if err := d.validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// 새 타일 = 연 곳 바로 뒤(최신이 앞). 연 곳이 없거나 자식 불가면 루트 바로 뒤(연곳-B)
+func TestOpenTile(t *testing.T) {
+	d := sampleDoc()
+	a := d.openTile("f1", newTerminalTile(i64(1), "pa", defaultTileSize))
+	b := d.openTile("f1", newTerminalTile(i64(1), "pb", defaultTileSize))
+	c := d.openTile("ghost", newTerminalTile(i64(1), "pc", defaultTileSize))
+	e := d.openTile("t1", newTerminalTile(i64(1), "pe", defaultTileSize))
+	want := []string{"root", e.ID, c.ID, "t3", "f1", b.ID, a.ID, "t1", "f2", "t2"}
+	if !slices.Equal(d.Order, want) {
+		t.Errorf("order = %v, want %v", d.Order, want)
+	}
+	if *a.Parent != "f1" || *c.Parent != "root" || *e.Parent != "root" {
+		t.Errorf("parents a=%s c=%s e=%s", *a.Parent, *c.Parent, *e.Parent)
+	}
+	if err := d.validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// 옛 문서(kids·adopted) -> 옛 화면 순서 그대로 — 변환-B(시작 때 한 번)
+func TestLegacyOrder(t *testing.T) {
+	old := `{"rootId":"root","tiles":{
+		"root":{"id":"root","type":"folder","parent":null,"kids":["f1","t3","t4"],"size":{"w":0.5,"h":0.5}},
+		"f1":{"id":"f1","type":"folder","parent":"root","kids":["v1","t1","f2"],"size":{"w":0.5,"h":0.5},"nodeId":10},
+		"f2":{"id":"f2","type":"folder","parent":"f1","kids":["t2"],"size":{"w":0.5,"h":0.5},"nodeId":20},
+		"v1":{"id":"v1","type":"viewer","parent":"f1","kids":[],"size":{"w":0.5,"h":0.5},"nodeId":10,"instance":"m#s","path":"/a.png"},
+		"t1":{"id":"t1","type":"terminal","parent":"f1","kids":[],"size":{"w":0.5,"h":0.5},"nodeId":11,"uid":"p1"},
+		"t2":{"id":"t2","type":"terminal","parent":"f2","kids":[],"size":{"w":0.5,"h":0.5},"nodeId":21,"uid":"p2"},
+		"t3":{"id":"t3","type":"terminal","parent":"root","kids":[],"size":{"w":0.5,"h":0.5},"nodeId":31,"uid":"p3","adopted":true},
+		"t4":{"id":"t4","type":"terminal","parent":"root","kids":[],"size":{"w":0.5,"h":0.5},"nodeId":41,"uid":"p4"}}}`
+	order, err := legacyOrder([]byte(old))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"root", "t4", "t3", "f1", "t1", "v1", "f2", "t2"}; !slices.Equal(order, want) {
+		t.Fatalf("order = %v, want %v", order, want)
+	}
+	var doc tileDoc
+	if err := json.Unmarshal([]byte(old), &doc); err != nil {
+		t.Fatal(err)
+	}
+	doc.Order = order
+	if err := doc.validate(); err != nil {
+		t.Fatal(err)
+	}
+	b, err := doc.marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var raw struct {
+		Tiles map[string]map[string]any `json:"tiles"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		t.Fatal(err)
+	}
+	for id, x := range raw.Tiles {
+		if _, ok := x["kids"]; ok {
+			t.Errorf("%s kids kept", id)
+		}
+		if _, ok := x["adopted"]; ok {
+			t.Errorf("%s adopted kept", id)
+		}
 	}
 }
 
@@ -328,9 +386,17 @@ func TestDetachFolder(t *testing.T) {
 	mustPanic(t, "root", func() { d.detachFolder("root") })
 	mustPanic(t, "missing", func() { d.detachFolder("nope") })
 
+	// 연 타일이 연 곳보다 앞에 끌려가 있어도 새 보드는 떼어낸 타일이 맨 앞
+	d.Order = []string{"root", "t2", "t3", "f1", "t1", "f2"}
 	sub := d.detachFolder("f1")
 	if sub.RootID != "f1" || sub.Tiles["f1"].Parent != nil {
 		t.Fatalf("sub root = %q parent=%v", sub.RootID, sub.Tiles["f1"].Parent)
+	}
+	if !slices.Equal(sub.Order, []string{"f1", "t2", "t1", "f2"}) {
+		t.Errorf("sub order = %v", sub.Order)
+	}
+	if !slices.Equal(d.Order, []string{"root", "t3"}) {
+		t.Errorf("rest order = %v", d.Order)
 	}
 	ids := make([]string, 0, len(sub.Tiles))
 	for id := range sub.Tiles {
@@ -346,9 +412,49 @@ func TestDetachFolder(t *testing.T) {
 	if err := d.validate(); err != nil {
 		t.Errorf("rest invalid: %v", err)
 	}
-	d.attachUnderRoot(sub)
-	if err := d.validate(); err != nil {
-		t.Errorf("reattached invalid: %v", err)
+}
+
+// 보드-1(보드 간 이동 API): 다른 보드로 = 연 타일까지 묶음째, after 뒤(""= 루트 뒤, 없는 타일 = 맨 뒤), 맨 위 연 곳 = 도착 루트
+func TestMoveOpenedBetweenBoards(t *testing.T) {
+	cases := map[string]struct {
+		after string
+		want  []string
+	}{
+		"after root": {"", []string{"droot", "t1", "f1", "f2", "t2", "t3"}},
+		"after t3":   {"t3", []string{"droot", "t3", "t1", "f1", "f2", "t2"}},
+		"stale":      {"gone", []string{"droot", "t3", "t1", "f1", "f2", "t2"}},
+	}
+	for name, tc := range cases {
+		src := sampleDoc()
+		src.Order = []string{"root", "t1", "t3", "f1", "f2", "t2"} // 연 터미널 t1이 폴더 f1보다 앞
+		dst := tileDoc{RootID: "droot", Order: []string{"droot"}, Tiles: map[string]tileItem{}}
+		dst.Tiles["droot"] = tileItem{ID: "droot", Type: "folder", Size: half()}
+		moved := src.takeOpened("f1")
+		if !slices.Equal(src.Order, []string{"root", "t3"}) {
+			t.Errorf("%s: src order = %v", name, src.Order)
+		}
+		if err := src.validate(); err != nil {
+			t.Errorf("%s: src invalid: %v", name, err)
+		}
+		// 도착 보드에 t3 하나를 미리 둔다(after 확인용)
+		t3 := src.Tiles["t3"]
+		setParentTo := "droot"
+		t3.Parent = &setParentTo
+		dst.Tiles["t3"] = t3
+		dst.Order = append(dst.Order, "t3")
+		dst.putOpened(tc.after, moved)
+		if !slices.Equal(dst.Order, tc.want) {
+			t.Errorf("%s: dst order = %v", name, dst.Order)
+		}
+		if p := dst.Tiles["f1"].Parent; p == nil || *p != "droot" {
+			t.Errorf("%s: f1 parent = %v", name, p)
+		}
+		if p := dst.Tiles["t1"].Parent; p == nil || *p != "f1" {
+			t.Errorf("%s: t1 parent = %v", name, p)
+		}
+		if err := dst.validate(); err != nil {
+			t.Errorf("%s: dst invalid: %v", name, err)
+		}
 	}
 }
 
@@ -356,11 +462,9 @@ func TestDetachFolder(t *testing.T) {
 func deviceDoc() tileDoc {
 	d := sampleDoc()
 	f1, d1 := "f1", "d1"
-	x := d.Tiles["f1"]
-	x.Kids = append(slices.Clone(x.Kids), d1)
-	d.Tiles["f1"] = x
-	d.Tiles[d1] = tileItem{ID: d1, Type: tileDevice, Parent: &f1, Kids: []string{"t4"}, Size: half(), NodeID: i64(10), Instance: "dev#ab", Path: "/usr", Back: []string{"", "/"}}
-	d.Tiles["t4"] = tileItem{ID: "t4", Type: "terminal", Parent: &d1, Kids: []string{}, Size: half(), NodeID: i64(41), UID: "p4"}
+	d.Tiles[d1] = tileItem{ID: d1, Type: tileDevice, Parent: &f1, Size: half(), NodeID: i64(10), Instance: "dev#ab", Path: "/usr", Back: []string{"", "/"}}
+	d.Tiles["t4"] = tileItem{ID: "t4", Type: "terminal", Parent: &d1, Size: half(), NodeID: i64(41), UID: "p4"}
+	d.Order = append(d.Order, d1, "t4")
 	return d
 }
 

@@ -10,7 +10,7 @@ import MemberSizeCard from './MemberSizeCard.vue';
 // 화면 가장자리 여백
 const EDGE = 16;
 
-// 관리 페이지 컨트롤 패널 — 보드 PagerPopup과 같은 여는 길(Ctrl+Alt 누르는 동안 / 길게 누르기, usePagerOpen).
+// 관리 페이지 컨트롤 패널 — 보드 PagerPopup과 같은 여는 길(Ctrl+Alt 누르는 동안 / 두 손가락 펼치기, usePagerOpen).
 // 알약 = [크기 | 닫기 | Grid 도트](전체보기 없음, 창 버튼 = 관리 타일 머리 줄과 같음 — 파트(패널 창 버튼)), 도트 끌기·당기기 = 보드와 같음. 크기 = active 타일, 카드는 버튼 가운데(Q56)·카드 뜨면 알약 숨김(Q55)
 // Ctrl+Alt+숫자 = 위치 번호로 active 이동(useDigitShortcut)
 const { activeKey, tiles, activate, close: closeTile } = useMemberBoard();
@@ -32,12 +32,12 @@ const place = async (p: PagerPoint | null) => {
     at.value = { x: clamp(c.x, EDGE + w / 2, vw - EDGE - w / 2), y: clamp(c.y, EDGE + h / 2, vh - EDGE - h / 2) };
 }
 
-// 길게 누를 자리 = 타일 머리 줄(목록 포함) + 타일 밖 빈 곳 — Q57-1(길게 누를 자리)과 같은 규칙
-const pressable = (t: Element) => !!t.closest('.mb-head') || (!!t.closest('.MemberPage .body') && !t.closest('.mb-tile'));
+// 펼칠 자리 = 관리 페이지 어디든(보드와 같은 제스처-1(펼치기 패널))
+const pinchable = (t: Element) => !!t.closest('.MemberPage');
 const { held, touchOpen, close } = usePagerOpen({
     off: () => false,
     keyOff: () => false,
-    pressable,
+    pinchable,
     inside: t => t instanceof Node && (!!boxEl.value?.contains(t) || !!cardEl.value?.contains(t)),
     onOpen: p => void place(p),
 });

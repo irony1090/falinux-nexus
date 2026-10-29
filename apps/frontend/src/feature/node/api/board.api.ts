@@ -36,9 +36,10 @@ export const createBoard = (param: { from: string; folderTileId: string; name: s
 ).then(toResult)
 .catch(throwCatch)
 
-// POST /workspaces/:hash/move — 폴더 타일을 하위째 다른 보드 루트 끝으로(W3(이동 범위)). version = 출발 보드 version
-export const moveBoardFolder = (from: string, param: { folderTileId: string; to: string; version: number }) => BaseAxios.post(
-    `/workspaces/${from}/move`, param, conflictable
+// POST /workspaces/:hash/tiles/move — 타일을 to 보드의 after 뒤로(보드-1(보드 간 이동 API)). 같은 보드 = 그 타일 하나, 다른 보드 = 연 타일까지 묶음째
+// after "" = 루트 바로 뒤, 없는 타일 = 맨 뒤. version = 출발 보드 version(보고 있는 보드일 때만, 없으면 서버가 검사 안 함)
+export const moveBoardTile = (from: string, param: { tileId: string; to: string; after: string; version?: number }) => BaseAxios.post(
+    `/workspaces/${from}/tiles/move`, param, conflictable
 ).then(toResult)
 .catch(throwCatch)
 

@@ -13,7 +13,7 @@ import (
 
 // 타일 트리 문서(tileDoc) — 모양 검사·직렬화·타일 찾기
 
-// 프론트 tileTree.store의 Tile 미러. 서버는 모양만 검사하고 순서·닫기 규칙은 프론트 몫
+// 프론트 tileTree.store의 Tile 미러. 서버는 모양만 검사하고 순서·닫기 규칙은 프론트 몫 (화면 순서 = tileDoc.Order, REF-tile-drag.md)
 type tileSize struct {
 	W float64 `json:"w"`
 	H float64 `json:"h"`
@@ -21,13 +21,11 @@ type tileSize struct {
 
 type tileItem struct {
 	ID           string   `json:"id"`
-	Type         string   `json:"type"` // tileKinds의 키(tileKind.go)
-	Parent       *string  `json:"parent"`
-	Kids         []string `json:"kids"`
+	Type         string   `json:"type"`   // tileKinds의 키(tileKind.go)
+	Parent       *string  `json:"parent"` // 연 곳(이 타일을 연 자식 가능 타일, 순서와 무관). 루트만 nil — 터미널 탭이 이걸로 루트를 가림
 	Size         tileSize `json:"size"`
-	NodeID       *int64   `json:"nodeId"`        // folder: null = 루트 목록 / terminal: 필수
-	UID          string   `json:"uid,omitempty"` // terminal: process uid / folder: 서버가 발급하는 타일 uid(FU1), 공유로 생긴 받는 쪽 타일은 공유한 타일과 같은 값(FU2)
-	Adopted      bool     `json:"adopted,omitempty"`
+	NodeID       *int64   `json:"nodeId"`                 // folder: null = 루트 목록 / terminal: 필수
+	UID          string   `json:"uid,omitempty"`          // terminal: process uid / folder: 서버가 발급하는 타일 uid(FU1), 공유로 생긴 받는 쪽 타일은 공유한 타일과 같은 값(FU2)
 	Minimized    bool     `json:"minimized,omitempty"`    // 배치에서만 빠짐(트리·uid 유지) — SD3(실행 중 터미널 치우기)
 	ShortcutsOff bool     `json:"shortcutsOff,omitempty"` // terminal: 이 타일이 active인 동안 앱 단축키 끔 — 이동-3(타일별 단축키 끔)
 	ShownAt      int64    `json:"shownAt,omitempty"`      // folder: 지금 노드를 보여 주기 시작한 시각(unix ms, 서버만 씀) — BD3(저장 위치)
@@ -40,21 +38,32 @@ type tileItem struct {
 
 type tileDoc struct {
 	RootID string              `json:"rootId"`
+	Order  []string            `json:"order"` // 화면 순서, 루트가 맨 앞
 	Tiles  map[string]tileItem `json:"tiles"`
 }
 
 func newRootDoc() tileDoc {
-	root := newFolderTile(nil, nil, "")
-	return tileDoc{RootID: root.ID, Tiles: map[string]tileItem{root.ID: root}}
+	root := newFolderTile(nil, "")
+	return tileDoc{RootID: root.ID, Order: []string{root.ID}, Tiles: map[string]tileItem{root.ID: root}}
 }
 
 func validSpan(v float64) bool { return v == 0.5 || v == 1 }
 
-// validate: 루트 1개 · parent/kids 쌍 일치 · 루트에서 전부 닿음(고아·순환 없음) · type/size · 능력(tileKind)과 필드
+// validate: 루트 1개(order 맨 앞) · order = 모든 타일 한 번씩 · 연 곳 = 있는 자식 가능 타일, 사슬이 순환 없이 루트에 닿음 · type/size · 능력(tileKind)과 필드
 func (d *tileDoc) validate() error {
 	root, ok := d.Tiles[d.RootID]
 	if !ok || root.Parent != nil || !root.canRoot() {
 		return errors.New("루트 타일이 없거나 올바르지 않습니다")
+	}
+	if len(d.Order) != len(d.Tiles) || d.Order[0] != d.RootID {
+		return errors.New("order가 타일 목록과 맞지 않습니다")
+	}
+	seen := make(map[string]bool, len(d.Order))
+	for _, id := range d.Order {
+		if _, ok := d.Tiles[id]; !ok || seen[id] {
+			return fmt.Errorf("order가 올바르지 않습니다: %s", id)
+		}
+		seen[id] = true
 	}
 	for key, t := range d.Tiles {
 		if t.ID == "" || t.ID != key {
@@ -67,14 +76,11 @@ func (d *tileDoc) validate() error {
 		if !ok {
 			return fmt.Errorf("타일 type이 올바르지 않습니다: %s", key)
 		}
-		if !k.holdsProc && (t.Adopted || t.Minimized || t.ShortcutsOff) {
+		if !k.holdsProc && (t.Minimized || t.ShortcutsOff) {
 			return fmt.Errorf("process를 담지 않는 타일에 터미널 필드가 있습니다: %s", key)
 		}
 		if len(t.Back)+len(t.Fwd) > tileHistMax {
 			return fmt.Errorf("이동 기록이 너무 깁니다: %s", key)
-		}
-		if !k.canParent && len(t.Kids) > 0 {
-			return fmt.Errorf("자식을 가질 수 없는 타일입니다: %s", key)
 		}
 		if k.check != nil {
 			if err := k.check(t); err != nil {
@@ -87,48 +93,27 @@ func (d *tileDoc) validate() error {
 			}
 			continue
 		}
-		p, ok := d.Tiles[*t.Parent]
-		if !ok || !p.canParent() {
+		if p, ok := d.Tiles[*t.Parent]; !ok || !p.canParent() {
 			return fmt.Errorf("parent가 없거나 자식을 가질 수 없는 타일입니다: %s", key)
 		}
-		n := 0
-		for _, k := range p.Kids {
-			if k == key {
-				n++
-			}
-		}
-		if n != 1 {
-			return fmt.Errorf("parent의 kids에 정확히 한 번 있어야 합니다: %s", key)
-		}
 	}
-	// 위에서 모든 parent->kid 쌍을 확인했으니, kids 쪽만 보면 루트에서 닿는지 알 수 있다
-	seen := map[string]bool{d.RootID: true}
-	queue := []string{d.RootID}
-	for len(queue) > 0 {
-		t := d.Tiles[queue[0]]
-		queue = queue[1:]
-		for _, k := range t.Kids {
-			kid, ok := d.Tiles[k]
-			if !ok || kid.Parent == nil || *kid.Parent != t.ID || seen[k] {
-				return fmt.Errorf("kids가 올바르지 않습니다: %s -> %s", t.ID, k)
+	// 위에서 루트 말고는 parent가 있음을 확인했다. 분리·닫기가 사슬을 따라가므로 순환이 없어야 한다
+	for key := range d.Tiles {
+		cur := key
+		for n := 0; cur != d.RootID; n++ {
+			if n >= len(d.Tiles) {
+				return fmt.Errorf("parent가 순환합니다: %s", key)
 			}
-			seen[k] = true
-			queue = append(queue, k)
+			cur = *d.Tiles[cur].Parent
 		}
-	}
-	if len(seen) != len(d.Tiles) {
-		return errors.New("루트에서 닿지 않는 타일이 있습니다")
 	}
 	return nil
 }
 
-// marshal: 모르는 필드는 버리고 서버 기준 모양으로 저장. kids는 null 대신 [], 폴더 타일의 빈 uid는 발급·빈 shownAt은 지금 — 모든 저장이 여기를 지난다
+// marshal: 모르는 필드는 버리고 서버 기준 모양으로 저장. 폴더 타일의 빈 uid는 발급·빈 shownAt은 지금 — 모든 저장이 여기를 지난다
 func (d *tileDoc) marshal() ([]byte, error) {
 	now := time.Now().UnixMilli()
 	for key, t := range d.Tiles {
-		if t.Kids == nil {
-			t.Kids = []string{}
-		}
 		if t.Type == tileFolder && t.UID == "" {
 			uid, err := util.RandomKey(16, "", "")
 			if err != nil {
@@ -248,15 +233,45 @@ func closedTerminals(next, stored *tileDoc) []string {
 	return out
 }
 
-// removeLeaf: 자식 없는 타일(process 타일)을 부모 kids와 트리에서 뺀다
-func (d *tileDoc) removeLeaf(id string) {
-	t := d.Tiles[id]
-	if t.Parent != nil {
-		p := d.Tiles[*t.Parent]
-		p.Kids = slices.DeleteFunc(slices.Clone(p.Kids), func(k string) bool { return k == id })
-		d.Tiles[p.ID] = p
+// openTile: t를 연 곳 바로 뒤에 넣는다(최신이 앞). 연 곳이 없거나 자식 불가면 루트 바로 뒤(연곳-B) — 서버가 타일을 넣는 곳은 전부 여기
+func (d *tileDoc) openTile(openerID string, t tileItem) tileItem {
+	if p, ok := d.Tiles[openerID]; !ok || !p.canParent() {
+		openerID = d.RootID
 	}
+	t.Parent = &openerID
+	d.Order = slices.Insert(d.Order, slices.Index(d.Order, openerID)+1, t.ID)
+	d.Tiles[t.ID] = t
+	return t
+}
+
+// remove: 타일을 뺀다. 그 타일이 연 타일들의 연 곳은 한 단계 위로(프론트 closeOp와 같은 규칙). 루트는 호출부가 막는다
+func (d *tileDoc) remove(id string) {
+	parent := d.Tiles[id].Parent
+	for key, t := range d.Tiles {
+		if t.Parent != nil && *t.Parent == id {
+			t.Parent = parent
+			d.Tiles[key] = t
+		}
+	}
+	d.Order = slices.DeleteFunc(d.Order, func(k string) bool { return k == id })
 	delete(d.Tiles, id)
+}
+
+// subtree: id와 그 타일이 연 타일 전부(깊은 자식까지), order 순
+func (d *tileDoc) subtree(id string) []string {
+	opened := map[string][]string{}
+	for key, t := range d.Tiles {
+		if t.Parent != nil {
+			opened[*t.Parent] = append(opened[*t.Parent], key)
+		}
+	}
+	in := map[string]bool{}
+	for stack := []string{id}; len(stack) > 0; {
+		k := stack[len(stack)-1]
+		stack = append(stack[:len(stack)-1], opened[k]...)
+		in[k] = true
+	}
+	return slices.DeleteFunc(slices.Clone(d.Order), func(k string) bool { return !in[k] })
 }
 
 func (d *tileDoc) hasFolderUID(uid string) bool {
@@ -268,7 +283,7 @@ func (d *tileDoc) hasFolderUID(uid string) bool {
 	return false
 }
 
-// folderTileOf: 그 노드를 보여 주는 폴더 타일 중 루트에서 너비 우선으로 처음 닿는 것(map 순서에 기대지 않게)
+// folderTileOf: 그 노드를 보여 주는 폴더 타일 중 order에서 처음 닿는 것(map 순서에 기대지 않게)
 func (d *tileDoc) folderTileOf(nodeID int64) (string, bool) {
 	ids := d.folderTilesOf(nodeID)
 	if len(ids) == 0 {
@@ -277,7 +292,7 @@ func (d *tileDoc) folderTileOf(nodeID int64) (string, bool) {
 	return ids[0], true
 }
 
-// folderTilesOf: 그 노드를 보여 주는 폴더 타일 전부(너비 우선 순)
+// folderTilesOf: 그 노드를 보여 주는 폴더 타일 전부(order 순)
 func (d *tileDoc) folderTilesOf(nodeID int64) []string {
 	var out []string
 	for _, t := range d.folderTiles() {
@@ -288,17 +303,13 @@ func (d *tileDoc) folderTilesOf(nodeID int64) []string {
 	return out
 }
 
-// folderTiles: 노드를 보여 주는 폴더 타일 전부(루트 목록 제외, 루트에서 너비 우선 순)
+// folderTiles: 노드를 보여 주는 폴더 타일 전부(루트 목록 제외, order 순)
 func (d *tileDoc) folderTiles() []tileItem {
 	var out []tileItem
-	queue := []string{d.RootID}
-	for len(queue) > 0 {
-		t := d.Tiles[queue[0]]
-		queue = queue[1:]
-		if t.Type == tileFolder && t.NodeID != nil {
+	for _, id := range d.Order {
+		if t := d.Tiles[id]; t.Type == tileFolder && t.NodeID != nil {
 			out = append(out, t)
 		}
-		queue = append(queue, t.Kids...)
 	}
 	return out
 }

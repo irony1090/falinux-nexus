@@ -358,6 +358,44 @@ func (q *Queries) ListTileTreesForUpdate(ctx context.Context, userID int64) ([]T
 	return items, nil
 }
 
+const listTileTreesWithoutOrder = `-- name: ListTileTreesWithoutOrder :many
+SELECT user_id, tree, version, updated_at, id, hash, name, ord, is_default FROM tile_trees
+WHERE tree->'order' IS NULL
+ORDER BY id
+FOR UPDATE
+`
+
+// order 없는 옛 타일 문서 — 시작 때 한 번 변환(REF-tile-drag.md 변환-B(시작 때 한 번)), 다 바뀐 뒤엔 변환기와 같이 지워도 됨
+func (q *Queries) ListTileTreesWithoutOrder(ctx context.Context) ([]TileTree, error) {
+	rows, err := q.db.Query(ctx, listTileTreesWithoutOrder)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []TileTree
+	for rows.Next() {
+		var i TileTree
+		if err := rows.Scan(
+			&i.UserID,
+			&i.Tree,
+			&i.Version,
+			&i.UpdatedAt,
+			&i.ID,
+			&i.Hash,
+			&i.Name,
+			&i.Ord,
+			&i.IsDefault,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTreesWithTerminal = `-- name: ListTreesWithTerminal :many
 
 SELECT user_id, hash, is_default

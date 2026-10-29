@@ -158,6 +158,13 @@ export const copyNode = (id: number, parentId: number | null) => BaseAxios.post(
 .then(res => res.nodes.map(toNodeResponse))
 .catch(throwCatch)
 
+// POST /nodes/order — 칸-1(node 순서 API). ids를 형제 after 바로 뒤로(null = 맨 앞), parentId null = 내 루트
+export const orderNodes = (parentId: number | null, ids: ReadonlyArray<number>, after: number | null) => BaseAxios.post(
+    '/nodes/order',
+    { parentId, ids, after }
+).then(throwThen<unknown>)
+.catch(throwCatch)
+
 // POST /nodes/suggest — 폴더 타일 경로 입력, 경로-6(폴더 후보 REST)·REF-path-input.md. baseId 0 = 기본 목록, max 0 = names 끝 폴더만 찾기(Enter)
 export type NodeSuggestResponse = { id: number | null; items: Array<{ id: number; name: string }>; more?: boolean }
 

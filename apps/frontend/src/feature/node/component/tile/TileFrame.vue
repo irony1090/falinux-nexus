@@ -4,6 +4,7 @@ import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
 import { VIcon, VList, VMenu, VProgressCircular } from 'vuetify/components';
 import { useTileFloat } from '../../hook/tileFloat.hook';
 import { useTileSize } from '../../hook/tileSize.hook';
+import { dragFrom, useTileDrag } from '../../store/tileDrag.store';
 import { clearTileHeadActs, setTileHeadActs, type TileHeadActs } from '../../store/tileHeadActs.store';
 import { useTileGrids } from '../../store/tileGrids.store';
 import { useTileTree } from '../../store/tileTree.store';
@@ -88,14 +89,23 @@ onBeforeUnmount(() => clearTileHeadActs(props.tileId, headActs));
 
 // active 표시 — AT3(표시). active가 있을 때만 나머지를 흐린다
 const activeClass = computed(() => activeId.value ? (activeId.value === props.tileId ? 'TileFrame--active' : 'TileFrame--dim') : undefined);
+
+// 끌어서 옮기기 — 끌기-2(타일 끌기). 터치로 누르는 중 = 테두리(끄는 동안 빈 자리는 TileStrip `drag-slot`)
+const drag = useTileDrag();
+const onDragDown = (e: PointerEvent) => {
+    if (!isRoot.value && e.target instanceof Element && dragFrom(e.target, e.pointerType))
+        drag.down(e, props.tileId, { icon: props.icon, color: props.color, name: props.name });
+}
+const dragClass = computed(() => ({ 'TileFrame--pressing': drag.pressId.value === props.tileId }));
 </script>
 
 <template>
 <div v-if="tile" ref="frameEl" class="TileFrame" tabindex="-1"
     :data-tile-id="tile.id"
-    :class="[`TileFrame--${tile.type}`, activeClass, { 'TileFrame--overview': overview, 'TileFrame--shared': shared }]"
+    :class="[`TileFrame--${tile.type}`, activeClass, dragClass, { 'TileFrame--overview': overview, 'TileFrame--shared': shared }]"
     :style="floatStyle"
     @pointerdown.capture="setActive(tile.id)"
+    @pointerdown="onDragDown"
 >
     <!-- 전체보기 라벨: 축소 배율을 거꾸로 곱해 읽을 수 있는 크기 유지 -->
     <div v-if="overview" class="ov-name">
@@ -207,6 +217,10 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
     opacity: 0.7;
     &:hover { opacity: 0.85; }
 }
+.TileFrame--pressing {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: -2px;
+}
 .ov-name {
     position: absolute;
     left: 0;
@@ -237,7 +251,7 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
     @include vars.font('body-medium');
     min-width: 0;
     > :deep(*) { flex: none; }
-    // 터치 길게 누르기 = Ctrl+Alt 팝업(팝업-6) — 글자 선택·기본 메뉴 대신
+    // 터치 길게 누르기 = 타일 끌기(제스처-1(펼치기 패널)) — 글자 선택·기본 메뉴 대신
     @media (pointer: coarse) {
         user-select: none;
         -webkit-user-select: none;

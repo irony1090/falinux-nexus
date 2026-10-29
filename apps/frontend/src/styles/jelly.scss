@@ -30,6 +30,9 @@ $kid-press: ':not(.v-btn__overlay, .v-btn__underlay, .dot)';
 		#{$box}:not(:disabled):hover, :is(#{$host}):hover > #{$kid} { animation: jelly-hover $hover-dur ease-out; }
 	}
 
+	// 받은 것(폴더 칸에 넣기 등)이 한 번 튐 — 붙였다 떼면 다시
+	.jelly-land { animation: jelly-hover $release-dur ease-out; }
+
 	// 컨트롤 패널 — 열림 = .shown. 사라지는 동안은 보이게 visibility를 늦춘다
 	.jelly-pop {
 		animation: jelly-pop-out $pop-out-dur ease-in both;

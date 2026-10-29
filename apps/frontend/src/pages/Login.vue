@@ -43,7 +43,7 @@ const submit = () => {
 </script>
 
 <template>
-<auth-tile title="NEXUS-supervisor" submit-label="로그인" :busy="isLazyLoading" @submit="submit">
+<auth-tile title="NEXUS" submit-label="로그인" :busy="isLazyLoading" @submit="submit">
     <label for="au-id" class="mb-lbl">아이디</label>
     <CtTextField id="au-id" v-model="id" size="sm" name="identification" autocomplete="username" :disabled="isLazyLoading" />
     <label for="au-pw" class="mb-lbl">비밀번호</label>

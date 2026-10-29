@@ -189,7 +189,8 @@ const percent = computed(() => `${Math.round(cur.value.s * 100)}%`);
         <span>이 형식은 아직 볼 수 없습니다</span>
     </div>
     <template v-else>
-        <div ref="boxEl" class="box" :class="{ ready: status === 'ok' }"
+        <!-- 몸통 안 펼치기 = 이미지 확대(컨트롤 패널 아님, 제스처-1(펼치기 패널)) -->
+        <div ref="boxEl" class="box" :class="{ ready: status === 'ok' }" data-pager-pinch-off
             @wheel.prevent="onWheel"
             @pointerdown="onDown" @pointermove="onMove" @pointerup="onUp" @pointercancel="onCancel"
             @dblclick="toFit"

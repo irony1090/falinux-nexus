@@ -3,6 +3,24 @@
 → `CURRENT.md` · 각 줄의 상세는 그 줄이 가리키는 INDEX/REF
 > 그 전 줄 → `history/current-archive-4.md`(10-27 ~ 10-28 파트(경로 줄 정리)) · `-3` · `-2` · `-1`
 
+## 2026-10-29 (파트(타일 끌기) 마감 때 내려보냄)
+- **(2026-10-29) 파트(타일 끌기) 진행 중** — 브랜치 `feat/tile-drag`, **커밋 안 함**(코드 + vault, 커밋은 파트 마감 때). → `REF-tile-drag.md`(계획·결정) · `REF-tile-drag-impl.md`(구현 표·함정) · `REF-tile-order.md`(순서 구조) · 끌기 기반 `REF-util-drag.md`
+  - 끝난 것(사용자 PC·폰 확인 끝): 구조-1~3(순서 배열·서버 넣기 한 곳·프론트 트리 정리) · 끌기-1(끌기 기반, 범용 `DragSession`) · 끌기-2(타일 끌기) · 제스처-1(펼치기 패널) · 보드-1(보드 간 이동 API + 전체보기 끌기 + 묶음 표시)
+  - **다음 = 칸-1(node 순서 API)·칸-2(node 칸 끌기)**(사용자 "제안대로 진행" 10-29): **구현 끝 + 사용자 확인 OK(10-29)** — 확인 중 고친 것: 폴더 바꿀 때 옛 칸 잔상 · 선택 막대가 배치를 바꿈(`barH`) · 칸 끌기 옆 페이지 · **끝 띠(칸·타일 끌기 공용, 칼럼씩)** · 로그인 제목 `NEXUS` → `REF-tile-drag-impl.md` "칸-1·칸-2"·"끝 띠". **다음 = 확인-1(격리 확인) -> 파트 마감·커밋**(사용자 확인 받고). 확인용 = test1(8011) td1 보드에 `칸시험`(C)·`A`(X) 타일, 되돌리기 `board.py`(경로는 REF). 시험 끝나면 기본 보드 = `setup.py`. 그 뒤 확인-1(격리 확인) -> 파트 마감·커밋
+  - 사용자에게 알린 바뀐 점: 관리 페이지 패널도 터치 = 펼치기(길게 누르기 없음) · 전체보기 Grid 캡션이 상자보다 넓으면 줄임표
+  - 미해결·위험: `adopted` 있는 옛 문서 변환은 단위 테스트로만 확인(실데이터에 없음) / 파트 마감 때 MEMORY 불변 결정에 "터치 제스처(펼치기 = 패널, 길게 = 끌기)"·"보드 간 이동 = 묶음째, 같은 보드 = 하나만" 추가(REF-decisions가 9.8k라 그때 분할 같이)
+  - **지금 떠 있는 것(10-29 세션 끝, 사용자 세션 재시작 — Claude 세션과 무관하게 남음)**:
+    | 포트 | 무엇 | 끄기 |
+    |---|---|---|
+    | 8011(test1) | vite(저장소 `apps/frontend`, 기본 설정·`.env`) | `kill $(cat /tmp/claude-1000/-home-jh-bae-irony-nexus/51cf026c-d38c-4465-8fee-75e8924cd07d/scratchpad/ext/vite.pid)` |
+    | 8012(test2) | `socat` -> 5051 중계. **떠 있는 동안 개발 supervisor 8012 못 띄움** | `kill $(cat /tmp/claude-1000/-home-jh-bae-irony-nexus/51cf026c-d38c-4465-8fee-75e8924cd07d/scratchpad/ext/socat.pid)` |
+    | 5051 | 격리 supervisor(**보드-1 코드로 다시 빌드**, `/tmp/claude-1000/-home-jh-bae-irony-nexus/06a4a87f-5384-4e2f-870b-848ca2e42a62/scratchpad/iso/sup`, DB `nexus_td_tmp`) + worker `td-dev` | `/tmp/claude-1000/-home-jh-bae-irony-nexus/06a4a87f-5384-4e2f-870b-848ca2e42a62/scratchpad/iso/stop.sh /tmp/claude-1000/-home-jh-bae-irony-nexus/06a4a87f-5384-4e2f-870b-848ca2e42a62/scratchpad/iso` |
+    | 3001 | 격리 vite(헤드리스용, `--config /tmp/claude-1000/-home-jh-bae-irony-nexus/06a4a87f-5384-4e2f-870b-848ca2e42a62/scratchpad/iso/vite.iso.mts`) | 그 pid kill |
+    - 계정 td1·td2(`pw123456`). td1 보드 = 기본(F1~F5·BIG, 터미널 연 곳 = F3) + b3(장비 루트 D). 시험 데이터 되돌리기 = `python3 /tmp/claude-1000/-home-jh-bae-irony-nexus/51cf026c-d38c-4465-8fee-75e8924cd07d/scratchpad/ui/setup.py`(기본 보드) · `python3 /tmp/claude-1000/-home-jh-bae-irony-nexus/51cf026c-d38c-4465-8fee-75e8924cd07d/scratchpad/ui/b3save.py restore`(b3, 저장본 `ui/b3.json`)
+    - 헤드리스 스크립트(이 세션 scratchpad, 재부팅 때 사라짐): `/tmp/claude-1000/-home-jh-bae-irony-nexus/51cf026c-d38c-4465-8fee-75e8924cd07d/scratchpad/ui/` `drag.mjs`(평소 21) · `ov.mjs`(전체보기 15) · `bundle.mjs`(묶음 표시 4) · `phone.mjs`(폰 페이지 넘김) — 다른 세션에서 쓰려면 이 절대 경로로
+    - 다 쓰면: 위 프로세스 끄기 + `DROP DATABASE nexus_td_tmp` + `/run/user/1000/tdiso` 지우기
+  - 모형 아티팩트(끄는 모양 비교): https://claude.ai/artifact/2BcXy5wRPc31AHQNzSWs4j
+
 ## 2026-10-29 (파트(영상 Range) 마감 때 내려보냄)
 - **(2026-10-29) 진행 중 파트 = 파트(영상 Range)**, 브랜치 `feat/video-view`(미커밋) → `REF-video-view.md`
   - 1단계(영상 재생) + 2단계(S1(이어보기), 마이그레이션 `00015`) 구현 + 격리 확인 끝, **사용자 확인 대기** → 확인되면 파트 마감(커밋·머지)

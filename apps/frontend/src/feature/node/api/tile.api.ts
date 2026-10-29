@@ -8,6 +8,7 @@ import type { Tile, ViewerTile } from '../store/tileTree.store'
 
 export type TileTree = {
     rootId: string
+    order: string[]     // 화면 순서, 루트가 맨 앞 — REF-tile-drag.md
     tiles: Record<string, Tile>
 }
 

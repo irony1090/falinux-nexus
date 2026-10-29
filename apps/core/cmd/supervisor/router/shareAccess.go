@@ -35,7 +35,7 @@ func liveUnder(c echo.Context, nodeID int64) []string {
 	return uids
 }
 
-// attachSharedFolder: 받는 쪽 기본 보드 루트 끝에 폴더 타일 — SD7(받는 쪽 타일 추가 시점)·SH2(받는 쪽 화면 위치). 어느 보드에든 이미 있으면 nil
+// attachSharedFolder: 받는 쪽 기본 보드 루트 바로 뒤에 폴더 타일(연곳-B) — SD7(받는 쪽 타일 추가 시점)·SH2(받는 쪽 화면 위치). 어느 보드에든 이미 있으면 nil
 // uid = 공유한 타일의 uid(FU2). 받는 쪽에 같은 uid가 이미 있으면 새로 발급 — 계정 안 uid는 하나
 func attachSharedFolder(c echo.Context, userID, nodeID int64, uid string) *superdb.TileTree {
 	ensureTileTree(c, userID)
@@ -53,11 +53,7 @@ func attachSharedFolder(c echo.Context, userID, nodeID int64, uid string) *super
 		}
 	}
 	doc := mustParseDoc(def.Tree)
-	root := doc.Tiles[doc.RootID]
-	tile := newFolderTile(&root.ID, &nodeID, uid)
-	doc.Tiles[tile.ID] = tile
-	root.Kids = append(root.Kids, tile.ID)
-	doc.Tiles[root.ID] = root
+	doc.openTile(doc.RootID, newFolderTile(&nodeID, uid))
 	upd := saveLockedTree(c, def, &doc)
 	return &upd
 }

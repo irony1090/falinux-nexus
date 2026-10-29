@@ -5,16 +5,20 @@ import { useGapWheel } from '@/feature/widget/hook/gapWheel.hook';
 import { computed } from 'vue';
 import { useTileUrl } from '../hook/tileUrl.hook';
 import { provideNodeOps } from '../store/nodeOps.store';
+import { provideTileDrag } from '../store/tileDrag.store';
 import { provideTileGrids } from '../store/tileGrids.store';
 import BoardFooter from './BoardFooter.vue';
 import GridToast from './GridToast.vue';
 import NodeOpsHost from './NodeOpsHost.vue';
 import NodeSelectionBar from './NodeSelectionBar.vue';
+import PageEdgeBands from './PageEdgeBands.vue';
+import TileDragChip from './TileDragChip.vue';
 import TileStrip from './TileStrip.vue';
 
 // strip과 푸터 인디케이터가 같은 Grid 상태를 쓰도록 공통 부모에서 provide
 const grids = provideTileGrids();
 provideNodeOps(grids);     // 같은 컴포넌트에선 inject가 안 되므로 grids를 넘긴다
+provideTileDrag(grids);
 // ?focus=(목록 "보드로 이동"·위치 알림 N3(누르면 이동) + active) · ?view=(보던 칼럼) · ?tab=terminals(M4(위치 없음)) — 새로고침 복원
 useTileUrl(grids);
 const onWheel = useGapWheel(grids.pager, t => !!t.closest('.Tile:not(.Tile--empty)'));
@@ -32,10 +36,12 @@ const bodyStyle = computed(() => ({ height: kb.open ? `${kb.baseH}px` : undefine
     <!-- Grid 정보 토스트의 위치 기준(strip은 가로로 스크롤되므로 그 밖) -->
     <div class="TileWorkspace__stage">
         <tile-strip />
+        <page-edge-bands />
         <grid-toast />
     </div>
     <board-footer />
     <node-ops-host />
+    <tile-drag-chip />
 </div>
 </div>
 <!-- 타일 영역 밖(키보드 열림 때 고정 높이로 잘리는 상자 밖)에 둔다 -->

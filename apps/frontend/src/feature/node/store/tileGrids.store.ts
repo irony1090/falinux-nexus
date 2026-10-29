@@ -1,5 +1,5 @@
 import type { Area, Capacity, GridPlan } from '@/feature/widget/util/tile.type'
-import { flatten, pack } from '@/feature/widget/util/tileOrder.util'
+import { ordered, pack } from '@/feature/widget/util/tileOrder.util'
 import { capacity, colScroll, effectiveSize, minSize, revealCol, stripGeometry, stripPos, stripView } from '@/feature/widget/util/tileSplit.util'
 import { readUserPref, writeUserPref } from '@/common/util/userPrefs.util'
 import { providePagerBoard } from '@/feature/widget/store/pagerBoard.store'
@@ -27,38 +27,49 @@ const readOvPercent = () => {
 }
 
 // 배치 = 최소화 제외(최소화한 터미널은 위치 번호가 없다) -> 같은 Grid 규칙으로 채움. 지금 보드·전체보기의 다른 보드가 같이 씀(미리보기-3(Grid 파생))
-const layoutOf = (tiles: Readonly<Record<string, Tile>>, rootId: string, cap: Capacity) => {
-    const order = flatten(tiles, rootId).filter(o => !o.tile.minimized)
-    return { order, grids: pack(order.map(o => o.tile), t => effectiveSize(t.size, cap)) }
+const layoutOf = (treeOrder: ReadonlyArray<string>, tiles: Readonly<Record<string, Tile>>, cap: Capacity) => {
+    const order = ordered(treeOrder, tiles).filter(t => !t.minimized)
+    return { order, grids: pack(order, t => effectiveSize(t.size, cap)) }
 }
+
+export type DragPreview = { orders: Readonly<Record<string, ReadonlyArray<string>>>; tiles: Readonly<Record<string, Tile>> }
 
 export type BoardGrids = { board: BoardItem; grids: Array<GridPlan<Tile>>; posOf: Map<string, number>; loading: boolean; error?: string }
 
 // 트리 + 측정한 Grid 영역 -> Grid 목록 + 가로 스크롤 위치 -> 헤더 내비 — REF-node-ui-impl.md "④ Grid 파생"
 // 측정·스크롤 기록은 TileStrip, 여기는 등록된 strip 요소에 scrollTo만 한다
+export const EDGE_BAND = 48       // 화면 끝 띠 폭(px)
+export const EDGE_HOLD_MS = 400   // 띠에 머물러 넘기기까지 — PageEdgeBands 차오름과 같게
+
 export const provideTileGrids = () => {
-    const { tiles, rootId, ready, hash } = useTileTree()
+    const { tiles, order: treeOrder, ready, hash } = useTileTree()
     const boardTrees = useBoardTrees()
     const { focus: focusTerm } = useProcessTerm()
     const { emit } = useTestSocket()
 
     const area = ref<Area | null>(null)
+    const barH = ref(0)     // 잠깐 끼어드는 막대(선택 막대) 높이 — 칸 수 판정에선 없는 셈 친다. 켜고 끌 때 배치·페이지가 바뀌면 보던 타일을 잃었다(10-29)
 
-    const cap = computed(() => capacity(area.value ?? { w: 0, h: 0 }))
-    const flat = computed(() => flatten(tiles.value, rootId.value))
-    const layout = computed(() => layoutOf(tiles.value, rootId.value, cap.value))
+    const cap = computed(() => capacity(area.value ? { w: area.value.w, h: area.value.h + barH.value } : { w: 0, h: 0 }))
+    const flat = computed(() => ordered(treeOrder.value, tiles.value))
+    // 끄는 동안 미리보기(저장 안 함) — 보드 hash별 순서 + 보드를 옮겨 가는 묶음 타일. 끌기-2(타일 끌기)·보드-1, tileDrag.store가 쓴다
+    const preview = shallowRef<DragPreview | null>(null)
+    const layout = computed(() => {
+        const o = preview.value?.orders[hash.value]
+        return o ? layoutOf(o, { ...tiles.value, ...preview.value!.tiles }, cap.value) : layoutOf(treeOrder.value, tiles.value, cap.value)
+    })
     const order = computed(() => layout.value.order)
     // 측정 전엔 그리지 않는다 — 기본 cap을 가정해 그리면 측정 직후 배치가 튄다
     const grids = computed(() => area.value ? layout.value.grids : [])
     const newSize = computed(() => minSize(cap.value))
 
     // 타일 순번(1부터)
-    const posOf = computed(() => new Map(order.value.map((o, i) => [o.tile.id, i + 1])))
+    const posOf = computed(() => new Map(order.value.map((t, i) => [t.id, i + 1])))
 
     // 같은 노드를 여러 번 실행했으면 순서대로 몇 번째인지, 한 번뿐이면 없음. 최소화 포함 — 최소화로 번호가 바뀌지 않게
     const instanceOf = computed(() => {
         const byNode = new Map<number, Array<string>>()
-        flat.value.forEach(({ tile }) => {
+        flat.value.forEach(tile => {
             if (!isProcTile(tile) || tile.nodeId === null) return   // 장비 파일 실행은 번호 없음
             byNode.set(tile.nodeId, [...(byNode.get(tile.nodeId) ?? []), tile.id])
         })
@@ -71,7 +82,7 @@ export const provideTileGrids = () => {
 
     // 루트 타일 터미널 탭 목록 — 최소화 먼저, 그다음 배치 순서
     const terminals = computed(() => {
-        const all = flat.value.flatMap(({ tile }) => isProcTile(tile) ? [tile] : [])
+        const all = flat.value.flatMap(tile => isProcTile(tile) ? [tile] : [])
         return [...all.filter(t => t.minimized), ...all.filter(t => !t.minimized)]
     })
 
@@ -143,6 +154,37 @@ export const provideTileGrids = () => {
         if (v !== cur) goCol(v)
     }
 
+    // ---- 끄는 동안 화면 끝 띠 — 칸·타일 끌기 공용, 모양 = PageEdgeBands ----
+    // 띠 안에 EDGE_HOLD_MS 머물면 칼럼 하나(0.5페이지)씩 넘김, 계속 머물면 다시 차올라 한 칼럼 더. 전체보기는 칼럼이 없어 쓰지 않는다
+    const edge = shallowRef<{ side: -1 | 0 | 1; since: number; prev: boolean; next: boolean } | null>(null)
+    let edgeCol = -1        // 넘긴 칼럼 — 부드러운 스크롤 중엔 view.col이 아직 옛 값이라 따로 센다
+    const edgeStart = () => {
+        if (overview.value) return
+        edgeCol = -1
+        edge.value = { side: 0, since: 0, prev: view.value.col > 0, next: view.value.col < maxCol.value }
+    }
+    const edgeTrack = (p: { x: number; y: number }) => {
+        const e = edge.value, el = stripEl.value
+        if (!e || !el) return
+        const r = el.getBoundingClientRect()
+        const cur = edgeCol >= 0 ? edgeCol : view.value.col
+        const prev = cur > 0, next = cur < maxCol.value
+        let side: -1 | 0 | 1 = p.y < r.top || p.y > r.bottom ? 0 : p.x < r.left + EDGE_BAND ? -1 : p.x > r.right - EDGE_BAND ? 1 : 0
+        if ((side < 0 && !prev) || (side > 0 && !next)) side = 0
+        const now = performance.now()
+        if (side && side === e.side && now - e.since >= EDGE_HOLD_MS) {
+            edgeCol = cur + side
+            goCol(edgeCol)
+            edge.value = { side, since: now, prev: edgeCol > 0, next: edgeCol < maxCol.value }
+        } else if (side !== e.side || prev !== e.prev || next !== e.next) {
+            edge.value = { side, since: side !== e.side ? now : e.since, prev, next }
+        }
+    }
+    const edgeEnd = () => {
+        edge.value = null
+        edgeCol = -1
+    }
+
     // 타일이 차지하는 칼럼 — gi = Grid 번호
     const columnsOf = (tileId: string) => {
         const gi = grids.value.findIndex(g => g.items.some(it => it.tile.id === tileId))
@@ -180,11 +222,12 @@ export const provideTileGrids = () => {
 
     // 전체보기의 다른 보드 줄 — 같은 cap으로 채워 "배치 그대로"(EV3(다른 보드 크기) = 같은 축소 비율)
     const otherBoards = computed<BoardGrids[]>(() => !overview.value || !area.value ? [] : boardTrees.list.value.map(({ board, tree, error }) => {
-        const l = tree ? layoutOf(tree.tiles, tree.rootId, cap.value) : undefined
+        const o = preview.value?.orders[board.hash]
+        const l = tree ? layoutOf(o ?? tree.order, o ? { ...tree.tiles, ...preview.value!.tiles } : tree.tiles, cap.value) : undefined
         return {
             board,
             grids: l?.grids ?? [],
-            posOf: new Map((l?.order ?? []).map((o, i) => [o.tile.id, i + 1])),
+            posOf: new Map((l?.order ?? []).map((t, i) => [t.id, i + 1])),
             loading: !tree && !error,
             error,
         }
@@ -314,7 +357,7 @@ export const provideTileGrids = () => {
         span: computed(() => cap.value.x),
         maxCol,
         viewCol: computed(() => view.value.col),
-        order: computed(() => order.value.map(o => o.tile.id)),
+        order: computed(() => order.value.map(t => t.id)),
         activeId,
         scrollEl: stripEl,
         scrubbing,
@@ -334,7 +377,9 @@ export const provideTileGrids = () => {
 
     const ctx = {
         area,
+        barH,
         cap,
+        preview,
         order,
         grids,
         newSize,
@@ -357,6 +402,10 @@ export const provideTileGrids = () => {
         scrubTo,
         colRange,
         reveal,
+        edge,
+        edgeStart,
+        edgeTrack,
+        edgeEnd,
         overview,
         ovPercent,
         ovScale,

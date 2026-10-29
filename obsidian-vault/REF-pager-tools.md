@@ -31,7 +31,7 @@
 | 팝업-2(왼쪽 슬롯) | `GridPager`에 `#start` 슬롯(맨 왼쪽). 도트 칸 수 계산이 끝 슬롯 폭을 재는 방식과 같게 시작 슬롯 폭도 뺌 | `GridPager.vue` |
 | 팝업-3(팝업 버튼) | `PagerPopup`: 시작 = 크기 아이콘(`mdi-resize`, active 없으면 비활성) -> 누르면 **버튼 가운데에 `TileSizeCard` 가운데**(Q56) + 알약 숨김(Q55), 크기 바꿔도 카드 자리 고정 / 끝 = 전체보기(푸터와 같은 flat primary 알약, `mdi-view-grid`만) -> `enterOverview`. 키를 떼면 크기 카드도 닫힘(Q53). 카드도 `mousedown.prevent`(xterm 포커스 유지) | `PagerPopup.vue` |
 | 팝업-4(터치 스크롤 배율) | `touchScroll.util.ts`에 배율 상수(처음 2) — 손가락 이동량·관성 속도에 곱함 | `process/util/touchScroll.util.ts` |
-| 팝업-6(길게 누르기로 띄우기) | (2026-10-23 추가, 팝업-5(확인) 전에 함) `PagerPopup` 여는 길을 둘로: 키(Ctrl+Alt, 떼면 닫힘) / 터치(Q57-1 자리에서 500ms, 누른 자리에 뜸, 바깥 탭·동작으로 닫힘, 폰 포함). 길게 누르기가 브라우저 기본 메뉴·글자 선택을 띄우지 않게 | `PagerPopup.vue` · 머리 줄(`TileFrame`) · 보드 빈 곳 |
+| 팝업-6(길게 누르기로 띄우기) | **(2026-10-29 터치 = 두 손가락 펼치기로 바뀜, 길게 누르기 = 타일 끌기 → `REF-tile-drag.md` 제스처-1(펼치기 패널))** (2026-10-23 추가, 팝업-5(확인) 전에 함) `PagerPopup` 여는 길을 둘로: 키(Ctrl+Alt, 떼면 닫힘) / 터치(Q57-1 자리에서 500ms, 누른 자리에 뜸, 바깥 탭·동작으로 닫힘, 폰 포함). 길게 누르기가 브라우저 기본 메뉴·글자 선택을 띄우지 않게 | `PagerPopup.vue` · 머리 줄(`TileFrame`) · 보드 빈 곳 |
 | 팝업-5(확인) | 격리 헤드리스: Ctrl+Alt 누른 채 크기 아이콘 -> 카드 -> 0.5/1.0 = active 타일 크기 바뀜 · 키 떼면 둘 다 닫힘 · 전체 버튼 = 전체보기 · active 없음 = 비활성 · 푸터 인디케이터 그대로 / 사용자 PC 브라우저 + 폰 실기기(스크롤 배율 정하기) | scratchpad |
 
 ## 구현 (2026-10-23, 브랜치 `feat/pager-tools`)

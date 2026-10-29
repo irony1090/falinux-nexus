@@ -10,8 +10,8 @@ import TileSizeCard from './tile/TileSizeCard.vue';
 const MAX_W = 560;
 const EDGE = 16;
 
-// 커서 위치에 인디케이터 하나 더 — 이동-2(커서 위치 페이지 표시) + 팝업-3(팝업 버튼)·팝업-6(길게 누르기로 띄우기), REF-pager-tools.md
-// 여는 길(키·길게 누르기)은 usePagerOpen. 키는 폰·단축키 끈 타일에선 안 띄움, 전체보기 중엔 둘 다 안 띄움
+// 커서 위치에 인디케이터 하나 더 — 이동-2(커서 위치 페이지 표시) + 팝업-3(팝업 버튼)·팝업-6(터치로 띄우기 — 지금은 두 손가락 펼치기), REF-pager-tools.md
+// 여는 길(키·두 손가락 펼치기)은 usePagerOpen. 키는 폰·단축키 끈 타일에선 안 띄움, 전체보기 중엔 둘 다 안 띄움
 const { overview, activeId, appShortcutsOff, enterOverview } = useTileGrids();
 
 const pagerRef = ref<InstanceType<typeof GridPager>>();
@@ -33,17 +33,12 @@ const place = (p: PagerPoint | null) => {
     at.value = { x: clamp(c.x, EDGE + w / 2, vw - EDGE - w / 2), y: clamp(c.y, EDGE + h / 2, vh - EDGE - h / 2) };
 }
 
-// 길게 누를 자리 = 타일 머리 줄 + 타일 밖 빈 곳(Q57-1) + 몸통의 `data-pager-press` 안 칸 밖(길게-2, REF-press-pager.md)
-const pressable = (t: Element) => {
-    if (t.closest('.TileFrame__head')) return true;
-    const own = t.closest('[data-pager-press]');
-    if (own) return !t.closest('.DirGridCell, [data-pager-press-off]');
-    return !!t.closest('.TileStrip') && !t.closest('.TileFrame');
-}
+// 펼칠 자리 = 보드 화면 어디든, 몸통이 직접 펼치기를 쓰는 곳(`data-pager-pinch-off`, 이미지 확대)만 빼고 — 제스처-1(펼치기 패널)
+const pinchable = (t: Element) => !!t.closest('.TileWorkspace') && !t.closest('[data-pager-pinch-off]');
 const { held, touchOpen, close } = usePagerOpen({
     off: () => overview.value,
     keyOff: () => appShortcutsOff.value,
-    pressable,
+    pinchable,
     inside: t => t instanceof Node && (!!boxEl.value?.contains(t) || !!cardEl.value?.contains(t)),
     onOpen: place,
 });

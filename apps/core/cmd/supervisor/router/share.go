@@ -281,7 +281,7 @@ func (r *supervisorRouter) deleteProcessShare(c echo.Context) error {
 	return c.JSON(200, shareChangeResponse{Entry: findShareEntry(r.processShareEntries(c, rec.Uid), userID)})
 }
 
-// bindProcessTile: "현재 타일에 바인딩"(개편-4) — 터미널 타일을 {hash} 보드의 {tileId} 아래로 옮김(없으면 새로, 닫혔으면 루트). 보기(10) 이상
+// bindProcessTile: "현재 타일에 바인딩"(개편-4) — 터미널 타일의 연 곳을 {hash} 보드의 {tileId}로, 자리는 그 바로 뒤(없으면 새로, 닫혔으면 루트). 보기(10) 이상
 // 타일 고정은 안 건드림(R6(바인딩 단어 겹침)). 이미 그 아래면 added=false
 func (r *supervisorRouter) bindProcessTile(c echo.Context) error {
 	sess := r.requireSession(c)
@@ -330,20 +330,17 @@ func (r *supervisorRouter) bindProcessTile(c echo.Context) error {
 			return c.JSON(200, map[string]bool{"added": false})
 		}
 		from, tile = &protocol.TileSpot{Hash: h, TileID: t.ID}, t
-		d.removeLeaf(t.ID)
+		d.remove(t.ID)
 		break
 	}
 	if from == nil {
 		if rec.Status != execute.CommandPending.String() && rec.Status != execute.CommandProcess.String() {
 			panic(web.Err(400, "끝난 process는 열 수 없습니다"))
 		}
-		tile = newTerminalTile(nil, nullID(rec.NodeID), uid, defaultTileSize)
+		tile = newTerminalTile(nullID(rec.NodeID), uid, defaultTileSize)
 	}
-	tile.Parent, tile.Minimized = &parentID, false
-	parent := dst.Tiles[parentID]
-	parent.Kids = append(parent.Kids, tile.ID)
-	dst.Tiles[parentID] = parent
-	dst.Tiles[tile.ID] = tile
+	tile.Minimized = false
+	tile = dst.openTile(parentID, tile)
 
 	saved := savedTrees{}
 	upd := saveLockedTree(c, locked[hash], dst)

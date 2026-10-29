@@ -40,10 +40,9 @@ func (r *supervisorRouter) listViewers(c echo.Context) error {
 	out := []viewerResponse{}
 	for _, rec := range docs {
 		doc := mustParseDoc(rec.Tree)
-		// 루트에서 너비 우선 = 보드 안 순서가 매번 같게
-		for queue := []string{doc.RootID}; len(queue) > 0; queue = queue[1:] {
-			t := doc.Tiles[queue[0]]
-			queue = append(queue, t.Kids...)
+		// order 순 = 보드 안 화면 순서
+		for _, id := range doc.Order {
+			t := doc.Tiles[id]
 			if t.Type != tileViewer || t.NodeID == nil {
 				continue
 			}

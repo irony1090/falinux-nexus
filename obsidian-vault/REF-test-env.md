@@ -38,6 +38,7 @@
 
 - **소켓 연결 순서 함정(2026-10-21)**: 서버는 `TAB:ID`를 먼저 보내고 그 뒤 process 토픽을 구독한다(`handleSubscribeWS`) -> 확인 클라이언트가 `TAB:ID`를 받자마자 입력을 보내면 그 출력을 못 받는다. 연결 뒤 0.3초쯤 기다릴 것
 - **유저 id 얻기**: `POST /users`·`/users/session` 응답에 id가 없고 `/users/lookup?identification=`은 자기 자신을 거절 -> 두 계정이 서로 조회
+- **vite 빈 모듈 함정(2026-10-29)**: 떠 있는 vite(8011)가 파일을 고쳐 쓰는 순간(스크립트가 비우고 다시 씀)을 읽어 **빈 모듈로 캐시** -> 브라우저 `does not provide an export named ...`. 고침 = 그 파일 `touch`(다시 읽음), `curl localhost:8011/src/<경로> | wc -c`로 확인. vite가 떠 있을 땐 python으로 통째로 다시 쓰지 말고 Edit 도구로 고칠 것
 - **빌드 출력 함정(2026-10-21)**: `apps/core`에서 `go build ./cmd/supervisor`를 `-o` 없이 돌리면 `apps/core/supervisor`(gitignore)를 덮어씀 -> 빌드 확인도 항상 `-o <scratchpad>/...`
 
 - **VM에서 보이는 주소로 화면 시험(2026-10-23)**: `http://172.17.0.1:3001`은 보안 컨텍스트가 아니라 `crypto.randomUUID()`가 없음 -> 새 타일이 안 열림(콘솔 에러만). Chrome `--unsafely-treat-insecure-origin-as-secure=<주소>`로 띄움. 쿠키 때문에 API·화면을 같은 호스트(172.17.0.1)로 맞출 것 → `REF-worker-dir-list.md` "Windows 확인"

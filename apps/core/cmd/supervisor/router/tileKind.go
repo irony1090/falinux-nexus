@@ -21,8 +21,8 @@ const tileHistMax = 20
 
 type tileKind struct {
 	canRoot   bool                   // 능력-1(루트 가능): 보드 루트·새 보드로 분리
-	canParent bool                   // 능력-2(자식 가능): kids를 가짐
-	holdsProc bool                   // 능력-3(process 담음): uid = process uid, adopted·minimized·shortcutsOff. 이런 종류를 더하면 SQL의 `type == "terminal"`(processes.sql·tileTrees.sql 3곳)도 같이
+	canParent bool                   // 능력-2(자식 가능): 다른 타일을 연다(연 곳 = parent가 될 수 있음)
+	holdsProc bool                   // 능력-3(process 담음): uid = process uid, minimized·shortcutsOff. 이런 종류를 더하면 SQL의 `type == "terminal"`(processes.sql·tileTrees.sql 3곳)도 같이
 	check     func(t tileItem) error // 종류만의 필드 검사(능력 검사는 validate가 함)
 }
 
@@ -80,16 +80,17 @@ func (t tileItem) procUID() string {
 	return ""
 }
 
-// newTerminalTile: 서버만 터미널 타일을 만든다(WS5(터미널 타일 추가 주체)) — parent·kids 연결은 호출부
-func newTerminalTile(parent *string, nodeID *int64, uid string, size tileSize) tileItem {
-	return tileItem{ID: uuid.NewString(), Type: tileTerminal, Parent: parent, Kids: []string{}, Size: size, NodeID: nodeID, UID: uid}
+// 새 타일 — 자리(parent·order)는 tileDoc.openTile이 정한다
+// newTerminalTile: 서버만 터미널 타일을 만든다(WS5(터미널 타일 추가 주체))
+func newTerminalTile(nodeID *int64, uid string, size tileSize) tileItem {
+	return tileItem{ID: uuid.NewString(), Type: tileTerminal, Size: size, NodeID: nodeID, UID: uid}
 }
 
-// newViewerTile: 영상은 서버만 만든다(openVideoTile), 이미지는 프론트 — parent·kids 연결은 호출부
-func newViewerTile(parent *string, nodeID int64, instance, path string, size tileSize) tileItem {
-	return tileItem{ID: uuid.NewString(), Type: tileViewer, Parent: parent, Kids: []string{}, Size: size, NodeID: &nodeID, Instance: instance, Path: path}
+// newViewerTile: 영상은 서버만 만든다(openVideoTile), 이미지는 프론트
+func newViewerTile(nodeID int64, instance, path string, size tileSize) tileItem {
+	return tileItem{ID: uuid.NewString(), Type: tileViewer, Size: size, NodeID: &nodeID, Instance: instance, Path: path}
 }
 
-func newFolderTile(parent *string, nodeID *int64, uid string) tileItem {
-	return tileItem{ID: uuid.NewString(), Type: tileFolder, Parent: parent, Kids: []string{}, Size: defaultTileSize, NodeID: nodeID, UID: uid}
+func newFolderTile(nodeID *int64, uid string) tileItem {
+	return tileItem{ID: uuid.NewString(), Type: tileFolder, Size: defaultTileSize, NodeID: nodeID, UID: uid}
 }

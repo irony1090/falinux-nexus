@@ -22,4 +22,4 @@
 - 라벨 = 선 끊기(안 A, Vuetify `outlined`), 칸 높이 sm 32 / md 40, 끝 여백 = 반지름보다 안쪽(sm 20·md 24, 곧은 끝 14), 여러 줄 칸 = 16px 상자, 펼침 목록 사방 8px
 - 붙인 묶음(`.ct-join`)의 메시지 = 묶음 아래 한 줄 `.ct-msg`(칸은 `error hide-details`)
 - autocomplete = 관리자 장비 주인 고르기만(공유 대상 찾기는 글자 칸 — 회원 목록 노출 안 함)
-- 다른 파트에서도 지킬 것(입력칸 = Ct* 컴포넌트, v-input 세로 늘어남 함정)은 MEMORY·`REF-decisions.md` "입력칸"에 남김
+- 다른 파트에서도 지킬 것(입력칸 = Ct* 컴포넌트, v-input 세로 늘어남 함정)은 MEMORY·`REF-decisions-ui.md` "입력칸"에 남김
