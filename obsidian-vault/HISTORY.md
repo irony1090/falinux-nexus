@@ -75,6 +75,7 @@
 | `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환 계획·회사 준비 |
 | `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝(`nexus`·`direct`), cloudflared 정지, 남은 것 BACKLOG "cloudflared 삭제"(10-29) |
 | `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-29 저녁 drag 묶음 배포 완료(worker 항상 포함 규칙) |
+| `history/update-deploy.md` | 파트(업데이트 app) 설계(2026-10-30 신설) ↔ `REF-update-deploy.md` | 10-30 설계 확정(Linux 먼저), 코드 착수 전 |
 | `history/member-drag.md` | 파트(내 장비·관리자 타일 이동)(2026-10-30 신설) ↔ `REF-member-drag.md` | 10-30 열기 규칙 + 끌기 구현, 헤드리스 4종 통과 |
 | `history/tile-drag.md` | 파트(타일 끌기)(2026-10-29 신설) ↔ `REF-tile-drag.md` | 10-29 끌기 착수 전까지(방향·계획·끄는 모양) |
 | `history/tile-drag-impl.md` | 파트(타일 끌기) 끌기-1·2·제스처-1·보드-1·칸-1·2 구현(2026-10-29 분할) ↔ `REF-tile-drag-impl.md` | 10-29 파트 마감(칸-1·2·끝 띠, 커밋 + master 머지) |
