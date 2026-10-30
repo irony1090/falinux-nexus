@@ -46,6 +46,14 @@ func main() {
 	}
 	addr := fmt.Sprintf("%s:%d", host, env.Port)
 	e, _ := router.NewSupervisorRouter(env.WorkerPath, env.SessionKey)
+	// 검색 엔진 색인 금지 — 공개 도메인(test*.falinux.com·집 서버)으로 열려 있어 화면·API 응답 전부에 붙인다.
+	// Pre = 정적 서빙보다 먼저(Use는 라우팅 뒤라 Pre가 직접 내보내는 파일에는 안 붙는다)
+	e.Pre(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Response().Header().Set("X-Robots-Tag", "noindex, nofollow")
+			return next(c)
+		}
+	})
 	if env.WebDir != "" {
 		// Pre = 라우팅·tx 앞. 파일이 없으면 API로 넘기고, 404면 index.html(SPA 경로 /w/:hash 새로고침)
 		// /api·worker 경로는 건너뜀 — 없는 API가 index.html(200)이 아니라 JSON 404로 나가게

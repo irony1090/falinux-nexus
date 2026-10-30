@@ -31,3 +31,12 @@
 - 주의: `.env`·`vite.config.mts`를 바꾸면 돌고 있는 vite가 **스스로 재시작**해 새 포트로 옮겨 감(2026-10-13 3000 -> 8011)
 
 ## 확인 결과 → `history/external-access.md` 2026-10-13
+
+## 검색 엔진 색인 금지 (2026-10-30)
+- 공개 도메인(test*.falinux.com·집 서버 직통)으로 열려 있어 **검색에 잡히면 안 된다**. 두 겹으로 막는다(robots.txt만으로는 이미 알려진 URL 색인을 못 막음)
+| 곳 | 방법 |
+|---|---|
+| `apps/frontend/index.html` | `<meta name="robots" content="noindex, nofollow">` — vite 개발·모든 빌드본 화면 |
+| `apps/core/cmd/supervisor/main.go` | **`e.Pre`**로 모든 응답에 `X-Robots-Tag: noindex, nofollow` — 화면(정적)·API·SPA 경로 전부. `Use`가 아니라 `Pre`인 이유 = 정적 서빙(`middleware.StaticWithConfig`)도 Pre라서, Pre가 직접 내보내는 파일에는 Use 헤더가 안 붙는다 |
+| `apps/frontend/public/robots.txt` | `User-agent: * / Disallow: /` — 크롤 자체를 막는 덤(빌드본에 자동 포함) |
+- 확인 = `go run ./cmd/supervisor -env dev.env` 뒤 `curl -sI localhost:8012/`·`/api/me` 둘 다 `X-Robots-Tag: noindex, nofollow` (2026-10-30)

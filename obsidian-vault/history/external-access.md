@@ -15,3 +15,6 @@
 
 ## 2026-10-13(3) — 마감·커밋
 - 전체 화면 버튼(→ `history/frontend.md` 2026-10-13(2))과 함께 파트(노드 클립보드)와 나눠 커밋. supervisor·worker `env`(8012)도 지금 쓰는 설정이라 커밋에 포함, 프론트 `.env`는 git 제외
+
+## 2026-10-30 — 검색 엔진 색인 금지
+- 사용자 "검색 엔진에 검색되지 않도록 해야 돼" -> 세 겹: `index.html` meta robots(noindex, nofollow) · supervisor `e.Pre`로 전 응답 `X-Robots-Tag` · `public/robots.txt`(Disallow: /). 확인 = dev supervisor 띄워 `/`·`/api/me` 헤더 확인
