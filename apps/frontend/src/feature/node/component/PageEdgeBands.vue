@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import { EDGE_BAND, EDGE_HOLD_MS, type EdgeState } from '@/feature/widget/util/edgeBand.util';
 import { VIcon } from 'vuetify/components';
-import { EDGE_BAND, EDGE_HOLD_MS, useTileGrids } from '../store/tileGrids.store';
 
-// 끄는 동안 화면 끝 띠(넘길 페이지가 있는 쪽만) — 안에 머물면 차오르고, 다 차면 칼럼 하나(0.5페이지) 넘김. 판정 = tileGrids edgeTrack
+// 끄는 동안 화면 끝 띠(넘길 페이지가 있는 쪽만) — 안에 머물면 차오르고, 다 차면 칼럼 하나(0.5페이지) 넘김. 판정은 소비처(makeEdgeBands)
 // 끌기 판정(elementFromPoint)을 가리지 않게 pointer-events 없음
-const { edge } = useTileGrids();
+defineProps<{ edge: EdgeState | null }>();
 const SIDES = [
     { side: -1, key: 'prev', icon: 'mdi-chevron-left', text: '이전 페이지' },
     { side: 1, key: 'next', icon: 'mdi-chevron-right', text: '다음 페이지' },

@@ -136,7 +136,7 @@ const remove = () => openDialog({
 </script>
 
 <template>
-<div class="mb-body">
+<div class="mb-body" data-pager-press>
     <p v-if="deviceQuery.isError.value" class="mb-empty">장비를 찾을 수 없습니다(지워졌을 수 있습니다)</p>
     <template v-else-if="d">
         <div class="mb-fields mb-fields--wall">

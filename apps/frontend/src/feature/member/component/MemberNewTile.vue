@@ -47,7 +47,7 @@ const submit = () => {
 </script>
 
 <template>
-<form class="mb-body" @submit.prevent="submit">
+<form class="mb-body" data-pager-press @submit.prevent="submit">
     <div class="mb-fields top">
         <label for="nf-name" class="mb-lbl">장비 이름</label>
         <CtTextField id="nf-name" v-model="name" size="sm" placeholder="예: line3-pc" autocomplete="off" :disabled="busy" persistent-hint

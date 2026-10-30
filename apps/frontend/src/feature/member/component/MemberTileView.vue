@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { VIcon, VMenu } from 'vuetify/components';
 import { useMemberUser } from '../api/device.api';
 import { useMemberBoard } from '../store/memberBoard.store';
+import { memberChip, memberDragFrom, useMemberDrag } from '../store/memberDrag.store';
 import { kindOf, mainKeyOf, userIdOf, type Placed } from '../util/memberGrid.util';
 import MemberDeviceTile from './MemberDeviceTile.vue';
 import MemberNewTile from './MemberNewTile.vue';
@@ -37,17 +38,31 @@ const crumbs = computed<Crumb[]>(() => {
 
 const active = computed(() => activeKey.value === tile.value.key);
 
+// 끌기(순서 바꾸기) — 머리 줄·몸통 빈 곳을 잡으면 시작. 끄는 동안 이 타일 자리 = 빈 자리
+const { dragKey, pressKey, down } = useMemberDrag();
+const slot = computed(() => dragKey.value === tile.value.key);
+const pressing = computed(() => pressKey.value === tile.value.key);
+const chipName = computed(() =>
+    kind.value === 'user' ? nick.value : kind.value === 'device' ? mainKeyOf(tile.value.key) : admin.value ? '대신 등록' : '장비 등록');
+const onDown = (e: PointerEvent) => {
+    if (!memberDragFrom(e.target as Element, e.pointerType)) return;
+    down(e, tile.value.key, memberChip(kind.value, chipName.value));
+};
+
 // 크기 팝업은 크기가 바뀌면 버튼 자리를 따라간다(보드 relocateSizeMenu와 같음)
 const frameEl = ref<HTMLElement>();
 const sizeMenu = ref<InstanceType<typeof VMenu>>();
+const sizeOpen = ref(false);
 const relocateSizeMenu = () => requestAnimationFrame(() => sizeMenu.value?.updateLocation?.(new Event('resize')));
 useResizeCallback(frameEl, relocateSizeMenu);
+// 끌기 시작하면 열려 있던 팝업은 닫는다 — 열린 채로 끌면 팝업이 버튼을 따라가며 화면이 흔들린다
+watch(dragKey, k => { if (k) sizeOpen.value = false; });
 </script>
 
 <template>
-<section ref="frameEl" class="MemberTileView mb-tile" :class="{ child: !!tile.parent, active }" :data-tile-key="tile.key" tabindex="-1"
+<section ref="frameEl" class="MemberTileView mb-tile" :class="{ child: !!tile.parent, active, slot, pressing }" :data-tile-key="tile.key" tabindex="-1"
     :aria-label="kind === 'user' ? '회원 타일' : kind === 'device' ? '장비 타일' : '장비 등록 타일'"
-    @pointerdown.capture="setActive(tile.key)"
+    @pointerdown.capture="setActive(tile.key)" @pointerdown="onDown"
 >
     <div class="mb-head">
         <span class="pos">{{ posOf.get(tile.key) }}</span>
@@ -59,7 +74,7 @@ useResizeCallback(frameEl, relocateSizeMenu);
             </template>
         </nav>
         <span class="tile-btn-end close" :class="{ 'tile-btn-end--primary': active }">
-            <v-menu ref="sizeMenu" location="bottom end" :close-on-content-click="false">
+            <v-menu ref="sizeMenu" v-model="sizeOpen" location="bottom end" :close-on-content-click="false">
                 <template #activator="{ props: act }">
                     <button v-bind="act" type="button" class="tile-btn" :title="`크기 ${placed.cw}×${placed.ch}칸`" aria-label="크기">
                         <v-icon size="16" icon="mdi-resize" />
@@ -81,6 +96,13 @@ useResizeCallback(frameEl, relocateSizeMenu);
     &.child { border-color: rgba(var(--v-theme-primary), 0.35); }
     // active — 보드 TileFrame과 같은 바깥 선
     &.active { outline: 2px solid rgb(var(--v-theme-primary)); outline-offset: 1px; }
+    // 끌기 시작 대기(터치로 누르는 중)
+    &.pressing { outline: 2px solid rgba(var(--v-theme-primary), 0.45); outline-offset: 1px; }
+    // 끄는 타일의 원래 자리 = 빈 자리. 바탕은 불투명(반투명이면 GPU 잔상, REF-tile-drag-impl.md 함정)
+    &.slot {
+        background: linear-gradient(rgba(var(--v-theme-primary), 0.08), rgba(var(--v-theme-primary), 0.08)), rgb(var(--v-theme-surface));
+        > * { visibility: hidden; }
+    }
     // 알약 타일 이동 뒤 포커스(키 입력 대상)만 받는다 — 포커스 선은 active 선으로 대신
     &:focus:not(.active) { outline: none; }
 }

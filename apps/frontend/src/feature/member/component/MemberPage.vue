@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
+import PageEdgeBands from '@/feature/node/component/PageEdgeBands.vue';
+import TileDragChip from '@/feature/node/component/TileDragChip.vue';
 import { useGapWheel } from '@/feature/widget/hook/gapWheel.hook';
 import { computed, ref, watch } from 'vue';
 import { useMemberBoard } from '../store/memberBoard.store';
+import { provideMemberDrag } from '../store/memberDrag.store';
 import { GAP } from '../util/memberGrid.util';
 import MemberFooter from './MemberFooter.vue';
 import MemberList from './MemberList.vue';
@@ -10,7 +13,12 @@ import MemberPagerPopup from './MemberPagerPopup.vue';
 import MemberTileView from './MemberTileView.vue';
 
 // 내 장비·관리자 페이지 틀 — 목록 열 + 상세 Grid strip + 보드와 같은 아래 푸터. REF-member-ui.md 화-1(방향)·화-6(Grid 크기)·화-13(전체 헤더)·화-14(폰)
-const { area, layout, grids, scrollEl, scrollX, viewW, scrubbing, pager } = useMemberBoard();
+const board = useMemberBoard();
+const { area, layout, grids, scrollEl, scrollX, viewW, scrubbing, pager } = board;
+// 타일 끌기(순서 바꾸기) — 타일 컴포넌트들이 inject로 쓴다
+const drag = provideMemberDrag(board);
+const edge = drag.edge;   // 끝 띠 상태(칼럼 넘기기)
+const dragChip = drag.chip;
 // 타일 밖(타일 사이·빈 칸·푸터) 세로 휠 = 칼럼 한 칸 — 보드 푸터-7(빈 곳 휠)과 같음. 목록·상세 타일 위는 그 안 스크롤
 const onWheel = useGapWheel(pager, t => !!t.closest('.mb-tile'));
 
@@ -56,7 +64,7 @@ const snaps = computed(() => Array.from({ length: layout.value.cols }, (_, c) =>
                 <div v-if="!grids.length" class="grid">
                     <div class="empty">목록에서 누르면 여기에 타일이 쌓입니다</div>
                 </div>
-                <div v-for="(g, gi) in grids" :key="gi" class="grid" :style="gridStyle">
+                <div v-for="(g, gi) in grids" :key="gi" class="mb-grid grid" :style="gridStyle">
                     <span v-for="c in snaps" :key="`s${c}`" class="snap" :style="{ gridColumn: c + 1 }" aria-hidden="true" />
                     <member-tile-view v-for="it in g.items" :key="it.tile.key" :placed="it"
                         :style="{ gridColumn: `${it.c + 1} / span ${it.cw}`, gridRow: `${it.r + 1} / span ${it.ch}` }"
@@ -64,9 +72,11 @@ const snaps = computed(() => Array.from({ length: layout.value.cols }, (_, c) =>
                 </div>
             </div>
         </div>
+        <page-edge-bands :edge="edge" />
     </div>
     <member-footer />
     <member-pager-popup />
+    <tile-drag-chip :chip="dragChip" />
 </div>
 </template>
 
@@ -79,6 +89,7 @@ const snaps = computed(() => Array.from({ length: layout.value.cols }, (_, c) =>
     background: rgb(var(--v-theme-background));
 }
 .body {
+    position: relative;   // 끝 띠 기준(푸터 위 영역)
     flex: 1;
     min-height: 0;
     display: flex;

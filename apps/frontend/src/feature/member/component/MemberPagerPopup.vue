@@ -4,6 +4,7 @@ import { useDigitShortcut } from '@/feature/widget/hook/digitShortcut.hook';
 import { computed, nextTick, ref, watch } from 'vue';
 import { VBtn, VIcon } from 'vuetify/components';
 import { useMemberBoard } from '../store/memberBoard.store';
+import { useMemberDrag } from '../store/memberDrag.store';
 import MemberDots from './MemberDots.vue';
 import MemberSizeCard from './MemberSizeCard.vue';
 
@@ -69,6 +70,13 @@ const openSize = async (e: MouseEvent) => {
 // 터치로 연 것 = 도트 누르기·끌기가 끝나면 닫힘. 키로 연 것은 키를 뗄 때까지(보드 PagerPopup과 같음)
 const onPillClick = () => { if (touchOpen.value && !sizeOpen.value) close(); }
 watch(dragging, d => { if (!d && touchOpen.value) touchOpen.value = false; });
+// 타일을 끌기 시작하면 패널도 닫는다 — 열린 채로 끌면 패널이 화면을 가리고 포커스가 흔들린다
+const { dragKey } = useMemberDrag();
+watch(dragKey, k => {
+    if (!k) return;
+    sizeOpen.value = false;
+    if (touchOpen.value) close();
+});
 </script>
 
 <template>

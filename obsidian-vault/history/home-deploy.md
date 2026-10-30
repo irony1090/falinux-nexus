@@ -22,3 +22,8 @@
 ## 2026-10-28 밤 — viewer-image 묶음
 - 사용자 요청: 오늘 뷰어 기능 포함 최신으로, 이름 viewer-image, worker·supervisor 둘 다 -> master `709095c` Windows 빌드 -> `build/home-update/nexus-viewer-image.zip`. web은 새로 빌드(test2 주소 안 들어감 확인). 배포 완료(사용자, 10-28 밤) → REF-home-deploy "viewer-image 배포 묶음"
 - 같은 밤: 집 서버 "편집" 거절 메시지(EDITOR 안내) 확인 -> `winget install Microsoft.Edit` + worker 재시작(`Start-ScheduledTask Nexus`) -> 정상(사용자). 명령 = user vault `user/home-server/편집기-설치.md`
+
+## 2026-10-29 — drag 묶음
+- 사용자 요청: 집 서버 배포 빌드(영상 Range + 타일 끌기). 조율: worker도 항상 최신으로 넣기 · test3와 집 서버는 보드가 다름 · 이름 `drag` -> master `29ae134` Windows 빌드 -> `build/home-update/nexus-drag.zip`. 배포는 사용자 → REF-home-deploy "drag 배포 묶음"
+- 같은 질문: 로컬 `check.ps1`·`prepare.ps1` 지워도 되는지 -> 둘 다 됨(`prepare.ps1` = 짝 파일 없어 혼자 못 돎, `check.ps1` = 읽기 전용, 필요하면 다시 작성. `build/`는 git 밖이라 지우면 복구 불가). 지울지는 사용자
+- 사용자 배포 -> "배포 잘 됨"(10-29 저녁). 실행 명령은 터미널 복사가 안 돼 user vault `user/home-server/drag-배포.md`로 만듦

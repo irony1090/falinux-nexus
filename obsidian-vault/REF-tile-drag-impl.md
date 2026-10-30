@@ -12,6 +12,7 @@
 | `tileGrids.store` `preview` | 있으면 `layoutOf`가 문서 order 대신 씀(위치 번호도 미리보기 기준) |
 | `TileFrame` | `--slot`(빈 자리: 내용 visibility hidden, 그대로 마운트, **배경 불투명**(surface + 파랑 8% 겹침) — 반투명이면 GPU 잔상, 아래 함정) · `--pressing`(터치 누르는 중) |
 | `TileDragChip.vue` | 안 1 작은 표시(아이콘·이름), 끄는 동안 `html.tile-dragging`(커서·글자 선택) |
+| 2026-10-30 | 끌기 시작하면 `TileFrame`의 크기 팝업·⋮ 메뉴를 닫는다(`v-model` + `dragId` 감시). 끌기 세션이 손 뗀 클릭을 400ms 먹어 "바깥 누르면 닫기"가 안 걸리던 것 — 관리 페이지와 같은 규칙(`REF-member-drag.md`) |
 | 제스처-1 `pagerOpen.hook` | 터치 = 두 손가락 펼치기(touch 이벤트로 잼, 40px 벌어지면, 두 손가락 가운데). 길게 누르기 코드 삭제. 옵션 `pressable` → `pinchable`. 이미지 보기 몸통 = `data-pager-pinch-off`. **관리 페이지(`MemberPagerPopup`)도 펼치기로 같이 바뀜**(길게 누르기 없음) |
 - 남은 것: 전체보기 끌기(보드-1과 같이 — 전체보기는 축소·캡션이라 배치 위치 계산이 다름) · 폰 실기기(Android "길게 누른 뒤 움직이기") · 미리보기 중 다른 Grid로 옮겨 가는 타일은 다시 마운트됨(터미널은 attach/detach라 화면 유지, 기존 순서 변경과 같음)
 - 함정(10-29 사용자 발견): 빈 자리 배경이 반투명이면 실제 Chrome(GPU)에서 옆 칸(루트) 글자 조각이 비침 — 루트가 보이는 화면에서 3번 자리로 끌 때 잦음. 헤드리스(GPU 없음)는 재현 안 됨, DOM상 보이는 요소 0. 추정 = 다시 쓰는 GPU 조각을 안 지우고 반투명만 칠함 -> 불투명 바탕으로 고침 -> 사용자 PC Chrome에서 재현 안 됨 확인(10-29). 스크린샷 = user vault `user/스크린샷 2026-10-29 15-48-27.png`
