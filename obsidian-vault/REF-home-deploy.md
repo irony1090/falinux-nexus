@@ -55,3 +55,10 @@
 - 편집기: 서버 PC엔 일부러 안 깖(거절 메시지 확인 뒤 `winget install Microsoft.Edit`로 비교, 사용자)
   - 2026-10-28 밤 거절 메시지 확인(사용자) -> 설치·worker 재시작 명령 = user vault `user/home-server/편집기-설치.md`(worker는 켜질 때 PATH를 쓰므로 설치 뒤 `Start-ScheduledTask Nexus`로 재시작 필요) -> **설치·재시작 후 "편집" 정상(사용자, 10-28 밤)**
 - **배포 결과(2026-10-28 밤)**: 사용자 `update.ps1` -> 완료. 서버 PC에 `*.old-<stamp>`(exe 2개·web)·`viewer-image\`·zip 남음 -> 정리 기준 = 위 "서버 PC 정리 기준"(+ 10-28 낮 `web.bak-*`)
+
+## drag 배포 묶음 (2026-10-29)
+- **규칙(사용자, 10-29): 집 서버 묶음엔 worker도 항상 최신으로 넣는다** — worker 코드가 안 바뀌었어도 같은 커밋으로 다시 빌드해 넣음(`update.ps1`도 `worker.exe` 필수)
+- `build/home-update/nexus-drag.zip`(폴더 `drag/`): master `29ae134`(영상 Range + 타일 끌기) Windows `supervisor.exe`·`worker.exe` + `web/`(`VITE_API_URL=`, test2 주소 없음 확인) + `update.ps1`(viewer-image 것 그대로) + README. 태그 `DRAG-HOMESERVER-261029`(빌드 뒤 `DRAG-261029`로 되돌림)
+- DB: 켜질 때 마이그레이션 `00015`(영상 이어보기) + 옛 타일 문서 order 변환(`tileOrderMigrate.go`, 한 번). 변환된 문서엔 `kids`가 없어 손으로 옛 supervisor로 되돌리면 못 읽음 -> README에 배포 전 `pg_dump` 권장. test3와 집 서버는 보드 데이터가 다름(사용자) -> 집 서버 보드 순서는 배포 뒤 따로 확인
+- 실행 명령(복사용) = user vault `user/home-server/drag-배포.md`
+- **배포 결과(2026-10-29 저녁)**: 사용자 "배포 잘 됨". 서버 PC 정리 기준 = 위 "서버 PC 정리 기준"(+ `nexus-before-drag.dump`는 보드 확인 끝날 때까지)

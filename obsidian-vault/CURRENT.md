@@ -1,13 +1,19 @@
 # CURRENT
 
 ## 현재 날짜
-2026-10-29
+2026-10-30
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`, 마감 파트는 `INDEX-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
 ---
 
 ## ⚠️ 다음 세션 시작 시
+- **(2026-10-30) 파트(내 장비·관리자 타일 이동) 마감** — `feat/member-drag` 커밋 + master 머지, push = 사용자. **진행 중 파트 없음** → `REF-member-drag.md` · `history/member-drag.md`
+  - 열기 규칙(화-9 = 보드 `openTile`과 같게 — 연 곳 바로 뒤, 연 곳 없으면 맨 앞) · 끌기(그 타일만, `parent` 유지, 머리 줄 + 몸통 빈 곳에서 시작, 순서는 URL `t`에만) · 끝 띠 페이지 넘기기 · 끌기 시작하면 팝업 닫기(관리 페이지 + 보드)
+  - 사용자 확인 완료(PC·관리자·내 장비·폰) — 실기기에서 찾은 것 2건 고침 = 세로 2칸 타일 위/아래 절반 판정, 반 칸 타일 아래 빈 칸
+  - 미확인으로 남긴 것 = 회원→장비 자식 붙기(dev DB에 장비 없음) · 경로 재열림(`openParent`)이 자식 묶음 중간에 낄 수 있음(옛 동작, 안 고침)
+  - **이번 세션에 띄운 것**: test1(8011 vite) · test2(8012 개발 supervisor, DB `nexus`) — 둘 다 이 세션 백그라운드 작업이라 정리 필요하면 끈다. test3(8013 `build/video_view_tmp`, DB `nexus_build`)는 손대지 않음. 계정 `irony`(dev DB admin은 사용자가 넣음, 명령 = `user/dev-admin-grant.md`)
+- **(2026-10-29 저녁) 집 서버 묶음 `build/home-update/nexus-drag.zip`**(master `29ae134`, worker 포함, 태그 `DRAG-HOMESERVER-261029`) — **배포 완료(사용자, 10-29 저녁)** = 집 서버도 영상 Range + 타일 끌기 → `REF-home-deploy.md` "drag 배포 묶음". 로컬 `check.ps1`·`prepare.ps1` 지워도 됨(지울지 사용자)
 - **(2026-10-29) 파트(타일 끌기) 마감** — `feat/tile-drag` 커밋 + master 머지, push = 사용자. **진행 중 파트 없음** → `REF-tile-drag.md`(계획·결정) · `REF-tile-drag-impl.md`(구현·함정) · `REF-tile-order.md`(순서 구조) · 결정 = MEMORY "터치 제스처"·"끌기"(상세 `REF-decisions-ui.md`)
   - 구조-1~3 · 끌기-1·2 · 제스처-1 · 보드-1 · 칸-1·2 · 끝 띠 + 선택 막대 배치 고침 · 로그인 제목 `NEXUS`
   - **빌드 = 사용자가 직접**: 태그 `# SUPERVISOR-TILE_DRAG-261029`·`# WORKER-TILE_DRAG-261029`(env 첫 줄, 아직 `VIDEO_VIEW-261029`) -> `scripts/build.sh 261029_tile_drag`. **DB 마이그레이션 없음**, 옛 타일 문서(kids)는 supervisor가 처음 읽을 때 order로 변환 저장(`tileOrderMigrate.go`, 실데이터 처음 = test3 `nexus_build`) — 배포 뒤 보드가 그대로인지 확인할 것. 프론트·supervisor 같이, 열린 탭 새로고침

@@ -55,7 +55,7 @@
 - 경로 줄 정리(마감, 경로 줄 버튼 묶음·이동 버튼 경로 왼쪽·가로 스크롤) → `INDEX-path-row.md` (path-row)
 - 패널 창 버튼(마감, 컨트롤 패널에 active 타일 [숨기기|크기|닫기]·위치 글자 빼기·도트 최소 폭, 미해결 1건) → `INDEX-pager-head-btns.md` (pager-head-btns)
 - 닫은 뒤 active(마감, active 닫으면 위치 번호 이웃 active, 보드·관리) → `INDEX-close-active.md` (close-active)
-- **파일 편집기(10-28) · 보기 타일(10-28) · 영상 Range(10-29) · 타일 끌기(10-29) 마감 — 아직 INDEX로 안 접음**, REF·history는 아래 표(file-view·view-tile·video-view·tile-drag·tile-drag-impl·tile-order)
+- **파일 편집기(10-28) · 보기 타일(10-28) · 영상 Range(10-29) · 타일 끌기(10-29) · 내 장비·관리자 타일 이동(10-30) 마감 — 아직 INDEX로 안 접음**, REF·history는 아래 표(file-view·view-tile·video-view·tile-drag·tile-drag-impl·tile-order·member-drag)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.
@@ -74,7 +74,8 @@
 | `history/design-chaltteok.md` | 찰떡 규칙(디자인 규칙, 2026-10-25 신설) | 10-25 이름 확정·아티팩트·REF 정리 → 파트(찰떡 UI) 시안·다′·구현·test3 웹 교체 |
 | `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환 계획·회사 준비 |
 | `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝(`nexus`·`direct`), cloudflared 정지, 남은 것 BACKLOG "cloudflared 삭제"(10-29) |
-| `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-28 밤 viewer-image 묶음 배포 완료 |
+| `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-29 저녁 drag 묶음 배포 완료(worker 항상 포함 규칙) |
+| `history/member-drag.md` | 파트(내 장비·관리자 타일 이동)(2026-10-30 신설) ↔ `REF-member-drag.md` | 10-30 열기 규칙 + 끌기 구현, 헤드리스 4종 통과 |
 | `history/tile-drag.md` | 파트(타일 끌기)(2026-10-29 신설) ↔ `REF-tile-drag.md` | 10-29 끌기 착수 전까지(방향·계획·끄는 모양) |
 | `history/tile-drag-impl.md` | 파트(타일 끌기) 끌기-1·2·제스처-1·보드-1·칸-1·2 구현(2026-10-29 분할) ↔ `REF-tile-drag-impl.md` | 10-29 파트 마감(칸-1·2·끝 띠, 커밋 + master 머지) |
 | `history/tile-order.md` | 파트(타일 끌기) 구조-1~3 순서 구조(2026-10-29 분할) ↔ `REF-tile-order.md` | 10-29 구현 + 격리 확인 |
