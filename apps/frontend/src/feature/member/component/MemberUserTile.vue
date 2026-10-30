@@ -77,7 +77,7 @@ const remove = () => {
 </script>
 
 <template>
-<div class="mb-body">
+<div class="mb-body" data-pager-press>
     <p v-if="userQuery.isError.value" class="mb-empty">회원을 찾을 수 없습니다(지워졌을 수 있습니다)</p>
     <template v-else-if="u">
         <div class="mb-fields mb-fields--wall">

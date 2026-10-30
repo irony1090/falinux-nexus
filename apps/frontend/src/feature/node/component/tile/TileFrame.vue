@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, toRef, watchEffect, type PropType } from 'vue';
+import { computed, onBeforeUnmount, ref, toRef, watch, watchEffect, type PropType } from 'vue';
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
 import { VIcon, VList, VMenu, VProgressCircular } from 'vuetify/components';
 import { useTileFloat } from '../../hook/tileFloat.hook';
@@ -70,6 +70,8 @@ const isRoot = computed(() => !tile.value?.parent);
 // 크기를 바꾸면 버튼이 옮겨지는데 v-menu는 이를 감지 못함 → 프레임 크기 변화·크기 변경 직후에 위치 재계산
 const frameEl = ref<HTMLElement>();
 const sizeMenu = ref<InstanceType<typeof VMenu>>();
+const sizeOpen = ref(false);
+const menuOpen = ref(false);
 const relocateSizeMenu = () => requestAnimationFrame(() => sizeMenu.value?.updateLocation?.(new Event('resize')));
 useResizeCallback(frameEl, relocateSizeMenu);
 
@@ -92,6 +94,8 @@ const activeClass = computed(() => activeId.value ? (activeId.value === props.ti
 
 // 끌어서 옮기기 — 끌기-2(타일 끌기). 터치로 누르는 중 = 테두리(끄는 동안 빈 자리는 TileStrip `drag-slot`)
 const drag = useTileDrag();
+// 끌기 시작하면 열려 있던 팝업은 닫는다 — 끌기 세션이 손 뗀 클릭을 먹어 "바깥 누르면 닫기"가 안 걸린다(관리 페이지와 같은 규칙)
+watch(() => drag.dragId.value, id => { if (id) { sizeOpen.value = false; menuOpen.value = false; } });
 const onDragDown = (e: PointerEvent) => {
     if (!isRoot.value && e.target instanceof Element && dragFrom(e.target, e.pointerType))
         drag.down(e, props.tileId, { icon: props.icon, color: props.color, name: props.name });
@@ -128,7 +132,7 @@ const dragClass = computed(() => ({ 'TileFrame--pressing': drag.pressId.value ==
         <span class="TileFrame__btns tile-btn-row-end">
             <slot name="controls" />
             <span v-if="$slots.controls && menu" class="tile-btn-sep" />
-            <v-menu v-if="menu" location="bottom end">
+            <v-menu v-if="menu" v-model="menuOpen" location="bottom end">
                 <template #activator="{ props: act }">
                     <button v-bind="act" class="tile-btn" title="메뉴" :disabled="menuBusy">
                         <v-progress-circular v-if="menuBusy" indeterminate size="14" width="2" />
@@ -145,7 +149,7 @@ const dragClass = computed(() => ({ 'TileFrame--pressing': drag.pressId.value ==
                 <button v-if="minimizable && !unavailable" class="tile-btn" title="최소화" @click="emit('minimize')">
                     <v-icon size="16" icon="mdi-window-minimize" />
                 </button>
-                <v-menu v-if="!unavailable" ref="sizeMenu" location="bottom end" :close-on-content-click="false">
+                <v-menu v-if="!unavailable" ref="sizeMenu" v-model="sizeOpen" location="bottom end" :close-on-content-click="false">
                     <template #activator="{ props: act }">
                         <button v-bind="act" class="tile-btn" :class="{ 'text-warning': shownText }" :title="sizeTitle">
                             <v-icon size="16" icon="mdi-resize" />

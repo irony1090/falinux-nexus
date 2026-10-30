@@ -65,23 +65,10 @@ export const pack = (tiles: readonly MemberTile[], cols: number, rows: number): 
     return grids.map(({ items }) => ({ items }))
 }
 
-const isDescendant = (tiles: readonly MemberTile[], t: MemberTile, ancestor: string) => {
-    let p = t.parent
-    for (let guard = 0; p && guard < 20; guard++) {
-        if (p === ancestor) return true
-        p = tiles.find(x => x.key === p)?.parent ?? null
-    }
-    return false
-}
-
-// 화-9(자식 자리): 부모 바로 다음(부모의 앞선 자식들 뒤). 부모가 없으면 끝
+// 화-9(자식 자리): 보드 openTile과 같음 — 연 곳 바로 뒤(최신이 앞), 연 곳이 없으면 맨 앞
 export const insertTile = (tiles: readonly MemberTile[], tile: MemberTile): MemberTile[] => {
-    let at = tiles.length
     const pi = tile.parent ? tiles.findIndex(x => x.key === tile.parent) : -1
-    if (pi >= 0) {
-        at = pi + 1
-        while (at < tiles.length && isDescendant(tiles, tiles[at]!, tile.parent!)) at++
-    }
+    const at = pi >= 0 ? pi + 1 : 0
     return [...tiles.slice(0, at), tile, ...tiles.slice(at)]
 }
 

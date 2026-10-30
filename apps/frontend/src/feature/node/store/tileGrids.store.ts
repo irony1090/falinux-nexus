@@ -1,6 +1,7 @@
 import type { Area, Capacity, GridPlan } from '@/feature/widget/util/tile.type'
 import { ordered, pack } from '@/feature/widget/util/tileOrder.util'
 import { capacity, colScroll, effectiveSize, minSize, revealCol, stripGeometry, stripPos, stripView } from '@/feature/widget/util/tileSplit.util'
+import { makeEdgeBands } from '@/feature/widget/util/edgeBand.util'
 import { readUserPref, writeUserPref } from '@/common/util/userPrefs.util'
 import { providePagerBoard } from '@/feature/widget/store/pagerBoard.store'
 import { useProcessTerm } from '@/feature/process/store/processTerm.store'
@@ -38,8 +39,7 @@ export type BoardGrids = { board: BoardItem; grids: Array<GridPlan<Tile>>; posOf
 
 // 트리 + 측정한 Grid 영역 -> Grid 목록 + 가로 스크롤 위치 -> 헤더 내비 — REF-node-ui-impl.md "④ Grid 파생"
 // 측정·스크롤 기록은 TileStrip, 여기는 등록된 strip 요소에 scrollTo만 한다
-export const EDGE_BAND = 48       // 화면 끝 띠 폭(px)
-export const EDGE_HOLD_MS = 400   // 띠에 머물러 넘기기까지 — PageEdgeBands 차오름과 같게
+export { EDGE_BAND, EDGE_HOLD_MS } from '@/feature/widget/util/edgeBand.util'
 
 export const provideTileGrids = () => {
     const { tiles, order: treeOrder, ready, hash } = useTileTree()
@@ -156,34 +156,11 @@ export const provideTileGrids = () => {
 
     // ---- 끄는 동안 화면 끝 띠 — 칸·타일 끌기 공용, 모양 = PageEdgeBands ----
     // 띠 안에 EDGE_HOLD_MS 머물면 칼럼 하나(0.5페이지)씩 넘김, 계속 머물면 다시 차올라 한 칼럼 더. 전체보기는 칼럼이 없어 쓰지 않는다
-    const edge = shallowRef<{ side: -1 | 0 | 1; since: number; prev: boolean; next: boolean } | null>(null)
-    let edgeCol = -1        // 넘긴 칼럼 — 부드러운 스크롤 중엔 view.col이 아직 옛 값이라 따로 센다
-    const edgeStart = () => {
-        if (overview.value) return
-        edgeCol = -1
-        edge.value = { side: 0, since: 0, prev: view.value.col > 0, next: view.value.col < maxCol.value }
-    }
-    const edgeTrack = (p: { x: number; y: number }) => {
-        const e = edge.value, el = stripEl.value
-        if (!e || !el) return
-        const r = el.getBoundingClientRect()
-        const cur = edgeCol >= 0 ? edgeCol : view.value.col
-        const prev = cur > 0, next = cur < maxCol.value
-        let side: -1 | 0 | 1 = p.y < r.top || p.y > r.bottom ? 0 : p.x < r.left + EDGE_BAND ? -1 : p.x > r.right - EDGE_BAND ? 1 : 0
-        if ((side < 0 && !prev) || (side > 0 && !next)) side = 0
-        const now = performance.now()
-        if (side && side === e.side && now - e.since >= EDGE_HOLD_MS) {
-            edgeCol = cur + side
-            goCol(edgeCol)
-            edge.value = { side, since: now, prev: edgeCol > 0, next: edgeCol < maxCol.value }
-        } else if (side !== e.side || prev !== e.prev || next !== e.next) {
-            edge.value = { side, since: side !== e.side ? now : e.since, prev, next }
-        }
-    }
-    const edgeEnd = () => {
-        edge.value = null
-        edgeCol = -1
-    }
+    const bands = makeEdgeBands({ el: () => stripEl.value, viewCol: () => view.value.col, maxCol: () => maxCol.value, goCol })
+    const edge = bands.edge
+    const edgeStart = () => { if (!overview.value) bands.start() }
+    const edgeTrack = bands.track
+    const edgeEnd = bands.end
 
     // 타일이 차지하는 칼럼 — gi = Grid 번호
     const columnsOf = (tileId: string) => {

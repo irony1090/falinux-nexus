@@ -1,12 +1,19 @@
 <script setup lang="ts">
-import { cellChip } from '../hook/cellDrag.hook';
-import { useTileDrag } from '../store/tileDrag.store';
+import { VIcon } from 'vuetify/components';
 
 // 끄는 동안 손가락·커서 옆 작은 표시(아이콘·이름) — 안 1(작은 표시 + 빈 자리), REF-tile-drag.md
-// 다른 보드 줄 위면 같이 가는 타일도 아래에 붙인다(보드Q6(묶음 표시 때)) — 3개까지, 나머지는 개수
-const SHOW_MAX = 3;
+// 상태는 쓰는 쪽이 넘긴다(보드·관리 페이지). 다른 보드 줄 위면 같이 가는 타일도 아래에 붙인다(보드Q6(묶음 표시 때)) — 3개까지, 나머지는 개수
+type Chip = { icon: string; color: string; name: string };
+type ChipAt = Chip & { x: number; y: number };
 // 폴더 칸 끌기(칸-2(node 칸 끌기))도 같은 표시 — 여러 칸이면 "외 N개", 넣기 대상 위면 "→ 폴더 이름"
-const { chip, bundleIds, bundleChips } = useTileDrag();
+type CellChip = ChipAt & { more?: number; to?: string };
+const SHOW_MAX = 3;
+withDefaults(defineProps<{
+    chip: ChipAt | null;
+    bundleIds?: Array<string>;
+    bundleChips?: Array<Chip>;
+    cellChip?: CellChip | null;
+}>(), { bundleIds: () => [], bundleChips: () => [], cellChip: null });
 </script>
 
 <template>

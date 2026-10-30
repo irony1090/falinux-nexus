@@ -31,10 +31,13 @@ export const provideMemberBoard = (page: MemberPageKind) => {
 
     // ---- 타일 ----
     const tiles = ref<MemberTile[]>([])
+    // 끄는 동안의 미리보기 순서 — 있으면 배치·위치 번호가 이걸 쓴다(저장은 놓을 때, REF-member-drag.md)
+    const preview = ref<MemberTile[] | null>(null)
+    const shown = computed(() => preview.value ?? tiles.value)
     const activeKey = ref<string | null>(null)
     const area = ref({ w: 0, h: 0 })
     const layout = computed(() => layoutOf(area.value.w, area.value.h))
-    const grids = computed(() => area.value.w ? pack(tiles.value, layout.value.cols, layout.value.rows) : [])
+    const grids = computed(() => area.value.w ? pack(shown.value, layout.value.cols, layout.value.rows) : [])
     // 폰은 목록이 맨 앞 한 칸(Grid 0 앞)
     const lead = computed(() => layout.value.phone ? 1 : 0)
 
@@ -154,8 +157,8 @@ export const provideMemberBoard = (page: MemberPageKind) => {
         void reveal(key)
     }
 
-    // 위치 번호(1부터) = 타일 순서 — Ctrl+Alt+숫자
-    const posOf = computed(() => new Map(tiles.value.map((t, i) => [t.key, i + 1])))
+    // 위치 번호(1부터) = 타일 순서 — Ctrl+Alt+숫자. 끄는 동안엔 미리보기 기준
+    const posOf = computed(() => new Map(shown.value.map((t, i) => [t.key, i + 1])))
     const activate = (key: string) => {
         if (!posOf.value.has(key)) return
         activeKey.value = key
@@ -199,7 +202,7 @@ export const provideMemberBoard = (page: MemberPageKind) => {
     const ctx = {
         page, admin,
         tab, q, filter, pageNo, size, pickTab,
-        tiles, activeKey, area, layout, grids, lead,
+        tiles, preview, shown, activeKey, area, layout, grids, lead,
         scrollEl, scrollX, viewW, span, step, maxCol, pos, dotCount, scrubbing,
         pager, goCol, goDot, colRange, reveal, anchorKey, restoreView, setActive, open, close, dropMissing, openParent, setSize, posOf, activate, freshKeys, replaceTile,
     }
