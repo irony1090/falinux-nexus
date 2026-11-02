@@ -14,6 +14,7 @@ import {
 import { useMemberBoard } from '../store/memberBoard.store';
 import { mainKeyOf, type MemberTile } from '../util/memberGrid.util';
 import { API_KEY_PREFIX, copyText, dayText, deviceState, deviceStateText, workerEnvLines } from '../util/member.util';
+import MbNote from './MbNote.vue';
 
 // 장비 타일 — 상태·주인(관리자)·키·env + 인스턴스 라벨 바로 고치기(화-15(라벨)) + 삭제. 내 장비·관리자 공용 — 회원-3·회원-5
 const props = defineProps<{ tile: MemberTile }>();
@@ -188,7 +189,7 @@ const remove = () => openDialog({
     </template>
 </div>
 <div v-if="d" class="mb-foot">
-    <span class="mb-note">키를 바꾸면 옛 키의 worker는 다음 접속부터 거부됩니다</span>
+    <mb-note text="키를 바꾸면 옛 키의 worker는 다음 접속부터 거부됩니다" />
     <div class="mb-end">
         <button type="button" class="mb-btn mb-btn--danger" :disabled="busy" @click="remove">삭제</button>
     </div>

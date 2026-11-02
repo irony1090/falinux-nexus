@@ -14,7 +14,7 @@ const EDGE = 16;
 // 관리 페이지 컨트롤 패널 — 보드 PagerPopup과 같은 여는 길(Ctrl+Alt 누르는 동안 / 두 손가락 펼치기, usePagerOpen).
 // 알약 = [크기 | 닫기 | Grid 도트](전체보기 없음, 창 버튼 = 관리 타일 머리 줄과 같음 — 파트(패널 창 버튼)), 도트 끌기·당기기 = 보드와 같음. 크기 = active 타일, 카드는 버튼 가운데(Q56)·카드 뜨면 알약 숨김(Q55)
 // Ctrl+Alt+숫자 = 위치 번호로 active 이동(useDigitShortcut)
-const { activeKey, tiles, activate, close: closeTile } = useMemberBoard();
+const { activeKey, tiles, activate, requestClose: closeTile } = useMemberBoard();
 
 const dotsRef = ref<InstanceType<typeof MemberDots>>();
 const boxEl = ref<HTMLElement>();

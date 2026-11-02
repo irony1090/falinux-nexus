@@ -11,6 +11,7 @@ import {
 import { useMemberBoard } from '../store/memberBoard.store';
 import { deviceKey, userIdOf, type MemberTile } from '../util/memberGrid.util';
 import { dayText, deviceState, deviceStateText } from '../util/member.util';
+import MbNote from './MbNote.vue';
 
 // 회원 타일(관리자) — 상태·상한·권한 + 그 회원 장비 줄(누르면 장비 타일, 화-8(회원 -> 장비)) + 정지·삭제 — 회원-5(관리자 화면)
 const props = defineProps<{ tile: MemberTile }>();
@@ -116,7 +117,7 @@ const remove = () => {
     </template>
 </div>
 <div v-if="u" class="mb-foot">
-    <span class="mb-note">{{ note }}</span>
+    <mb-note :text="note" />
     <div class="mb-end">
         <button type="button" class="mb-btn mb-btn--error" :disabled="busy || me" @click="suspend">{{ u.suspendedAt ? '정지 해제' : '정지' }}</button>
         <button type="button" class="mb-btn mb-btn--danger" :disabled="busy || me" @click="remove">삭제</button>

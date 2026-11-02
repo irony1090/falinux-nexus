@@ -22,8 +22,16 @@ export const deviceKey = (mainKey: string) => `d${mainKey}`
 export const userIdOf = (key: string) => Number(key.slice(1))
 export const mainKeyOf = (key: string) => key.slice(1)
 
+// 페이지별 키 규칙 — 회원 페이지(MEMBER_KEYS)·updater 페이지(updGrid.util)가 같은 틀(배치·URL·끌기)을 쓴다. REF-update-deploy.md 단위-4(페이지 틀)
+export type GridKeys = { re: RegExp; size: (key: string) => { w: number; h: number } }
+
 // 처음 크기 = 종류별 고정(화-10): 장비 = 세로 2칸(인스턴스 포함), 나머지 1칸
-export const newTile = (key: string, parent: string | null = null): MemberTile => ({ key, w: 1, h: kindOf(key) === 'device' ? 2 : 1, parent })
+export const MEMBER_KEYS: GridKeys = {
+    re: /^(m\d+|d[A-Za-z0-9._-]{1,64}|new)$/,
+    size: key => ({ w: 1, h: kindOf(key) === 'device' ? 2 : 1 }),
+}
+
+export const newTile = (key: string, parent: string | null = null, keys: GridKeys = MEMBER_KEYS): MemberTile => ({ key, ...keys.size(key), parent })
 
 // 화-6(Grid 크기): area = 푸터 위 전체 영역. 전체 열 = 목록 1 + 상세, 1열이면 폰 방식(목록 = 가로 줄 첫 타일)
 export type MemberLayout = { phone: boolean; cols: number; rows: number; cellW: number }
@@ -79,18 +87,17 @@ export const insertBefore = (tiles: readonly MemberTile[], tile: MemberTile, bef
     return [...tiles.slice(0, at), tile, ...tiles.slice(at)]
 }
 
-// 주소-3(형식): `m2*1x1,drig-14*1x2^m2,new*1x1`. 메인키 글자([A-Za-z0-9._-])와 안 겹치는 구분자만 쓴다
-const KEY_RE = /^(m\d+|d[A-Za-z0-9._-]{1,64}|new)$/
+// 주소-3(형식): `m2*1x1,drig-14*1x2^m2,new*1x1`. 키 글자와 안 겹치는 구분자(`*` `^` `,`)만 쓴다 — 키 규칙이 이 셋을 허용하면 안 된다
 export const encodeTiles = (tiles: readonly MemberTile[]) => tiles.map(t => `${t.key}*${t.w}x${t.h}${t.parent ? `^${t.parent}` : ''}`).join(',')
-export const decodeTiles = (s: string | undefined): MemberTile[] => {
+export const decodeTiles = (s: string | undefined, keys: GridKeys = MEMBER_KEYS): MemberTile[] => {
     if (!s) return []
     const out: MemberTile[] = []
     for (const part of s.split(',')) {
         const [body = '', parent] = part.split('^')
         const [key = '', size = ''] = body.split('*')
-        if (!KEY_RE.test(key) || out.some(t => t.key === key)) continue
+        if (!keys.re.test(key) || out.some(t => t.key === key)) continue
         const m = /^(\d)x(\d)$/.exec(size)
-        const base = newTile(key, parent && KEY_RE.test(parent) ? parent : null)
+        const base = newTile(key, parent && keys.re.test(parent) ? parent : null, keys)
         out.push(m ? { ...base, w: Math.max(1, +m[1]!), h: Math.max(1, +m[2]!) } : base)
     }
     return out

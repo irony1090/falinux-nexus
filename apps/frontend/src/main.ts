@@ -22,6 +22,7 @@ import "@/styles/dir-grid.scss"
 import "@/styles/chaltteok.scss"
 import "@/styles/ct-field.scss"
 import "@/styles/member.scss"
+import "@/styles/updater.scss"
 import "@/styles/jelly.scss"
 
 // iOS Safari 핀치 확대 끔(줌-3) — touch-action이 안 먹는 옛 iOS 대비

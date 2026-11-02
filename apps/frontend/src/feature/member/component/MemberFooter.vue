@@ -14,7 +14,7 @@ import MemberMenu from './MemberMenu.vue';
 const SIZE = { pc: { h: 44, pill: 34 }, phone: { h: 56, pill: 44 } } as const;
 
 // 관리 페이지 아래 줄 = 보드 푸터 모양: 로고 메뉴 | Grid 도트 | 계정·로그아웃 — 화-13(전체 헤더)
-const { layout } = useMemberBoard();
+const { layout, page } = useMemberBoard();
 const { auth, toggleAuth } = useAppActions();
 const kb = useVirtualKeyboard();
 
@@ -22,12 +22,13 @@ const phone = computed(() => layout.value.phone);
 const size = computed(() => phone.value ? SIZE.phone : SIZE.pc);
 const style = computed(() => ({ height: `${size.value.h}px`, '--pill-h': `${size.value.pill}px` }));
 
-// 액션 = 판 상태로 쓸 수 있는지가 바뀌는 버튼(계정 알약 왼쪽) — REF-device-move.md
-const { devices, anyOnline } = useOpenDevices();
+// 액션 = 판 상태로 쓸 수 있는지가 바뀌는 버튼(계정 알약 왼쪽) — REF-device-move.md. updater 페이지 타일은 회원 장비가 아니라 없음
+const memberPage = page !== 'updater';
+const { devices, anyOnline } = memberPage ? useOpenDevices() : { devices: computed(() => []), anyOnline: computed(() => false) };
 const moveOpen = ref(false);
-const actions = computed<FootAction[]>(() => [
+const actions = computed<FootAction[]>(() => memberPage ? [
     { key: 'move', icon: 'mdi-server-network', title: '열린 장비 supervisor 주소 변경', disabled: !anyOnline.value, hint: '열린 장비 타일에 접속 중인 instance가 없습니다', run: () => moveOpen.value = true },
-]);
+] : []);
 </script>
 
 <template>
@@ -46,7 +47,7 @@ const actions = computed<FootAction[]>(() => [
             <v-btn size="small" density="comfortable" variant="text" icon="mdi-logout" title="로그아웃" @click="toggleAuth" />
         </foot-pill>
     </div>
-    <device-move-dialog v-model="moveOpen" :devices="devices" />
+    <device-move-dialog v-if="memberPage" v-model="moveOpen" :devices="devices" />
 </footer>
 </template>
 

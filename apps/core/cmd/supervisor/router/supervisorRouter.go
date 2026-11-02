@@ -54,6 +54,7 @@ type supervisorRouter struct {
 	unregistered   *unregisteredSet                              // 인스턴스별 미등록 process(workerMove.go)
 	blocked        *blockedUsers                                 // 정지·삭제된 회원(admin.go)
 	view           *viewCache                                    // 이미지 사본(viewCache.go)
+	upd            *updStore                                     // 업데이트 app 보관소·받는 중 파일(update.go)
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -96,10 +97,12 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 		unregistered:   newUnregisteredSet(),
 		blocked:        loadBlockedUsers(),
 		view:           newViewCache(constants.GetEnv()),
+		upd:            newUpdStore(constants.GetEnv()),
 	}
 	go router.runPurge() // 끝난 process 주기 삭제(K2(supervisor 정리))
 	go router.runTransferSweep()
 	go router.runViewSweep()
+	go router.upd.runSweep()
 
 	e := echo.New()
 	e.Validator = &CustomValidator{validator: validator.New()}
@@ -129,6 +132,7 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 	router.mountWorkers(api)
 	router.mountDevices(api)
 	router.mountAdmin(api)
+	router.mountUpdates(api)
 	router.mountTiles(api)
 	router.mountWorkspaces(api)
 	router.mountTransfers(api)

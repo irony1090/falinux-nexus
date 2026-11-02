@@ -43,6 +43,12 @@ const router = createRouter({
             component: () => import('@/pages/Admin.vue'),
             meta: { admin: true },
         },
+        // 업데이트 app(관리자 전용) — REF-update-deploy.md
+        {
+            path: '/updater',
+            component: () => import('@/pages/Updater.vue'),
+            meta: { admin: true },
+        },
     ],
 })
 
