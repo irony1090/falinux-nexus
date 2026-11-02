@@ -15,7 +15,7 @@ const { page } = useMemberBoard();
 const { auth } = useAuthStore();
 const router = useRouter();
 const isAdmin = computed(() => !!auth.value?.perms?.includes(PERM_ADMIN));
-const title = computed(() => page === 'admin' ? '관리자' : '내 장비');
+const title = computed(() => page === 'admin' ? '관리자' : page === 'updater' ? 'Updater' : '내 장비');
 </script>
 
 <template>
@@ -31,6 +31,7 @@ const title = computed(() => page === 'admin' ? '관리자' : '내 장비');
         <v-list-item title="보드로" prepend-icon="mdi-view-dashboard-outline" @click="goLastBoard(router)" />
         <v-list-item title="내 장비" prepend-icon="mdi-chip" to="/devices" replace :active="page === 'mine'" color="primary" />
         <v-list-item v-if="isAdmin" title="관리자" prepend-icon="mdi-shield-account-outline" to="/admin" replace :active="page === 'admin'" color="primary" />
+        <v-list-item v-if="isAdmin" title="Updater" prepend-icon="mdi-package-up" to="/updater" replace :active="page === 'updater'" color="primary" />
     </v-list>
 </v-menu>
 </template>

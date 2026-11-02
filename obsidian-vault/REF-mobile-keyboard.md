@@ -8,7 +8,7 @@
 - 최종 구조 = 키보드-0~4 + 고침-나(커서 기준 이동) + 라(resizes-content 전환). 확인 = 헤드리스 `kb.mjs` 22 · `kb2.mjs` 10 · `kb3.mjs` 12 + 사용자 Fold 8 크롬·Edge 사진 확인
 - **Edge 제약**: 폰 크기 기본 화면(하단 막대)에서 키 줄 아래 빈틈 약 34(브라우저 값이 틀림, `REF-mobile-viewport.md` 3). 전체 화면이면 정확
 - VK4(사용자 키 추가) = **안 함**(탭·누른 채·한글 자모 모두 동작해서 불필요)
-- 측정용 `KbDebug.vue` 삭제. 폰 사진 업로드 도구는 `vite.config.mts`에서 주석 처리해 남김(→ `REF-test-env.md` "폰 사진 올리기")
+- 측정용 `KbDebug.vue` 삭제. 폰 사진 업로드 도구는 `vite.config.mts`에서 주석 처리해 남김(→ `REF-photo-upload.md` "폰 사진 올리기")
 - 남은 것: iPhone 실기기 확인(나중) / ~~별건 = 전체 화면을 켜면 같은 칼럼이 `single` -> `row`로 바뀜~~ 버그 아님(2026-10-15 확인): 전체 화면으로 Grid 영역 높이가 `TILE_THRESHOLD.h` 560 이상 -> `capacity` y 1 -> 2 -> `effectiveSize`가 저장값 h 0.5를 그대로 써서 `single` -> `row`(1칸 축의 0.5를 1로 보는 규칙, `tileSplit.util.ts`)
 
 ## 시작 시점 코드 상태 (2026-10-14 확인)

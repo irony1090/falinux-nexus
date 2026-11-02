@@ -3,7 +3,7 @@ import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { computed, ref, watch, type PropType } from 'vue';
 import { useDisplay } from 'vuetify';
 import { VCard, VCardTitle, VDialog } from 'vuetify/components';
-import CtTextarea from '@/feature/widget/component/CtTextarea.vue';
+import CtCode, { ctCodeLangOf } from '@/feature/widget/component/CtCode.vue';
 import { getNode, useNodeActions, type NodeResponse } from '../../api/node.api';
 
 // 스크립트 내용(nodes.content) 브라우저 편집 — REF-node-ui-link.md "4(스크립트 편집)"
@@ -24,6 +24,9 @@ const text = ref('');
 const loading = ref(false);
 const saving = ref(false);
 const dirty = computed(() => text.value !== original.value);
+const editor = ref<InstanceType<typeof CtCode>>();
+// 불러오는 동안은 편집 불가라 포커스가 안 들어간다 — 다 불러온 뒤 넣는다
+watch(loading, (v, was) => { if (was && !v && open.value) requestAnimationFrame(() => editor.value?.focus()); });
 
 const fail = (err: { message?: string }, fallback: string) => openDialog({ type: 'error', content: err?.message || fallback });
 
@@ -78,13 +81,12 @@ const onClose = () => {
     })
 }
 
-// Tab은 포커스 이동 대신 탭 문자를 넣는다
-const onTab = (e: KeyboardEvent) => {
-    const el = e.target;
-    if (!(el instanceof HTMLTextAreaElement)) return;
-    el.setRangeText('\t', el.selectionStart, el.selectionEnd, 'end');
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-}
+// 확장자 없는 스크립트 = 셸(shebang). .bat·.cmd·.txt만 강조 없이
+const lang = computed(() => {
+    const name = props.node?.name ?? '';
+    const l = ctCodeLangOf(name);
+    return l === 'text' && !/\.(bat|cmd|txt)$/i.test(name) ? 'sh' : l;
+});
 </script>
 
 <template>
@@ -98,16 +100,11 @@ const onTab = (e: KeyboardEvent) => {
             <span class="name">{{ node?.name }}</span>
             <span v-if="dirty" class="dirty text-warning">수정됨</span>
         </v-card-title>
-        <CtTextarea v-model="text"
+        <CtCode v-if="open" ref="editor" v-model="text"
             class="editor"
-            hide-details
-            no-resize
-            autofocus
-            wrap="off"
-            spellcheck="false"
+            :lang="lang"
             placeholder="#!/bin/bash"
             :disabled="loading"
-            @keydown.tab.exact.prevent="onTab"
         />
         <div class="ct-actions">
             <span class="hint">Ctrl+S 저장</span>
@@ -137,24 +134,11 @@ const onTab = (e: KeyboardEvent) => {
     }
     .dirty { flex: none; @include vars.font('body-medium'); }
 }
-// 입력 영역이 카드의 남는 높이를 전부 차지하게 한다(Vuetify 기본은 rows 기준 높이)
+// 입력 영역이 카드의 남는 높이를 전부 차지한다
 .editor {
     flex: 1;
     min-height: 0;
     margin: 0 vars.$spacing-xl;
-    grid-template-rows: minmax(0, 1fr);
-    :deep(.v-input__control),
-    :deep(.v-field),
-    :deep(.v-field__field) { height: 100%; }
-    :deep(textarea) {
-        height: 100%;
-        font-family: monospace;
-        @include vars.font('body-medium');
-        line-height: 1.5;
-        tab-size: 4;
-        white-space: pre;
-        overflow: auto;
-    }
 }
 .hint {
     align-self: center;

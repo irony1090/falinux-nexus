@@ -2,27 +2,38 @@ import { providePagerBoard } from '@/feature/widget/store/pagerBoard.store'
 import { revealCol } from '@/feature/widget/util/tileSplit.util'
 import { computed, inject, nextTick, provide, ref, shallowRef } from 'vue'
 import {
-    GAP, insertBefore, insertTile, layoutOf, mainKeyOf, newTile, pack, type MemberTile,
+    GAP, MEMBER_KEYS, insertBefore, insertTile, layoutOf, mainKeyOf, newTile as newTileOf, pack, type GridKeys, type MemberTile,
 } from '../util/memberGrid.util'
 
 const MEMBER_BOARD_KEY = Symbol('MemberBoard')
 
-export type MemberPageKind = 'admin' | 'mine'
-export type MemberTab = 'users' | 'devices'
+// updater = 관리자 전용 업데이트 app 페이지(같은 틀, 다른 키·목록·타일 — REF-update-deploy.md 단위-4(페이지 틀))
+export type MemberPageKind = 'admin' | 'mine' | 'updater'
+export type MemberTab = 'users' | 'devices' | 'commons'
+
+// 페이지별 목록 탭·필터(URL 복원 검사에도 씀). 첫 탭 = 기본
+export const PAGE_TABS: Record<MemberPageKind, Partial<Record<MemberTab, string[]>>> = {
+    admin: { users: ['all', 'admin', 'suspended', 'noreg'], devices: ['all', 'on', 'off', 'none'] },
+    mine: { devices: ['all', 'on', 'off', 'none'] },
+    updater: { devices: ['all', 'nobuild'], commons: ['all', 'unused'] },
+}
 
 // 관리 페이지 한 화면 — 목록 상태 + 상세 타일 + 가로 스크롤. REF-member-ui.md 화-5(상세 쌓기)~화-12(공유 Grid)
 // 스크롤 단위 = 칼럼(보드 revealCol 그대로). PC = 상세 strip만 스크롤 / 폰 = 목록 + Grid가 한 줄로 스크롤
-export const provideMemberBoard = (page: MemberPageKind) => {
+export const provideMemberBoard = (page: MemberPageKind, keys: GridKeys = MEMBER_KEYS) => {
+    // admin = 관리자 API·회원 탭을 쓰는 페이지(관리자 페이지). updater 페이지도 관리자만 들어오지만 회원 API는 안 쓴다
     const admin = page === 'admin'
+    const tabs = Object.keys(PAGE_TABS[page]) as MemberTab[]
+    const newTile = (key: string, parent: string | null = null) => newTileOf(key, parent, keys)
 
     // ---- 목록 ----
-    const tab = ref<MemberTab>(admin ? 'users' : 'devices')
+    const tab = ref<MemberTab>(tabs[0]!)
     const q = ref('')
     const filter = ref('all')
     const pageNo = ref(1)
     const size = ref(10)
     const pickTab = (t: MemberTab) => {
-        if (!admin || t === tab.value) return
+        if (!tabs.includes(t) || t === tab.value) return
         tab.value = t
         q.value = ''
         filter.value = 'all'
@@ -130,6 +141,17 @@ export const provideMemberBoard = (page: MemberPageKind) => {
         // 다 닫으면 목록으로(폰 = 첫 칸, PC는 목록이 늘 보여 그대로)
         if (!tiles.value.length) void nextTick(() => goCol(0))
     }
+    // 닫기 전 확인(저장 안 한 편집 등) — 타일이 등록, false면 안 닫음. 화면의 닫기 버튼은 requestClose로
+    const closeGuards = new Map<string, () => Promise<boolean> | boolean>()
+    const guardClose = (key: string, fn: () => Promise<boolean> | boolean) => {
+        closeGuards.set(key, fn)
+        return () => { if (closeGuards.get(key) === fn) closeGuards.delete(key) }
+    }
+    const requestClose = async (key: string) => {
+        const g = closeGuards.get(key)
+        if (g && !(await g())) return
+        close(key)
+    }
     // 주소-5(없는 대상): 지워진 회원·장비 타일은 닫는다(URL은 늘 replace라 기록이 쌓이지 않음)
     const dropMissing = close
     // 화-11(경로): 앞 조각 = 그 타일로, 닫혀 있으면 자식 바로 앞에 다시 엶
@@ -200,11 +222,11 @@ export const provideMemberBoard = (page: MemberPageKind) => {
     })
 
     const ctx = {
-        page, admin,
+        page, admin, keys, tabs,
         tab, q, filter, pageNo, size, pickTab,
         tiles, preview, shown, activeKey, area, layout, grids, lead,
         scrollEl, scrollX, viewW, span, step, maxCol, pos, dotCount, scrubbing,
-        pager, goCol, goDot, colRange, reveal, anchorKey, restoreView, setActive, open, close, dropMissing, openParent, setSize, posOf, activate, freshKeys, replaceTile,
+        pager, goCol, goDot, colRange, reveal, anchorKey, restoreView, setActive, open, close, requestClose, guardClose, dropMissing, openParent, setSize, posOf, activate, freshKeys, replaceTile,
     }
     provide(MEMBER_BOARD_KEY, ctx)
     return ctx

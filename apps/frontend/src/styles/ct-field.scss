@@ -48,6 +48,8 @@
 .ct-field--wall-l { --ct-r-l: 0; --ct-pad-l: var(--ct-pad-flat); }
 .ct-field--wall-r { --ct-r-r: 0; --ct-pad-r: var(--ct-pad-flat); }
 .ct-field--wall-lr { --ct-r-l: 0; --ct-r-r: 0; --ct-pad-l: var(--ct-pad-flat); --ct-pad-r: var(--ct-pad-flat); }
+// 타일 오른쪽 벽에 바로 붙은 칸(updater 라벨-내용 행·관리 상세 상태 칸) — 벽 쪽 선이 타일 테두리와 두 줄로 겹쳐 지운다(상태 라벨과 같은 규칙)
+:is(.upd-fields, .mb-fields--wall) > .ct-field--wall-r .v-field__outline__end { border-inline-end-width: 0; }
 
 .ct-field--sm {
 	--v-input-control-height: 32px;

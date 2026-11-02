@@ -6,13 +6,14 @@ import { useGapWheel } from '@/feature/widget/hook/gapWheel.hook';
 import { computed, ref, watch } from 'vue';
 import { useMemberBoard } from '../store/memberBoard.store';
 import { provideMemberDrag } from '../store/memberDrag.store';
-import { GAP } from '../util/memberGrid.util';
+import { GAP, type Placed } from '../util/memberGrid.util';
 import MemberFooter from './MemberFooter.vue';
 import MemberList from './MemberList.vue';
 import MemberPagerPopup from './MemberPagerPopup.vue';
 import MemberTileView from './MemberTileView.vue';
 
-// 내 장비·관리자 페이지 틀 — 목록 열 + 상세 Grid strip + 보드와 같은 아래 푸터. REF-member-ui.md 화-1(방향)·화-6(Grid 크기)·화-13(전체 헤더)·화-14(폰)
+// 내 장비·관리자·updater 페이지 틀 — 목록 열 + 상세 Grid strip + 보드와 같은 아래 푸터. REF-member-ui.md 화-1(방향)·화-6(Grid 크기)·화-13(전체 헤더)·화-14(폰)
+// 슬롯 list·tile = 페이지별 목록·타일(없으면 회원 페이지 것). tile 슬롯은 받은 style을 타일 뿌리에 그대로 붙여야 Grid 칸에 놓인다 — REF-update-deploy.md 단위-4(페이지 틀)
 const board = useMemberBoard();
 const { area, layout, grids, scrollEl, scrollX, viewW, scrubbing, pager } = board;
 // 타일 끌기(순서 바꾸기) — 타일 컴포넌트들이 inject로 쓴다
@@ -44,6 +45,7 @@ const onScroll = (e: Event) => {
     if (e.currentTarget === scrollEl.value) scrollX.value = (e.currentTarget as HTMLElement).scrollLeft;
 }
 
+const cellStyle = (it: Placed) => ({ gridColumn: `${it.c + 1} / span ${it.cw}`, gridRow: `${it.r + 1} / span ${it.ch}` });
 const gridStyle = computed(() => ({
     gridTemplateColumns: `repeat(${layout.value.cols}, minmax(0, 1fr))`,
     gridTemplateRows: `repeat(${layout.value.rows}, minmax(0, 1fr))`,
@@ -60,7 +62,7 @@ const snaps = computed(() => Array.from({ length: layout.value.cols }, (_, c) =>
     <div ref="bodyEl" class="body">
         <div ref="outerEl" class="outer" @scroll.passive="onScroll">
             <div class="list" :style="listStyle">
-                <member-list />
+                <slot name="list"><member-list /></slot>
             </div>
             <div ref="stripEl" class="strip" @scroll.passive="onScroll">
                 <div v-if="!grids.length" class="grid">
@@ -68,9 +70,11 @@ const snaps = computed(() => Array.from({ length: layout.value.cols }, (_, c) =>
                 </div>
                 <div v-for="(g, gi) in grids" :key="gi" class="mb-grid grid" :style="gridStyle">
                     <span v-for="c in snaps" :key="`s${c}`" class="snap" :style="{ gridColumn: c + 1 }" aria-hidden="true" />
-                    <member-tile-view v-for="it in g.items" :key="it.tile.key" :placed="it"
-                        :style="{ gridColumn: `${it.c + 1} / span ${it.cw}`, gridRow: `${it.r + 1} / span ${it.ch}` }"
-                    />
+                    <template v-for="it in g.items" :key="it.tile.key">
+                        <slot name="tile" :placed="it" :cell="cellStyle(it)">
+                            <member-tile-view :placed="it" :style="cellStyle(it)" />
+                        </slot>
+                    </template>
                 </div>
             </div>
         </div>

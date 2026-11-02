@@ -8,6 +8,7 @@ import { adminCreateDevice, createMyDevice, invalidateMember, useAdminUsers, use
 import { useMemberBoard } from '../store/memberBoard.store';
 import { deviceKey, type MemberTile } from '../util/memberGrid.util';
 import { API_KEY_PREFIX, MAIN_KEY_PATTERN } from '../util/member.util';
+import MbNote from './MbNote.vue';
 
 // 장비 등록 타일 — 이름·(관리자: 주인)·붙여넣을 키. 등록하면 같은 자리에 장비 타일(키·env 펼침) — 회원-3·회원-Q17(대신 등록)
 const props = defineProps<{ tile: MemberTile }>();
@@ -69,7 +70,7 @@ const submit = () => {
     <button type="submit" hidden />
 </form>
 <div class="mb-foot">
-    <span class="mb-note">{{ note }}</span>
+    <mb-note :text="note" />
     <div class="mb-end">
         <button type="button" class="mb-btn mb-btn--primary" :disabled="!ready || busy" @click="submit">등록</button>
     </div>

@@ -86,6 +86,95 @@ type TileTree struct {
 	IsDefault bool
 }
 
+type UpdateBundle struct {
+	ID        int64
+	Kind      string
+	Owner     string
+	Version   string
+	Note      string
+	Sha       string
+	CreatedBy pgtype.Int8
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type UpdateDeployment struct {
+	ID        int64
+	BundleID  pgtype.Int8
+	MainKey   string
+	SubKey    string
+	Version   string
+	Sha       string
+	Result    string
+	StartedBy pgtype.Int8
+	StartedAt pgtype.Timestamptz
+	EndedAt   pgtype.Timestamptz
+}
+
+type UpdateDevice struct {
+	MainKey   string
+	Memo      string
+	CreatedAt pgtype.Timestamptz
+}
+
+type UpdateFile struct {
+	BundleID  int64
+	Scope     string
+	SubKey    string
+	Path      string
+	Size      int64
+	Sha       string
+	UpdatedBy pgtype.Int8
+	UpdatedAt pgtype.Timestamptz
+}
+
+type UpdateLock struct {
+	ID         int64
+	BundleID   int64
+	ViaBuildID pgtype.Int8
+	Sha        string
+	LockedBy   pgtype.Int8
+	LockedAt   pgtype.Timestamptz
+}
+
+type UpdateStepRun struct {
+	ID           int64
+	DeploymentID pgtype.Int8
+	BundleID     pgtype.Int8
+	MainKey      string
+	SubKey       string
+	Version      string
+	List         string
+	StepID       string
+	StepKind     string
+	Result       string
+	ExitCode     pgtype.Int4
+	LogTail      string
+	LogFile      string
+	StartedBy    pgtype.Int8
+	StartedAt    pgtype.Timestamptz
+	EndedAt      pgtype.Timestamptz
+}
+
+type UpdateUse struct {
+	BundleID int64
+	CommonID int64
+	Ord      int32
+}
+
+type Updater struct {
+	MainKey          string
+	SubKey           string
+	Label            string
+	Memo             string
+	Os               string
+	Arch             string
+	InstallDir       string
+	InstalledVersion string
+	LastSeenAt       pgtype.Timestamptz
+	CreatedAt        pgtype.Timestamptz
+}
+
 type User struct {
 	ID             int64
 	Identification string

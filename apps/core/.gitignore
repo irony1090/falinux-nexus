@@ -18,3 +18,4 @@
 
 # 이미지 사본(VIEW_CACHE_DIR 기본값, 개발 실행 = 소스 폴더 기준)
 /cmd/supervisor/view-cache/
+/cmd/supervisor/update-store/

@@ -1,13 +1,12 @@
 import { readUserPref, writeUserPref } from '@/common/util/userPrefs.util'
 import { onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter, type LocationQuery, type LocationQueryRaw } from 'vue-router'
-import type { MemberTab, provideMemberBoard } from '../store/memberBoard.store'
+import { PAGE_TABS, type MemberTab, type provideMemberBoard } from '../store/memberBoard.store'
 import { decodeTiles, encodeTiles } from '../util/memberGrid.util'
 
 // 보던 위치는 스크롤이 멈춘 뒤에 쓴다
 const VIEW_DELAY = 300
 const SIZES = [10, 20, 50]
-const FILTERS: Record<MemberTab, string[]> = { users: ['all', 'admin', 'suspended', 'noreg'], devices: ['all', 'on', 'off', 'none'] }
 
 type Query = Record<string, string>
 const str = (v: LocationQuery[string]) => typeof v === 'string' && v ? v : undefined
@@ -16,7 +15,7 @@ const same = (a: Query, b: Query) => JSON.stringify(Object.entries(a).sort()) ==
 
 // 관리 페이지 URL 저장 — 새로고침·뒤로 가기·보드 메뉴로 다시 들어와도 같은 화면. REF-member-ui.md 주소-1~주소-6(보드 tileUrl.hook과 같은 틀)
 export const useMemberUrl = (ctx: ReturnType<typeof provideMemberBoard>) => {
-    const { page, admin, tab, q, filter, pageNo, size, tiles, grids, anchorKey, restoreView } = ctx
+    const { page, keys, tabs, tab, q, filter, pageNo, size, tiles, grids, anchorKey, restoreView } = ctx
     const route = useRoute()
     const router = useRouter()
     const lastKey = `member.last.${page}`
@@ -24,7 +23,7 @@ export const useMemberUrl = (ctx: ReturnType<typeof provideMemberBoard>) => {
     const current = (): Query => {
         const o: Query = {}
         if (tiles.value.length) o.t = encodeTiles(tiles.value)
-        if (admin && tab.value !== 'users') o.tab = tab.value
+        if (tab.value !== tabs[0]) o.tab = tab.value
         if (filter.value !== 'all') o.f = filter.value
         if (pageNo.value !== 1) o.p = String(pageNo.value)
         if (size.value !== 10) o.n = String(size.value)
@@ -50,17 +49,17 @@ export const useMemberUrl = (ctx: ReturnType<typeof provideMemberBoard>) => {
     }
 
     const apply = (raw: Query) => {
-        const t: MemberTab = admin && raw.tab === 'devices' ? 'devices' : admin ? 'users' : 'devices'
+        const t: MemberTab = tabs.includes(raw.tab as MemberTab) ? raw.tab as MemberTab : tabs[0]!
         tab.value = t
-        filter.value = raw.f && FILTERS[t].includes(raw.f) ? raw.f : 'all'
+        filter.value = raw.f && PAGE_TABS[page][t]?.includes(raw.f) ? raw.f : 'all'
         const p = Number(raw.p)
         pageNo.value = Number.isInteger(p) && p > 0 ? p : 1
         const n = Number(raw.n)
         size.value = SIZES.includes(n) ? n : 10
         q.value = raw.q ?? ''
         // 회원 타일은 관리자 페이지에만
-        tiles.value = decodeTiles(raw.t).filter(x => admin || !x.key.startsWith('m'))
-            .map(x => admin || !x.parent ? x : { ...x, parent: null })
+        const all = decodeTiles(raw.t, keys)
+        tiles.value = page !== 'mine' ? all : all.filter(x => !x.key.startsWith('m')).map(x => x.parent ? { ...x, parent: null } : x)
     }
 
     // 주소-6: 쿼리 없이 들어오면(보드 메뉴) 마지막 구성으로

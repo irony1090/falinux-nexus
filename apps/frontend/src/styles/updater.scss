@@ -1,0 +1,69 @@
+// updater 페이지 타일 몸통 — 찰떡 규칙 "시안에서 정리한 규칙(2026-11-02)"(REF-design-chaltteok.md). 틀·목록은 member.scss를 같이 쓴다
+
+// 라벨-내용 행: 라벨 왼쪽, 내용 오른쪽 정렬, 길면 줄바꿈. 묶음(.upd-set)은 오른쪽 벽까지 붙는다(행 오른쪽 여백 0)
+.upd-fields {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	grid-auto-rows: minmax(32px, auto);
+	align-items: center;
+	column-gap: 16px;
+	padding: 4px 0 6px 16px;
+	> .mb-lbl { white-space: nowrap; }
+	> .val {
+		justify-self: end;
+		min-width: 0;
+		padding-right: 16px;
+		text-align: right;
+		overflow-wrap: anywhere;
+		@include vars.font('body-medium');
+	}
+	> .val.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; @include vars.font('body-small'); }
+	> .upd-set { justify-self: stretch; }
+	> .full { grid-column: 1 / -1; margin: 2px 16px 6px 0; }
+	> .edit { justify-self: stretch; }
+}
+
+// 오른쪽 정렬 묶음 — 오른쪽 벽에 붙고 닿은 끝 곧게, 안쪽 끝 반원. 안 C(한 세트): 줄이 바뀌어도 첫 줄 왼쪽 끝만 반원, 아래 줄은 모서리 없음, 줄·칸 사이 1px
+.upd-set {
+	display: flex;
+	justify-content: flex-end;
+	min-width: 0;
+	> .ct-grp--wrap {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: 1px;
+		height: auto;
+		max-width: 100%;
+		border-radius: 0;
+		background: rgb(var(--v-theme-surface));
+		> .ct-seg { height: 24px; box-shadow: none; }
+		> .ct-seg:first-child { border-radius: 999px 0 0 999px; padding-left: 12px; }
+		> .ct-seg:last-child { padding-right: 10px; }
+	}
+}
+.ct-seg--mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+// 파일·빌드 행 — 오른쪽 묶음·라벨이 벽에 닿는다(오른쪽 여백 0)
+.upd-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 40px;
+	padding: 4px 0 4px 14px;
+	border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+	> .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+	.main { @include vars.font('body-medium'); font-weight: vars.$weight-md; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.sub { @include vars.font('body-small'); color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	> .ct-grp { border-radius: 999px 0 0 999px; }
+	&.click { cursor: pointer; &:hover { background: rgba(var(--v-theme-on-surface), 0.04); } }
+	&.open { background: rgba(var(--v-theme-primary), 0.08); }
+}
+.upd-mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+// 몸통 안 안내 글
+.upd-hint {
+	margin: 0;
+	padding: 10px 16px;
+	@include vars.font('body-small');
+	color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
