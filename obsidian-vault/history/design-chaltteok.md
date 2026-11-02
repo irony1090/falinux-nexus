@@ -14,3 +14,18 @@
 - "진행" -> 브랜치 `feat/chaltteok-ui`: 공통 `styles/chaltteok.scss`(`.ct-grp`·`.ct-seg`·`.ct-actions`·`.ct-card`) + `RunRow`·`ShareDialog`·`MySharesDialog`·`NodeDeviceDialog`·`FootPill`(`edge`)·`BoardFooter`·`BoardMenu`. 계획에선 공통 클래스를 `tile-buttons.scss`에 넣으려 했으나 규칙 이름으로 파일을 따로 둠. 공유 창 이어진 행 구분 = 행 점선 대신 아바타 점선(행 구분선이 없어져서). 장비 지정 창 `.roster` 버튼 초기화 규칙에서 `.ct-seg` 제외(안 하면 칸 여백이 지워짐)
 - 확인: vue-tsc·빌드 통과, test1(8011 -> test3 API) 헤드리스 PC 1280·폰 390 스크린샷(푸터·터미널 탭 목록·칸 실행 팝업·장비 지정·내가 공유한 것·공유 창(빈 목록)). **실수**: 칸 팝업을 열려던 선택자(`button:has(.mdi-play)`)가 "실행" 버튼에 걸려 `move-tagtown`이 실행됨 + 좌표 클릭(공유 버튼이 늦게 그려져 자리가 밀림)이 "장비 디렉토리 열기"에 걸려 장비 타일이 열림. 교훈: 실제 계정 화면에서는 좌표 클릭 금지, 선택자는 클래스·title로 정확히(`button.dg-lbl:has(.mdi-play)`), 화면이 다 그려진 뒤(`.RootTabs` 대기 + 2초)
 - 사용자가 잘못 생긴 타일 정리 + test3에 웹만 적용 요청 -> `VITE_API_URL= npx vite build`로 test3 `build/ctrl_panel/web` 교체(백업 안 둠, 새 번들 서빙 확인), test1 닫음, 파트(찰떡 UI) 커밋·master `--no-ff` 머지
+
+## 2026-11-02 — updater 시안에서 규칙 보정
+- 파트(업데이트 app) 시안(`user/updater-화면-claude.html`)을 고치며 사용자 지적으로 다음을 확정 → `REF-design-chaltteok.md` "시안에서 정리한 규칙(2026-11-02)"
+  - 오른쪽 정렬 묶음은 타일 벽까지 붙여 닿은 끝을 곧게 / 리스트 머리 묶음은 왼쪽 벽·높이 꽉 / 리스트 상태 라벨은 오른쪽 벽 / 라벨-내용 행은 라벨 왼쪽·내용 오른쪽
+  - 한 줄에 안 들어가면 **안 C 한 세트**(첫 줄 왼쪽 끝만 반원, 아래 줄 모서리 없음) — 사용자 제안, `열기`·`uses` 둘 다
+- 실수 기록: `열기` 묶음을 줄바꿈하려고 낱개 알약 4개로 쪼갰다가 "찰떡 디자인이었는데 왜 없앴나" 지적 → 한 묶음으로 복원
+
+
+## 2026-11-02 밤 — 타일 아래 줄 넘침 (`feat/updater-p1`)
+- 증상(사용자): 공용 묶음 1×1 타일 아래 줄에서 안내 글과 버튼(삭제·새 버전·전체 받기·텍스트 파일 추가·업로드)이 겹침. 잰 값 = 줄 388px, 버튼 401px(`flex: none`이라 안 줄어 벽 밖으로 13px), 안내 글 28px
+- 고른 안: 사용자 = 안내 글 `...` + 호버·터치 툴팁, 버튼은 두 줄. 안내 글 자리 = 배치-2(안내 글 따로 한 줄)를 최대한. 추가 메뉴로 합치기(고침-1)는 안 함
+- 구현: `feature/member/component/MbNote.vue`(새, 잘림 판정 = ResizeObserver, 마우스만 호버·터치는 누를 때 토글) · `styles/member.scss` `.mb-foot` 줄바꿈(CSS만) · 타일 9개 `<span class="mb-note">` -> `<mb-note>`(AuthTile은 slot이라 그대로)
+- 확인: headless 스크린샷(공용 = 3줄 122px, 빌드·Files = 한 줄 + `...`), 툴팁 마우스·터치 둘 다, `scripts/check/run.sh` 전부 통과
+- 이어서(사용자): 안내 글이 따로 한 줄이면 `...` 대신 줄바꿈 = 두 줄-1(버튼 옆일 땐 `...` + 툴팁 유지). 두 줄-2(안 들어가면 항상 위 줄 + 줄바꿈)는 빌드 1×1 높이가 빠듯해져 안 함. 판정 = `MbNote`가 `.mb-end` 위치로(ResizeObserver). 함정: `.mb-note` 기본 규칙이 파일 뒤쪽이라 `padding`이 덮음 -> `.mb-note.mb-note--wrap`로 올림. `run.sh` 전부 통과
+- 이어서: 벽에 붙은 입력칸 두 줄 선(칸 오른쪽 선 + 타일 테두리) — 처음에 "벽 밖으로 잘림"이라 잘못 보고했다가 확대해 정정, 사용자가 위치를 못 알아봐 표시 그림으로 다시 설명. 범위 = 벽-2(updater 설명·메모 + 관리 장비 `주인`). `ct-field.scss`에서 `.v-field__outline__end` 오른쪽 선 0. 측정 = 네 칸 0px·`API 키` 1px 유지, `run.sh` 통과

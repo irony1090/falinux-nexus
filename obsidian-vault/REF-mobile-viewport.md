@@ -60,7 +60,7 @@
 - resizes-visual·iOS 흉내: `addInitScript`로 `window.visualViewport`를 가짜 EventTarget(높이 = 실제 - 키보드)로 바꾸고 `resize` 이벤트 발행
 - resizes-content 흉내: `page.setViewportSize`로 창 높이를 키보드만큼 줄임(레이아웃·보이는 영역이 같이 줄어듦)
 - 함정: playwright `keyboard.type('B')`(대문자, shiftKey 없는 합성 keydown)는 실기기와 다르게 동작할 수 있음 -> 명령 키는 소문자로
-- 헤드리스로 못 보는 것: 실제 키보드 높이, 브라우저 막대 변화(3의 Edge 문제), IME 조합 -> 실기기 사진으로 확인(Nexus는 개발 서버 사진 업로드 도구 사용 → Nexus `REF-test-env.md` "폰 사진 올리기")
+- 헤드리스로 못 보는 것: 실제 키보드 높이, 브라우저 막대 변화(3의 Edge 문제), IME 조합 -> 실기기 사진으로 확인(Nexus는 개발 서버 사진 업로드 도구 사용 → Nexus `REF-photo-upload.md`)
 
 ## 7. 확대(핀치·더블탭) 막기 (2026-10-25 Nexus 적용)
 | 방법 | 먹는 브라우저 | 비고 |

@@ -72,13 +72,15 @@
 | `history/current-archive-1.md` | 위 파일에서 분할(2026-10-26 낮까지: 재부팅 전·세션 끝 정리) | 10-26 세션 끝 |
 | `history/windows-vm.md` | Windows VM `nexus-win`(2026-10-23 `windows-worker`에서 분할) | 10-23 경로 직접 입력 확인, win-dev를 test3에 다시 붙임 |
 | `history/demo.md` | 시연 데이터(2026-10-16 신설) | 10-16 안 C(생산 지그 시나리오) 등록, 브라우저 경유 실행 미확인 |
-| `history/design-chaltteok.md` | 찰떡 규칙(디자인 규칙, 2026-10-25 신설) | 10-25 이름 확정·아티팩트·REF 정리 → 파트(찰떡 UI) 시안·다′·구현·test3 웹 교체 |
+| `history/design-chaltteok.md` | 찰떡 규칙(디자인 규칙, 2026-10-25 신설) | 11-02 밤 타일 아래 줄 넘침(MbNote·버튼 줄바꿈) |
 | `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환 계획·회사 준비 |
 | `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝(`nexus`·`direct`), cloudflared 정지, 남은 것 BACKLOG "cloudflared 삭제"(10-29) |
 | `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-29 저녁 drag 묶음 배포 완료(worker 항상 포함 규칙) |
-| `history/update-deploy.md` | 파트(업데이트 app) 설계·화면(2026-10-30 신설, 10-30 분할) ↔ `REF-update-deploy.md` | 10-30 시안(찰떡) 반영, 코드 착수 전 |
-| `history/update-rules.md` | 파트(업데이트 app) 확정 규칙 — 잠금·되돌리기·버전·내 장비 표시(2026-10-30 분할) ↔ `REF-update-rules.md` | 10-30 규칙 4종 확정 + REF 분할 |
-| `history/review-1030.md` | 10-30 작업 점검(2026-11-02 신설) ↔ `REF-review-1030.md` | 11-02 코드 항목 수정·머지, 설계 항목 다음 세션 |
+| `history/update-deploy.md` | 파트(업데이트 app) 설계·화면(2026-10-30 신설, 10-30 분할) ↔ `REF-update-deploy.md` | 11-02 저녁 시안 확정 · P1(보관·화면) 계획 확정, 코드 착수 전 |
+| `history/update-rules.md` | 파트(업데이트 app) 규칙 — 잠금·삭제·되돌리기·버전(2026-10-30 분할) ↔ `REF-update-rules.md` | 11-02 규칙 개정(빌드 단위 잠그기·삭제·rollback 단계) |
+| `history/update-redesign.md` | 파트(업데이트 app) 설계 개정 결정·시안(2026-11-02 신설) ↔ `REF-update-redesign.md` | 11-02 설계-1~7·9·11·12 합의 + 시안 보정 + 본문 개정 |
+| `history/update-p1.md` | 파트(업데이트 app) P1(보관·화면) 구현(2026-11-02 신설) ↔ `REF-update-p1.md` | 11-02 밤 P1 마감 커밋(차이 확인·샘플 데이터·아래 줄 수정), master 머지 대기 |
+| `history/review-1030.md` | 10-30 작업 점검(2026-11-02 신설) ↔ `REF-review-1030.md` | 11-02 코드 항목 수정·머지, 설계 항목은 오후에 처리(→ update-redesign) |
 | `history/member-drag.md` | 파트(내 장비·관리자 타일 이동)(2026-10-30 신설) ↔ `REF-member-drag.md` | 10-30 열기 규칙 + 끌기 구현, 헤드리스 4종 통과 |
 | `history/tile-drag.md` | 파트(타일 끌기)(2026-10-29 신설) ↔ `REF-tile-drag.md` | 10-29 끌기 착수 전까지(방향·계획·끄는 모양) |
 | `history/tile-drag-impl.md` | 파트(타일 끌기) 끌기-1·2·제스처-1·보드-1·칸-1·2 구현(2026-10-29 분할) ↔ `REF-tile-drag-impl.md` | 10-29 파트 마감(칸-1·2·끝 띠, 커밋 + master 머지) |
@@ -95,5 +97,6 @@
 | `history/util.md` | 범용 유틸(반복 주제) | 08-07 GroupedSet · 공유 리사이즈 관측 그룹 |
 | `history/util-drag.md` | 드래그 인프라 | 10-12 보류 결정 |
 | `history/test-env.md` | 테스트 환경 · 확인용 클라이언트 | 10-15 고아 스크립트 격리 정리 절차 |
+| `history/photo-upload.md` | 폰 사진 올리기 도구(2026-11-02 `REF-test-env`에서 분할) ↔ `REF-photo-upload.md` | 11-02 분할 |
 | `history/test-scripts.md` · `-1014.md` · `-1020.md` · `-1022.md` · `-1023.md` | 확인 스크립트 명세(날짜별) | 10-23 글자-5 전후 스크린샷 `ty/pw` |
 | `history/external-access.md` | 외부 접속 · HTTPS 프록시 | 10-13 마감·커밋 |

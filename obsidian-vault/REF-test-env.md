@@ -4,7 +4,7 @@
 > 2026-10-14 날짜별 확인 스크립트 재작성 명세는 `REF-test-scripts.md`로 분할(2026-10-14 이후는 `REF-test-scripts-1014.md`, 2026-10-20 이후는 `REF-test-scripts-1020.md`, 2026-10-22 이후는 `REF-test-scripts-1022.md`, 2026-10-23 경로 직접 입력부터 `REF-test-scripts-1023.md`)(이 파일 = 환경·격리 실행·클라이언트 함정·DB 상태).
 
 ## 환경
-- **끌기·색인 금지 확인 = `scripts/check/run.sh`**(2026-11-02, 저장소에 있음, 임시 DB `nexus_check_tmp` + 5051, 끝나면 지움)
+- **끌기·색인 금지·업데이트 app 확인 = `scripts/check/run.sh`**(2026-11-02, 저장소에 있음, 임시 DB `nexus_check_tmp` + 5051 + 임시 `UPDATE_STORE_DIR`, 끝나면 지움). 업데이트 app = `updates-api.py`·`updater-ui.mjs`(→ `REF-update-p1.md`). 격리 supervisor `-env`는 절대 경로
 - 환경: supervisor·worker는 사용자가 띄움(`docker start postgres15` → supervisor → worker, dev 서버 3000). 테스트 로그인 = `pages/Login.vue` 기본값 계정. 헤드리스 = `~/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome` + `playwright-core`(scratchpad에 `npm i`). worker 연결만 끊는 재현 = `REF-process-reconnect.md` "재현 방법"
 - 스크립트는 직접 실행이라 `#!/bin/sh` 등 shebang 필수(없으면 `exec format error`)
 - 재부팅으로 사라지는 것: 세션 scratchpad의 playwright-core + 테스트 스크립트(4.5 `snap/server.mjs`·`browser.mjs`·`probe.mjs`, 이전 `tiles/*.mjs`·`input/*.mjs`). 다시 쓸 땐 `REF-process-snapshot-impl.md` "스냅샷-b/-d"·`REF-node-ui-save-impl.md`·`REF-node-ui-sync.md` 각 확인 절(항목·함정), `REF-process-input.md` "입력-a/입력-c" 보고 재작성. 테스트는 계정을 새로 만들고 폴더 `deviceKey=irony-MAC-ADDress1`로 하면 irony 타일 트리를 안 건드림
@@ -54,12 +54,8 @@
 - DB 노드 현황: 폴더 id 1(`HTOP_TEST_SH_MODI`, `device_key=irony-MAC-ADDress1`) 안에 스크립트 2~4 / 폴더 `test`(14) > `ttt1`(15) > 스크립트 23(사용자 테스트용)
 
 
-## 폰 사진 올리기 (2026-10-14, 실기기 확인용)
-- `apps/frontend/dev-upload.plugin.mts`(vite 플러그인): `https://test1.falinux.com/__upload?t=<토큰>` 페이지에서 고른 사진을 user vault `obsidian-vault/user/photo_<날짜_시각>.jpg`로 저장. 900KB 넘으면 폰 브라우저에서 JPEG로 줄임(프록시 본문 한도 회피). 토큰이 없거나 틀리면 404(test1은 외부에 열려 있음)
-- 올라온 사진은 사용자가 주제별 하위 폴더로 옮김(예: `user/vrKeyboard/` = 모바일 가상 키보드). user vault 전체는 git 제외(`.gitignore`)
-- 평소엔 꺼 둠: `vite.config.mts`의 `// import { devUpload }`·`// devUpload(...)` 두 줄 주석을 풀면 켜짐(설정 변경 = vite 자동 재시작). 토큰 = `.env.development.local` `DEV_UPLOAD_TOKEN`
-- (2026-10-20 임시) 보드 화면 오른쪽 가장자리 📎 버튼(`DevProbe.vue`, 개발 서버에서만)으로 페이지를 떠나지 않고 바로 올림. 토큰은 첫 사용 때 입력해 폰 localStorage(`dev.uploadToken`)에 — test1 JS에 토큰을 넣지 않으려고. 확인 끝나면 삭제(→ `REF-board-keyboard.md` "전체 화면 키보드 가림")
-- 사진이 많으면 읽기 전에 ImageMagick `montage`로 묶거나 PIL로 필요한 부분만 잘라 보기(이미지 1장 = 컨텍스트 많이 씀)
+## 폰 사진 올리기
+- 2026-11-02 분할 → `REF-photo-upload.md`
 
 ## 포트 점유 함정 (2026-10-26 MEMORY에서 옮김)
 - 잔류 supervisor가 포트(옛 5050, 지금 8012) 점유 시 `bind: address already in use`(마이그레이션은 init서 정상, 바인드만 실패). `ss -ltnp | grep :<포트>`로 pid 찾아 kill

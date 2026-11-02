@@ -5,8 +5,14 @@
 > 착수하면 CURRENT로 올리고 여기서 지운다. 해결되면 지운다(이력은 history에).
 
 ## 파트(업데이트 app)에서 미룬 것
-- **설치본 ≠ 실행 중일 때 자동 재시작** · 2026-10-30 · P3(배포) 뒤 · 지금 설계는 "재시작 필요" 경고만. 배포 끝에 프로세스까지 갈아 끼울지(보관 프로세스 `-hold`와 얽힘) → `REF-update-deploy.md` · `REF-update-rules.md` "배포 정보 타일"
-- **개발 실행 버전 표시(`-dev` 접미사)** · 2026-10-30 · P2(updater) 착수 때 같이 · `go run`은 embedded 배포 env를 읽어 같은 태그가 됨 → `REF-update-deploy.md` "미정"
+- **설계-8(supervisor 되돌리기)** · 2026-11-02 · P3(배포) 전 · 스키마가 바뀐 릴리스의 DB 되돌리기(내장 `backup`은 파일만, `pg_dump` 단계·복원 절차) → `REF-update-deploy.md` "미정"
+- **설계-10(자기 교체)** · 2026-11-02 · P3(배포) 전 · supervisor 교체 중 로그 경로 끊김·updater 자신의 교체 → `REF-update-deploy.md` "미정"
+- **P2(updater) 전 확정 6개** · 2026-11-02 · P2 착수 때 · 접속 토큰(공유 토큰 1개 제안)·받은 스크립트 실행 권한(`+x` / `sh`)·`state.json` 형식·첫 시험 장비(`fa24-PID`/`imx8mp-f24`)·설치 경로 `TARGET_DIR`·콘솔 인터랙션(대화형/보기 전용) → `REF-update-deploy.md` "미정"
+- **Updater 확인용 샘플 데이터** · 2026-11-02 · 사용자가 다시 원할 때 · 개발 DB `nexus`에 시안 구성(장비 3·빌드·잠긴 빌드·공용 2·스크립트·worker 바이너리) + 가짜 `updaters` 행 여부는 사용자 답 대기 → `history/update-p1.md` 11-02 밤
+- **`steps.json` 시각 편집 UI** · 2026-11-02 · P1(원문 편집 + 검증) 뒤 · 저장 형식은 JSON 그대로, 폼이 모르는 필드는 보존 → `REF-update-redesign.md`
+- **서브키 파일 계층 구현** · 2026-11-02 · P1은 자리만, 구현은 나중 · 서브키 재발급(`state.json` 소실) 시 파일이 주인을 잃는 문제 → `REF-update-redesign.md`
+- **worker·supervisor 실행 중 빌드 표시** · 2026-11-02 · 필요해지면(옛 설계 `//go:embed env` + `RegisterRequest.Build`는 이 파트에서 폐기) → `history/update-rules.md` 2026-10-30 엔트리
+- **시안 보정 반영 범위** · 2026-11-02 · 사용자 판단 대기 · DeepSeek v2에 찰떡 보정 미반영 / Files 범위 탭·Run·Log deploy-rollback도 안 C로 통일할지 → `REF-design-chaltteok.md`
 - **집 서버 영상 Range 배포** · 2026-10-29 · 다음 집 서버 묶음 때 · 영상 파트(10-29 마감)가 아직 집 서버에 없음 → `REF-home-deploy.md`
 
 ## 다음 파트 후보 (기능)

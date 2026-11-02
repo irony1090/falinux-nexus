@@ -53,3 +53,7 @@
 ## 2026-10-30 (9) — REF 분할
 - `REF-update-deploy.md`가 9.5k로 늘고 설계(흐름·폴더·DB·화면·계획)와 확정 규칙(잠금·되돌리기·버전·내 장비·단계 실행)이 섞여 분할
 - `REF-update-rules.md` + `history/update-rules.md` 신설(규칙 쪽), 설계·화면 쪽은 `REF-update-deploy.md`·`history/update-deploy.md`에 남김. 날짜 엔트리는 쪼개지 않고 통째로 이동((2)(3)(5)(6)(8) -> rules, (1)(4)(7) -> deploy)
+
+## 2026-11-02 — 규칙 개정
+- `REF-update-rules.md` 다시 씀: 잠금 = 빌드 단위·`잠그기`·sha 조건·`update_locks`, 삭제 규칙 신설, 되돌리기 = `rollback` 목록·내장 `restore`(스크립트 `trap` 폐기), 버전 = updater `state.json` 설치본 이름(실행 중 비교 폐기), 권한 = 관리자만
+- 위 10-30 엔트리(arch 단위 잠금·`배포 완료`·`//go:embed env` 버전·내 장비 배정 표시)는 옛 규칙의 기록이라 그대로 둠
