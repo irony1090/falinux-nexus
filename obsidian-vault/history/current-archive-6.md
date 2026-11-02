@@ -13,3 +13,9 @@
   - 화면 시안 = `user/배포-화면-찰떡.html`(4탭, 렌더 9장 = `user/배포-화면-찰떡/`) · 원판 `user/배포-화면.html` · 설계안 `user/배포-설계.html` → **사용자 확인 대기**
   - **다음 = P1(보관·화면)**. 착수 전 확정 3개 = 콘솔 인터랙션(가/나) · 스크립트를 `common`에 둘지 · 첫 시험 장비(`fa24-PID`/`imx8mp-f24`)
   - 참고: 이 세션 = `ANTHROPIC_API_KEY` 인증이라 아티팩트 게시 불가 → HTML을 `user/`에 둠
+
+## 2026-11-02 밤 — P1 마감·P2 진행 중 CURRENT에서 내려보냄(세션 재시작 정리)
+  - 확인: `scripts/check/run.sh` 전체 통과(회원 회귀 + `updates-api.py` 39 + `updater-ui.mjs` 27). 화면 = 보드·관리 메뉴 `Updater`(`/updater`)
+  - (11-02 밤) 차이-1~5 사용자 확인 끝(다섯 개 모두 이대로) · P1 마감 커밋
+  - (11-02 밤) 타일 아래 줄 넘침 수정(안내 글 `...` + 툴팁 `MbNote`, 버튼 줄바꿈) → `REF-design-chaltteok.md` "타일 아래 줄 넘침". 안내 글이 혼자 한 줄이면 줄바꿈(두 줄-1) · 벽에 붙은 입력칸 벽 쪽 선 없앰(벽-2) → `REF-design-chaltteok.md` "벽에 붙은 입력칸"
+  - (11-02 밤) 샘플 데이터를 개발 DB `nexus`에 넣음(`sample-jig`·`sample-board`·공용 2개, 인스턴스·잠금 행 없음) → `REF-update-p1.md` "샘플 데이터"

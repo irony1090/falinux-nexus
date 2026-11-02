@@ -4,8 +4,8 @@ import { useMemberBoard } from '@/feature/member/store/memberBoard.store';
 import type { MemberTile } from '@/feature/member/util/memberGrid.util';
 import { MAIN_KEY_PATTERN } from '@/feature/member/util/member.util';
 import CtTextField from '@/feature/widget/component/CtTextField.vue';
-import { createBundle, deleteBundle, deleteFile, fileUrl, openDownload, patchBundle, useBundle, type Ref, type UpdFile } from '../api/updater.api';
-import { useUpdConfirm, useUpdRun, useUpdUpload } from '../hook/updActions.hook';
+import { createBundle, deleteBundle, deleteFile, fileUrl, modeText, openDownload, patchBundle, useBundle, type Ref, type UpdFile } from '../api/updater.api';
+import { useUpdConfirm, useUpdMode, useUpdRun, useUpdUpload } from '../hook/updActions.hook';
 import { buildTileKey, commonTileKey, shortSha, sizeText, textTileKey, timeText } from '../util/updGrid.util';
 import UpdZipMenu from './UpdZipMenu.vue';
 import { useUpdPrompt } from './UpdPrompt.vue';
@@ -40,6 +40,7 @@ const onPick = async (e: Event) => {
     if (input.files?.length) await upload(props.bundle, input.files, false, b.value?.files ?? []);
     input.value = '';
 }
+const { isExec, toggleExec, editMode } = useUpdMode(props.bundle, run);
 const removeFile = async (f: UpdFile) => {
     if (!(await confirm(`${f.path} 삭제`, ['이 묶음을 쓰는 모든 빌드에서 이 파일이 빠집니다.'], '삭제', 'error'))) return;
     await run(() => deleteFile(props.bundle, f.path));
@@ -86,6 +87,8 @@ const remove = async () => {
                 <span class="sub">{{ sizeText(f.size) }}{{ f.text ? '' : ' · 바이너리' }}</span>
             </span>
             <div class="ct-grp ct-grp--sm" @click.stop>
+                <button type="button" class="ct-seg" :class="{ 'ct-seg--accent': isExec(f) }" :aria-pressed="isExec(f)" :title="isExec(f) ? '실행 끄기' : '실행 켜기'" :disabled="busy || locked" @click="toggleExec(f)"><v-icon icon="mdi-play-box-outline" size="15" /></button>
+                <button type="button" class="ct-seg ct-seg--mono" title="권한(8진수)" :disabled="busy || locked" @click="editMode(f)">{{ modeText(f.mode) }}</button>
                 <button type="button" class="ct-seg" title="받기" @click="openDownload(fileUrl(bundle, f.path))"><v-icon icon="mdi-download" size="15" /></button>
                 <button type="button" class="ct-seg ct-seg--error" title="삭제" :disabled="busy || locked" @click="removeFile(f)"><v-icon icon="mdi-delete-outline" size="15" /></button>
             </div>

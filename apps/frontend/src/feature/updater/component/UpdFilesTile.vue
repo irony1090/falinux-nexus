@@ -2,8 +2,8 @@
 import { computed, ref, watch } from 'vue';
 import { useMemberBoard } from '@/feature/member/store/memberBoard.store';
 import type { MemberTile } from '@/feature/member/util/memberGrid.util';
-import { deleteFile, fileUrl, openDownload, useBundle, type Ref, type UpdFile } from '../api/updater.api';
-import { useUpdConfirm, useUpdRun, useUpdUpload } from '../hook/updActions.hook';
+import { deleteFile, fileUrl, modeText, openDownload, useBundle, type Ref, type UpdFile } from '../api/updater.api';
+import { useUpdConfirm, useUpdMode, useUpdRun, useUpdUpload } from '../hook/updActions.hook';
 import { commonTileKey, sizeText, stepsTileKey, textTileKey } from '../util/updGrid.util';
 import MbNote from '@/feature/member/component/MbNote.vue';
 
@@ -38,6 +38,8 @@ const onPick = async (e: Event, folder: boolean) => {
     if (input.files?.length) await upload(props.bundle, input.files, folder, b.value?.files ?? []);
     input.value = '';
 }
+const { isExec, toggleExec, editMode } = useUpdMode(props.bundle, run);
+
 const remove = async (f: UpdFile) => {
     if (!(await confirm(`${f.path} 삭제`, f.path === 'steps.json' ? ['steps.json을 지우면 uses도 비워집니다.'] : ['이 빌드에서 파일을 지웁니다.'], '삭제', 'error'))) return;
     await run(() => deleteFile(props.bundle, f.path));
@@ -69,6 +71,8 @@ const remove = async (f: UpdFile) => {
                     <span class="sub">{{ sizeText(f.size) }}{{ f.text ? '' : ' · 바이너리' }}</span>
                 </span>
                 <div class="ct-grp ct-grp--sm" @click.stop>
+                    <button type="button" class="ct-seg" :class="{ 'ct-seg--accent': isExec(f) }" :aria-pressed="isExec(f)" :title="isExec(f) ? '실행 끄기' : '실행 켜기'" :disabled="busy || locked" @click="toggleExec(f)"><v-icon icon="mdi-play-box-outline" size="15" /></button>
+                    <button type="button" class="ct-seg ct-seg--mono" title="권한(8진수)" :disabled="busy || locked" @click="editMode(f)">{{ modeText(f.mode) }}</button>
                     <button type="button" class="ct-seg" title="받기" @click="openDownload(fileUrl(bundle, f.path))"><v-icon icon="mdi-download" size="15" /></button>
                     <button type="button" class="ct-seg ct-seg--error" title="삭제" :disabled="busy || locked" @click="remove(f)"><v-icon icon="mdi-delete-outline" size="15" /></button>
                 </div>
@@ -89,7 +93,7 @@ const remove = async (f: UpdFile) => {
                 <div v-for="f in u.files" :key="`${u.name}/${f.path}`" class="upd-row inner">
                     <span class="txt">
                         <span class="main upd-mono">{{ f.path }}</span>
-                        <span class="sub">{{ u.name }} · {{ sizeText(f.size) }}</span>
+                        <span class="sub">{{ u.name }} · {{ sizeText(f.size) }} · {{ modeText(f.mode) }}</span>
                     </span>
                 </div>
             </template>

@@ -1,4 +1,4 @@
-import { BaseAxios, throwCatch, throwThen } from '@/common/api/api.util'
+import { BaseAxios, getBaseURL, throwCatch, throwThen } from '@/common/api/api.util'
 import { keepPreviousData, useQuery, type QueryClient } from '@tanstack/vue-query'
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import type { ListParams, ListResponse } from '@/feature/member/api/device.api'
@@ -16,6 +16,8 @@ export type UpdDevice = {
     instanceCount: number
     lastBuildAt: number | null
     createdAt: number
+    hasKey: boolean
+    keyIssuedAt?: number | null
 }
 
 export type Updater = {
@@ -28,6 +30,8 @@ export type Updater = {
     installedVersion: string
     lastSeenAt: number | null
     online: boolean
+    running: number | null
+    version: string
 }
 
 export type Bundle = {
@@ -48,7 +52,7 @@ export type Bundle = {
 export type UpdDeviceDetail = UpdDevice & { instances: Updater[]; builds: Bundle[] }
 export type CommonGroup = { name: string; versions: Bundle[] }
 
-export type UpdFile = { scope: FileScope; subKey: string; path: string; size: number; sha: string; text: boolean; updatedAt: number }
+export type UpdFile = { scope: FileScope; subKey: string; path: string; size: number; sha: string; text: boolean; mode: number; updatedAt: number }
 export type UpdUse = { name: string; version: string; sha: string; locked: boolean; files: UpdFile[] }
 export type UpdUser = { mainKey: string; version: string; locked: boolean }
 export type BundleDetail = Bundle & { files: UpdFile[]; uses: UpdUse[]; users: UpdUser[] }
@@ -64,7 +68,23 @@ export const refName = (r: Ref) => `${r.owner}/${r.version}`
 // ---- 장비 루트 ----
 export const listUpdDevices = (params: ListParams = {}) => BaseAxios.get(`${base}/devices`, { params }).then(throwThen<ListResponse<UpdDevice>>).catch(throwCatch)
 export const getUpdDevice = (mainKey: string) => BaseAxios.get(`${base}/devices/${enc(mainKey)}`).then(throwThen<UpdDeviceDetail>).catch(throwCatch)
-export const createUpdDevice = (mainKey: string, memo = '') => BaseAxios.post(`${base}/devices`, { mainKey, memo }).then(throwThen<{ mainKey: string }>).catch(throwCatch)
+export type UpdKey = { mainKey: string; apiKey: string }
+// 만들 때 키 발급(응답에 원문) — REF-update-p2.md 정-1(접속 인증)
+export const createUpdDevice = (mainKey: string, memo = '') => BaseAxios.post(`${base}/devices`, { mainKey, memo }).then(throwThen<UpdKey>).catch(throwCatch)
+export const showUpdKey = (mainKey: string) => BaseAxios.get(`${base}/devices/${enc(mainKey)}/key`).then(throwThen<UpdKey>).catch(throwCatch)
+export const reissueUpdKey = (mainKey: string) => BaseAxios.post(`${base}/devices/${enc(mainKey)}/key`).then(throwThen<UpdKey>).catch(throwCatch)
+export const UPD_KEY_PREFIX = 'nxu_'
+
+// ---- 인스턴스 ----
+// targetDir = 설치 경로(정-5) — updater가 접속 중이고 실행 중이 아닐 때만, updater가 설정 파일을 고쳐 씀
+export const patchInstance = (mainKey: string, subKey: string, body: { label?: string; memo?: string; targetDir?: string }) =>
+    BaseAxios.patch(`${base}/devices/${enc(mainKey)}/instances/${enc(subKey)}`, body, { timeout: 15_000 }).then(throwThen<Empty>).catch(throwCatch)
+export const deleteInstance = (mainKey: string, subKey: string) => BaseAxios.delete(`${base}/devices/${enc(mainKey)}/instances/${enc(subKey)}`).then(throwThen<Empty>).catch(throwCatch)
+
+// updater.json 원문 — supervisor 주소 = 이 화면의 API 주소(/api 앞, http -> ws)
+export const updaterConfigText = (mainKey: string, apiKey: string, targetDir = '') => JSON.stringify({
+    supervisor: getBaseURL().replace(/\/api$/, '').replace(/^http/, 'ws'), mainKey, apiKey, targetDir,
+}, null, 2)
 export const patchUpdDevice = (mainKey: string, memo: string) => BaseAxios.patch(`${base}/devices/${enc(mainKey)}`, { memo }).then(throwThen<Empty>).catch(throwCatch)
 export const deleteUpdDevice = (mainKey: string) => BaseAxios.delete(`${base}/devices/${enc(mainKey)}`).then(throwThen<Empty>).catch(throwCatch)
 export const listCommons = (params: ListParams = {}) => BaseAxios.get(`${base}/commons`, { params }).then(throwThen<ListResponse<CommonGroup>>).catch(throwCatch)
@@ -93,6 +113,8 @@ export const readText = (r: Ref, path: string, scope: FileScope = 'main', sub = 
 export const saveText = (r: Ref, path: string, content: string, create = false) =>
     withIssues<IssuesResult>(BaseAxios.put(`${bundlePath(r)}/text`, { path, content, create }))
 export const checkSteps = (r: Ref, content: string) => BaseAxios.post(`${bundlePath(r)}/check`, { content }).then(throwThen<IssuesResult>).catch(throwCatch)
+export const setMode = (r: Ref, path: string, mode: number) => BaseAxios.patch(`${bundlePath(r)}/mode`, { path, mode }).then(throwThen<{ mode: number }>).catch(throwCatch)
+export const modeText = (m: number) => m.toString(8).padStart(3, '0')
 export const deleteFile = (r: Ref, path: string) => BaseAxios.delete(`${bundlePath(r)}/file`, { params: { path } }).then(throwThen<Empty>).catch(throwCatch)
 
 // 받기 주소(쿠키로 인가) — a[download]로 연다
@@ -153,10 +175,12 @@ export const useCommons = (params: P) => useQuery({
     queryFn: () => listCommons(toValue(params)),
     placeholderData: keepPreviousData,
 })
+// 인스턴스 접속 상태는 push가 없어 열려 있는 동안 10초마다 다시 조회(P2, 실시간 알림은 P3 Run·Log와 같이)
 export const useUpdDevice = (mainKey: string) => useQuery({
     queryKey: ['UPDATES', 'DEVICE', mainKey],
     queryFn: () => getUpdDevice(mainKey),
     retry: (n, e: any) => e?.status !== 404 && n < 2,
+    refetchInterval: 10_000,
 })
 export const useBundle = (r: Ref) => useQuery({
     queryKey: ['UPDATES', 'BUNDLE', r.kind, r.owner, r.version],

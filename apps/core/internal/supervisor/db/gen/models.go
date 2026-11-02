@@ -112,9 +112,12 @@ type UpdateDeployment struct {
 }
 
 type UpdateDevice struct {
-	MainKey   string
-	Memo      string
-	CreatedAt pgtype.Timestamptz
+	MainKey     string
+	Memo        string
+	CreatedAt   pgtype.Timestamptz
+	ApiKeyHash  string
+	ApiKeyEnc   []byte
+	KeyIssuedAt pgtype.Timestamptz
 }
 
 type UpdateFile struct {
@@ -126,6 +129,7 @@ type UpdateFile struct {
 	Sha       string
 	UpdatedBy pgtype.Int8
 	UpdatedAt pgtype.Timestamptz
+	Mode      int32
 }
 
 type UpdateLock struct {

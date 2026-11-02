@@ -7,8 +7,9 @@
 ## 파트(업데이트 app)에서 미룬 것
 - **설계-8(supervisor 되돌리기)** · 2026-11-02 · P3(배포) 전 · 스키마가 바뀐 릴리스의 DB 되돌리기(내장 `backup`은 파일만, `pg_dump` 단계·복원 절차) → `REF-update-deploy.md` "미정"
 - **설계-10(자기 교체)** · 2026-11-02 · P3(배포) 전 · supervisor 교체 중 로그 경로 끊김·updater 자신의 교체 → `REF-update-deploy.md` "미정"
-- **P2(updater) 전 확정 6개** · 2026-11-02 · P2 착수 때 · 접속 토큰(공유 토큰 1개 제안)·받은 스크립트 실행 권한(`+x` / `sh`)·`state.json` 형식·첫 시험 장비(`fa24-PID`/`imx8mp-f24`)·설치 경로 `TARGET_DIR`·콘솔 인터랙션(대화형/보기 전용) → `REF-update-deploy.md` "미정"
 - **Updater 확인용 샘플 데이터** · 2026-11-02 · 사용자가 다시 원할 때 · 개발 DB `nexus`에 시안 구성(장비 3·빌드·잠긴 빌드·공용 2·스크립트·worker 바이너리) + 가짜 `updaters` 행 여부는 사용자 답 대기 → `history/update-p1.md` 11-02 밤
+- **updater 화면 실시간 알림** · 2026-11-02 · P3(배포) Run·Log 때 · P2는 장비 타일 10초 조회(인스턴스 online·실행 중), 단계 출력도 push 없음 → `REF-update-p2.md` "남은 것"
+- **updater 끊긴 동안 출력** · 2026-11-02 · P3 Run·Log 때 판단 · 끊긴 사이 출력은 updater `logs/`에만 남고 supervisor 로그엔 빠짐(결과는 재전송됨) → `REF-update-p2.md` "동작 규칙"
 - **`steps.json` 시각 편집 UI** · 2026-11-02 · P1(원문 편집 + 검증) 뒤 · 저장 형식은 JSON 그대로, 폼이 모르는 필드는 보존 → `REF-update-redesign.md`
 - **서브키 파일 계층 구현** · 2026-11-02 · P1은 자리만, 구현은 나중 · 서브키 재발급(`state.json` 소실) 시 파일이 주인을 잃는 문제 → `REF-update-redesign.md`
 - **worker·supervisor 실행 중 빌드 표시** · 2026-11-02 · 필요해지면(옛 설계 `//go:embed env` + `RegisterRequest.Build`는 이 파트에서 폐기) → `history/update-rules.md` 2026-10-30 엔트리

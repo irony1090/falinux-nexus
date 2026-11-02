@@ -1,8 +1,11 @@
 import { useAppDialog } from '@/feature/layout/store/appDialog.store'
 import { useQueryClient } from '@tanstack/vue-query'
 import { ref } from 'vue'
-import { invalidateUpdates, saveText, uploadFile, type Ref, type UpdFile } from '../api/updater.api'
+import { invalidateUpdates, modeText, saveText, setMode, uploadFile, type Ref, type UpdFile } from '../api/updater.api'
 import { useUpdPrompt } from '../component/UpdPrompt.vue'
+
+// 장비 루트를 만든 직후 받은 키 — 장비 타일이 처음 열릴 때 펼쳐 보인다(회원 페이지 freshKeys와 같은 뜻)
+export const freshUpdKeys = ref<Record<string, string>>({})
 
 // updater 타일 공용 — 요청 하나(busy·오류 한 줄) · 확인 창 · 업로드(겹치는 이름은 한 번에 확인) · 새 텍스트 파일
 export const useUpdRun = () => {
@@ -88,4 +91,20 @@ export const useUpdUpload = (ctx: ReturnType<typeof useUpdRun>) => {
         if (ok) onCreated(path)
     }
     return { busy, message, progress, upload, newText }
+}
+
+// 파일 권한(정-2(실행 권한)) — 실행 켜기/끄기 = 실행 비트(111)만, 8진수 = 그대로. updater가 copy 때 적용(Files·공용 묶음 타일)
+export const useUpdMode = (bundle: Ref, run: ReturnType<typeof useUpdRun>['run']) => {
+    const prompt = useUpdPrompt()
+    const isExec = (f: UpdFile) => (f.mode & 0o100) !== 0
+    const toggleExec = (f: UpdFile) => run(() => setMode(bundle, f.path, isExec(f) ? f.mode & ~0o111 : f.mode | 0o111))
+    const editMode = async (f: UpdFile) => {
+        const v = await prompt({
+            title: `${f.path} 권한`, ok: '바꾸기',
+            note: '장비에 깔릴 때 이 권한으로 적용됩니다(Windows는 무시). 권한만 바꿔도 sha가 바뀝니다',
+            fields: [{ key: 'mode', label: '권한(8진수)', value: modeText(f.mode), placeholder: '예: 755', pattern: /^[0-7]{3}$/, patternMsg: '0~7 숫자 세 자리' }],
+        })
+        if (v?.mode) await run(() => setMode(bundle, f.path, parseInt(v.mode!, 8)))
+    }
+    return { isExec, toggleExec, editMode }
 }

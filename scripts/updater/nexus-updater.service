@@ -1,0 +1,15 @@
+# updater 상주(Linux) — REF-update-p2.md 단위-4(updater 본체). 설치: /opt/nexus-updater/{updater, updater.json}
+# KillMode=process: updater를 재시작해도 단계 스크립트가 띄운 프로세스는 남긴다(worker 서비스와 같은 이유)
+[Unit]
+Description=Nexus updater
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/opt/nexus-updater/updater -c /opt/nexus-updater/updater.json
+Restart=always
+RestartSec=5
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

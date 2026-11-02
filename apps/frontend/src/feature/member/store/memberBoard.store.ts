@@ -15,7 +15,7 @@ export type MemberTab = 'users' | 'devices' | 'commons'
 export const PAGE_TABS: Record<MemberPageKind, Partial<Record<MemberTab, string[]>>> = {
     admin: { users: ['all', 'admin', 'suspended', 'noreg'], devices: ['all', 'on', 'off', 'none'] },
     mine: { devices: ['all', 'on', 'off', 'none'] },
-    updater: { devices: ['all', 'nobuild'], commons: ['all', 'unused'] },
+    updater: { devices: ['all', 'nobuild', 'nokey'], commons: ['all', 'unused'] },
 }
 
 // 관리 페이지 한 화면 — 목록 상태 + 상세 타일 + 가로 스크롤. REF-member-ui.md 화-5(상세 쌓기)~화-12(공유 Grid)
