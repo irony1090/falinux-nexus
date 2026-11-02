@@ -37,7 +37,7 @@ const SIDES = [
     pointer-events: none;
     color: rgb(var(--v-theme-primary));
     transition: background-color 150ms ease;
-    &.prev { left: 0; background: linear-gradient(to right, rgba(var(--v-theme-primary), 0.16), transparent); }
+    &.prev { left: var(--edge-left, 0); background: linear-gradient(to right, rgba(var(--v-theme-primary), 0.16), transparent); }
     &.next { right: 0; background: linear-gradient(to left, rgba(var(--v-theme-primary), 0.16), transparent); }
     &.on { background-color: rgba(var(--v-theme-primary), 0.12); }
 }

@@ -43,7 +43,7 @@ const { dragKey, pressKey, down } = useMemberDrag();
 const slot = computed(() => dragKey.value === tile.value.key);
 const pressing = computed(() => pressKey.value === tile.value.key);
 const chipName = computed(() =>
-    kind.value === 'user' ? nick.value : kind.value === 'device' ? mainKeyOf(tile.value.key) : admin.value ? '대신 등록' : '장비 등록');
+    kind.value === 'user' ? nick.value : kind.value === 'device' ? mainKeyOf(tile.value.key) : admin ? '대신 등록' : '장비 등록');
 const onDown = (e: PointerEvent) => {
     if (!memberDragFrom(e.target as Element, e.pointerType)) return;
     down(e, tile.value.key, memberChip(kind.value, chipName.value));

@@ -49,12 +49,14 @@ const gridStyle = computed(() => ({
     gridTemplateRows: `repeat(${layout.value.rows}, minmax(0, 1fr))`,
 }));
 const listStyle = computed(() => phone.value ? undefined : { width: `${layout.value.cellW}px` });
+// 왼쪽 끝 띠 = 판정 기준인 스크롤 영역 왼쪽에 — PC = 목록 뒤 strip(.outer 여백 + 목록 + 간격, .strip margin -4), 폰 = 맨 왼쪽
+const edgeLeft = computed(() => phone.value ? '0px' : `${GAP + layout.value.cellW + GAP - 4}px`);
 // 칼럼마다 스냅 자리(타일이 없는 칼럼에도 멈추게) — 보드처럼 칼럼 단위 정지
 const snaps = computed(() => Array.from({ length: layout.value.cols }, (_, c) => c));
 </script>
 
 <template>
-<div class="MemberPage" :class="{ phone, scrubbing }" :style="{ '--gap': `${GAP}px` }" @wheel="onWheel">
+<div class="MemberPage" :class="{ phone, scrubbing }" :style="{ '--gap': `${GAP}px`, '--edge-left': edgeLeft }" @wheel="onWheel">
     <div ref="bodyEl" class="body">
         <div ref="outerEl" class="outer" @scroll.passive="onScroll">
             <div class="list" :style="listStyle">
