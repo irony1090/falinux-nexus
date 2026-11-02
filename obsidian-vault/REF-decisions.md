@@ -57,10 +57,13 @@
 - **전송 = supervisor 전송 목록(메모리) + 계정 토픽 `TRANSFER:*` push**(2026-10-23, 파트(파일 전송 확장)): 업로드·내려받기·worker 간 전송 공용. 브라우저 -> supervisor 본문은 **HTTP 조각 512KB**(앞단 nginx `client_max_body_size` 기본 1MB). worker -> supervisor 읽기는 끌어오기(`FILE_OPEN`·`READ`·`CLOSE`). 장비 디렉토리 인가 = `requireDeviceDir` (→ `REF-transfer-ext.md`·`REF-transfer-down.md`)
 
 ## 브라우저 API
-- **브라우저 API = 전부 `/api` 아래**(2026-10-26): 프론트 페이지 경로와 겹치지 않게 supervisor 코드에서(웹 서버 설정 의존 X). 새 API는 `mount*`에 받은 그룹에만, 프론트 주소는 `getBaseURL()` 뒤 문자열 이어 붙이기(`new URL('/x', base)` 금지). worker 소켓 `/worker`만 밖 (→ `REF-api-prefix.md`, `INDEX-member`)
+- **브라우저 API = 전부 `/api` 아래**(2026-10-26): 프론트 페이지 경로와 겹치지 않게 supervisor 코드에서(웹 서버 설정 의존 X). 새 API는 `mount*`에 받은 그룹에만, 프론트 주소는 `getBaseURL()` 뒤 문자열 이어 붙이기(`new URL('/x', base)` 금지). worker 소켓 `/worker`만 밖 — 2026-11-02 updater `/updater/ws`·`/updater/file`도 밖(장비 설정 파일에 들어가는 주소) (→ `REF-api-prefix.md`, `INDEX-member`, `REF-update-p2.md`)
 
 ## 회원·장비 인가
 - **회원·장비 인가**(2026-10-26, 파트(회원 관리)): worker 접속 = 메인키 + **API 키(메인키마다 하나)** — 없으면 거부. 키 = 검증용 해시 + 다시 보기용 AES-GCM 암호문(supervisor env **`KEY_SECRET` 필수**, 잃으면 보기만 불가). 장비(메인키) = 회원이 이름 등록, 전체 유일·이름 변경 없음. **실행 권한 = 장비 주인 + 그 장비가 지정된 폴더를 공유받은 사람**. 관리자 = `users.perms`의 `admin`(회원 0명일 때 첫 가입자) (→ `REF-member.md`, `INDEX-member`)
+
+## updater 인가
+- **updater 인가**(2026-11-02, 파트(업데이트 app) P2(updater Linux)): updater 접속 = 메인키 + **장비 루트별 키 `nxu_`**(worker 키 `nxk_`와 별개, 저장·다시 보기 방식은 같음). 장비 루트는 관리자가 만들 때 키 발급 — 첫 접속 자동 생성 없음. updater 화면·API = 관리자만(장비 주인에게도 안 보임) (→ `REF-update-p2.md` 정-1(접속 인증), `REF-update-deploy.md`)
 
 ## 배포 전 필수
 - **배포 전 필수**(2026-10-26): 회원이 이미 있는 DB에 배포할 때는 **관리자로 지정할 회원을 먼저 사용자에게 묻는다**. worker 실행 파일과 env `API_KEY`는 같이 바꾼다 (→ `REF-member.md` "배포 전 확인", 집 서버 → `REF-home-server.md`)

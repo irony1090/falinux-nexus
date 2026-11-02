@@ -37,6 +37,7 @@
 - **전송**: supervisor 전송 목록 + `TRANSFER:*` push. 브라우저 본문 = 조각 512KB
 - **브라우저 API**: 전부 `/api` 아래. 새 API는 `mount*` 그룹에만, 프론트는 `getBaseURL()` + 문자열(`new URL` 금지)
 - **회원·장비 인가**: worker 접속에 API 키(메인키마다 하나, env `KEY_SECRET` 필수). 실행 권한 = 장비 주인 + 지정 폴더 공유받은 사람
+- **updater 인가**: 장비 루트별 키 `nxu_`(worker 키와 별개, 관리자가 장비 루트를 만들 때 발급). updater 경로 `/updater/*`는 `/api` 밖, 화면은 관리자만
 - **젤리 효과**: 누를 수 있는 것·컨트롤 패널 = `styles/jelly.scss` 한 곳. 새 버튼 클래스는 `$box` 목록에, 가운데 팝업은 `translate` 속성 + `jelly-pop`
 - **닫은 뒤 active**: active 타일이 닫히면 위치 번호 이웃(다음, 마지막이면 앞)이 active(보드·관리 둘 다), 최소화·보드 바꾸기는 해제만
 - **패널 창 버튼**: 컨트롤 패널 왼쪽 = active 타일 머리 줄 `[숨기기 | 크기 | 닫기]`(있는 것만). 머리 줄 창 버튼을 바꾸면 `TileFrame`의 `tileHeadActs` 등록도 같이
@@ -87,10 +88,10 @@ sqlc.yaml  README.md  .gitignore
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
 - 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-decisions.md`·`REF-decisions-ui.md`(확정 결정 상세) · `REF-test-env.md`(테스트 환경·함정) · `REF-photo-upload.md`(폰 사진 올리기 도구, 11-02 분할) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · `REF-file-view.md`(장비 파일 편집기·보기 타일·칸 메뉴 내려받기, 구상) · `REF-view-tile.md`(파트(보기 타일) 구현) · **집 서버(운영)**: `REF-home-server.md`(서버 PC·옛 터널) · `REF-home-direct.md`(지금 경로 = iptime + Caddy 직통) · `REF-home-deploy.md`(배포·업데이트)
-- **배포·업데이트**: `REF-update-deploy.md`(업데이트 app 현재 설계: 독립 범용 updater·장비>빌드 릴리스 구조·steps.json·builtin·DB 7테이블·타일 페이지·단계 계획) · `REF-update-rules.md`(규칙: 개별 실행·빌드 단위 잠그기·삭제·되돌리기=rollback 단계·설치본 이름) · `REF-update-redesign.md`(11-02 결정 경위·시안 기록) · `REF-update-p1.md`(P1 구현: 파일 지도·계획과 달라진 것·쓰기 순서·키) · `REF-home-deploy.md`(지금 방식 update.ps1) · `REF-build.md`(보드 worker 교체)
+- **배포·업데이트**: `REF-update-deploy.md`(업데이트 app 현재 설계: 독립 범용 updater·장비>빌드 릴리스 구조·steps.json·builtin·DB 7테이블·타일 페이지·단계 계획) · `REF-update-rules.md`(규칙: 개별 실행·빌드 단위 잠그기·삭제·되돌리기=rollback 단계·설치본 이름) · `REF-update-redesign.md`(11-02 결정 경위·시안 기록) · `REF-update-p1.md`(P1 구현: 파일 지도·계획과 달라진 것·쓰기 순서·키) · `REF-update-p2.md`(P2 전 확정 6개·착수 계획) · `REF-home-deploy.md`(지금 방식 update.ps1) · `REF-build.md`(보드 worker 교체)
 - **10-30 작업 점검(11-02, 코드 머지됨)**: `REF-review-1030.md` / 업데이트 app 설계 개정(11-02, 점검 결과의 설계 항목 처리) → `REF-update-redesign.md`
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조. 11-02 시안 규칙 추가: 묶음 쪼개지 않기·오른쪽 묶음 벽에 붙이기·줄 넘침 "안 C 한 세트"). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
-- **진행 중 파트**: 업데이트 app(11-02 P1(보관·화면) 코드 끝·페이지 확인, 마감 커밋 대기 -> 다음 P2, `feat/updater-p1`) → `REF-update-p1.md` · 설계 `REF-update-deploy.md` · 규칙 `REF-update-rules.md` · 경위 `REF-update-redesign.md` / 직전 = 내 장비·관리자 타일 이동(마감, 10-30, `feat/member-drag` 머지) → `REF-member-drag.md` / 그 전 = 타일 끌기(마감, 10-29, `feat/tile-drag` 머지) → `REF-tile-drag.md` · 순서 구조 `REF-tile-order.md` · 끌기 구현 `REF-tile-drag-impl.md` / 그 전 영상 Range `REF-video-view.md` · 보기 타일 `REF-view-tile.md` · 파일 편집기 `REF-file-view.md` — 다섯 파트 아직 INDEX로 안 접음
+- **진행 중 파트**: 업데이트 app(11-02 P1(보관·화면) 마감·master 머지, P2(updater Linux) 마감 커밋, master 머지 대기) → `REF-update-p2.md` · `REF-update-p1.md` · 설계 `REF-update-deploy.md` · 규칙 `REF-update-rules.md` · 경위 `REF-update-redesign.md` / 직전 = 내 장비·관리자 타일 이동(마감, 10-30, `feat/member-drag` 머지) → `REF-member-drag.md` / 그 전 = 타일 끌기(마감, 10-29, `feat/tile-drag` 머지) → `REF-tile-drag.md` · 순서 구조 `REF-tile-order.md` · 끌기 구현 `REF-tile-drag-impl.md` / 그 전 영상 Range `REF-video-view.md` · 보기 타일 `REF-view-tile.md` · 파일 편집기 `REF-file-view.md` — 다섯 파트 아직 INDEX로 안 접음
 - **공용으로 뗀 것(10-30)**: `PageEdgeBands` = `edge` prop, 띠 판정 = `widget/util/edgeBand.util.ts` `makeEdgeBands`, `TileDragChip` = prop(보드·관리 페이지 공용)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"
