@@ -75,6 +75,9 @@ func Open(dir, owner string) *Store {
 
 func (s *Store) Enabled() bool { return s.dir != "" }
 
+// Dir: 보관소 폴더(끔 = "") — 실행 로그(logs/)도 여기 아래
+func (s *Store) Dir() string { return s.dir }
+
 func (s *Store) bundleDir(r Ref) string {
 	top := "devices"
 	if r.Kind == KindCommon {
@@ -250,7 +253,21 @@ func copyFile(src, dst string) error {
 }
 
 // Entry: 폴더 sha 계산 재료
-type Entry struct{ Scope, Sub, Path, Sha string }
+type Entry struct {
+	Scope, Sub, Path, Sha string
+	Mode                  int32
+}
+
+// DefaultMode: 새 파일 권한 — .sh = 0o755, 나머지 0o644(정-2(실행 권한), REF-update-p2.md)
+func DefaultMode(rel string) int32 {
+	if strings.HasSuffix(strings.ToLower(rel), ".sh") {
+		return 0o755
+	}
+	return 0o644
+}
+
+// ModeMax: 권한 비트만(setuid 등 특수 비트는 받지 않음)
+const ModeMax = 0o777
 
 // FolderSha: 정렬한 (범위, 서브키, 경로, 파일 sha) 목록의 sha256. 빈 번들 = ""
 func FolderSha(es []Entry) string {
@@ -270,7 +287,12 @@ func FolderSha(es []Entry) string {
 	})
 	h := sha256.New()
 	for _, e := range es {
-		fmt.Fprintf(h, "%s\x00%s\x00%s\x00%s\n", e.Scope, e.Sub, e.Path, e.Sha)
+		// 기본 권한이면 P1 형식 그대로 — P2 전 잠금 sha가 그대로 맞게, 바꾼 권한만 sha에 들어간다
+		if e.Mode == 0 || e.Mode == DefaultMode(e.Path) {
+			fmt.Fprintf(h, "%s\x00%s\x00%s\x00%s\n", e.Scope, e.Sub, e.Path, e.Sha)
+		} else {
+			fmt.Fprintf(h, "%s\x00%s\x00%s\x00%s\x00%o\n", e.Scope, e.Sub, e.Path, e.Sha, e.Mode)
+		}
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }

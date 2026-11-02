@@ -16,8 +16,8 @@ const StepsFile = "steps.json"
 var builtins = map[string]bool{"backup": true, "copy": true, "restore": true}
 
 type Issue struct {
-	Line  int    `json:"line"` // 1부터
-	Col   int    `json:"col"`  // 1부터(글자 단위)
+	Line  int    `json:"line"`  // 1부터
+	Col   int    `json:"col"`   // 1부터(글자 단위)
 	Level string `json:"level"` // error | warn
 	Msg   string `json:"msg"`
 }
@@ -30,6 +30,8 @@ type Use struct {
 
 type Step struct {
 	ID, Script, Builtin string
+	Timeout             time.Duration // 0 = 기본값(updater가 정함)
+	Manual, Interactive bool
 	at                  int
 }
 
@@ -153,13 +155,19 @@ func checkSteps(v *jnode, list string, add func(int, string, string, ...any)) []
 				} else {
 					s.Builtin = f.str
 				}
-			case "manual":
+			case "manual", "interactive":
 				if f.kind != jBool {
-					add(f.at, "error", "manual은 true/false여야 합니다")
+					add(f.at, "error", "%s는 true/false여야 합니다", kv.key)
+				} else if kv.key == "manual" {
+					s.Manual = f.str == "true"
+				} else {
+					s.Interactive = f.str == "true"
 				}
 			case "timeout":
 				if d, err := time.ParseDuration(f.str); f.kind != jStr || err != nil || d <= 0 {
 					add(f.at, "error", `timeout은 "30s" · "15m" 같은 시간 문자열이어야 합니다`)
+				} else {
+					s.Timeout = d
 				}
 			default:
 				add(kv.at, "warn", "모르는 항목 %q — updater가 쓰지 않습니다", kv.key)
@@ -169,7 +177,13 @@ func checkSteps(v *jnode, list string, add func(int, string, string, ...any)) []
 			add(it.at, "error", "단계에 id가 없습니다")
 			ok = false
 		}
+		if s.Interactive && s.Timeout > 0 {
+			add(it.get("timeout").at, "warn", "interactive 단계는 시간 제한을 쓰지 않습니다(입력을 기다릴 수 있어서)")
+		}
 		hasScript, hasBuiltin := it.get("script") != nil, it.get("builtin") != nil
+		if s.Interactive && hasBuiltin {
+			add(it.get("interactive").at, "warn", "builtin 단계는 입력을 받지 않습니다")
+		}
 		if hasScript == hasBuiltin {
 			add(it.at, "error", "단계에는 script와 builtin 중 하나만 있어야 합니다")
 			ok = false

@@ -7,7 +7,8 @@
 SELECT d.main_key, d.memo, d.created_at,
        (SELECT COUNT(*) FROM update_bundles b WHERE b.kind = 'build' AND b.owner = d.main_key)::bigint AS build_count,
        (SELECT COUNT(*) FROM updaters u WHERE u.main_key = d.main_key)::bigint AS instance_count,
-       (SELECT MAX(b.updated_at) FROM update_bundles b WHERE b.kind = 'build' AND b.owner = d.main_key)::timestamptz AS last_build_at
+       (SELECT MAX(b.updated_at) FROM update_bundles b WHERE b.kind = 'build' AND b.owner = d.main_key)::timestamptz AS last_build_at,
+       (d.api_key_hash <> '')::bool AS has_key
 FROM update_devices d
 ORDER BY d.main_key;
 
@@ -15,7 +16,11 @@ ORDER BY d.main_key;
 SELECT * FROM update_devices WHERE main_key = $1;
 
 -- name: CreateUpdateDevice :one
-INSERT INTO update_devices (main_key, memo) VALUES ($1, $2) RETURNING *;
+INSERT INTO update_devices (main_key, memo, api_key_hash, api_key_enc, key_issued_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING *;
+
+-- name: UpdateUpdateDeviceKey :execrows
+-- 발급·재발급 — 이미 붙은 연결은 그대로, 다음 접속부터 새 키
+UPDATE update_devices SET api_key_hash = $2, api_key_enc = $3, key_issued_at = NOW() WHERE main_key = $1;
 
 -- name: UpdateUpdateDeviceMemo :execrows
 UPDATE update_devices SET memo = $2 WHERE main_key = $1;
@@ -24,7 +29,30 @@ UPDATE update_devices SET memo = $2 WHERE main_key = $1;
 DELETE FROM update_devices WHERE main_key = $1;
 
 -- name: ListUpdatersByMainKey :many
-SELECT * FROM updaters WHERE main_key = $1 ORDER BY sub_key;
+SELECT * FROM updaters WHERE main_key = $1 ORDER BY created_at, sub_key;
+
+-- name: GetUpdater :one
+SELECT * FROM updaters WHERE main_key = $1 AND sub_key = $2;
+
+-- name: UpsertUpdater :exec
+-- updater 접속(HELLO) — 보고값 갱신. 별칭·메모는 그대로
+INSERT INTO updaters (main_key, sub_key, os, arch, install_dir, installed_version, last_seen_at)
+VALUES ($1, $2, $3, $4, $5, $6, NOW())
+ON CONFLICT (main_key, sub_key)
+DO UPDATE SET os = EXCLUDED.os, arch = EXCLUDED.arch, install_dir = EXCLUDED.install_dir,
+              installed_version = EXCLUDED.installed_version, last_seen_at = NOW();
+
+-- name: TouchUpdater :exec
+UPDATE updaters SET last_seen_at = NOW() WHERE main_key = $1 AND sub_key = $2;
+
+-- name: UpdateUpdaterLabel :execrows
+UPDATE updaters SET label = $3, memo = $4 WHERE main_key = $1 AND sub_key = $2;
+
+-- name: UpdateUpdaterInstallDir :execrows
+UPDATE updaters SET install_dir = $3 WHERE main_key = $1 AND sub_key = $2;
+
+-- name: DeleteUpdater :execrows
+DELETE FROM updaters WHERE main_key = $1 AND sub_key = $2;
 
 -- ===== 번들(빌드·공용 묶음) =====
 
@@ -90,19 +118,24 @@ SELECT * FROM update_files WHERE bundle_id = $1 ORDER BY scope, sub_key, path;
 SELECT * FROM update_files WHERE bundle_id = $1 AND scope = $2 AND sub_key = $3 AND path = $4;
 
 -- name: UpsertBundleFile :one
-INSERT INTO update_files (bundle_id, scope, sub_key, path, size, sha, updated_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+-- mode = 새 파일일 때만(덮어쓰기는 기존 권한 유지)
+INSERT INTO update_files (bundle_id, scope, sub_key, path, size, sha, updated_by, mode)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (bundle_id, scope, sub_key, path)
 DO UPDATE SET size = EXCLUDED.size, sha = EXCLUDED.sha, updated_by = EXCLUDED.updated_by, updated_at = NOW()
 RETURNING *;
+
+-- name: UpdateBundleFileMode :execrows
+UPDATE update_files SET mode = $5, updated_by = $6, updated_at = NOW()
+WHERE bundle_id = $1 AND scope = $2 AND sub_key = $3 AND path = $4;
 
 -- name: DeleteBundleFile :execrows
 DELETE FROM update_files WHERE bundle_id = $1 AND scope = $2 AND sub_key = $3 AND path = $4;
 
 -- name: CopyBundleFiles :exec
 -- 빌드 복사 — 메타만(내용은 보관소가 복사)
-INSERT INTO update_files (bundle_id, scope, sub_key, path, size, sha, updated_by)
-SELECT sqlc.arg(dst_id)::bigint, f.scope, f.sub_key, f.path, f.size, f.sha, sqlc.arg(user_id)::bigint
+INSERT INTO update_files (bundle_id, scope, sub_key, path, size, sha, updated_by, mode)
+SELECT sqlc.arg(dst_id)::bigint, f.scope, f.sub_key, f.path, f.size, f.sha, sqlc.arg(user_id)::bigint, f.mode
 FROM update_files f WHERE f.bundle_id = sqlc.arg(src_id)::bigint;
 
 -- ===== 쓰는 공용 묶음 =====
@@ -132,3 +165,33 @@ SELECT b.id, b.owner, b.version,
 FROM update_uses u JOIN update_bundles b ON b.id = u.bundle_id
 WHERE u.common_id = $1
 ORDER BY b.owner, b.version;
+
+-- ===== updater 접속 =====
+
+-- name: GetUpdateDeviceAuth :one
+SELECT api_key_hash FROM update_devices WHERE main_key = $1;
+
+-- name: GetBundleByID :one
+SELECT * FROM update_bundles WHERE id = $1;
+
+-- ===== 단계 실행 기록 =====
+
+-- name: CreateStepRun :one
+INSERT INTO update_step_runs (deployment_id, bundle_id, main_key, sub_key, version, list, step_id, step_kind, log_file, started_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING *;
+
+-- name: FinishStepRun :exec
+UPDATE update_step_runs SET result = $2, exit_code = $3, log_tail = $4, ended_at = NOW() WHERE id = $1;
+
+-- name: GetStepRun :one
+SELECT * FROM update_step_runs WHERE id = $1;
+
+-- name: ListStepRuns :many
+SELECT * FROM update_step_runs WHERE main_key = $1 AND sub_key = $2 ORDER BY id DESC LIMIT $3;
+
+-- name: CancelLostStepRuns :many
+-- updater 재접속 때 — 그 인스턴스의 끝나지 않은 기록 중 updater가 모르는 것(updater 재시작 등)
+UPDATE update_step_runs SET result = 'cancel', log_tail = log_tail || E'\n[updater가 이 실행을 모름 — 결과를 받지 못함]', ended_at = NOW()
+WHERE main_key = $1 AND sub_key = $2 AND result = 'running' AND NOT (id = ANY(sqlc.arg(keep)::bigint[]))
+RETURNING id;

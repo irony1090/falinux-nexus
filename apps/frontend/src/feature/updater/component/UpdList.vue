@@ -5,7 +5,7 @@ import { useMemberBoard } from '@/feature/member/store/memberBoard.store';
 import { MAIN_KEY_PATTERN, pageNumbers } from '@/feature/member/util/member.util';
 import CtTextField from '@/feature/widget/component/CtTextField.vue';
 import { createBundle, createUpdDevice, useCommons, useUpdDevices, type CommonGroup, type UpdDevice } from '../api/updater.api';
-import { useUpdRun } from '../hook/updActions.hook';
+import { freshUpdKeys, useUpdRun } from '../hook/updActions.hook';
 import { commonTileKey, devTileKey, timeText } from '../util/updGrid.util';
 import { useUpdPrompt } from './UpdPrompt.vue';
 
@@ -34,7 +34,7 @@ const tabs = computed(() => [
     { key: 'commons' as const, label: '공용 묶음', n: commonsTab.value ? (comQuery.data.value?.counts.all ?? 0) : (comQuery.data.value?.total ?? 0) },
 ]);
 const chips = computed(() => {
-    const defs = commonsTab.value ? [['all', '전체'], ['unused', '안 쓰임']] : [['all', '전체'], ['nobuild', '빌드 없음']];
+    const defs = commonsTab.value ? [['all', '전체'], ['unused', '안 쓰임']] : [['all', '전체'], ['nobuild', '빌드 없음'], ['nokey', '키 없음']];
     return defs.map(([key, label]) => ({ key: key!, label: label!, n: current.value?.counts[key!] ?? 0 }));
 });
 const pickFilter = (f: string) => { filter.value = f; pageNo.value = 1; };
@@ -69,11 +69,11 @@ const NAME_RULE = { pattern: MAIN_KEY_PATTERN, patternMsg: '영문·숫자·. _ 
 // P1(보관·화면)은 updater가 없어 장비 루트를 손으로 만든다(P2부터 첫 접속 때 자동)
 const addDevice = async () => {
     const v = await prompt({
-        title: '장비 추가', ok: '추가', note: 'updater가 접속하면 이 메인키로 자동으로 붙습니다',
+        title: '장비 추가', ok: '추가', note: '만들면 updater 접속 키가 발급됩니다. 키를 updater.json에 넣고 실행하면 인스턴스가 붙습니다',
         fields: [{ key: 'mainKey', label: '메인키', placeholder: '예: fa24-PID', ...NAME_RULE }, { key: 'memo', label: '메모', placeholder: '선택', optional: true }],
     });
     if (!v) return;
-    await run(() => createUpdDevice(v.mainKey!, v.memo), () => open(devTileKey(v.mainKey!)));
+    await run(() => createUpdDevice(v.mainKey!, v.memo), r => { freshUpdKeys.value = { ...freshUpdKeys.value, [r.mainKey]: r.apiKey }; open(devTileKey(r.mainKey)); });
 }
 const addCommon = async () => {
     const v = await prompt({

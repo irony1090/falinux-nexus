@@ -15,6 +15,7 @@ import (
 	superdb "nexus/internal/supervisor/db/gen"
 	"nexus/internal/supervisor/store"
 	"nexus/internal/transport"
+	"nexus/internal/updproto"
 	"nexus/internal/web"
 
 	"github.com/go-playground/validator/v10"
@@ -55,6 +56,8 @@ type supervisorRouter struct {
 	blocked        *blockedUsers                                 // 정지·삭제된 회원(admin.go)
 	view           *viewCache                                    // 이미지 사본(viewCache.go)
 	upd            *updStore                                     // 업데이트 app 보관소·받는 중 파일(update.go)
+	updLinks       *updLinks                                     // 접속한 updater(updaterConn.go)
+	updRuns        *updRunSet                                    // 단계 실행 로그(updaterRun.go)
 }
 
 // NewSupervisorRouter는 echo 서버를 세우고 worker WS 연결 라우트를 단다.
@@ -98,7 +101,9 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 		blocked:        loadBlockedUsers(),
 		view:           newViewCache(constants.GetEnv()),
 		upd:            newUpdStore(constants.GetEnv()),
+		updLinks:       newUpdLinks(),
 	}
+	router.updRuns = newUpdRunSet(router.upd.Dir())
 	go router.runPurge() // 끝난 process 주기 삭제(K2(supervisor 정리))
 	go router.runTransferSweep()
 	go router.runViewSweep()
@@ -119,6 +124,9 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 
 	// worker router — /api 밖(배포된 worker env WORKER_PATH 그대로)
 	e.GET(workerPath, router.handleWorkerWS)
+	// updater — /api 밖(장비 설정 파일에 들어가는 주소), 인증 = 메인키별 키(updaterKey.go)
+	e.GET(updproto.WSPath, router.handleUpdaterWS)
+	e.GET(updproto.FilePath, router.handleUpdaterFile)
 
 	// 브라우저 API는 전부 /api 아래 — 프론트 페이지 경로(/devices 등)와 겹치지 않게(REF-api-prefix.md)
 	api := e.Group(APIPrefix)

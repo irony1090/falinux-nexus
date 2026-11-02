@@ -40,3 +40,24 @@ func TestCleanRel(t *testing.T) {
 		t.Errorf("got %q %v", c, err)
 	}
 }
+
+func TestStepFlags(t *testing.T) {
+	st, is := Check([]byte(`{"deploy":[{"id":"a","script":"a.sh","interactive":true,"timeout":"5m"},{"id":"b","builtin":"copy","manual":true}]}`))
+	if len(st.Deploy) != 2 || !st.Deploy[0].Interactive || st.Deploy[0].Timeout == 0 || !st.Deploy[1].Manual {
+		t.Fatalf("got %+v", st.Deploy)
+	}
+	if len(is) != 1 || is[0].Level != "warn" {
+		t.Fatalf("interactive+timeout 경고 %+v", is)
+	}
+}
+
+// 기본 권한이면 P1 sha와 같아야 한다(잠금 sha 호환)
+func TestFolderShaMode(t *testing.T) {
+	a := FolderSha([]Entry{{Scope: "main", Path: "a.sh", Sha: "x"}})
+	if b := FolderSha([]Entry{{Scope: "main", Path: "a.sh", Sha: "x", Mode: 0o755}}); a != b {
+		t.Fatal("기본 권한인데 sha가 바뀜")
+	}
+	if c := FolderSha([]Entry{{Scope: "main", Path: "a.sh", Sha: "x", Mode: 0o700}}); a == c {
+		t.Fatal("권한을 바꿨는데 sha가 같음")
+	}
+}

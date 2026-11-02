@@ -28,6 +28,15 @@ func (r *supervisorRouter) mountUpdates(e *echo.Group) {
 	g.GET("/devices/:owner", r.updGetDevice)
 	g.PATCH("/devices/:owner", r.updPatchDevice)
 	g.DELETE("/devices/:owner", r.updDeleteDevice)
+	g.GET("/devices/:owner/key", r.updShowKey)                      // updaterKey.go
+	g.POST("/devices/:owner/key", r.updReissueKey)                  // updaterKey.go
+	g.PATCH("/devices/:owner/instances/:sub", r.updPatchInstance)   // updaterConn.go
+	g.DELETE("/devices/:owner/instances/:sub", r.updDeleteInstance) // updaterConn.go
+	g.POST("/devices/:owner/instances/:sub/runs", r.updStartRun)    // updaterRun.go
+	g.GET("/devices/:owner/instances/:sub/runs", r.updListRuns)     // updaterRun.go
+	g.GET("/runs/:id", r.updGetRun)                                 // updaterRun.go
+	g.POST("/runs/:id/input", r.updRunInput)                        // updaterRun.go
+	g.POST("/runs/:id/cancel", r.updRunCancel)                      // updaterRun.go
 	g.GET("/commons", r.updListCommons)
 
 	g.POST("/bundles/:kind/:owner", r.updCreateBundle)
@@ -37,6 +46,7 @@ func (r *supervisorRouter) mountUpdates(e *echo.Group) {
 	b.DELETE("", r.updDeleteBundle)
 	b.GET("/file", r.updReadFile)      // updateFiles.go
 	b.DELETE("/file", r.updDeleteFile) // updateFiles.go
+	b.PATCH("/mode", r.updSetMode)     // updateFiles.go
 	b.PUT("/text", r.updSaveText)      // updateFiles.go
 	b.POST("/check", r.updCheckSteps)  // updateFiles.go
 	b.POST("/uploads", r.updStartUpload)
@@ -108,6 +118,8 @@ type updDeviceItem struct {
 	InstanceCount int64  `json:"instanceCount"`
 	LastBuildAt   *int64 `json:"lastBuildAt"`
 	CreatedAt     int64  `json:"createdAt"`
+	HasKey        bool   `json:"hasKey"`
+	KeyIssuedAt   *int64 `json:"keyIssuedAt,omitempty"`
 }
 
 type updaterItem struct {
@@ -119,7 +131,9 @@ type updaterItem struct {
 	InstallDir       string `json:"installDir"`
 	InstalledVersion string `json:"installedVersion"`
 	LastSeenAt       *int64 `json:"lastSeenAt"`
-	Online           bool   `json:"online"` // P2(updater Linux)부터 메모리 연결로
+	Online           bool   `json:"online"`  // 메모리 연결(updaterConn.go)
+	Running          *int64 `json:"running"` // 지금 실행 중인 단계 기록 id
+	Version          string `json:"version"` // updater 빌드 태그(접속 중일 때)
 }
 
 type updBundleItem struct {
@@ -139,8 +153,8 @@ type updBundleItem struct {
 
 type updDeviceDetail struct {
 	updDeviceItem
-	Instances []updaterItem     `json:"instances"`
-	Builds    []updBundleItem   `json:"builds"`
+	Instances []updaterItem   `json:"instances"`
+	Builds    []updBundleItem `json:"builds"`
 }
 
 func tsPtr(t pgtype.Timestamptz) *int64 {
@@ -229,7 +243,7 @@ func refreshSha(c echo.Context, bundleID int64) {
 	}
 	es := make([]updstore.Entry, len(files))
 	for i, f := range files {
-		es[i] = updstore.Entry{Scope: f.Scope, Sub: f.SubKey, Path: f.Path, Sha: f.Sha}
+		es[i] = updstore.Entry{Scope: f.Scope, Sub: f.SubKey, Path: f.Path, Sha: f.Sha, Mode: f.Mode}
 	}
 	if err := q.UpdateBundleSha(ctx, superdb.UpdateBundleShaParams{ID: bundleID, Sha: updstore.FolderSha(es)}); err != nil {
 		panic(web.Err(500, "%v", err))
@@ -246,12 +260,13 @@ func (r *supervisorRouter) updListDevices(c echo.Context) error {
 	}
 	all := make([]updDeviceItem, len(rows))
 	for i, d := range rows {
-		all[i] = updDeviceItem{MainKey: d.MainKey, Memo: d.Memo, BuildCount: d.BuildCount, InstanceCount: d.InstanceCount, LastBuildAt: tsPtr(d.LastBuildAt), CreatedAt: d.CreatedAt.Time.Unix()}
+		all[i] = updDeviceItem{MainKey: d.MainKey, Memo: d.Memo, BuildCount: d.BuildCount, InstanceCount: d.InstanceCount, LastBuildAt: tsPtr(d.LastBuildAt), CreatedAt: d.CreatedAt.Time.Unix(), HasKey: d.HasKey}
 	}
 	lq := parseListQuery(c)
 	match := func(d updDeviceItem) bool { return containsFold(d.MainKey, lq.Q) || containsFold(d.Memo, lq.Q) }
 	filters := map[string]func(updDeviceItem) bool{
 		"nobuild": func(d updDeviceItem) bool { return d.BuildCount == 0 },
+		"nokey":   func(d updDeviceItem) bool { return !d.HasKey },
 	}
 	return c.JSON(200, pageList(all, lq, match, filters))
 }
@@ -261,7 +276,7 @@ type updDeviceRequest struct {
 	Memo    *string `json:"memo"`
 }
 
-// updCreateDevice: P1은 updater가 없어 화면에서 메인키를 입력해 만든다(P2부터 첫 접속 때 자동)
+// updCreateDevice: 장비 루트 + updater 키 발급(정-1(접속 인증) — 첫 접속 자동 생성 없음, 관리자가 먼저 만든다). 키는 응답으로 한 번, 이후 키 보기로
 func (r *supervisorRouter) updCreateDevice(c echo.Context) error {
 	r.requireAdmin(c)
 	var body updDeviceRequest
@@ -276,10 +291,11 @@ func (r *supervisorRouter) updCreateDevice(c echo.Context) error {
 	if body.Memo != nil {
 		memo = *body.Memo
 	}
-	if _, err := q.CreateUpdateDevice(ctx, superdb.CreateUpdateDeviceParams{MainKey: key, Memo: memo}); err != nil {
+	apiKey := newUpdaterKey()
+	if _, err := q.CreateUpdateDevice(ctx, superdb.CreateUpdateDeviceParams{MainKey: key, Memo: memo, ApiKeyHash: apiKeyHash(apiKey), ApiKeyEnc: sealAPIKey(apiKey)}); err != nil {
 		panic(web.Err(500, "%v", err))
 	}
-	return c.JSON(200, map[string]any{"mainKey": key})
+	return c.JSON(200, updKeyResponse{MainKey: key, APIKey: apiKey})
 }
 
 func (r *supervisorRouter) updGetDevice(c echo.Context) error {
@@ -297,12 +313,13 @@ func (r *supervisorRouter) updGetDevice(c echo.Context) error {
 		panic(web.Err(500, "%v", err))
 	}
 	out := updDeviceDetail{
-		updDeviceItem: updDeviceItem{MainKey: d.MainKey, Memo: d.Memo, BuildCount: int64(len(builds)), InstanceCount: int64(len(ups)), CreatedAt: d.CreatedAt.Time.Unix()},
-		Instances:     make([]updaterItem, len(ups)),
-		Builds:        make([]updBundleItem, len(builds)),
+		updDeviceItem: updDeviceItem{MainKey: d.MainKey, Memo: d.Memo, BuildCount: int64(len(builds)), InstanceCount: int64(len(ups)), CreatedAt: d.CreatedAt.Time.Unix(),
+			HasKey: d.ApiKeyHash != "", KeyIssuedAt: tsPtr(d.KeyIssuedAt)},
+		Instances: make([]updaterItem, len(ups)),
+		Builds:    make([]updBundleItem, len(builds)),
 	}
 	for i, u := range ups {
-		out.Instances[i] = updaterItem{SubKey: u.SubKey, Label: u.Label, Memo: u.Memo, OS: u.Os, Arch: u.Arch, InstallDir: u.InstallDir, InstalledVersion: u.InstalledVersion, LastSeenAt: tsPtr(u.LastSeenAt)}
+		out.Instances[i] = r.updaterItemOf(u)
 	}
 	for i, b := range builds {
 		out.Builds[i] = bundleItemOf(b)
@@ -348,6 +365,7 @@ func (r *supervisorRouter) updDeleteDevice(c echo.Context) error {
 	if _, err := q.DeleteUpdateDevice(ctx, key); err != nil {
 		panic(web.Err(500, "%v", err))
 	}
+	AfterCommit(c, func() { r.dropUpdaters(key) })
 	if r.upd.Enabled() {
 		AfterCommit(c, func() {
 			if err := r.upd.RemoveOwner(updstore.KindBuild, key); err != nil {
@@ -468,15 +486,16 @@ type updFileItem struct {
 	Size      int64  `json:"size"`
 	Sha       string `json:"sha"`
 	Text      bool   `json:"text"`
+	Mode      int32  `json:"mode"`
 	UpdatedAt int64  `json:"updatedAt"`
 }
 
 type updUseItem struct {
-	Name      string        `json:"name"`
-	Version   string        `json:"version"`
-	Sha       string        `json:"sha"`
-	Locked    bool          `json:"locked"`
-	Files     []updFileItem `json:"files"`
+	Name    string        `json:"name"`
+	Version string        `json:"version"`
+	Sha     string        `json:"sha"`
+	Locked  bool          `json:"locked"`
+	Files   []updFileItem `json:"files"`
 }
 
 type updUserItem struct {
@@ -487,15 +506,15 @@ type updUserItem struct {
 
 type updBundleDetail struct {
 	updBundleItem
-	Files  []updFileItem `json:"files"`
-	Uses   []updUseItem  `json:"uses"`   // 빌드만 — 깔 순서
-	Users  []updUserItem `json:"users"`  // 공용만 — 쓰는 빌드
+	Files []updFileItem `json:"files"`
+	Uses  []updUseItem  `json:"uses"`  // 빌드만 — 깔 순서
+	Users []updUserItem `json:"users"` // 공용만 — 쓰는 빌드
 }
 
 func (r *supervisorRouter) fileItems(ref updstore.Ref, files []superdb.UpdateFile) []updFileItem {
 	out := make([]updFileItem, len(files))
 	for i, f := range files {
-		out[i] = updFileItem{Scope: f.Scope, SubKey: f.SubKey, Path: f.Path, Size: f.Size, Sha: f.Sha, UpdatedAt: f.UpdatedAt.Time.Unix(),
+		out[i] = updFileItem{Scope: f.Scope, SubKey: f.SubKey, Path: f.Path, Size: f.Size, Sha: f.Sha, Mode: f.Mode, UpdatedAt: f.UpdatedAt.Time.Unix(),
 			Text: r.upd.Enabled() && r.upd.IsText(ref, f.Scope, f.SubKey, f.Path, f.Size)}
 	}
 	return out

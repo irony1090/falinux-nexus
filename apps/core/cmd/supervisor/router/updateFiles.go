@@ -176,7 +176,7 @@ func (r *supervisorRouter) updSaveText(c echo.Context) error {
 		}
 	}
 	sum := sha256.Sum256(data)
-	f, err := q.UpsertBundleFile(ctx, superdb.UpsertBundleFileParams{BundleID: id, Scope: scope, SubKey: sub, Path: rel, Size: int64(len(data)), Sha: hex.EncodeToString(sum[:]), UpdatedBy: pgtype.Int8{Int64: me, Valid: true}})
+	f, err := q.UpsertBundleFile(ctx, superdb.UpsertBundleFileParams{BundleID: id, Scope: scope, SubKey: sub, Path: rel, Size: int64(len(data)), Sha: hex.EncodeToString(sum[:]), UpdatedBy: pgtype.Int8{Int64: me, Valid: true}, Mode: updstore.DefaultMode(rel)})
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
@@ -187,7 +187,7 @@ func (r *supervisorRouter) updSaveText(c echo.Context) error {
 	if err := r.upd.WriteBytes(ref, scope, sub, rel, data); err != nil {
 		panic(web.Err(500, "파일 저장 실패: %v", err))
 	}
-	item := updFileItem{Scope: f.Scope, SubKey: f.SubKey, Path: f.Path, Size: f.Size, Sha: f.Sha, Text: true, UpdatedAt: f.UpdatedAt.Time.Unix()}
+	item := updFileItem{Scope: f.Scope, SubKey: f.SubKey, Path: f.Path, Size: f.Size, Sha: f.Sha, Text: true, Mode: f.Mode, UpdatedAt: f.UpdatedAt.Time.Unix()}
 	return c.JSON(200, updIssuesResponse{Issues: nonNilIssues(issues), File: &item})
 }
 
@@ -245,6 +245,35 @@ func (r *supervisorRouter) updReadFile(c echo.Context) error {
 		ctype = "text/plain; charset=utf-8"
 	}
 	return c.Stream(http.StatusOK, ctype, f)
+}
+
+type updModeRequest struct {
+	Scope  string `json:"scope"`
+	SubKey string `json:"subKey"`
+	Path   string `json:"path"`
+	Mode   int32  `json:"mode"`
+}
+
+// updSetMode: 파일 권한(8진수 0~777) — 정-2(실행 권한). 내용이 같아도 권한이 바뀌면 폴더 sha가 바뀐다(store.go FolderSha)
+func (r *supervisorRouter) updSetMode(c echo.Context) error {
+	me := r.requireAdmin(c)
+	ref := updRef(c)
+	var body updModeRequest
+	bindJSON(c, &body)
+	scope, sub, rel := updFileTarget(ref, body.Scope, body.SubKey, body.Path, true)
+	if body.Mode < 0 || body.Mode > updstore.ModeMax {
+		panic(web.Err(400, "권한은 8진수 000~777입니다"))
+	}
+	id := lockBundleForWrite(c, ref)
+	n, err := TxQueries(c).UpdateBundleFileMode(c.Request().Context(), superdb.UpdateBundleFileModeParams{BundleID: id, Scope: scope, SubKey: sub, Path: rel, Mode: body.Mode, UpdatedBy: pgtype.Int8{Int64: me, Valid: true}})
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	if n == 0 {
+		panic(web.Err(404, "%s 파일이 없습니다", rel))
+	}
+	refreshSha(c, id)
+	return c.JSON(200, map[string]any{"mode": body.Mode})
 }
 
 func (r *supervisorRouter) updDeleteFile(c echo.Context) error {
@@ -406,7 +435,7 @@ func (r *supervisorRouter) updFinishUpload(c echo.Context, id string, up *updUpl
 	}
 	q := TxQueries(c)
 	ctx := c.Request().Context()
-	f, err := q.UpsertBundleFile(ctx, superdb.UpsertBundleFileParams{BundleID: bid, Scope: up.scope, SubKey: up.sub, Path: up.path, Size: size, Sha: sha, UpdatedBy: pgtype.Int8{Int64: up.userID, Valid: true}})
+	f, err := q.UpsertBundleFile(ctx, superdb.UpsertBundleFileParams{BundleID: bid, Scope: up.scope, SubKey: up.sub, Path: up.path, Size: size, Sha: sha, UpdatedBy: pgtype.Int8{Int64: up.userID, Valid: true}, Mode: updstore.DefaultMode(up.path)})
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
@@ -418,7 +447,7 @@ func (r *supervisorRouter) updFinishUpload(c echo.Context, id string, up *updUpl
 		panic(web.Err(500, "파일 저장 실패: %v", err))
 	}
 	done = true
-	item := updFileItem{Scope: f.Scope, SubKey: f.SubKey, Path: f.Path, Size: f.Size, Sha: f.Sha, UpdatedAt: f.UpdatedAt.Time.Unix(),
+	item := updFileItem{Scope: f.Scope, SubKey: f.SubKey, Path: f.Path, Size: f.Size, Sha: f.Sha, Mode: f.Mode, UpdatedAt: f.UpdatedAt.Time.Unix(),
 		Text: r.upd.IsText(up.ref, f.Scope, f.SubKey, f.Path, f.Size)}
 	return c.JSON(200, updChunkResponse{Received: up.received, Done: true, File: &item, Issues: issues})
 }

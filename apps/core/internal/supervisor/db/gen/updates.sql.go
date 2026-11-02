@@ -11,9 +11,42 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cancelLostStepRuns = `-- name: CancelLostStepRuns :many
+UPDATE update_step_runs SET result = 'cancel', log_tail = log_tail || E'\n[updater가 이 실행을 모름 — 결과를 받지 못함]', ended_at = NOW()
+WHERE main_key = $1 AND sub_key = $2 AND result = 'running' AND NOT (id = ANY($3::bigint[]))
+RETURNING id
+`
+
+type CancelLostStepRunsParams struct {
+	MainKey string
+	SubKey  string
+	Keep    []int64
+}
+
+// updater 재접속 때 — 그 인스턴스의 끝나지 않은 기록 중 updater가 모르는 것(updater 재시작 등)
+func (q *Queries) CancelLostStepRuns(ctx context.Context, arg CancelLostStepRunsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, cancelLostStepRuns, arg.MainKey, arg.SubKey, arg.Keep)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const copyBundleFiles = `-- name: CopyBundleFiles :exec
-INSERT INTO update_files (bundle_id, scope, sub_key, path, size, sha, updated_by)
-SELECT $1::bigint, f.scope, f.sub_key, f.path, f.size, f.sha, $2::bigint
+INSERT INTO update_files (bundle_id, scope, sub_key, path, size, sha, updated_by, mode)
+SELECT $1::bigint, f.scope, f.sub_key, f.path, f.size, f.sha, $2::bigint, f.mode
 FROM update_files f WHERE f.bundle_id = $3::bigint
 `
 
@@ -81,19 +114,89 @@ func (q *Queries) CreateBundle(ctx context.Context, arg CreateBundleParams) (Upd
 	return i, err
 }
 
+const createStepRun = `-- name: CreateStepRun :one
+
+INSERT INTO update_step_runs (deployment_id, bundle_id, main_key, sub_key, version, list, step_id, step_kind, log_file, started_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id, deployment_id, bundle_id, main_key, sub_key, version, list, step_id, step_kind, result, exit_code, log_tail, log_file, started_by, started_at, ended_at
+`
+
+type CreateStepRunParams struct {
+	DeploymentID pgtype.Int8
+	BundleID     pgtype.Int8
+	MainKey      string
+	SubKey       string
+	Version      string
+	List         string
+	StepID       string
+	StepKind     string
+	LogFile      string
+	StartedBy    pgtype.Int8
+}
+
+// ===== 단계 실행 기록 =====
+func (q *Queries) CreateStepRun(ctx context.Context, arg CreateStepRunParams) (UpdateStepRun, error) {
+	row := q.db.QueryRow(ctx, createStepRun,
+		arg.DeploymentID,
+		arg.BundleID,
+		arg.MainKey,
+		arg.SubKey,
+		arg.Version,
+		arg.List,
+		arg.StepID,
+		arg.StepKind,
+		arg.LogFile,
+		arg.StartedBy,
+	)
+	var i UpdateStepRun
+	err := row.Scan(
+		&i.ID,
+		&i.DeploymentID,
+		&i.BundleID,
+		&i.MainKey,
+		&i.SubKey,
+		&i.Version,
+		&i.List,
+		&i.StepID,
+		&i.StepKind,
+		&i.Result,
+		&i.ExitCode,
+		&i.LogTail,
+		&i.LogFile,
+		&i.StartedBy,
+		&i.StartedAt,
+		&i.EndedAt,
+	)
+	return i, err
+}
+
 const createUpdateDevice = `-- name: CreateUpdateDevice :one
-INSERT INTO update_devices (main_key, memo) VALUES ($1, $2) RETURNING main_key, memo, created_at
+INSERT INTO update_devices (main_key, memo, api_key_hash, api_key_enc, key_issued_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING main_key, memo, created_at, api_key_hash, api_key_enc, key_issued_at
 `
 
 type CreateUpdateDeviceParams struct {
-	MainKey string
-	Memo    string
+	MainKey    string
+	Memo       string
+	ApiKeyHash string
+	ApiKeyEnc  []byte
 }
 
 func (q *Queries) CreateUpdateDevice(ctx context.Context, arg CreateUpdateDeviceParams) (UpdateDevice, error) {
-	row := q.db.QueryRow(ctx, createUpdateDevice, arg.MainKey, arg.Memo)
+	row := q.db.QueryRow(ctx, createUpdateDevice,
+		arg.MainKey,
+		arg.Memo,
+		arg.ApiKeyHash,
+		arg.ApiKeyEnc,
+	)
 	var i UpdateDevice
-	err := row.Scan(&i.MainKey, &i.Memo, &i.CreatedAt)
+	err := row.Scan(
+		&i.MainKey,
+		&i.Memo,
+		&i.CreatedAt,
+		&i.ApiKeyHash,
+		&i.ApiKeyEnc,
+		&i.KeyIssuedAt,
+	)
 	return i, err
 }
 
@@ -156,6 +259,44 @@ func (q *Queries) DeleteUpdateDevice(ctx context.Context, mainKey string) (int64
 	return result.RowsAffected(), nil
 }
 
+const deleteUpdater = `-- name: DeleteUpdater :execrows
+DELETE FROM updaters WHERE main_key = $1 AND sub_key = $2
+`
+
+type DeleteUpdaterParams struct {
+	MainKey string
+	SubKey  string
+}
+
+func (q *Queries) DeleteUpdater(ctx context.Context, arg DeleteUpdaterParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUpdater, arg.MainKey, arg.SubKey)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const finishStepRun = `-- name: FinishStepRun :exec
+UPDATE update_step_runs SET result = $2, exit_code = $3, log_tail = $4, ended_at = NOW() WHERE id = $1
+`
+
+type FinishStepRunParams struct {
+	ID       int64
+	Result   string
+	ExitCode pgtype.Int4
+	LogTail  string
+}
+
+func (q *Queries) FinishStepRun(ctx context.Context, arg FinishStepRunParams) error {
+	_, err := q.db.Exec(ctx, finishStepRun,
+		arg.ID,
+		arg.Result,
+		arg.ExitCode,
+		arg.LogTail,
+	)
+	return err
+}
+
 const getBundle = `-- name: GetBundle :one
 SELECT b.id, b.kind, b.owner, b.version, b.note, b.sha, b.created_by, b.created_at, b.updated_at,
        COALESCE(cu.nickname, '')::text AS created_by_name,
@@ -206,8 +347,29 @@ func (q *Queries) GetBundle(ctx context.Context, arg GetBundleParams) (GetBundle
 	return i, err
 }
 
+const getBundleByID = `-- name: GetBundleByID :one
+SELECT id, kind, owner, version, note, sha, created_by, created_at, updated_at FROM update_bundles WHERE id = $1
+`
+
+func (q *Queries) GetBundleByID(ctx context.Context, id int64) (UpdateBundle, error) {
+	row := q.db.QueryRow(ctx, getBundleByID, id)
+	var i UpdateBundle
+	err := row.Scan(
+		&i.ID,
+		&i.Kind,
+		&i.Owner,
+		&i.Version,
+		&i.Note,
+		&i.Sha,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getBundleFile = `-- name: GetBundleFile :one
-SELECT bundle_id, scope, sub_key, path, size, sha, updated_by, updated_at FROM update_files WHERE bundle_id = $1 AND scope = $2 AND sub_key = $3 AND path = $4
+SELECT bundle_id, scope, sub_key, path, size, sha, updated_by, updated_at, mode FROM update_files WHERE bundle_id = $1 AND scope = $2 AND sub_key = $3 AND path = $4
 `
 
 type GetBundleFileParams struct {
@@ -234,6 +396,7 @@ func (q *Queries) GetBundleFile(ctx context.Context, arg GetBundleFileParams) (U
 		&i.Sha,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.Mode,
 	)
 	return i, err
 }
@@ -274,14 +437,89 @@ func (q *Queries) GetBundleForUpdate(ctx context.Context, arg GetBundleForUpdate
 	return i, err
 }
 
+const getStepRun = `-- name: GetStepRun :one
+SELECT id, deployment_id, bundle_id, main_key, sub_key, version, list, step_id, step_kind, result, exit_code, log_tail, log_file, started_by, started_at, ended_at FROM update_step_runs WHERE id = $1
+`
+
+func (q *Queries) GetStepRun(ctx context.Context, id int64) (UpdateStepRun, error) {
+	row := q.db.QueryRow(ctx, getStepRun, id)
+	var i UpdateStepRun
+	err := row.Scan(
+		&i.ID,
+		&i.DeploymentID,
+		&i.BundleID,
+		&i.MainKey,
+		&i.SubKey,
+		&i.Version,
+		&i.List,
+		&i.StepID,
+		&i.StepKind,
+		&i.Result,
+		&i.ExitCode,
+		&i.LogTail,
+		&i.LogFile,
+		&i.StartedBy,
+		&i.StartedAt,
+		&i.EndedAt,
+	)
+	return i, err
+}
+
 const getUpdateDevice = `-- name: GetUpdateDevice :one
-SELECT main_key, memo, created_at FROM update_devices WHERE main_key = $1
+SELECT main_key, memo, created_at, api_key_hash, api_key_enc, key_issued_at FROM update_devices WHERE main_key = $1
 `
 
 func (q *Queries) GetUpdateDevice(ctx context.Context, mainKey string) (UpdateDevice, error) {
 	row := q.db.QueryRow(ctx, getUpdateDevice, mainKey)
 	var i UpdateDevice
-	err := row.Scan(&i.MainKey, &i.Memo, &i.CreatedAt)
+	err := row.Scan(
+		&i.MainKey,
+		&i.Memo,
+		&i.CreatedAt,
+		&i.ApiKeyHash,
+		&i.ApiKeyEnc,
+		&i.KeyIssuedAt,
+	)
+	return i, err
+}
+
+const getUpdateDeviceAuth = `-- name: GetUpdateDeviceAuth :one
+
+SELECT api_key_hash FROM update_devices WHERE main_key = $1
+`
+
+// ===== updater 접속 =====
+func (q *Queries) GetUpdateDeviceAuth(ctx context.Context, mainKey string) (string, error) {
+	row := q.db.QueryRow(ctx, getUpdateDeviceAuth, mainKey)
+	var api_key_hash string
+	err := row.Scan(&api_key_hash)
+	return api_key_hash, err
+}
+
+const getUpdater = `-- name: GetUpdater :one
+SELECT main_key, sub_key, label, memo, os, arch, install_dir, installed_version, last_seen_at, created_at FROM updaters WHERE main_key = $1 AND sub_key = $2
+`
+
+type GetUpdaterParams struct {
+	MainKey string
+	SubKey  string
+}
+
+func (q *Queries) GetUpdater(ctx context.Context, arg GetUpdaterParams) (Updater, error) {
+	row := q.db.QueryRow(ctx, getUpdater, arg.MainKey, arg.SubKey)
+	var i Updater
+	err := row.Scan(
+		&i.MainKey,
+		&i.SubKey,
+		&i.Label,
+		&i.Memo,
+		&i.Os,
+		&i.Arch,
+		&i.InstallDir,
+		&i.InstalledVersion,
+		&i.LastSeenAt,
+		&i.CreatedAt,
+	)
 	return i, err
 }
 
@@ -302,7 +540,7 @@ func (q *Queries) InsertBundleUse(ctx context.Context, arg InsertBundleUseParams
 
 const listBundleFiles = `-- name: ListBundleFiles :many
 
-SELECT bundle_id, scope, sub_key, path, size, sha, updated_by, updated_at FROM update_files WHERE bundle_id = $1 ORDER BY scope, sub_key, path
+SELECT bundle_id, scope, sub_key, path, size, sha, updated_by, updated_at, mode FROM update_files WHERE bundle_id = $1 ORDER BY scope, sub_key, path
 `
 
 // ===== 파일 =====
@@ -324,6 +562,7 @@ func (q *Queries) ListBundleFiles(ctx context.Context, bundleID int64) ([]Update
 			&i.Sha,
 			&i.UpdatedBy,
 			&i.UpdatedAt,
+			&i.Mode,
 		); err != nil {
 			return nil, err
 		}
@@ -555,13 +794,61 @@ func (q *Queries) ListCommonBundles(ctx context.Context) ([]ListCommonBundlesRow
 	return items, nil
 }
 
+const listStepRuns = `-- name: ListStepRuns :many
+SELECT id, deployment_id, bundle_id, main_key, sub_key, version, list, step_id, step_kind, result, exit_code, log_tail, log_file, started_by, started_at, ended_at FROM update_step_runs WHERE main_key = $1 AND sub_key = $2 ORDER BY id DESC LIMIT $3
+`
+
+type ListStepRunsParams struct {
+	MainKey string
+	SubKey  string
+	Limit   int32
+}
+
+func (q *Queries) ListStepRuns(ctx context.Context, arg ListStepRunsParams) ([]UpdateStepRun, error) {
+	rows, err := q.db.Query(ctx, listStepRuns, arg.MainKey, arg.SubKey, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UpdateStepRun
+	for rows.Next() {
+		var i UpdateStepRun
+		if err := rows.Scan(
+			&i.ID,
+			&i.DeploymentID,
+			&i.BundleID,
+			&i.MainKey,
+			&i.SubKey,
+			&i.Version,
+			&i.List,
+			&i.StepID,
+			&i.StepKind,
+			&i.Result,
+			&i.ExitCode,
+			&i.LogTail,
+			&i.LogFile,
+			&i.StartedBy,
+			&i.StartedAt,
+			&i.EndedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUpdateDevices = `-- name: ListUpdateDevices :many
 
 
 SELECT d.main_key, d.memo, d.created_at,
        (SELECT COUNT(*) FROM update_bundles b WHERE b.kind = 'build' AND b.owner = d.main_key)::bigint AS build_count,
        (SELECT COUNT(*) FROM updaters u WHERE u.main_key = d.main_key)::bigint AS instance_count,
-       (SELECT MAX(b.updated_at) FROM update_bundles b WHERE b.kind = 'build' AND b.owner = d.main_key)::timestamptz AS last_build_at
+       (SELECT MAX(b.updated_at) FROM update_bundles b WHERE b.kind = 'build' AND b.owner = d.main_key)::timestamptz AS last_build_at,
+       (d.api_key_hash <> '')::bool AS has_key
 FROM update_devices d
 ORDER BY d.main_key
 `
@@ -573,6 +860,7 @@ type ListUpdateDevicesRow struct {
 	BuildCount    int64
 	InstanceCount int64
 	LastBuildAt   pgtype.Timestamptz
+	HasKey        bool
 }
 
 // 업데이트 app 보관 메타 — REF-update-deploy.md "P1 착수 계획" 단위-1(DB)
@@ -594,6 +882,7 @@ func (q *Queries) ListUpdateDevices(ctx context.Context) ([]ListUpdateDevicesRow
 			&i.BuildCount,
 			&i.InstanceCount,
 			&i.LastBuildAt,
+			&i.HasKey,
 		); err != nil {
 			return nil, err
 		}
@@ -606,7 +895,7 @@ func (q *Queries) ListUpdateDevices(ctx context.Context) ([]ListUpdateDevicesRow
 }
 
 const listUpdatersByMainKey = `-- name: ListUpdatersByMainKey :many
-SELECT main_key, sub_key, label, memo, os, arch, install_dir, installed_version, last_seen_at, created_at FROM updaters WHERE main_key = $1 ORDER BY sub_key
+SELECT main_key, sub_key, label, memo, os, arch, install_dir, installed_version, last_seen_at, created_at FROM updaters WHERE main_key = $1 ORDER BY created_at, sub_key
 `
 
 func (q *Queries) ListUpdatersByMainKey(ctx context.Context, mainKey string) ([]Updater, error) {
@@ -640,6 +929,49 @@ func (q *Queries) ListUpdatersByMainKey(ctx context.Context, mainKey string) ([]
 	return items, nil
 }
 
+const touchUpdater = `-- name: TouchUpdater :exec
+UPDATE updaters SET last_seen_at = NOW() WHERE main_key = $1 AND sub_key = $2
+`
+
+type TouchUpdaterParams struct {
+	MainKey string
+	SubKey  string
+}
+
+func (q *Queries) TouchUpdater(ctx context.Context, arg TouchUpdaterParams) error {
+	_, err := q.db.Exec(ctx, touchUpdater, arg.MainKey, arg.SubKey)
+	return err
+}
+
+const updateBundleFileMode = `-- name: UpdateBundleFileMode :execrows
+UPDATE update_files SET mode = $5, updated_by = $6, updated_at = NOW()
+WHERE bundle_id = $1 AND scope = $2 AND sub_key = $3 AND path = $4
+`
+
+type UpdateBundleFileModeParams struct {
+	BundleID  int64
+	Scope     string
+	SubKey    string
+	Path      string
+	Mode      int32
+	UpdatedBy pgtype.Int8
+}
+
+func (q *Queries) UpdateBundleFileMode(ctx context.Context, arg UpdateBundleFileModeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateBundleFileMode,
+		arg.BundleID,
+		arg.Scope,
+		arg.SubKey,
+		arg.Path,
+		arg.Mode,
+		arg.UpdatedBy,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateBundleNote = `-- name: UpdateBundleNote :execrows
 UPDATE update_bundles SET note = $2 WHERE id = $1
 `
@@ -671,6 +1003,25 @@ func (q *Queries) UpdateBundleSha(ctx context.Context, arg UpdateBundleShaParams
 	return err
 }
 
+const updateUpdateDeviceKey = `-- name: UpdateUpdateDeviceKey :execrows
+UPDATE update_devices SET api_key_hash = $2, api_key_enc = $3, key_issued_at = NOW() WHERE main_key = $1
+`
+
+type UpdateUpdateDeviceKeyParams struct {
+	MainKey    string
+	ApiKeyHash string
+	ApiKeyEnc  []byte
+}
+
+// 발급·재발급 — 이미 붙은 연결은 그대로, 다음 접속부터 새 키
+func (q *Queries) UpdateUpdateDeviceKey(ctx context.Context, arg UpdateUpdateDeviceKeyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateUpdateDeviceKey, arg.MainKey, arg.ApiKeyHash, arg.ApiKeyEnc)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updateUpdateDeviceMemo = `-- name: UpdateUpdateDeviceMemo :execrows
 UPDATE update_devices SET memo = $2 WHERE main_key = $1
 `
@@ -688,12 +1039,54 @@ func (q *Queries) UpdateUpdateDeviceMemo(ctx context.Context, arg UpdateUpdateDe
 	return result.RowsAffected(), nil
 }
 
+const updateUpdaterInstallDir = `-- name: UpdateUpdaterInstallDir :execrows
+UPDATE updaters SET install_dir = $3 WHERE main_key = $1 AND sub_key = $2
+`
+
+type UpdateUpdaterInstallDirParams struct {
+	MainKey    string
+	SubKey     string
+	InstallDir string
+}
+
+func (q *Queries) UpdateUpdaterInstallDir(ctx context.Context, arg UpdateUpdaterInstallDirParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateUpdaterInstallDir, arg.MainKey, arg.SubKey, arg.InstallDir)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateUpdaterLabel = `-- name: UpdateUpdaterLabel :execrows
+UPDATE updaters SET label = $3, memo = $4 WHERE main_key = $1 AND sub_key = $2
+`
+
+type UpdateUpdaterLabelParams struct {
+	MainKey string
+	SubKey  string
+	Label   string
+	Memo    string
+}
+
+func (q *Queries) UpdateUpdaterLabel(ctx context.Context, arg UpdateUpdaterLabelParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateUpdaterLabel,
+		arg.MainKey,
+		arg.SubKey,
+		arg.Label,
+		arg.Memo,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const upsertBundleFile = `-- name: UpsertBundleFile :one
-INSERT INTO update_files (bundle_id, scope, sub_key, path, size, sha, updated_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO update_files (bundle_id, scope, sub_key, path, size, sha, updated_by, mode)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (bundle_id, scope, sub_key, path)
 DO UPDATE SET size = EXCLUDED.size, sha = EXCLUDED.sha, updated_by = EXCLUDED.updated_by, updated_at = NOW()
-RETURNING bundle_id, scope, sub_key, path, size, sha, updated_by, updated_at
+RETURNING bundle_id, scope, sub_key, path, size, sha, updated_by, updated_at, mode
 `
 
 type UpsertBundleFileParams struct {
@@ -704,8 +1097,10 @@ type UpsertBundleFileParams struct {
 	Size      int64
 	Sha       string
 	UpdatedBy pgtype.Int8
+	Mode      int32
 }
 
+// mode = 새 파일일 때만(덮어쓰기는 기존 권한 유지)
 func (q *Queries) UpsertBundleFile(ctx context.Context, arg UpsertBundleFileParams) (UpdateFile, error) {
 	row := q.db.QueryRow(ctx, upsertBundleFile,
 		arg.BundleID,
@@ -715,6 +1110,7 @@ func (q *Queries) UpsertBundleFile(ctx context.Context, arg UpsertBundleFilePara
 		arg.Size,
 		arg.Sha,
 		arg.UpdatedBy,
+		arg.Mode,
 	)
 	var i UpdateFile
 	err := row.Scan(
@@ -726,6 +1122,37 @@ func (q *Queries) UpsertBundleFile(ctx context.Context, arg UpsertBundleFilePara
 		&i.Sha,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.Mode,
 	)
 	return i, err
+}
+
+const upsertUpdater = `-- name: UpsertUpdater :exec
+INSERT INTO updaters (main_key, sub_key, os, arch, install_dir, installed_version, last_seen_at)
+VALUES ($1, $2, $3, $4, $5, $6, NOW())
+ON CONFLICT (main_key, sub_key)
+DO UPDATE SET os = EXCLUDED.os, arch = EXCLUDED.arch, install_dir = EXCLUDED.install_dir,
+              installed_version = EXCLUDED.installed_version, last_seen_at = NOW()
+`
+
+type UpsertUpdaterParams struct {
+	MainKey          string
+	SubKey           string
+	Os               string
+	Arch             string
+	InstallDir       string
+	InstalledVersion string
+}
+
+// updater 접속(HELLO) — 보고값 갱신. 별칭·메모는 그대로
+func (q *Queries) UpsertUpdater(ctx context.Context, arg UpsertUpdaterParams) error {
+	_, err := q.db.Exec(ctx, upsertUpdater,
+		arg.MainKey,
+		arg.SubKey,
+		arg.Os,
+		arg.Arch,
+		arg.InstallDir,
+		arg.InstalledVersion,
+	)
+	return err
 }
