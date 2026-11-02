@@ -67,7 +67,7 @@ const cellIndex = (c: number, r: number, rows: number) => c * rows + r
 // 타일 위 = 그 타일의 **위 절반이면 앞, 아래 절반이면 뒤**(크기가 섞여도 규칙 하나 — 장비 타일(세로 2칸) 아래쪽에 놓아도 됨).
 // 빈 칸 = **그 칸 자리**(채우는 순서에서 그 칸보다 앞인 마지막 타일 뒤) — 반 칸 타일 아래 빈 곳에도 들어간다
 // Grid 오른쪽 너머 = 맨 뒤(왼쪽 너머 = 폰 목록 칸, 그대로). 루트 타일이 없다(관리 페이지)
-export const memberDropOrder = (
+const dropOnce = (
     tiles: readonly MemberTile[], key: string, p: Point, f: MemberFrame,
 ): readonly MemberTile[] => {
     const now = layOut(tiles, f)
@@ -92,4 +92,28 @@ export const memberDropOrder = (
     const end = now.grids[now.grids.length - 1]?.box
     if (end && p.x >= end.x + end.w) return moveAfter(tiles, key, '')
     return tiles
+}
+
+const orderKey = (o: readonly MemberTile[]) => o.map(t => t.key).join()
+
+// 놓을 자리 = 같은 좌표에서 더 안 바뀌는 순서. 커서가 그대로인데 순서가 바뀌면 포인터가 움직일 때마다 화면이 뒤집힌다.
+// 넓은 타일은 옮긴 결과로 줄이 바뀌어 왕복이 생긴다 -> 왕복 안의 순서 중 끄는 타일이 가장 앞인 것으로 고정(어디서 들어와도 같은 답).
+export const memberDropOrder = (
+    tiles: readonly MemberTile[], key: string, p: Point, f: MemberFrame,
+): readonly MemberTile[] => {
+    const seen = [tiles]
+    for (;;) {
+        const cur = seen[seen.length - 1]!, next = dropOnce(cur, key, p, f)
+        if (sameOrder(next, cur)) return cur
+        const at = seen.findIndex(o => sameOrder(o, next))
+        if (at < 0) {
+            seen.push(next)
+            continue
+        }
+        const rank = (o: readonly MemberTile[]) => o.findIndex(t => t.key === key)
+        return seen.slice(at).reduce((best, o) => {
+            const d = rank(o) - rank(best)
+            return d < 0 || (d === 0 && orderKey(o) < orderKey(best)) ? o : best
+        })
+    }
 }

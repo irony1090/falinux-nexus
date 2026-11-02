@@ -4,6 +4,7 @@
 > 2026-10-14 날짜별 확인 스크립트 재작성 명세는 `REF-test-scripts.md`로 분할(2026-10-14 이후는 `REF-test-scripts-1014.md`, 2026-10-20 이후는 `REF-test-scripts-1020.md`, 2026-10-22 이후는 `REF-test-scripts-1022.md`, 2026-10-23 경로 직접 입력부터 `REF-test-scripts-1023.md`)(이 파일 = 환경·격리 실행·클라이언트 함정·DB 상태).
 
 ## 환경
+- **끌기·색인 금지 확인 = `scripts/check/run.sh`**(2026-11-02, 저장소에 있음, 임시 DB `nexus_check_tmp` + 5051, 끝나면 지움)
 - 환경: supervisor·worker는 사용자가 띄움(`docker start postgres15` → supervisor → worker, dev 서버 3000). 테스트 로그인 = `pages/Login.vue` 기본값 계정. 헤드리스 = `~/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome` + `playwright-core`(scratchpad에 `npm i`). worker 연결만 끊는 재현 = `REF-process-reconnect.md` "재현 방법"
 - 스크립트는 직접 실행이라 `#!/bin/sh` 등 shebang 필수(없으면 `exec format error`)
 - 재부팅으로 사라지는 것: 세션 scratchpad의 playwright-core + 테스트 스크립트(4.5 `snap/server.mjs`·`browser.mjs`·`probe.mjs`, 이전 `tiles/*.mjs`·`input/*.mjs`). 다시 쓸 땐 `REF-process-snapshot-impl.md` "스냅샷-b/-d"·`REF-node-ui-save-impl.md`·`REF-node-ui-sync.md` 각 확인 절(항목·함정), `REF-process-input.md` "입력-a/입력-c" 보고 재작성. 테스트는 계정을 새로 만들고 폴더 `deviceKey=irony-MAC-ADDress1`로 하면 irony 타일 트리를 안 건드림

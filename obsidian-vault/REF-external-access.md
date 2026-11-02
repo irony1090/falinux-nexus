@@ -38,5 +38,5 @@
 |---|---|
 | `apps/frontend/index.html` | `<meta name="robots" content="noindex, nofollow">` — vite 개발·모든 빌드본 화면 |
 | `apps/core/cmd/supervisor/main.go` | **`e.Pre`**로 모든 응답에 `X-Robots-Tag: noindex, nofollow` — 화면(정적)·API·SPA 경로 전부. `Use`가 아니라 `Pre`인 이유 = 정적 서빙(`middleware.StaticWithConfig`)도 Pre라서, Pre가 직접 내보내는 파일에는 Use 헤더가 안 붙는다 |
-| `apps/frontend/public/robots.txt` | `User-agent: * / Disallow: /` — 크롤 자체를 막는 덤(빌드본에 자동 포함) |
+| `apps/frontend/public/robots.txt` | `User-agent: * / Allow: /`(2026-11-02 고침) — `Disallow`면 크롤러가 noindex를 못 읽어 알려진 URL이 주소만 색인될 수 있다. 빌드본에 자동 포함 |
 - 확인 = `go run ./cmd/supervisor -env dev.env` 뒤 `curl -sI localhost:8012/`·`/api/me` 둘 다 `X-Robots-Tag: noindex, nofollow` (2026-10-30)

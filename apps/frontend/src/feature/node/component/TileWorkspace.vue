@@ -21,6 +21,7 @@ const grids = provideTileGrids();
 provideNodeOps(grids);     // 같은 컴포넌트에선 inject가 안 되므로 grids를 넘긴다
 // 끄는 표시는 TileDragChip에 상태로 넘긴다(관리 페이지도 같은 컴포넌트를 씀)
 const { chip, bundleIds, bundleChips } = provideTileDrag(grids);
+const { edge } = grids;     // 템플릿은 객체 안의 ref를 풀지 않는다 — 맨 위 변수로 꺼내야 값이 prop으로 간다
 // ?focus=(목록 "보드로 이동"·위치 알림 N3(누르면 이동) + active) · ?view=(보던 칼럼) · ?tab=terminals(M4(위치 없음)) — 새로고침 복원
 useTileUrl(grids);
 const onWheel = useGapWheel(grids.pager, t => !!t.closest('.Tile:not(.Tile--empty)'));
@@ -38,7 +39,7 @@ const bodyStyle = computed(() => ({ height: kb.open ? `${kb.baseH}px` : undefine
     <!-- Grid 정보 토스트의 위치 기준(strip은 가로로 스크롤되므로 그 밖) -->
     <div class="TileWorkspace__stage">
         <tile-strip />
-        <page-edge-bands :edge="grids.edge" />
+        <page-edge-bands :edge="edge" />
         <grid-toast />
     </div>
     <board-footer />
