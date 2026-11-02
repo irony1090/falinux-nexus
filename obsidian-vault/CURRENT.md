@@ -20,7 +20,7 @@
   - 화면 시안 = `user/배포-화면-찰떡.html`(4탭, 렌더 9장 = `user/배포-화면-찰떡/`) · 원판 `user/배포-화면.html` · 설계안 `user/배포-설계.html` → **사용자 확인 대기**
   - **다음 = P1(보관·화면)**. 착수 전 확정 3개 = 콘솔 인터랙션(가/나) · 스크립트를 `common`에 둘지 · 첫 시험 장비(`fa24-PID`/`imx8mp-f24`)
   - 참고: 이 세션 = `ANTHROPIC_API_KEY` 인증이라 아티팩트 게시 불가 → HTML을 `user/`에 둠
-- **(2026-10-30) 파트(내 장비·관리자 타일 이동) 마감** — `feat/member-drag` master 머지 → `REF-member-drag.md` · `history/member-drag.md`. 미확인 = 회원→장비 자식 붙기(dev DB에 장비 없음) · `openParent`가 자식 묶음 중간에 낄 수 있음(옛 동작, 안 고침)
+- **(2026-10-30) 파트(내 장비·관리자 타일 이동) 마감** — `feat/member-drag` master 머지 → `REF-member-drag.md` · `history/member-drag.md`. 회원→장비 자식 붙기는 11-02 확인 끝. 남은 것 = `openParent`가 자식 묶음 중간에 낄 수 있음(옛 동작, 안 고침)
 - **(2026-10-29) 파트(타일 끌기) 마감** — `feat/tile-drag` 머지 → `REF-tile-drag.md` · `REF-tile-drag-impl.md` · `REF-tile-order.md`
 - **(2026-10-29) 파트(영상 Range) 마감** — `feat/video-view` 머지(마이그레이션 `00015`) → `REF-video-view.md`. 집 서버엔 아직 안 보냄 → `BACKLOG.md`
 - **(2026-10-29 저녁) 집 서버 drag 묶음 배포 완료**(`build/home-update/nexus-drag.zip`, 태그 `DRAG-HOMESERVER-261029`) → `REF-home-deploy.md` "drag 배포 묶음"
