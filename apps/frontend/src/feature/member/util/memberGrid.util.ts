@@ -25,10 +25,10 @@ export const mainKeyOf = (key: string) => key.slice(1)
 // 페이지별 키 규칙 — 회원 페이지(MEMBER_KEYS)·updater 페이지(updGrid.util)가 같은 틀(배치·URL·끌기)을 쓴다. REF-update-deploy.md 단위-4(페이지 틀)
 export type GridKeys = { re: RegExp; size: (key: string) => { w: number; h: number } }
 
-// 처음 크기 = 종류별 고정(화-10): 장비 = 세로 2칸(인스턴스 포함), 나머지 1칸
+// 처음 크기(화-10): 전부 1칸(2026-11-03 개정), URL에 크기가 있으면 그것을 따름
 export const MEMBER_KEYS: GridKeys = {
     re: /^(m\d+|d[A-Za-z0-9._-]{1,64}|new)$/,
-    size: key => ({ w: 1, h: kindOf(key) === 'device' ? 2 : 1 }),
+    size: () => ({ w: 1, h: 1 }),
 }
 
 export const newTile = (key: string, parent: string | null = null, keys: GridKeys = MEMBER_KEYS): MemberTile => ({ key, ...keys.size(key), parent })

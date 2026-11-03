@@ -21,7 +21,8 @@ export const updKindOf = (key: string): UpdTileKind => KIND[key[0]!] ?? 'device'
 
 export const UPD_KEYS: GridKeys = {
     re: RE,
-    size: key => ({ w: 1, h: ['device', 'files', 'steps', 'common', 'text', 'run'].includes(updKindOf(key)) ? 2 : 1 }),
+    // 처음 높이: 로그·편집기(Run·Log, Script)만 2칸, 나머지 1칸(2026-11-03, REF-member-ui.md 화-10)
+    size: key => ({ w: 1, h: ['text', 'run'].includes(updKindOf(key)) ? 2 : 1 }),
 }
 
 // `~`·`*`도 인코딩 — encodeURIComponent는 둘 다 남긴다

@@ -129,7 +129,7 @@ await page.keyboard.press('Escape'); await page.mouse.up()
     await page.waitForSelector('[data-tile-key="ddev-1"]')
     ok('회원에서 연 장비 = 회원 바로 뒤', await order(page) === `${m},ddev-1,ddev-2`, await order(page))
     ok('자식 표시', await page.locator('[data-tile-key="ddev-1"].child').count() === 1)
-    ok('URL parent', new URL(page.url()).searchParams.get('t').includes(`ddev-1*1x2^${m}`), new URL(page.url()).searchParams.get('t'))
+    ok('URL parent', new URL(page.url()).searchParams.get('t').includes(`ddev-1*1x1^${m}`), new URL(page.url()).searchParams.get('t'))
 }
 
 // 폰 터치: 길게 눌러 끌기
