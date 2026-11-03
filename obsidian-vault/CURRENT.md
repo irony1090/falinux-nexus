@@ -8,9 +8,12 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **(2026-11-03) 파트(업데이트 app) — P1(보관·화면) · P2(updater Linux) · P3(배포) 마감, master 머지 끝**(P1 `1f5eda9` · P2 `bd93fa4` · P3 = `feat/updater-p3` 머지, push = 사용자). 사용자 P3 화면 확인 "나쁘지 않음"(11-03). 옛 줄 원문 → `history/current-archive-6.md` 11-03 절
+- **(2026-11-03) 파트(업데이트 app) — P1(보관·화면) · P2(updater Linux) · P3(배포) · P4(Windows) 마감, master 머지 끝**(P1 `1f5eda9` · P2 `bd93fa4` · P3 = `feat/updater-p3` · P4 = `feat/updater-p4` 머지, push = 사용자). 사용자 P3 화면 확인 "나쁘지 않음"(11-03). 옛 줄 원문 → `history/current-archive-6.md` 11-03 절
   - 구현 지도: P1 `REF-update-p1.md` · P2 `REF-update-p2.md` · P3 `REF-update-p3.md` / 설계 `REF-update-deploy.md` · 규칙 `REF-update-rules.md`
-  - **다음 = P4(Windows)**(예약 작업·PowerShell 단계·supervisor 교체) → `BACKLOG.md` 맨 위. 그 뒤 업데이트 app 마감 → 코드-6(색인 금지 미배포)와 함께 새 빌드 한 번에 배포(사용자 11-03)
+  - P4(Windows) = 구현 · VM 확인 39/39 · 집 서버 설치(11-03 12:42 `C:\Nexus\updater` 동작) → `REF-update-p4.md` · 집 서버 → `REF-home-deploy-updater.md`(관리자 = irony1090)
+  - **다음 = 단위-7(교체 빌드)**: Updater 화면에서 집 서버 supervisor·worker를 updater로 교체(코드 없음, 보관소 빌드). **사용자 답 대기 = 정-1(old 정리 단계) · 정-2(DB 백업 자리, updater 쪽 + 최근 3개) · 정-3(관찰 방식·실패 되돌리기도 볼지)** → `REF-update-p4.md` "단위-7(교체 빌드) 후속". 답을 받으면 `steps.json`·스크립트 계획을 먼저 보여 줄 것
+  - 집 서버 남은 정리(사용자가 지움): `*.old-20261103-123559` 3개(지워도 된다고 답함) · `nexus-before-updater.dump`(단위-7 `pg_dump` 뒤)
+  - 로컬 VM `nexus-win`에 시험 흔적 `C:\NexusT`·`C:\NexusS` 남음(지워도 됨). 시험 스크립트(`upd_win*.py`)는 세션 스크래치라 사라짐 — 다시 필요하면 `REF-update-p4.md` "확인" 표로 다시 씀
   - 실기 장비: `imx8mp-f24` 서비스 `nexus-updater`(P3 실행 파일, 태그는 P2 이름 그대로 — 사용자: 중요하지 않음)가 test2에 붙어 있음. 개발 DB `nexus` = 마이그레이션 `00018`까지, 8013 빌드본(`nexus_build`)은 `00016`~ 아직 없음
   - (11-03) 화-10(타일 크기) 개정: 관리·Updater 상세 타일 처음 높이 1칸(Run·Log·Script만 2칸) → `history/member-ui.md` 11-03. 이때 `REF-member-ui-impl.md` 분할
   - 남은 흔적: 로컬 시험 updater 인스턴스 `sample-jig#asWTzHHK` 행 offline(지워도 됨)

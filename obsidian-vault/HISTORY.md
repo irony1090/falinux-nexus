@@ -76,12 +76,14 @@
 | `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환 계획·회사 준비 |
 | `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝(`nexus`·`direct`), cloudflared 정지, 남은 것 BACKLOG "cloudflared 삭제"(10-29) |
 | `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-29 저녁 drag 묶음 배포 완료(worker 항상 포함 규칙) |
+| `history/home-deploy-updater.md` | 집 서버 배포: updater 이후(2026-11-03 신설) ↔ `REF-home-deploy-updater.md` | 11-03 updater-p4 묶음(VM setup 확인 6/6) · 집 서버 설치 · C:\Nexus 정리 |
 | `history/update-deploy.md` | 파트(업데이트 app) 설계·화면(2026-10-30 신설, 10-30 분할) ↔ `REF-update-deploy.md` | 11-02 저녁 시안 확정 · P1(보관·화면) 계획 확정, 코드 착수 전 |
 | `history/update-rules.md` | 파트(업데이트 app) 규칙 — 잠금·삭제·되돌리기·버전(2026-10-30 분할) ↔ `REF-update-rules.md` | 11-02 규칙 개정(빌드 단위 잠그기·삭제·rollback 단계) |
 | `history/update-redesign.md` | 파트(업데이트 app) 설계 개정 결정·시안(2026-11-02 신설) ↔ `REF-update-redesign.md` | 11-02 설계-1~7·9·11·12 합의 + 시안 보정 + 본문 개정 |
 | `history/update-p1.md` | 파트(업데이트 app) P1(보관·화면) 구현(2026-11-02 신설) ↔ `REF-update-p1.md` | 11-02 밤 P1 마감 커밋(차이 확인·샘플 데이터·아래 줄 수정), master 머지(`1f5eda9`) |
 | `history/update-p2.md` | 파트(업데이트 app) P2(updater Linux)(2026-11-02 신설) ↔ `REF-update-p2.md` | 11-02 밤 P2 실기 확인 통과·마감, master 머지(`bd93fa4`) |
 | `history/update-p3.md` | 파트(업데이트 app) P3(배포)(2026-11-02 신설) ↔ `REF-update-p3.md` | 11-03 오전 사용자 확인·로그 보관 정리·master 머지 |
+| `history/update-p4.md` | 파트(업데이트 app) P4(Windows)(2026-11-03 신설) ↔ `REF-update-p4.md` | 11-03 낮 구현·VM 확인 39/39 · 오후 집 서버 설치 · 마감·머지 |
 | `history/review-1030.md` | 10-30 작업 점검(2026-11-02 신설) ↔ `REF-review-1030.md` | 11-02 코드 항목 수정·머지, 설계 항목은 오후에 처리(→ update-redesign) |
 | `history/member-drag.md` | 파트(내 장비·관리자 타일 이동)(2026-10-30 신설) ↔ `REF-member-drag.md` | 10-30 열기 규칙 + 끌기 구현, 헤드리스 4종 통과 |
 | `history/tile-drag.md` | 파트(타일 끌기)(2026-10-29 신설) ↔ `REF-tile-drag.md` | 10-29 끌기 착수 전까지(방향·계획·끄는 모양) |
