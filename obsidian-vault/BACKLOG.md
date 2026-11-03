@@ -5,11 +5,10 @@
 > 착수하면 CURRENT로 올리고 여기서 지운다. 해결되면 지운다(이력은 history에).
 
 ## 파트(업데이트 app)에서 미룬 것
-- **설계-8(supervisor 되돌리기)** · 2026-11-02 · P3(배포) 전 · 스키마가 바뀐 릴리스의 DB 되돌리기(내장 `backup`은 파일만, `pg_dump` 단계·복원 절차) → `REF-update-deploy.md` "미정"
-- **설계-10(자기 교체)** · 2026-11-02 · P3(배포) 전 · supervisor 교체 중 로그 경로 끊김·updater 자신의 교체 → `REF-update-deploy.md` "미정"
+- **updater 웹 자동 교체** · 2026-11-02 · updater를 바꿀 일이 잦아지거나 장비가 늘 때 · 새 updater 접속 실패 시 되돌릴 주체 필요(설계-10(자기 교체) 10-3) → `REF-update-deploy.md` "자기 교체"
+- **updater 재부팅 단계** · 2026-11-02 · 재부팅이 필요한 배포가 생길 때 · P3는 updater 재시작 = 실행 중 단계 중단 + 배포 멈춤, 이어 가려면 단계 표시(`"reboot": true` 등) 필요 → `REF-update-p3.md` "합의한 해석"
+- **updater 백업 타일** · 2026-11-02 · P3 뒤 · 시안 ③의 백업 목록(위치·덮어쓴/새 파일 수·최근 3회) → `REF-update-p3.md` "P3에 안 넣음"
 - **Updater 확인용 샘플 데이터** · 2026-11-02 · 사용자가 다시 원할 때 · 개발 DB `nexus`에 시안 구성(장비 3·빌드·잠긴 빌드·공용 2·스크립트·worker 바이너리) + 가짜 `updaters` 행 여부는 사용자 답 대기 → `history/update-p1.md` 11-02 밤
-- **updater 화면 실시간 알림** · 2026-11-02 · P3(배포) Run·Log 때 · P2는 장비 타일 10초 조회(인스턴스 online·실행 중), 단계 출력도 push 없음 → `REF-update-p2.md` "남은 것"
-- **updater 끊긴 동안 출력** · 2026-11-02 · P3 Run·Log 때 판단 · 끊긴 사이 출력은 updater `logs/`에만 남고 supervisor 로그엔 빠짐(결과는 재전송됨) → `REF-update-p2.md` "동작 규칙"
 - **`steps.json` 시각 편집 UI** · 2026-11-02 · P1(원문 편집 + 검증) 뒤 · 저장 형식은 JSON 그대로, 폼이 모르는 필드는 보존 → `REF-update-redesign.md`
 - **서브키 파일 계층 구현** · 2026-11-02 · P1은 자리만, 구현은 나중 · 서브키 재발급(`state.json` 소실) 시 파일이 주인을 잃는 문제 → `REF-update-redesign.md`
 - **worker·supervisor 실행 중 빌드 표시** · 2026-11-02 · 필요해지면(옛 설계 `//go:embed env` + `RegisterRequest.Build`는 이 파트에서 폐기) → `history/update-rules.md` 2026-10-30 엔트리

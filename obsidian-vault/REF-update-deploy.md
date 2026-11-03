@@ -3,7 +3,7 @@
 > 2026-10-30 신설 → **2026-11-02 전면 개정**(방향 전환: updater = worker와 독립된 범용 앱). 결정 경위·시안 기록 → `REF-update-redesign.md` / 규칙(잠금·삭제·되돌리기·단계 개별 실행·버전) → `REF-update-rules.md` / 점검 원문 → `REF-review-1030.md` / 이력 → `history/update-deploy.md` / 지금 배포 방식 → `REF-home-deploy.md`(update.ps1)·`REF-build.md` "보드 worker 교체" / 현재 진행 → `CURRENT.md`
 > 시안 = Claude 아티팩트 https://claude.ai/artifact/XGMJqjg7rHdAHUhRMXHbZa (파일 `user/updater-화면-claude.html`) · DeepSeek판 `user/updater-화면-deepseek-v2.html`. 옛 `user/배포-화면*.html`은 옛 구조(참고만)
 
-**상태(2026-11-02): 설계 합의 끝(설계-8·설계-10 제외), 시안 확정. P1(보관·화면) 코드 끝(구현 → `REF-update-p1.md`), 사용자 확인 대기.**
+**상태(2026-11-02 밤): 설계 합의 전부 끝(설계-8(supervisor 되돌리기) = updater 범위 밖으로 닫음, 설계-10(자기 교체) 확정), 시안 확정. P1(보관·화면)·P2(updater Linux) 마감·master 머지 → 다음 = P3(배포) 착수 계획.**
 
 ## 무엇인가
 **updater = 각 PC에 상주하는 범용 원격 작업 앱.** worker와 독립. supervisor에 접속해 있고, 관리자가 웹에서 올린 파일을 PC에 깔고 `steps.json` 순서대로 단계를 실행한다. 미리 만든 파일을 올려 쓰며 컴파일은 하지 않는다. worker/supervisor 교체는 번들 내용의 한 사례일 뿐. **관리자만 접근**(장비 주인에게도 공개 안 함). 장비 루트(키)가 있어야 접속된다(P2 정-1).
@@ -98,7 +98,7 @@ updater page (admin only)
 |---|---|---|
 | P1(보관·화면) | 마이그레이션·`UPDATE_STORE_DIR` 보관·타일 페이지(장비 루트 수동 생성·빌드·공용·Files·steps.json·Script) · **파일·`steps.json`·스크립트 원문 텍스트 편집 + 검증(줄 단위 오류)** · 전체 받기 · 삭제. `steps.json` 시각 편집 UI는 그다음 | 올린 폴더가 그대로 보관·받아지는가 |
 | P2(updater Linux) | systemd 상주, 접속·서브키 발급·`state.json`, staging 수신, `script`·`builtin` 실행, 로그 중계, 설치본 보고 | 보드 한 대에서 단계가 돌고 화면에 인스턴스가 뜨는가 |
-| P3(배포) | 배포 팝업·Run·Log·개별 실행·잠그기(DB 함수)·되돌리기, 설계-8(supervisor 되돌리기)·설계-10(자기 교체) 결정 | 일부러 실패시켜 되돌림 확인 |
+| P3(배포) | 배포 팝업·Run·Log·개별 실행·잠그기(DB 함수)·되돌리기 · 배포 목록은 updater가 실행(설계-10(자기 교체) 10-2) · 시험 = Linux 먼저(개발 supervisor·`imx8mp-f24`), Windows는 그 뒤 | 일부러 실패시켜 되돌림 확인 |
 | P4(Windows) | 예약 작업, PowerShell 단계, supervisor 교체 | 집 서버에서 supervisor·worker 교체 |
 - 잠그기는 성공한 배포 기록이 있어야 하므로 실제 쓰는 시점은 P3(P1에서는 테이블만)
 
@@ -116,9 +116,22 @@ updater page (admin only)
 | 단위-8(확인) | 임시 DB + 5051 헤드리스. 회원 페이지 회귀(틀 분리) + 스크립트 편집 다이얼로그 포함 |
 - P1에 안 넣음: Run·Log 동작 · 배포 · 인스턴스 별칭 화면(P2) · 서브키 파일(자리만) · `steps.json` UI 편집(P1 다음, Run·Log 단계 행 컴포넌트를 다시 씀)
 
+## 자기 교체 (설계-10, 2026-11-02 밤 확정)
+| 세부 | 결정 |
+|---|---|
+| 10-1(로그 끊김) | 결과(End) 재전송·HELLO Running 재개는 P2에 있음. 추가: 재접속하면 updater가 끊김이 있던 실행의 **로그 파일 전체를 다시 올려** supervisor 로그를 덮어씀 |
+| 10-2(순서 주체) | **배포(= `deploy` 목록 전체 한 번)는 updater가 스스로 이어 실행**. supervisor는 시작·취소·입력 중계만, 단계별 결과는 보고만 받음. 진행 위치는 updater `state.json`에 저장해 updater 재시작 뒤에도 이어 감. 실패 때 멈춤/`autoRollback` 판단도 updater. 개별 실행(단계 하나)은 P2 방식 그대로 |
+| 10-3(updater 자신 교체) | **P3는 수동**(ssh로 `scripts/updater/install.sh` 재실행 = 실행 파일 교체 + 재시작, 설정 유지). 웹 자동 교체는 새 updater가 접속 실패할 때 되돌릴 주체가 필요해 `BACKLOG.md` |
+
+## 대상의 의존성 (설계-8, 2026-11-02 밤 닫음)
+- **updater는 배포 대상이 무엇에 의존하는지 모른다**(DB를 쓰는지 등). 제공하는 것 = 파일 `backup`·`copy`·`restore` · script 단계 · `manual: true` 단계 · `autoRollback`까지
+- DB 같은 의존성은 **빌드를 만드는 사람이 `steps.json` 스크립트로 구성**한다. 예(supervisor 빌드): `deploy`에 중지 전 `pg_dump` 단계, `rollback`에 DB 복원 단계를 `manual: true`로(배포 뒤 쌓인 데이터가 사라지므로 자동 실행 안 함)
+- `restore`로 파일만 되돌리면 옛 supervisor가 새 스키마 DB에서 뜬다(goose는 막지 않음) — 되면 되고, 안 되면 위 수동 복원 단계
+- Nexus 마이그레이션 "추가만" 규칙은 **두지 않음**(사용자 11-02 밤)
+
 ## 미정 (착수 때 확정)
 - **P2 전**: 2026-11-02 밤 6개 확정 → `REF-update-p2.md` "P2 전 확정"
-- **P3 전**: 설계-8(supervisor 되돌리기, DB 스키마가 바뀐 릴리스) · 설계-10(자기 교체: 로그 경로 끊김·updater 자신의 교체)
+- **P3 전**: 없음(11-02 밤 전부 닫음). 설계-10(자기 교체) → 위 "자기 교체" / 설계-8(supervisor 되돌리기) → 아래 "대상의 의존성"
 - 열린 이름: 서브키 파일 탭 구현은 P1 이후
 
 ## 함정 (지난 배포에서 실제로 물린 것)
@@ -126,7 +139,7 @@ updater page (admin only)
 - `-hold`가 옛 exe를 쥠 → 남은 보관 프로세스를 세어 결과에 표시. `*.old-*`는 안 지우므로 충돌 없음
 - Job(JS-1) → updater는 서비스/스케줄 작업으로 떠 있어야 함
 - 자동 되돌림 vs 입력 대기 → `autoRollback` 기본 꺼짐, 대화형 단계는 시계를 멈춤(콘솔 결정과 함께)
-- 서버·DB 버전 짝 → 내장 `backup`은 파일만 백업. DB는 별도(`pg_dump` 단계) — 설계-8(supervisor 되돌리기)에서 정함
+- 서버·DB 버전 짝 → 내장 `backup`은 파일만 백업. DB는 빌드 작성자가 스크립트로(아래 "대상의 의존성")
 
 ## 폐기된 것 (옛 설계, 읽다 헷갈리지 않게)
 | 옛 | 폐기 이유 |

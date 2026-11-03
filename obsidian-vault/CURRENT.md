@@ -1,21 +1,21 @@
 # CURRENT
 
 ## 현재 날짜
-2026-11-02
+2026-11-03
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`, 마감 파트는 `INDEX-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **(2026-11-02 밤) 파트(업데이트 app) — P1(보관·화면) 마감, master 머지 끝**(`1f5eda9`, push = 사용자. 마감 때 세부 줄 → `history/current-archive-6.md`). 구현 지도·계획과 달라진 것(차이-1(장비 루트 테이블)~차이-5(폴더 업로드)) → `REF-update-p1.md` · 설계 `REF-update-deploy.md` · 규칙 `REF-update-rules.md`
-  - **진행 중 = P2(updater Linux)** — 브랜치 `feat/updater-p2`(**커밋 안 함**, 파트 마감 때 한 번), 단위-1(DB)~단위-8(확인) 로컬·실기 확인 끝 → 구현 지도·동작 규칙 `REF-update-p2.md`
+- **(2026-11-02 밤) 파트(업데이트 app) — P1(보관·화면) · P2(updater Linux) 마감, master 머지 끝**(P1 `1f5eda9` · P2 `bd93fa4`, push = 사용자. P1 마감 때 세부 줄 → `history/current-archive-6.md`). 구현 지도·계획과 달라진 것(차이-1(장비 루트 테이블)~차이-5(폴더 업로드)) → `REF-update-p1.md` · 설계 `REF-update-deploy.md` · 규칙 `REF-update-rules.md`
+  - P2(updater Linux) 구현 지도·동작 규칙 → `REF-update-p2.md`
   - **(11-02 밤 23:30~) `imx8mp-f24` 실기 확인 통과**(builtin 3개·script·interactive 입력·재접속·설치 경로 변경·화면) → `history/update-p2.md`. 보드 서비스 `nexus-updater`는 test2에 붙은 채 켜 둠 → `REF-update-p2.md` "남은 것"
-  - **P2 마감 커밋 끝**(`1ad5e19` 코드 · vault 커밋, `feat/updater-p2`). **다음 = master 머지 여부 사용자 확인**(push = 사용자) → 그 뒤 P3(배포) 전 설계-8(supervisor 되돌리기)·설계-10(자기 교체) 정하기
+  - **P2 마감, master 머지 끝**(`bd93fa4`, push = 사용자). 설계-8(supervisor 되돌리기)·설계-10(자기 교체) 11-02 밤 닫음 → `REF-update-deploy.md` "자기 교체"·"대상의 의존성". **P3(배포) 착수 계획 합의 끝** → `REF-update-p3.md`. **다음 = 사용자 "진행" 신호 뒤 브랜치 `feat/updater-p3`로 단위-1(DB)부터**(Linux 먼저, Windows 뒤)
+  - **(11-03 아침) P3(배포) 구현·확인 끝** — 브랜치 `feat/updater-p3`(커밋 안 함), 로컬 `run.sh` 전체 통과 + `imx8mp-f24` 실기 통과 → `REF-update-p3.md` · `history/update-p3.md`. 8012 = P3 코드로 재시작(11-03 07:51, 개발 DB `00018` 적용), 보드 updater = P3 실행 파일(태그는 아직 P2). **11-03 마감 커밋 끝 → 다음 = master 머지 여부(사용자), 그 뒤 Windows(P4) 등은 `BACKLOG.md`**. updater 빌드 태그는 P2 이름 그대로 둠(사용자: 지금은 중요하지 않음)
   - (11-02 밤) 개발 DB `nexus`에 `00017` 적용 · 샘플 `sample-jig`에 키 발급 · 로컬 시험 updater는 재시작 전에 끔(인스턴스 `asWTzHHK` 행은 offline으로 남음, 지워도 됨)
   - 개발 DB `nexus`에 마이그레이션 `00016`(11-02 17:50)·`00017`(23:13) 적용됨. 8013 빌드본(DB `nexus_build`)은 둘 다 아직 안 들어감
   - 새 의존성: 프론트 `@codemirror/*`·`@lezer/highlight`(`npm i` 필요), 메인 보드 스크립트 편집도 CodeMirror(`CtCode`)로 바뀜. `tsconfig.app.json` `baseUrl` 제거(TS 6 경고 TS5101)
-  - 남은 설계: 설계-8(supervisor 되돌리기)·설계-10(자기 교체) = P3 전 → `REF-update-deploy.md` "미정" / P2 전 6개는 11-02 밤 확정 → `REF-update-p2.md`
   - 시안(확정) = Claude 아티팩트 https://claude.ai/artifact/XGMJqjg7rHdAHUhRMXHbZa(v15). 시안·화면을 고칠 땐 먼저 `REF-design-chaltteok.md` "시안에서 정리한 규칙(2026-11-02)" 읽기(묶음 쪼개지 말 것). 시안 확인법 = headless Chrome 스크린샷
 - **(2026-11-02) 10-30 작업 점검·수정 마감** — `fix/member-drag-review` master 머지. 코드 항목 수정 + 사용자 실기기 확인 끝 → `REF-review-1030.md` · `history/review-1030.md`. 확인 스크립트 = `scripts/check/run.sh`
   - **아직 안 한 것**: 새 빌드로 색인 금지 배포(코드-6(색인 금지 미배포)) = 사용자. `cmd/*/env` 태그를 바꿔 빌드, 집 서버 묶음은 worker 포함. 8013·집 서버는 지금 옛 빌드(10-30 이후 수정 없음)
@@ -29,7 +29,7 @@
 - 파일 편집기·보기 타일·영상·타일 끌기·내 장비 다섯 파트 REF는 아직 INDEX로 안 접음(MEMORY·HISTORY가 10k에 닿으면 접기, 파트 묶음은 사용자 확인)
 
 ## 운영 상태 (2026-11-02 확인)
-- **지금 떠 있는 것**: test3(8013) = supervisor·worker **`build/261029_drag`**(11-02 09:59 사용자 실행). 보관 프로세스 2개(48509·66320)도 실행 파일이 `build/261029_drag/worker` — 그 터미널을 닫기 전엔 지우지 말 것. **test1(8011, vite)·test2(8012, 개발 supervisor `go run`, `feat/updater-p2` 코드 23:13) 11-02 밤 Claude 세션이 다시 띄움 — 세션을 다시 시작하면 같이 꺼질 수 있음(`ss -ltnp | grep -E ':801[12]'`로 확인, 다시 띄우기 = `apps/core`에서 `go run ./cmd/supervisor -env dev.env` · `apps/frontend`에서 `npm run dev`)** — 개발 DB `nexus`에 마이그레이션 `00016` 적용됨, 보관소 = `apps/core/cmd/supervisor/update-store`(git 제외). 5051·3001은 꺼져 있음
+- **지금 떠 있는 것**: test3(8013) = supervisor·worker **`build/261029_drag`**(11-02 09:59 사용자 실행). 보관 프로세스 2개(48509·66320)도 실행 파일이 `build/261029_drag/worker` — 그 터미널을 닫기 전엔 지우지 말 것. **test1(8011, vite)·test2(8012, 개발 supervisor `go run`, `feat/updater-p3` 코드 11-03 07:51) Claude 세션이 다시 띄움 — 세션을 다시 시작하면 같이 꺼질 수 있음(`ss -ltnp | grep -E ':801[12]'`로 확인, 다시 띄우기 = `apps/core`에서 `go run ./cmd/supervisor -env dev.env` · `apps/frontend`에서 `npm run dev`)** — 개발 DB `nexus`에 마이그레이션 `00018`까지 적용됨, 보관소 = `apps/core/cmd/supervisor/update-store`(git 제외). 5051·3001은 꺼져 있음
 - **`build/`**: `261029_drag/`(지금 test3)·`261029_video_view/`·`video_view_tmp/`·`viewer_image/`·`supervisor.env`·`worker.env`·`worker-sqlite.db*`·`view-cache/`·`home-update/`
 - **git**: master = `fix/member-drag-review` 머지(11-02), push = 사용자. 남은 로컬 브랜치 = `feat/*`·`fix/*` 여러 개(머지됨) · `refactor/socket`·`refactor/tile-kinds`. 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치)·`cmd/worker/test.env`·user vault 전체. 커밋은 파트 단위
 - 남은 판단: 임시 DB `nexus_fv_tmp`·`nexus_member_tmp`·`nexus_api_tmp`도 있음(11-02 목록에서 봄, 안 건드림)
