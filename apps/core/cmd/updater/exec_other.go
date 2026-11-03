@@ -1,18 +1,29 @@
-//go:build !linux
+//go:build !linux && !windows
 
 package main
 
 import (
+	"io"
 	"os"
 	"os/exec"
 )
 
-// P4(Windows) 전 자리 — 프로세스 트리 종료는 그때(REF-update-deploy.md "단계 계획")
-func setGroup(*exec.Cmd) {}
+// Linux·Windows 밖(macOS 등 개발용) — 파일 바로 실행, 부모만 종료
+func scriptCmd(path string, _ int64) (string, []string, func(), error) {
+	return path, nil, func() {}, nil
+}
 
-func killGroup(cmd *exec.Cmd, _ bool) {
-	if cmd.Process != nil {
-		_ = cmd.Process.Kill()
+func outText(w io.Writer) io.WriteCloser { return nopFlush{w} }
+
+type procGroup struct{ cmd *exec.Cmd }
+
+func newGroup(cmd *exec.Cmd) (*procGroup, error) { return &procGroup{cmd}, nil }
+func (g *procGroup) started() error              { return nil }
+func (g *procGroup) close()                      {}
+
+func (g *procGroup) kill(bool) {
+	if g.cmd.Process != nil {
+		_ = g.cmd.Process.Kill()
 	}
 }
 

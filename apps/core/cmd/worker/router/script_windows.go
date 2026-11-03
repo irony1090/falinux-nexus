@@ -3,17 +3,14 @@ package router
 import (
 	"errors"
 	"nexus/internal/protocol"
+	"nexus/internal/scriptfmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
-// Windows 기본 스크립트 형식 — env SCRIPT_FORMAT으로 덮어쓴다.
-var defaultScriptFormats = map[string]scriptFormat{
-	".ps1": {encoding: "utf8bom", eol: "crlf"}, // Windows PowerShell 5.1은 BOM 없는 파일을 시스템 코드 페이지로 읽음
-	".bat": {encoding: "cp949", eol: "crlf"},
-	".cmd": {encoding: "cp949", eol: "crlf"},
-}
+// Windows 기본 스크립트 형식(scriptfmt.Windows) — env SCRIPT_FORMAT으로 덮어쓴다.
+var defaultScriptFormats = scriptfmt.Windows
 
 // defaultEditor는 EDITOR가 없을 때 PATH에서 처음 찾은 터미널 에디터다(없으면 "" -> prepareEdit가 안내).
 // notepad 같은 GUI 에디터는 ConPTY에 안 보여 후보에서 뺀다.
