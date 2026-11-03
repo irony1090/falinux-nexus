@@ -14,6 +14,7 @@
 - 마감 후(2026-10-19): VM은 남겨 둠. worker `win-dev`는 사용자 supervisor 8012에 연결(env `WS_HOST=172.17.0.1:8012`·`SQLITE=./worker-8012.db`, 옛 `worker.db` = 격리 5051용 서브키). 안 쓸 때 `docker stop nexus-win`(RAM 6G). **2026-10-23~ 규칙: 시험할 때만 켜고 작업 중엔 끈다**(MEMORY 로컬 개발 환경)
 - 2026-10-23 test3(8013)에 붙임: 교차 빌드 `shared/worker-test3.exe`(태그 `WORKERDIR-261023`) + `shared/start-test3.ps1`(env `C:\nexus\env-test3` = `WS_HOST=172.17.0.1:8013`·`SQLITE=./worker-8012.db`·`NAME=win-dev`, 로그 `C:\nexus\worker-test3.log`). 서브키 `6RFUUw2P` 그대로 이어짐(`nexus_build` = `nexus` 복사본). 실행 = vssh로 `powershell -File \\host.lan\Data\start-test3.ps1`. 사용자 확인 뒤 VM 끔(2026-10-23)
 - 2026-10-23 파트(경로 직접 입력): VM 켜서 격리 확인(`worker-path.exe`·`start-path.ps1`, NAME `dir-win`) 뒤 `win-dev`를 test3에 `worker-test3.exe`(태그 `DIRECTORYPATH-261023`)로 다시 붙임 → `REF-test-scripts-1023.md` "Windows(VM)"
+- 2026-11-03 저녁 사용자 요청: VM 켜고 updater 하나 실행 — 장비 루트 `test-win`(test2 = 8012) · `C:\NexusU\`(`updater.exe` = 브랜치 `feat/update-files-tile` 교차 빌드, 태그 `UPDATER-P4-261103` 그대로 · `updater.json` · `updater.log`), 예약 작업 없이 `shared/start-updater-testwin.ps1`(`Invoke-CimMethod`)로 실행, 서브키 `BGRB5DdV`. 끄기 = vssh `taskkill /IM updater.exe /F`. 키가 든 설정은 shared에서 지움(VM 안에만)
 - 지우기: `docker rm -f nexus-win` + `/home/jh-bae/vm/nexus-win` 삭제(이미지는 `docker rmi dockurr/windows`)
 
 ## VM 준비 (2026-10-15 조사)
