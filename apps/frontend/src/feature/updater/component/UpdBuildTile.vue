@@ -6,7 +6,8 @@ import { MAIN_KEY_PATTERN } from '@/feature/member/util/member.util';
 import CtTextField from '@/feature/widget/component/CtTextField.vue';
 import { createBundle, deleteBundle, patchBundle, useBundle, type Ref } from '../api/updater.api';
 import { useUpdConfirm, useUpdRun } from '../hook/updActions.hook';
-import { buildTileKey, commonTileKey, filesTileKey, shortSha, sizeText, stepsTileKey, timeText } from '../util/updGrid.util';
+import { buildTileKey, commonTileKey, filesTileKey, runTileKey, shortSha, sizeText, stepsTileKey, timeText } from '../util/updGrid.util';
+import UpdDeployDialog from './UpdDeployDialog.vue';
 import UpdZipMenu from './UpdZipMenu.vue';
 import { useUpdPrompt } from './UpdPrompt.vue';
 import MbNote from '@/feature/member/component/MbNote.vue';
@@ -38,6 +39,7 @@ const saveNote = () => {
 }
 
 const openHere = (key: string) => open(key, props.tile.key);
+const deploying = ref(false);   // 배포 대상 팝업
 
 const newVersion = async () => {
     const v = await prompt({
@@ -93,7 +95,8 @@ const remove = async () => {
             <span class="ct-grp ct-grp--sm ct-grp--wrap">
                 <button type="button" class="ct-seg ct-seg--accent" @click="openHere(filesTileKey(b.owner, b.version))">Files</button>
                 <button type="button" class="ct-seg ct-seg--accent" @click="openHere(stepsTileKey(b.owner, b.version))">steps.json</button>
-                <button type="button" class="ct-seg ct-seg--accent" disabled title="배포 단계(P3)에서 엽니다">Run · Log</button>
+                <button type="button" class="ct-seg ct-seg--accent" :disabled="!b.lastDeployId" :title="b.lastDeployId ? `마지막 배포 #${b.lastDeployId}` : '배포한 적이 없습니다'"
+                    @click="openHere(runTileKey(b.lastDeployId))">Run · Log</button>
             </span>
         </span>
         <p v-if="message" class="mb-err full">{{ message }}</p>
@@ -105,9 +108,10 @@ const remove = async () => {
         <button type="button" class="mb-btn mb-btn--danger" :disabled="busy" @click="remove">삭제</button>
         <button type="button" class="mb-btn" :disabled="busy" @click="newVersion">새 버전</button>
         <upd-zip-menu :bundle="bundle" :detail="b" />
-        <button type="button" class="mb-btn mb-btn--primary" disabled title="배포 단계(P3)에서 켭니다">배포</button>
+        <button type="button" class="mb-btn mb-btn--primary" :disabled="busy" @click="deploying = true">배포</button>
     </div>
 </div>
+<upd-deploy-dialog v-if="bundle.kind === 'build'" v-model="deploying" :bundle="bundle" />
 </template>
 
 <style scoped lang="scss">

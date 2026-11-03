@@ -74,6 +74,7 @@ func (r *supervisorRouter) handleSubscribeWS(c echo.Context) error {
 	r.onProcessInput(conn, userID)
 	r.onTabView(conn, userID)
 	r.onTabActive(conn)
+	r.onUpdWatch(conn, userID)
 
 	err = conn.Serve()
 	conn.Close(err)

@@ -511,6 +511,28 @@ type DeviceChangeEvent struct {
 	MainKey string `json:"mainKey"`
 }
 
+// updater 페이지(관리자만) — Updater 페이지를 연 탭이 UPD:WATCH로 구독, 바뀜 신호 = 다시 조회. REF-update-p3.md 단위-5(실시간 알림)
+const (
+	MsgUpdWatch  MsgType = "UPD:WATCH"  // browser→sup EVENT: UpdWatchEvent(관리자만 구독됨)
+	MsgUpdChange MsgType = "UPD:CHANGE" // sup→browser EVENT: UpdChangeEvent(인스턴스·단계·배포·잠금)
+	MsgUpdOutput MsgType = "UPD:OUTPUT" // sup→browser EVENT: UpdOutputEvent(단계 출력 조각)
+)
+
+type UpdWatchEvent struct {
+	On bool `json:"on"`
+}
+
+type UpdChangeEvent struct {
+	MainKey string `json:"mainKey"`
+	RunID   int64  `json:"runId,omitempty"` // 로그 전체가 바뀜(재전송) — 그 실행 로그를 다시 조회
+}
+
+type UpdOutputEvent struct {
+	RunID int64  `json:"runId"`
+	Data  []byte `json:"data"`
+	Off   int64  `json:"off"` // 이 조각까지 누적 바이트 — 로그 조회(logEnd)와 겹치는 앞부분을 화면이 버린다
+}
+
 // 작업 공간 목록 변경(만들기·이름·삭제) — USER:<userId> 토픽, 목록 전체를 보낸다 (REF-workspace-impl.md)
 const MsgWorkspacesUpdate MsgType = "WORKSPACES:UPDATE" // sup→browser EVENT: WorkspacesUpdateEvent
 

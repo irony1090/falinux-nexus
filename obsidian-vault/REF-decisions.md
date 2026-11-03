@@ -79,5 +79,5 @@
 | 프론트엔드 (apps/frontend) | 타일 UI·터미널·⑮(모바일 가상 키보드)·로그인·active 타일·보드 미리보기·회원 관리(내 장비·관리자 페이지) 전부 마감 | `REF-frontend.md` · `REF-node-ui.md`(컨셉) · `REF-node-ui-overview.md`(전체보기·가상 키보드) |
 | 실시간 push (socket) | 전송 토대·3모드·ping/pong·node CRUD 발행(`AfterCommit`)·계정 토픽, 마감 | `REF-realtime.md` |
 | 위젯 (Skeleton/SkeletonGroup/StickyBox/TileLayout) | 구현만, 실사용 미배선(TileLayout = index.vue 데모만) | `REF-widget.md` |
-| 타일 판 공용 (`feature/widget` 판 계약 `PagerBoard`) | 알약 끌기·미니맵·빈 곳 휠·컨트롤 패널 여는 길·Ctrl+Alt+숫자를 보드·관리 페이지가 같이 씀. 새 타일 판 = 계약만 채움. 푸터 액션 버튼 = `FootActions`(공용) | `REF-member-ui.md` "판 계약" · `REF-device-move.md` "푸터 액션 자리" |
+| 타일 판 공용 (`feature/widget` 판 계약 `PagerBoard`) | 알약 끌기·미니맵·빈 곳 휠·컨트롤 패널 여는 길·Ctrl+Alt+숫자를 보드·관리 페이지가 같이 씀. 새 타일 판 = 계약만 채움. 푸터 액션 버튼 = `FootActions`(공용) | `REF-member-ui-impl.md` "판 계약" · `REF-device-move.md` "푸터 액션 자리" |
 | 범용 유틸 (EventInterface/Memoized/LifecycleRegistry/GroupedSet) | 4종 + 공유 리사이즈 관측 그룹(`feature/common`), 반복 주제 | `REF-util.md` · `REF-util-drag.md`(드래그, 보류) |

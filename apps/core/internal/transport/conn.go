@@ -38,6 +38,7 @@ type Conn struct {
 
 	mu       sync.RWMutex
 	handlers map[protocol.MsgType]Handler      // REQ 핸들러
+	ordered  map[protocol.MsgType]bool         // EVENT 디스패처에서 순서대로 처리할 REQ(HandleOrdered)
 	on       map[protocol.MsgType]EventHandler // EVENT 핸들러
 
 	events chan protocol.Frame // 수신 EVENT 큐(디스패처가 순차 소비)
@@ -58,6 +59,7 @@ func New(rw MessageRW) *Conn {
 	c := &Conn{
 		rw:       rw,
 		handlers: make(map[protocol.MsgType]Handler),
+		ordered:  make(map[protocol.MsgType]bool),
 		on:       make(map[protocol.MsgType]EventHandler),
 		events:   make(chan protocol.Frame, eventBufferSize),
 		done:     make(chan struct{}),
@@ -79,6 +81,15 @@ func New(rw MessageRW) *Conn {
 func (c *Conn) Handle(t protocol.MsgType, h Handler) {
 	c.mu.Lock()
 	c.handlers[t] = h
+	c.mu.Unlock()
+}
+
+// HandleOrdered: 앞서 받은 EVENT를 다 처리한 뒤에 처리해야 하는 REQ(예: updater 단계 끝 — 마지막 출력보다 먼저 처리되면 로그가 빠짐).
+// EVENT 디스패처에서 수신 순서대로 돈다 — 핸들러가 같은 연결에 Call로 되묻으면 디스패처가 막히므로 금지
+func (c *Conn) HandleOrdered(t protocol.MsgType, h Handler) {
+	c.mu.Lock()
+	c.handlers[t] = h
+	c.ordered[t] = true
 	c.mu.Unlock()
 }
 
@@ -126,7 +137,17 @@ func (c *Conn) Serve() error {
 			c.corr.Resolve(f.ID, f, rerr) // 기다리던 Call로 배달
 
 		case protocol.REQ:
-			go c.dispatchReq(f) // 핸들러가 느려도 수신 루프를 막지 않게
+			c.mu.RLock()
+			ordered := c.ordered[f.Type]
+			c.mu.RUnlock()
+			if !ordered {
+				go c.dispatchReq(f) // 핸들러가 느려도 수신 루프를 막지 않게
+				continue
+			}
+			select {
+			case c.events <- f:
+			case <-c.done:
+			}
 
 		case protocol.EVENT:
 			// 디스패처에 순서대로 넘긴다. done이 닫혔으면(Close) 버리고 진행.
@@ -145,6 +166,10 @@ func (c *Conn) dispatch() {
 		case <-c.done:
 			return
 		case f := <-c.events:
+			if f.Kind == protocol.REQ { // HandleOrdered
+				c.dispatchReq(f)
+				continue
+			}
 			c.mu.RLock()
 			h, ok := c.on[f.Type]
 			c.mu.RUnlock()

@@ -39,7 +39,7 @@
 - 백업이 있으면 복원이 우선(실제로 깔렸던 이전 내용). 3회 보존 밖이면 이전 빌드 재배포 — 그때 sha가 다르면 경고, 삭제된 빌드는 재배포 불가
 - 스크립트 단계 실패·timeout: 프로세스 트리 종료 → 배포 실패 표시 → 되돌리기 버튼 제안
 - `builtin`은 셸을 거치지 않아 Linux·Windows 같은 코드(`robocopy` 종료코드 1~7 함정 없음). Windows에서 다른 건 `script` 단계의 스크립트 종류(`.ps1`)와 프로세스 트리 종료
-- supervisor DB 되돌리기(스키마가 바뀐 릴리스)와 자기 교체 = **미정**(설계-8(supervisor 되돌리기)·설계-10(자기 교체), P3 전)
+- supervisor DB 되돌리기 = updater 범위 밖, 빌드 작성자가 스크립트로(설계-8(supervisor 되돌리기) → `REF-update-deploy.md` "대상의 의존성"). 자기 교체 = 확정(설계-10(자기 교체) → `REF-update-deploy.md` "자기 교체")
 - 기각한 안: 단계별 rollback 파일 짝(`00-stop.rollback.sh`) · 한 스크립트 + `STAGE=rollback` 분기 · 스크립트 `trap` 자기 되돌림(신호 문제)
 
 ## 버전 표시 (11-02 개정)

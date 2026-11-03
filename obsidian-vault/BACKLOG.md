@@ -5,16 +5,15 @@
 > 착수하면 CURRENT로 올리고 여기서 지운다. 해결되면 지운다(이력은 history에).
 
 ## 파트(업데이트 app)에서 미룬 것
-- **설계-8(supervisor 되돌리기)** · 2026-11-02 · P3(배포) 전 · 스키마가 바뀐 릴리스의 DB 되돌리기(내장 `backup`은 파일만, `pg_dump` 단계·복원 절차) → `REF-update-deploy.md` "미정"
-- **설계-10(자기 교체)** · 2026-11-02 · P3(배포) 전 · supervisor 교체 중 로그 경로 끊김·updater 자신의 교체 → `REF-update-deploy.md` "미정"
+- **P4(Windows)** · 2026-11-03 · P3 머지 뒤 다음 순서 · 예약 작업·PowerShell 단계·supervisor 교체, 확인 = 집 서버에서 supervisor·worker 교체 → `REF-update-deploy.md` "단계 계획"
+- **updater 웹 자동 교체** · 2026-11-02 · updater를 바꿀 일이 잦아지거나 장비가 늘 때 · 새 updater 접속 실패 시 되돌릴 주체 필요(설계-10(자기 교체) 10-3) → `REF-update-deploy.md` "자기 교체"
+- **updater 재부팅 단계** · 2026-11-02 · 재부팅이 필요한 배포가 생길 때 · P3는 updater 재시작 = 실행 중 단계 중단 + 배포 멈춤, 이어 가려면 단계 표시(`"reboot": true` 등) 필요 → `REF-update-p3.md` "합의한 해석"
+- **updater 백업 타일** · 2026-11-02 · P3 뒤 · 시안 ③의 백업 목록(위치·덮어쓴/새 파일 수·최근 3회) → `REF-update-p3.md` "P3에 안 넣음"
 - **Updater 확인용 샘플 데이터** · 2026-11-02 · 사용자가 다시 원할 때 · 개발 DB `nexus`에 시안 구성(장비 3·빌드·잠긴 빌드·공용 2·스크립트·worker 바이너리) + 가짜 `updaters` 행 여부는 사용자 답 대기 → `history/update-p1.md` 11-02 밤
-- **updater 화면 실시간 알림** · 2026-11-02 · P3(배포) Run·Log 때 · P2는 장비 타일 10초 조회(인스턴스 online·실행 중), 단계 출력도 push 없음 → `REF-update-p2.md` "남은 것"
-- **updater 끊긴 동안 출력** · 2026-11-02 · P3 Run·Log 때 판단 · 끊긴 사이 출력은 updater `logs/`에만 남고 supervisor 로그엔 빠짐(결과는 재전송됨) → `REF-update-p2.md` "동작 규칙"
 - **`steps.json` 시각 편집 UI** · 2026-11-02 · P1(원문 편집 + 검증) 뒤 · 저장 형식은 JSON 그대로, 폼이 모르는 필드는 보존 → `REF-update-redesign.md`
 - **서브키 파일 계층 구현** · 2026-11-02 · P1은 자리만, 구현은 나중 · 서브키 재발급(`state.json` 소실) 시 파일이 주인을 잃는 문제 → `REF-update-redesign.md`
 - **worker·supervisor 실행 중 빌드 표시** · 2026-11-02 · 필요해지면(옛 설계 `//go:embed env` + `RegisterRequest.Build`는 이 파트에서 폐기) → `history/update-rules.md` 2026-10-30 엔트리
 - **시안 보정 반영 범위** · 2026-11-02 · 사용자 판단 대기 · DeepSeek v2에 찰떡 보정 미반영 / Files 범위 탭·Run·Log deploy-rollback도 안 C로 통일할지 → `REF-design-chaltteok.md`
-- **집 서버 영상 Range 배포** · 2026-10-29 · 다음 집 서버 묶음 때 · 영상 파트(10-29 마감)가 아직 집 서버에 없음 → `REF-home-deploy.md`
 
 ## 다음 파트 후보 (기능)
 - **타일 ESC로 닫기** · 2026-10-27 · **다음 파트로 예정(사용자)** · 타일별로 ESC 등 키를 누르면 그 타일을 끄는 동작. 착수 때 조율: ① 터미널 타일 안 ESC = 프로그램 입력(vim 등)과 충돌 ② "끄다" = 닫기인지 최소화인지 ③ "등" = 다른 키도? ④ 어느 타일이 대상인지(active 타일만?) ⑤ 앱 단축키 규칙(`appShortcutsOff` 검사 맨 앞, MEMORY "앱 단축키") · REF 없음, 착수 때 신설
@@ -23,7 +22,7 @@
 - **worker 화면 송출 + 조작** · 2026-10-15 아이디어(2026-10-25 재논의 보류) · 다시 시작하면 SC1(VNC 서버 준비) 방향부터(제안 = 안내 + 내려받기 -> 동봉, 원격 자동 설치 비추천) · 나(VNC 터널 + noVNC) 추천 → `REF-worker-screen.md` "VNC 서버 준비 방식 재논의"
 - **process 단독 공유 UI** · 지금 서버 API만, 두면 받는 쪽 진입점 = 기본 루트 터미널 탭 → `REF-tile-binding-rework.md` R3(경로 없는 process)
 - **닉네임 따로 받기** · 2026-10-26 · 회원-Q12(닉네임) = 지금은 닉네임 = 아이디(관리자 화면 아이디 확인용 임시 방편), 닉네임 변경·표시 이름이 필요해지면 → `REF-member.md`
-- **타일 판 통째 공통화(B안)** · 2026-10-26 · 파트(회원 관리)에서 A안(계약 `PagerBoard`만)으로 함 · 세 번째 타일 판을 만들 때 · 배치(pack)·스크롤·URL·패널까지 공통 모듈로, 보드 고유 동작(전체보기·Grid별 칼럼 수·미리보기)이 걸림 → `REF-member-ui.md` "판 계약"
+- **타일 판 통째 공통화(B안)** · 2026-10-26 · 파트(회원 관리)에서 A안(계약 `PagerBoard`만)으로 함 · 세 번째 타일 판을 만들 때 · 배치(pack)·스크롤·URL·패널까지 공통 모듈로, 보드 고유 동작(전체보기·Grid별 칼럼 수·미리보기)이 걸림 → `REF-member-ui-impl.md` "판 계약"
 - **보드 Grid N×M 자동 계산** · 2026-10-26 · 파트(회원 관리) 관리 페이지에서 먼저 써 보고 보드에도 원하면 · 지금 보드 = 최대 2×2(`capacity`), 저장된 타일 크기 0.5·1의 뜻이 "칸 수"로 바뀌는 게 핵심 비용 → `REF-member-impl.md` "시안 2판"
 - **보드 미리보기 다른 안** · 마감한 시안 E 말고 A(카드 줄)·B(보드 타일)·C(출력 축소본)·D(헤더 메뉴 확장) 보류 → `REF-board-preview.md`
 - **사용자가 하려던 기능 추가** · 2026-10-16 · 내용이 기억나지 않아 보류, 떠오르면 다시

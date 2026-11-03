@@ -33,13 +33,12 @@ type job struct {
 	logf  *os.File
 	stage string // staging 폴더
 
-	mu    sync.Mutex
-	why   string // 멈춘 이유(cancel·timeout)
-	proc  procCtl
-	pend  []byte // proc이 생기기 전에 온 입력
-	cols  uint16
-	rows  uint16
-	outMu sync.Mutex
+	mu   sync.Mutex
+	why  string // 멈춘 이유(cancel·timeout)
+	proc procCtl
+	pend []byte // proc이 생기기 전에 온 입력
+	cols uint16
+	rows uint16
 }
 
 // procCtl: 실행 중인 script(입력·크기·종료)
@@ -70,13 +69,7 @@ func newJob(a *agent, r updproto.Run) (*job, error) {
 	return &job{a: a, run: r, ctx: ctx, stop: stop, logf: lf, stage: filepath.Join(a.dir, "staging", r.Version+"-"+name), cols: r.Cols, rows: r.Rows}, nil
 }
 
-// out: 로그 파일 + supervisor(접속 중일 때)
-func (j *job) out(b []byte) {
-	j.outMu.Lock()
-	_, _ = j.logf.Write(b)
-	j.outMu.Unlock()
-	j.a.output(j.run.RunID, b)
-}
+func (j *job) out(b []byte) { j.a.out(j.logf, j.run.RunID, b) }
 
 func (j *job) say(f string, args ...any) {
 	j.out([]byte("[" + fmt.Sprintf(f, args...) + "]\r\n"))
@@ -134,8 +127,9 @@ func (j *job) setProc(p procCtl) {
 	}
 }
 
-func (j *job) main() {
-	e := updproto.End{RunID: j.run.RunID}
+// main: 결과를 돌려주고 supervisor에도 보낸다(배포는 결과를 보고 다음 단계로)
+func (j *job) main() (e updproto.End) {
+	e = updproto.End{RunID: j.run.RunID}
 	defer func() {
 		if v := recover(); v != nil {
 			e.Result, e.Msg = updproto.ResultFail, fmt.Sprintf("updater 내부 오류: %v", v)
@@ -150,6 +144,7 @@ func (j *job) main() {
 		e.Result = j.why
 	}
 	j.mu.Unlock()
+	return e
 }
 
 func (j *job) do() updproto.End {

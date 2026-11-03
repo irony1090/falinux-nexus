@@ -10,7 +10,7 @@ import {
     UPD_KEY_PREFIX, type Updater,
 } from '../api/updater.api';
 import { freshUpdKeys, useUpdConfirm, useUpdRun } from '../hook/updActions.hook';
-import { buildTileKey, shortSha, timeText } from '../util/updGrid.util';
+import { buildTileKey, runTileKey, shortSha, timeText } from '../util/updGrid.util';
 import { useUpdPrompt } from './UpdPrompt.vue';
 import MbNote from '@/feature/member/component/MbNote.vue';
 
@@ -52,15 +52,16 @@ const reissue = async () => {
 
 // ---- 인스턴스 ----
 const ABS_PATH = /^(\/|[A-Za-z]:[\\/])/;
-const instSub = (i: Updater) => [i.subKey, i.os && `${i.os}/${i.arch}`, i.installDir ? `경로 ${i.installDir}` : '경로 없음', i.online && i.version, i.running && `실행 중 #${i.running}`].filter(Boolean).join(' · ');
+const instSub = (i: Updater) => [i.subKey, i.os && `${i.os}/${i.arch}`, `설치본 ${i.installedVersion || '없음'}`, i.installDir ? `경로 ${i.installDir}` : '경로 없음', i.online && i.version,
+    i.deploying ? `배포 중 #${i.deploying}` : i.running && `실행 중 #${i.running}`].filter(Boolean).join(' · ');
 const editInstance = async (i: Updater) => {
     const v = await prompt({
         title: `${props.mainKey}#${i.subKey} 설정`, ok: '저장',
-        note: i.online ? (i.running ? '단계가 실행 중이라 설치 경로는 바꿀 수 없습니다' : '설치 경로를 바꾸면 updater가 설정 파일(updater.json)을 고쳐 씁니다. 되돌리기는 백업 때 경로로 복원합니다') : 'updater가 접속해 있지 않아 설치 경로는 바꿀 수 없습니다',
+        note: i.online ? (i.running || i.deploying ? '단계·배포가 실행 중이라 설치 경로는 바꿀 수 없습니다' : '설치 경로를 바꾸면 updater가 설정 파일(updater.json)을 고쳐 씁니다. 되돌리기는 백업 때 경로로 복원합니다') : 'updater가 접속해 있지 않아 설치 경로는 바꿀 수 없습니다',
         fields: [
             { key: 'label', label: '별칭', value: i.label, optional: true, placeholder: '예: 3번 라인 지그' },
             { key: 'memo', label: '메모', value: i.memo, optional: true },
-            ...(i.online && !i.running ? [{ key: 'targetDir', label: '설치 경로(TARGET_DIR)', value: i.installDir, optional: true, placeholder: '예: /opt/nexus-worker', pattern: ABS_PATH, patternMsg: '절대 경로로 적습니다' }] : []),
+            ...(i.online && !i.running && !i.deploying ? [{ key: 'targetDir', label: '설치 경로(TARGET_DIR)', value: i.installDir, optional: true, placeholder: '예: /opt/nexus-worker', pattern: ABS_PATH, patternMsg: '절대 경로로 적습니다' }] : []),
         ],
     });
     if (!v) return;
@@ -151,7 +152,8 @@ const remove = async () => {
             </span>
             <div class="ct-grp ct-grp--sm">
                 <button type="button" class="ct-seg ct-seg--accent" @click="openBuild(b.version)">열기</button>
-                <button type="button" class="ct-seg ct-seg--accent" disabled title="배포 단계(P3)에서 엽니다">Run · Log</button>
+                <button type="button" class="ct-seg ct-seg--accent" :disabled="!b.lastDeployId" :title="b.lastDeployId ? `마지막 배포 #${b.lastDeployId}` : '배포한 적이 없습니다'"
+                    @click="open(runTileKey(b.lastDeployId), props.tile.key)">Run · Log</button>
             </div>
         </div>
         <p v-if="!d.builds.length" class="mb-empty">빌드가 없습니다. 아래 + 새 빌드로 만듭니다</p>

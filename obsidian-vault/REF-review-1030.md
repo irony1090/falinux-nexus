@@ -3,7 +3,7 @@
 > 이력 → `history/review-1030.md` / 대상 설계 → `REF-update-deploy.md`·`REF-update-rules.md` / 대상 코드 → `REF-member-drag.md`·`REF-external-access.md` "검색 엔진 색인 금지" / 현재 진행 → `CURRENT.md`
 
 **범위**: 금요일(10-30) 커밋 `77a9426`(내 장비·관리자 타일 이동) · `7ac7492`(검색 색인 금지) · vault·시안(파트(업데이트 app) 설계). 10-29 이전 커밋은 안 봄.
-**상태(2026-11-02)**: 코드-1(빌드 막힘)~코드-5(왼쪽 끝 띠 자리)·코드-7(robots.txt 상충) 수정 끝, `fix/member-drag-review` master 머지, `scripts/check/run.sh` 통과, 사용자 실기기 확인 끝. 코드-6(색인 금지 미배포)은 새 빌드·배포 대기(사용자). 설계 항목은 코드 없는 기획 단계이고 다음 세션에 결정.
+**상태(2026-11-02)**: 코드-1(빌드 막힘)~코드-5(왼쪽 끝 띠 자리)·코드-7(robots.txt 상충) 수정 끝, `fix/member-drag-review` master 머지, `scripts/check/run.sh` 통과, 사용자 실기기 확인 끝. 코드-6(색인 금지 미배포)은 새 빌드·배포 대기(사용자) — 2026-11-03 사용자: 파트(업데이트 app)가 끝난 뒤 한 번에 배포. 설계 항목은 코드 없는 기획 단계이고 다음 세션에 결정.
 
 ## 코드 — 번호-이름
 

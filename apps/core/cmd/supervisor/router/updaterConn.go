@@ -31,7 +31,11 @@ type updLink struct {
 	main, sub string
 	version   string
 	running   atomic.Int64 // 지금 실행 중인 단계 기록 id(0 = 없음) — 인스턴스당 하나
+	deploying atomic.Int64 // 지금 실행 중인 배포 id(0 = 없음) — 배포 중이면 그 단계가 running
 }
+
+// busy: 단계든 배포든 하나라도 돌고 있음
+func (l *updLink) busy() bool { return l.running.Load() != 0 || l.deploying.Load() != 0 }
 
 func (l *updLink) key() string { return l.main + "#" + l.sub }
 
@@ -88,6 +92,9 @@ func (r *supervisorRouter) updaterItemOf(u superdb.Updater) updaterItem {
 		if id := l.running.Load(); id != 0 {
 			it.Running = &id
 		}
+		if id := l.deploying.Load(); id != 0 {
+			it.Deploying = &id
+		}
 	}
 	return it
 }
@@ -105,6 +112,8 @@ func (r *supervisorRouter) handleUpdaterWS(c echo.Context) error {
 	conn := transport.New(ws)
 
 	// HELLO는 REQ 고루틴, 출력은 EVENT 디스패처 — 서로 다른 고루틴이라 atomic
+	// 순서 의존: 단계 끝·배포 끝·로그 재전송은 HandleOrdered — 앞선 시작 알림·출력(EVENT)보다 먼저 처리되면
+	// 실행 중 표시가 끝난 뒤에 다시 켜지고(인스턴스가 바쁨으로 남음) 마지막 출력이 로그에서 빠진다(P3 화면 확인에서 발견)
 	var link atomic.Pointer[updLink]
 	conn.Handle(updproto.MsgHello, func(f protocol.Frame) (any, error) {
 		if link.Load() != nil {
@@ -130,7 +139,7 @@ func (r *supervisorRouter) handleUpdaterWS(c echo.Context) error {
 			}
 		}
 	})
-	conn.Handle(updproto.MsgEnd, func(f protocol.Frame) (any, error) {
+	conn.HandleOrdered(updproto.MsgEnd, func(f protocol.Frame) (any, error) {
 		l := link.Load()
 		if l == nil {
 			return nil, errors.New("HELLO 전입니다")
@@ -140,6 +149,41 @@ func (r *supervisorRouter) handleUpdaterWS(c echo.Context) error {
 			return nil, err
 		}
 		r.updRuns.finish(l, e)
+		r.publishUpd(l.main, 0)
+		return nil, nil
+	})
+	// P3(배포) — updaterDeploy.go
+	conn.On(updproto.MsgStepStart, func(f protocol.Frame) {
+		if l := link.Load(); l != nil {
+			var s updproto.StepStart
+			if f.Bind(&s) == nil {
+				r.updStepStart(l, s)
+			}
+		}
+	})
+	conn.HandleOrdered(updproto.MsgDeployEnd, func(f protocol.Frame) (any, error) {
+		l := link.Load()
+		if l == nil {
+			return nil, errors.New("HELLO 전입니다")
+		}
+		var e updproto.DeployEnd
+		if err := f.Bind(&e); err != nil {
+			return nil, err
+		}
+		r.updDeployEnd(l, e)
+		return nil, nil
+	})
+	conn.HandleOrdered(updproto.MsgLog, func(f protocol.Frame) (any, error) {
+		l := link.Load()
+		if l == nil {
+			return nil, errors.New("HELLO 전입니다")
+		}
+		var g updproto.Log
+		if err := f.Bind(&g); err != nil {
+			return nil, err
+		}
+		r.updRuns.replaceLog(l, g)
+		r.publishUpd(l.main, g.RunID)
 		return nil, nil
 	})
 
@@ -150,6 +194,7 @@ func (r *supervisorRouter) handleUpdaterWS(c echo.Context) error {
 		_ = store.GetStorePool().Queries().TouchUpdater(ctx, superdb.TouchUpdaterParams{MainKey: l.main, SubKey: l.sub})
 		cancel()
 		log.Printf("[updater] 끊김 %s (%v)", l.key(), err)
+		r.publishUpd(l.main, 0)
 	}
 	conn.Close(err)
 	return nil
@@ -192,6 +237,14 @@ func (r *supervisorRouter) updHello(conn *transport.Conn, h updproto.Hello) (*up
 			l.running.Store(id)
 		}
 	}
+	// 배포: updater가 모르는 배포(재시작 = 중단, REF-update-p3.md "합의한 해석") · 아는 배포는 DeployEnd까지 바쁨
+	if lost, err := q.CancelLostDeployments(ctx, superdb.CancelLostDeploymentsParams{MainKey: h.MainKey, SubKey: sub, Keep: append([]int64{}, h.Deploying...)}); err == nil && len(lost) > 0 {
+		_ = q.SkipWaitRunsOf(ctx, lost)
+	}
+	if len(h.Deploying) > 0 {
+		l.deploying.Store(h.Deploying[0])
+	}
+	defer r.publishUpd(h.MainKey, 0)
 	log.Printf("[updater] 접속 %s %s/%s %s 경로=%q", l.key(), h.OS, h.Arch, h.Version, h.TargetDir)
 	return l, nil
 }
@@ -240,8 +293,8 @@ func (r *supervisorRouter) updPatchInstance(c echo.Context) error {
 		if l == nil {
 			panic(web.Err(409, "updater가 접속해 있지 않아 설치 경로를 바꿀 수 없습니다(설정 파일은 장비에 있음)"))
 		}
-		if l.running.Load() != 0 {
-			panic(web.Err(409, "단계가 실행 중이라 설치 경로를 바꿀 수 없습니다"))
+		if l.busy() {
+			panic(web.Err(409, "단계·배포가 실행 중이라 설치 경로를 바꿀 수 없습니다"))
 		}
 		cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()

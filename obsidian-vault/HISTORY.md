@@ -45,7 +45,7 @@
 - 목록 아이콘 보기(마감) → `INDEX-dir-grid.md` (dir-grid)
 - 빈 곳 길게 누르기(마감) → `INDEX-press-pager.md` (press-pager)
 - supervisor 주소 실시간 변경(마감, 후속 가져오기는 회원 관리 브랜치) → `INDEX-supervisor-move.md` (supervisor-move)
-- 회원 관리(마감, `/api` 정리·열린 장비 주소 일괄 변경·폰 수정 포함) → `INDEX-member.md` (member·member-impl·member-ui·api-prefix·device-move)
+- 회원 관리(마감, `/api` 정리·열린 장비 주소 일괄 변경·폰 수정 포함) → `INDEX-member.md` (member·member-impl·member-ui·member-ui-impl·api-prefix·device-move)
 - 젤리·관리 기록(마감, 젤리 효과·보드로·관리 페이지 replace) → `INDEX-jelly.md` (jelly)
 - 폴더에서 터미널(마감, 장비 타일 "여기서 셸") → `INDEX-dir-shell.md` (dir-shell)
 - 장비 상태 push(마감, `DEVICE:CHANGE` 신호 + 폴링 60초) → `INDEX-device-push.md` (device-push)
@@ -80,7 +80,8 @@
 | `history/update-rules.md` | 파트(업데이트 app) 규칙 — 잠금·삭제·되돌리기·버전(2026-10-30 분할) ↔ `REF-update-rules.md` | 11-02 규칙 개정(빌드 단위 잠그기·삭제·rollback 단계) |
 | `history/update-redesign.md` | 파트(업데이트 app) 설계 개정 결정·시안(2026-11-02 신설) ↔ `REF-update-redesign.md` | 11-02 설계-1~7·9·11·12 합의 + 시안 보정 + 본문 개정 |
 | `history/update-p1.md` | 파트(업데이트 app) P1(보관·화면) 구현(2026-11-02 신설) ↔ `REF-update-p1.md` | 11-02 밤 P1 마감 커밋(차이 확인·샘플 데이터·아래 줄 수정), master 머지(`1f5eda9`) |
-| `history/update-p2.md` | 파트(업데이트 app) P2(updater Linux)(2026-11-02 신설) ↔ `REF-update-p2.md` | 11-02 밤 P2 실기 확인 통과·마감 커밋(`1ad5e19`), master 머지 대기 |
+| `history/update-p2.md` | 파트(업데이트 app) P2(updater Linux)(2026-11-02 신설) ↔ `REF-update-p2.md` | 11-02 밤 P2 실기 확인 통과·마감, master 머지(`bd93fa4`) |
+| `history/update-p3.md` | 파트(업데이트 app) P3(배포)(2026-11-02 신설) ↔ `REF-update-p3.md` | 11-03 오전 사용자 확인·로그 보관 정리·master 머지 |
 | `history/review-1030.md` | 10-30 작업 점검(2026-11-02 신설) ↔ `REF-review-1030.md` | 11-02 코드 항목 수정·머지, 설계 항목은 오후에 처리(→ update-redesign) |
 | `history/member-drag.md` | 파트(내 장비·관리자 타일 이동)(2026-10-30 신설) ↔ `REF-member-drag.md` | 10-30 열기 규칙 + 끌기 구현, 헤드리스 4종 통과 |
 | `history/tile-drag.md` | 파트(타일 끌기)(2026-10-29 신설) ↔ `REF-tile-drag.md` | 10-29 끌기 착수 전까지(방향·계획·끄는 모양) |
