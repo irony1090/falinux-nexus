@@ -37,32 +37,38 @@ type updRun struct {
 	main, sub   string
 	interactive bool
 
-	mu   sync.Mutex
-	f    *os.File // nil = 열지 못함(로그는 메모리만)
-	tail []byte
-	end  *updproto.End
+	mu    sync.Mutex
+	f     *os.File // nil = 열지 못함(로그는 메모리만)
+	tail  []byte
+	total int64 // 지금까지 받은 바이트(재전송이면 그 길이부터)
+	end   *updproto.End
 }
 
-func (u *updRun) write(b []byte) {
+// write: 누적 바이트를 돌려준다(화면 이음매 — UPD:OUTPUT off)
+func (u *updRun) write(b []byte) int64 {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	if u.f != nil {
 		_, _ = u.f.Write(b)
 	}
+	u.total += int64(len(b))
 	u.tail = append(u.tail, b...)
 	if n := len(u.tail); n > runTailMax {
 		u.tail = append([]byte(nil), u.tail[n-runTailMax:]...)
 	}
+	return u.total
 }
 
 type updRunSet struct {
-	dir string // 로그 폴더(빈 값 = 파일 없음)
-	mu  sync.Mutex
-	m   map[int64]*updRun
+	dir   string // 로그 폴더(빈 값 = 파일 없음)
+	mu    sync.Mutex
+	m     map[int64]*updRun
+	inter map[int64]bool // 배포가 미리 만든 단계 중 interactive(시작 알림 때 입력 허용) — supervisor 재시작이면 잊음
+	pub   func(main string, data updproto.Output, off int64)
 }
 
 func newUpdRunSet(storeDir string) *updRunSet {
-	s := &updRunSet{m: map[int64]*updRun{}}
+	s := &updRunSet{m: map[int64]*updRun{}, inter: map[int64]bool{}}
 	if storeDir != "" {
 		s.dir = filepath.Join(storeDir, "logs")
 		if err := os.MkdirAll(s.dir, 0o755); err != nil {
@@ -124,18 +130,83 @@ func (s *updRunSet) adopt(l *updLink, id int64) bool {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	row, err := store.GetStorePool().Queries().GetStepRun(ctx, id)
-	if err != nil || row.MainKey != l.main || row.SubKey != l.sub || row.Result != "running" {
+	q := store.GetStorePool().Queries()
+	row, err := q.GetStepRun(ctx, id)
+	if err != nil || row.MainKey != l.main || row.SubKey != l.sub || (row.Result != "running" && row.Result != "wait") {
 		return false
 	}
-	u := s.open(id, l.main, l.sub, false)
-	u.write([]byte("\r\n[supervisor 재시작 — 이 사이 출력은 updater 쪽 로그에만 있음]\r\n"))
+	if row.Result == "wait" { // 배포 단계 — 시작 알림(StepStart)을 끊긴 동안 놓침
+		_, _ = q.StartStepRun(ctx, id)
+	}
+	// 끊긴 사이 출력은 updater가 재접속 때 로그 전체로 다시 올린다(MsgLog -> replaceLog)
+	s.open(id, l.main, l.sub, s.isInteractive(id))
 	return true
+}
+
+func (s *updRunSet) setInteractive(id int64) {
+	s.mu.Lock()
+	s.inter[id] = true
+	s.mu.Unlock()
+}
+
+func (s *updRunSet) isInteractive(id int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.inter[id]
 }
 
 func (s *updRunSet) output(l *updLink, o updproto.Output) {
 	if u := s.get(o.RunID); u != nil && u.main == l.main && u.sub == l.sub {
-		u.write(o.Data)
+		s.emit(u, o.Data)
+	}
+}
+
+// emit: 로그에 쓰고 화면에도(머리 줄·끝 메시지 포함 — 누적 바이트가 화면과 어긋나지 않게)
+func (s *updRunSet) emit(u *updRun, b []byte) {
+	off := u.write(b)
+	if s.pub != nil {
+		s.pub(u.main, updproto.Output{RunID: u.id, Data: b}, off)
+	}
+}
+
+// replaceLog: 재접속한 updater가 다시 올린 로그 전체로 덮어쓴다(10-1(로그 끊김)). 이미 끝난 실행이면 DB 요약도
+func (s *updRunSet) replaceLog(l *updLink, g updproto.Log) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	q := store.GetStorePool().Queries()
+	row, err := q.GetStepRun(ctx, g.RunID)
+	if err != nil || row.MainKey != l.main || row.SubKey != l.sub {
+		return
+	}
+	tail := g.Data
+	if n := len(tail); n > runTailMax {
+		tail = tail[n-runTailMax:]
+	}
+	u := s.get(g.RunID)
+	if u != nil {
+		u.mu.Lock()
+		defer u.mu.Unlock()
+	}
+	// 순서 의존: 파일을 덮어쓰고 열린 파일을 다시 여는 동안 u.mu를 쥔다 — 그 사이 출력(write)이 옛 파일 위치에 쓰면 덮어쓴 내용이 깨짐
+	if p := s.logPath(g.RunID); p != "" {
+		if err := os.WriteFile(p, g.Data, 0o644); err != nil {
+			log.Printf("[updater] 로그 덮어쓰기 실패 %s: %v", p, err)
+		}
+		if u != nil && u.f != nil {
+			u.f.Close()
+			u.f, _ = os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+		}
+	}
+	if u != nil {
+		u.tail = append([]byte(nil), tail...)
+		u.total = int64(len(g.Data))
+	}
+	if row.Result != "running" && row.Result != "wait" {
+		db := tail
+		if len(db) > runDBTailMax {
+			db = db[len(db)-runDBTailMax:]
+		}
+		_ = q.SetStepRunLogTail(ctx, superdb.SetStepRunLogTailParams{ID: g.RunID, LogTail: string(db)})
 	}
 }
 
@@ -149,7 +220,7 @@ func (s *updRunSet) finish(l *updLink, e updproto.End) {
 			return
 		}
 		if e.Msg != "" {
-			u.write([]byte("\r\n[" + e.Msg + "]\r\n"))
+			s.emit(u, []byte("\r\n["+e.Msg+"]\r\n"))
 		}
 		u.mu.Lock()
 		u.end = &e
@@ -166,7 +237,7 @@ func (s *updRunSet) finish(l *updLink, e updproto.End) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	q := store.GetStorePool().Queries()
-	if row, err := q.GetStepRun(ctx, e.RunID); err != nil || row.MainKey != l.main || row.SubKey != l.sub || row.Result != "running" {
+	if row, err := q.GetStepRun(ctx, e.RunID); err != nil || row.MainKey != l.main || row.SubKey != l.sub || (row.Result != "running" && row.Result != "wait") {
 		return
 	}
 	if err := q.FinishStepRun(ctx, superdb.FinishStepRunParams{ID: e.RunID, Result: e.Result, ExitCode: code, LogTail: string(tail)}); err != nil {
@@ -275,8 +346,8 @@ func (r *supervisorRouter) updStartRun(c echo.Context) error {
 	if l == nil {
 		panic(web.Err(409, "updater가 접속해 있지 않습니다"))
 	}
-	if l.running.Load() != 0 {
-		panic(web.Err(409, "이 인스턴스에서 다른 단계가 실행 중입니다"))
+	if l.busy() {
+		panic(web.Err(409, "이 인스턴스에서 다른 단계·배포가 실행 중입니다"))
 	}
 	ref := updstore.Ref{Kind: updstore.KindBuild, Owner: u.MainKey, Version: updName(body.Version, "버전")}
 	b := requireBundle(c, ref)
@@ -303,14 +374,7 @@ func (r *supervisorRouter) updStartRun(c echo.Context) error {
 		panic(web.Err(404, "%s 목록에 단계 %q가 없습니다", body.List, body.StepID))
 	}
 	files := mergedFiles(c, b, u.SubKey)
-	es := make([]updstore.Entry, len(files))
-	for i, f := range files {
-		es[i] = updstore.Entry{Scope: "main", Path: f.path, Sha: f.sha, Mode: f.mode}
-	}
-	ps := updproto.Step{ID: step.ID, Kind: updproto.KindBuiltin, Builtin: step.Builtin, Interactive: step.Interactive, TimeoutSec: int64(step.Timeout / time.Second)}
-	if step.Script != "" {
-		ps.Kind, ps.Script, ps.Builtin = updproto.KindScript, step.Script, ""
-	}
+	ps := protoStep(*step)
 	EndTx(c)
 
 	// 기록은 요청 트랜잭션 밖에서 바로 커밋 — updater의 출력·끝이 커밋 전에 올 수 있다
@@ -323,19 +387,20 @@ func (r *supervisorRouter) updStartRun(c echo.Context) error {
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
-	if !l.running.CompareAndSwap(0, row.ID) {
+	if l.deploying.Load() != 0 || !l.running.CompareAndSwap(0, row.ID) {
 		_ = q.FinishStepRun(ctx, superdb.FinishStepRunParams{ID: row.ID, Result: updproto.ResultCancel, LogTail: "다른 단계가 먼저 시작됨"})
 		panic(web.Err(409, "이 인스턴스에서 다른 단계가 실행 중입니다"))
 	}
 	run := r.updRuns.open(row.ID, u.MainKey, u.SubKey, step.Interactive)
-	run.write([]byte(fmt.Sprintf("[%s %s / %s · %s]\r\n", body.List, step.ID, ref.Version, time.Now().Format("2006-01-02 15:04:05"))))
-	req := updproto.Run{RunID: row.ID, DeployID: body.DeployID, Version: ref.Version, Stage: updstore.FolderSha(es), Files: stageOf(files), Step: ps, Cols: body.Cols, Rows: body.Rows}
+	r.updRuns.emit(run, []byte(fmt.Sprintf("[%s %s / %s · %s]\r\n", body.List, step.ID, ref.Version, time.Now().Format("2006-01-02 15:04:05"))))
+	req := updproto.Run{RunID: row.ID, DeployID: body.DeployID, Version: ref.Version, Stage: stageSha(files), Files: stageOf(files), Step: ps, Cols: body.Cols, Rows: body.Rows}
 	cctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	if _, err := l.conn.Call(cctx, updproto.MsgRun, req); err != nil {
 		r.updRuns.finish(l, updproto.End{RunID: row.ID, Result: updproto.ResultFail, Msg: "updater가 받지 않음: " + err.Error()})
 		panic(web.Err(409, "updater가 실행을 받지 않았습니다: %v", err))
 	}
+	r.publishUpd(u.MainKey, 0)
 	return c.JSON(200, map[string]any{"runId": row.ID})
 }
 
@@ -361,6 +426,7 @@ type updRunItem struct {
 	StartedAt int64  `json:"startedAt"`
 	EndedAt   *int64 `json:"endedAt"`
 	Log       string `json:"log,omitempty"`
+	LogEnd    int64  `json:"logEnd"` // 실시간이면 로그 끝의 누적 바이트(UPD:OUTPUT off와 비교), 0 = 실시간 아님
 }
 
 func runItemOf(row superdb.UpdateStepRun) updRunItem {
@@ -395,7 +461,7 @@ func (r *supervisorRouter) updGetRun(c echo.Context) error {
 	it := runItemOf(row)
 	if u := r.updRuns.get(row.ID); u != nil {
 		u.mu.Lock()
-		it.Log = string(u.tail)
+		it.Log, it.LogEnd = string(u.tail), u.total
 		u.mu.Unlock()
 	} else if b, err := readTail(r.updRuns.logPath(row.ID), runTailMax); err == nil {
 		it.Log = string(b)

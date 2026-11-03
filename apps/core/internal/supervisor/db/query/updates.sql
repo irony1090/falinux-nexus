@@ -51,6 +51,9 @@ UPDATE updaters SET label = $3, memo = $4 WHERE main_key = $1 AND sub_key = $2;
 -- name: UpdateUpdaterInstallDir :execrows
 UPDATE updaters SET install_dir = $3 WHERE main_key = $1 AND sub_key = $2;
 
+-- name: UpdateUpdaterInstalled :exec
+UPDATE updaters SET installed_version = $3 WHERE main_key = $1 AND sub_key = $2;
+
 -- name: DeleteUpdater :execrows
 DELETE FROM updaters WHERE main_key = $1 AND sub_key = $2;
 
@@ -63,7 +66,8 @@ SELECT b.*,
        EXISTS (SELECT 1 FROM update_locks l WHERE l.bundle_id = b.id)::bool AS locked,
        (SELECT COUNT(*) FROM update_uses u WHERE u.common_id = b.id)::bigint AS used_by,
        (SELECT COUNT(*) FROM update_files f WHERE f.bundle_id = b.id)::bigint AS file_count,
-       (SELECT COALESCE(SUM(f.size), 0) FROM update_files f WHERE f.bundle_id = b.id)::bigint AS total_size
+       (SELECT COALESCE(SUM(f.size), 0) FROM update_files f WHERE f.bundle_id = b.id)::bigint AS total_size,
+       (SELECT COALESCE(MAX(d.id), 0) FROM update_deployments d WHERE d.bundle_id = b.id)::bigint AS last_deploy_id
 FROM update_bundles b LEFT JOIN users cu ON cu.id = b.created_by
 WHERE b.kind = $1 AND b.owner = $2
 ORDER BY b.created_at DESC, b.id DESC;
@@ -74,7 +78,8 @@ SELECT b.*,
        EXISTS (SELECT 1 FROM update_locks l WHERE l.bundle_id = b.id)::bool AS locked,
        (SELECT COUNT(*) FROM update_uses u WHERE u.common_id = b.id)::bigint AS used_by,
        (SELECT COUNT(*) FROM update_files f WHERE f.bundle_id = b.id)::bigint AS file_count,
-       (SELECT COALESCE(SUM(f.size), 0) FROM update_files f WHERE f.bundle_id = b.id)::bigint AS total_size
+       (SELECT COALESCE(SUM(f.size), 0) FROM update_files f WHERE f.bundle_id = b.id)::bigint AS total_size,
+       (SELECT COALESCE(MAX(d.id), 0) FROM update_deployments d WHERE d.bundle_id = b.id)::bigint AS last_deploy_id
 FROM update_bundles b LEFT JOIN users cu ON cu.id = b.created_by
 WHERE b.kind = 'common'
 ORDER BY b.owner, b.created_at DESC, b.id DESC;
@@ -83,7 +88,9 @@ ORDER BY b.owner, b.created_at DESC, b.id DESC;
 SELECT b.*,
        COALESCE(cu.nickname, '')::text AS created_by_name,
        EXISTS (SELECT 1 FROM update_locks l WHERE l.bundle_id = b.id)::bool AS locked,
-       (SELECT COUNT(*) FROM update_uses u WHERE u.common_id = b.id)::bigint AS used_by
+       (SELECT COUNT(*) FROM update_uses u WHERE u.common_id = b.id)::bigint AS used_by,
+       (SELECT COALESCE(MAX(d.id), 0) FROM update_deployments d WHERE d.bundle_id = b.id)::bigint AS last_deploy_id,
+       update_lockable(b.id)::bool AS lockable
 FROM update_bundles b LEFT JOIN users cu ON cu.id = b.created_by
 WHERE b.kind = $1 AND b.owner = $2 AND b.version = $3;
 
@@ -195,3 +202,68 @@ SELECT * FROM update_step_runs WHERE main_key = $1 AND sub_key = $2 ORDER BY id 
 UPDATE update_step_runs SET result = 'cancel', log_tail = log_tail || E'\n[updater가 이 실행을 모름 — 결과를 받지 못함]', ended_at = NOW()
 WHERE main_key = $1 AND sub_key = $2 AND result = 'running' AND NOT (id = ANY(sqlc.arg(keep)::bigint[]))
 RETURNING id;
+
+-- name: CreateWaitStepRun :one
+-- 배포가 미리 만드는 단계 기록(아직 안 돎) — REF-update-p3.md 단위-1(DB)
+INSERT INTO update_step_runs (deployment_id, bundle_id, main_key, sub_key, version, list, step_id, step_kind, started_by, result)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'wait')
+RETURNING *;
+
+-- name: StartStepRun :execrows
+UPDATE update_step_runs SET result = 'running', started_at = NOW() WHERE id = $1 AND result = 'wait';
+
+-- name: ListDeploymentRuns :many
+SELECT * FROM update_step_runs WHERE deployment_id = $1 ORDER BY id;
+
+-- name: SkipWaitRuns :exec
+UPDATE update_step_runs SET result = 'skip', ended_at = NOW() WHERE deployment_id = $1 AND list = $2 AND result = 'wait';
+
+-- name: DeleteWaitRuns :exec
+DELETE FROM update_step_runs WHERE deployment_id = $1 AND list = $2 AND result = 'wait';
+
+-- ===== 배포 =====
+
+-- name: CreateDeployment :one
+INSERT INTO update_deployments (bundle_id, main_key, sub_key, version, sha, uses_sig, auto_rollback, started_by)
+VALUES ($1, $2, $3, $4, $5, update_uses_sig(sqlc.arg(sig_bundle)::bigint), $6, $7)
+RETURNING *;
+
+-- name: GetDeployment :one
+SELECT d.*, COALESCE(u.nickname, '')::text AS started_by_name
+FROM update_deployments d LEFT JOIN users u ON u.id = d.started_by
+WHERE d.id = $1;
+
+-- name: GetDeploymentForUpdate :one
+SELECT * FROM update_deployments WHERE id = $1 FOR UPDATE;
+
+-- name: FinishDeployment :execrows
+UPDATE update_deployments SET result = $2, msg = $3, ended_at = NOW() WHERE id = $1 AND result = 'running';
+
+-- name: SetRollbackResult :execrows
+UPDATE update_deployments SET rollback_result = $2, msg = CASE WHEN sqlc.arg(msg)::text = '' THEN msg ELSE sqlc.arg(msg)::text END
+WHERE id = $1;
+
+-- name: CancelLostDeployments :many
+-- updater 재접속 때 — 그 인스턴스의 끝나지 않은 배포·되돌리기 중 updater가 모르는 것(updater 재시작 = 중단, REF-update-p3.md "합의한 해석")
+UPDATE update_deployments SET
+    result = CASE WHEN result = 'running' THEN 'cancel' ELSE result END,
+    rollback_result = CASE WHEN rollback_result = 'running' THEN 'cancel' ELSE rollback_result END,
+    msg = 'updater가 이 배포를 모름 — updater 재시작 등으로 중단',
+    ended_at = COALESCE(ended_at, NOW())
+WHERE main_key = $1 AND sub_key = $2 AND (result = 'running' OR rollback_result = 'running') AND NOT (id = ANY(sqlc.arg(keep)::bigint[]))
+RETURNING id;
+
+-- name: SkipWaitRunsOf :exec
+UPDATE update_step_runs SET result = 'skip', ended_at = NOW() WHERE deployment_id = ANY(sqlc.arg(ids)::bigint[]) AND result = 'wait';
+
+-- name: IsLockable :one
+SELECT update_lockable($1)::bool;
+
+-- name: LockBuildWithUses :exec
+-- 빌드 + 쓰는 공용 묶음마다 잠금 행(via = 이 빌드), sha = 지금 값
+INSERT INTO update_locks (bundle_id, via_build_id, sha, locked_by)
+SELECT b.id, sqlc.arg(build_id)::bigint, b.sha, sqlc.arg(locked_by)::bigint FROM update_bundles b
+WHERE b.id = sqlc.arg(build_id)::bigint OR b.id IN (SELECT common_id FROM update_uses WHERE bundle_id = sqlc.arg(build_id)::bigint);
+
+-- name: SetStepRunLogTail :exec
+UPDATE update_step_runs SET log_tail = $2 WHERE id = $1;

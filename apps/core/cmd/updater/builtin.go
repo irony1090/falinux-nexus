@@ -25,6 +25,8 @@ type manifest struct {
 	Version   string    `json:"version"`
 	TargetDir string    `json:"targetDir"`
 	At        time.Time `json:"at"`
+	// PrevInstalled: 백업 때 설치본 이름 — 되돌리기가 성공하면 이 이름으로 돌아감(P3)
+	PrevInstalled string `json:"prevInstalled,omitempty"`
 }
 
 func (j *job) builtin(name string) error {
@@ -129,7 +131,7 @@ func (j *job) backup() error {
 	if err := os.WriteFile(filepath.Join(dir, "new-files.txt"), []byte(strings.Join(news, "\n")+"\n"), 0o644); err != nil {
 		return err
 	}
-	m := manifest{DeployID: j.backupID(), RunID: j.run.RunID, Version: j.run.Version, TargetDir: target, At: time.Now()}
+	m := manifest{DeployID: j.backupID(), RunID: j.run.RunID, Version: j.run.Version, TargetDir: target, At: time.Now(), PrevInstalled: j.a.state().Installed}
 	b, _ := json.MarshalIndent(m, "", "  ")
 	if err := writeFileAtomic(filepath.Join(dir, "manifest.json"), append(b, '\n'), 0o644); err != nil {
 		return err

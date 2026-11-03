@@ -31,6 +31,7 @@ export type Updater = {
     lastSeenAt: number | null
     online: boolean
     running: number | null
+    deploying: number | null
     version: string
 }
 
@@ -47,6 +48,7 @@ export type Bundle = {
     createdByName: string
     createdAt: number
     updatedAt: number
+    lastDeployId: number   // 0 = 배포 없음
 }
 
 export type UpdDeviceDetail = UpdDevice & { instances: Updater[]; builds: Bundle[] }
@@ -55,7 +57,7 @@ export type CommonGroup = { name: string; versions: Bundle[] }
 export type UpdFile = { scope: FileScope; subKey: string; path: string; size: number; sha: string; text: boolean; mode: number; updatedAt: number }
 export type UpdUse = { name: string; version: string; sha: string; locked: boolean; files: UpdFile[] }
 export type UpdUser = { mainKey: string; version: string; locked: boolean }
-export type BundleDetail = Bundle & { files: UpdFile[]; uses: UpdUse[]; users: UpdUser[] }
+export type BundleDetail = Bundle & { files: UpdFile[]; uses: UpdUse[]; users: UpdUser[]; lockable: boolean }
 
 export type Ref = { kind: BundleKind; owner: string; version: string }
 
@@ -160,6 +162,39 @@ export const uploadFile = async (r: Ref, path: string, file: File, overwrite: bo
     }
 }
 
+// ---- 배포·Run·Log(P3) — 백엔드 updaterDeploy.go · updaterRun.go, REF-update-p3.md 단위-4(supervisor API) ----
+export type RunResult = 'wait' | 'running' | 'ok' | 'fail' | 'timeout' | 'cancel' | 'skip'
+export type DeployResult = 'running' | 'ok' | 'fail' | 'cancel'
+export type StepList = 'deploy' | 'rollback'
+export type UpdRun = {
+    id: number; mainKey: string; subKey: string; version: string; list: StepList; stepId: string; kind: 'script' | 'builtin'
+    result: RunResult; exitCode: number | null; startedAt: number; endedAt: number | null; log?: string; logEnd?: number
+}
+export type StepDef = { id: string; kind: 'script' | 'builtin'; name: string; manual: boolean; interactive: boolean; timeoutSec: number }
+export type Deployment = {
+    id: number; mainKey: string; subKey: string; version: string; sha: string
+    result: DeployResult; rollbackResult: '' | DeployResult; autoRollback: boolean; msg: string
+    startedByName: string; startedAt: number; endedAt: number | null
+    build: boolean; buildSha: string; buildLocked: boolean; lockable: boolean
+    online: boolean; busy: boolean
+    deploy: StepDef[]; rollback: StepDef[]; runs: UpdRun[]; manual: UpdRun[]
+}
+export type DeployItem = { subKey: string; deployId?: number; error?: string }
+
+export const deployBuild = (r: Ref, subKeys: string[], size?: { cols: number; rows: number }) =>
+    BaseAxios.post(`${bundlePath(r)}/deploy`, { subKeys, ...size }, { timeout: 30_000 }).then(throwThen<{ items: DeployItem[] }>).catch(throwCatch)
+export const lockBuild = (r: Ref) => BaseAxios.post(`${bundlePath(r)}/lock`).then(throwThen<Empty>).catch(throwCatch)
+export const getDeployment = (id: number) => BaseAxios.get(`${base}/deployments/${id}`).then(throwThen<Deployment>).catch(throwCatch)
+export const rollbackDeployment = (id: number, size?: { cols: number; rows: number }) =>
+    BaseAxios.post(`${base}/deployments/${id}/rollback`, { ...size }, { timeout: 30_000 }).then(throwThen<{ deployId: number }>).catch(throwCatch)
+export const cancelDeployment = (id: number) => BaseAxios.post(`${base}/deployments/${id}/cancel`).then(throwThen<Empty>).catch(throwCatch)
+// 단계 하나 개별 실행 — 배포 문맥(deployId = d<id>)이면 그 배포의 백업을 쓴다(잠금 판정엔 안 들어감)
+export const startStepRun = (mainKey: string, subKey: string, body: { version: string; list: StepList; stepId: string; deployId?: string; cols?: number; rows?: number }) =>
+    BaseAxios.post(`${base}/devices/${enc(mainKey)}/instances/${enc(subKey)}/runs`, body, { timeout: 30_000 }).then(throwThen<{ runId: number }>).catch(throwCatch)
+export const getRun = (id: number) => BaseAxios.get(`${base}/runs/${id}`).then(throwThen<UpdRun>).catch(throwCatch)
+export const runInput = (id: number, data: string) => BaseAxios.post(`${base}/runs/${id}/input`, { data }).then(throwThen<Empty>).catch(throwCatch)
+export const cancelRun = (id: number) => BaseAxios.post(`${base}/runs/${id}/cancel`).then(throwThen<Empty>).catch(throwCatch)
+
 // ---- 다시 조회 ----
 export const invalidateUpdates = (qc: QueryClient) => qc.invalidateQueries({ queryKey: ['UPDATES'] })
 
@@ -175,12 +210,19 @@ export const useCommons = (params: P) => useQuery({
     queryFn: () => listCommons(toValue(params)),
     placeholderData: keepPreviousData,
 })
-// 인스턴스 접속 상태는 push가 없어 열려 있는 동안 10초마다 다시 조회(P2, 실시간 알림은 P3 Run·Log와 같이)
+// 평소엔 UPD:CHANGE 알림으로 다시 조회(updWatch.hook.ts), 폴링은 안전망
+const POLL_MS = 60_000
 export const useUpdDevice = (mainKey: string) => useQuery({
     queryKey: ['UPDATES', 'DEVICE', mainKey],
     queryFn: () => getUpdDevice(mainKey),
     retry: (n, e: any) => e?.status !== 404 && n < 2,
-    refetchInterval: 10_000,
+    refetchInterval: POLL_MS,
+})
+export const useDeployment = (id: number) => useQuery({
+    queryKey: ['UPDATES', 'DEPLOY', id],
+    queryFn: () => getDeployment(id),
+    retry: (n, e: any) => e?.status !== 404 && n < 2,
+    refetchInterval: POLL_MS,
 })
 export const useBundle = (r: Ref) => useQuery({
     queryKey: ['UPDATES', 'BUNDLE', r.kind, r.owner, r.version],

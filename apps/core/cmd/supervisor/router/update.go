@@ -37,6 +37,9 @@ func (r *supervisorRouter) mountUpdates(e *echo.Group) {
 	g.GET("/runs/:id", r.updGetRun)                                 // updaterRun.go
 	g.POST("/runs/:id/input", r.updRunInput)                        // updaterRun.go
 	g.POST("/runs/:id/cancel", r.updRunCancel)                      // updaterRun.go
+	g.GET("/deployments/:id", r.updGetDeployment)                   // updaterDeploy.go
+	g.POST("/deployments/:id/rollback", r.updRollback)              // updaterDeploy.go
+	g.POST("/deployments/:id/cancel", r.updDeployCancel)            // updaterDeploy.go
 	g.GET("/commons", r.updListCommons)
 
 	g.POST("/bundles/:kind/:owner", r.updCreateBundle)
@@ -50,7 +53,9 @@ func (r *supervisorRouter) mountUpdates(e *echo.Group) {
 	b.PUT("/text", r.updSaveText)      // updateFiles.go
 	b.POST("/check", r.updCheckSteps)  // updateFiles.go
 	b.POST("/uploads", r.updStartUpload)
-	b.GET("/zip", r.updZip) // updateZip.go
+	b.GET("/zip", r.updZip)         // updateZip.go
+	b.POST("/deploy", r.updDeploy)  // updaterDeploy.go
+	b.POST("/lock", r.updLockBuild) // updaterDeploy.go
 	g.PUT("/uploads/:id", r.updUploadChunk)
 	g.DELETE("/uploads/:id", r.updCancelUpload)
 }
@@ -131,9 +136,10 @@ type updaterItem struct {
 	InstallDir       string `json:"installDir"`
 	InstalledVersion string `json:"installedVersion"`
 	LastSeenAt       *int64 `json:"lastSeenAt"`
-	Online           bool   `json:"online"`  // 메모리 연결(updaterConn.go)
-	Running          *int64 `json:"running"` // 지금 실행 중인 단계 기록 id
-	Version          string `json:"version"` // updater 빌드 태그(접속 중일 때)
+	Online           bool   `json:"online"`    // 메모리 연결(updaterConn.go)
+	Running          *int64 `json:"running"`   // 지금 실행 중인 단계 기록 id
+	Deploying        *int64 `json:"deploying"` // 지금 실행 중인 배포 id(P3)
+	Version          string `json:"version"`   // updater 빌드 태그(접속 중일 때)
 }
 
 type updBundleItem struct {
@@ -149,6 +155,7 @@ type updBundleItem struct {
 	CreatedByName string `json:"createdByName"`
 	CreatedAt     int64  `json:"createdAt"`
 	UpdatedAt     int64  `json:"updatedAt"`
+	LastDeployID  int64  `json:"lastDeployId"` // 0 = 배포 없음(장비 타일 빌드 행 Run · Log = 이 배포)
 }
 
 type updDeviceDetail struct {
@@ -169,7 +176,7 @@ func bundleItemOf(row superdb.ListBundlesByOwnerRow) updBundleItem {
 	return updBundleItem{
 		Kind: row.Kind, Owner: row.Owner, Version: row.Version, Note: row.Note, Sha: row.Sha,
 		Locked: row.Locked, UsedBy: row.UsedBy, FileCount: row.FileCount, TotalSize: row.TotalSize,
-		CreatedByName: row.CreatedByName, CreatedAt: row.CreatedAt.Time.Unix(), UpdatedAt: row.UpdatedAt.Time.Unix(),
+		CreatedByName: row.CreatedByName, CreatedAt: row.CreatedAt.Time.Unix(), UpdatedAt: row.UpdatedAt.Time.Unix(), LastDeployID: row.LastDeployID,
 	}
 }
 
@@ -509,6 +516,8 @@ type updBundleDetail struct {
 	Files []updFileItem `json:"files"`
 	Uses  []updUseItem  `json:"uses"`  // 빌드만 — 깔 순서
 	Users []updUserItem `json:"users"` // 공용만 — 쓰는 빌드
+	// Lockable: 잠그기 판정(DB 함수 update_lockable) — 지금 내용으로 끝까지 성공한 배포가 있음
+	Lockable bool `json:"lockable"`
 }
 
 func (r *supervisorRouter) fileItems(ref updstore.Ref, files []superdb.UpdateFile) []updFileItem {
@@ -536,8 +545,8 @@ func (r *supervisorRouter) updGetBundle(c echo.Context) error {
 	}
 	out := updBundleDetail{
 		updBundleItem: updBundleItem{Kind: b.Kind, Owner: b.Owner, Version: b.Version, Note: b.Note, Sha: b.Sha, Locked: b.Locked, UsedBy: b.UsedBy,
-			FileCount: int64(len(files)), TotalSize: size, CreatedByName: b.CreatedByName, CreatedAt: b.CreatedAt.Time.Unix(), UpdatedAt: b.UpdatedAt.Time.Unix()},
-		Files: r.fileItems(ref, files), Uses: []updUseItem{}, Users: []updUserItem{},
+			FileCount: int64(len(files)), TotalSize: size, CreatedByName: b.CreatedByName, CreatedAt: b.CreatedAt.Time.Unix(), UpdatedAt: b.UpdatedAt.Time.Unix(), LastDeployID: b.LastDeployID},
+		Files: r.fileItems(ref, files), Uses: []updUseItem{}, Users: []updUserItem{}, Lockable: b.Lockable,
 	}
 	if b.Kind == updstore.KindBuild {
 		uses, err := q.ListBundleUses(ctx, b.ID)

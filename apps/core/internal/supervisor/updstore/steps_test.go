@@ -61,3 +61,16 @@ func TestFolderShaMode(t *testing.T) {
 		t.Fatal("권한을 바꿨는데 sha가 같음")
 	}
 }
+
+func TestAutoRollback(t *testing.T) {
+	for src, want := range map[string]bool{
+		`{"deploy": [{"id": "c", "builtin": "copy"}], "autoRollback": true}`:  true,
+		`{"deploy": [{"id": "c", "builtin": "copy"}], "autoRollback": false}`: false,
+		`{"deploy": [{"id": "c", "builtin": "copy"}]}`:                        false,
+	} {
+		st, is := Check([]byte(src))
+		if len(is) != 0 || st.AutoRollback != want {
+			t.Errorf("%s -> %v (%+v)", src, st.AutoRollback, is)
+		}
+	}
+}

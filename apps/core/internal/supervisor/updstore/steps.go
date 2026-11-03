@@ -36,9 +36,10 @@ type Step struct {
 }
 
 type Steps struct {
-	Uses     []Use
-	Deploy   []Step
-	Rollback []Step
+	Uses         []Use
+	Deploy       []Step
+	Rollback     []Step
+	AutoRollback bool // 배포 실패 때 rollback 목록을 이어서(기본 꺼짐)
 }
 
 // Check: 문법·구조 검사. 공용 묶음 존재·스크립트 파일 존재는 호출자가 CheckRefs로
@@ -88,6 +89,8 @@ func Check(src []byte) (Steps, []Issue) {
 		case "autoRollback":
 			if v.kind != jBool {
 				add(v.at, "error", `"autoRollback"은 true/false여야 합니다`)
+			} else {
+				st.AutoRollback = v.str == "true"
 			}
 		default:
 			add(kv.at, "warn", "모르는 항목 %q — 저장은 되지만 updater가 쓰지 않습니다", kv.key)

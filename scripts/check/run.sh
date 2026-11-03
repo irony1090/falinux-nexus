@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 끌기 판정 전수 + 브라우저 확인 + 업데이트 app(API·화면·updater 단계 실행). 임시 DB·5051에서만 돌고 끝나면 지운다. 개발·빌드본(8011~8013, nexus*)은 건드리지 않는다
+# 끌기 판정 전수 + 브라우저 확인 + 업데이트 app(API·화면·updater 단계 실행·배포). 임시 DB·5051에서만 돌고 끝나면 지운다. 개발·빌드본(8011~8013, nexus*)은 건드리지 않는다
 # 필요: docker postgres15, 헤드리스 chromium, playwright-core(PW_DIR). 실행: scripts/check/run.sh
 set -euo pipefail
 
@@ -37,3 +37,5 @@ node "$here/member-drag.mjs" || { tail -5 "$work/sup.log"; exit 1; }
 python3 "$here/updates-api.py" || { tail -5 "$work/sup.log"; exit 1; }
 node "$here/updater-ui.mjs" || { tail -5 "$work/sup.log"; exit 1; }
 UPDATER="$work/updater" python3 "$here/updater-run.py" || { tail -5 "$work/sup.log"; exit 1; }
+UPDATER="$work/updater" python3 "$here/updater-deploy.py" || { tail -5 "$work/sup.log"; exit 1; }
+UPDATER="$work/updater" node "$here/updater-deploy-ui.mjs" || { tail -5 "$work/sup.log"; exit 1; }

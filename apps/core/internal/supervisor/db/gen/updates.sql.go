@@ -11,6 +11,43 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const cancelLostDeployments = `-- name: CancelLostDeployments :many
+UPDATE update_deployments SET
+    result = CASE WHEN result = 'running' THEN 'cancel' ELSE result END,
+    rollback_result = CASE WHEN rollback_result = 'running' THEN 'cancel' ELSE rollback_result END,
+    msg = 'updater가 이 배포를 모름 — updater 재시작 등으로 중단',
+    ended_at = COALESCE(ended_at, NOW())
+WHERE main_key = $1 AND sub_key = $2 AND (result = 'running' OR rollback_result = 'running') AND NOT (id = ANY($3::bigint[]))
+RETURNING id
+`
+
+type CancelLostDeploymentsParams struct {
+	MainKey string
+	SubKey  string
+	Keep    []int64
+}
+
+// updater 재접속 때 — 그 인스턴스의 끝나지 않은 배포·되돌리기 중 updater가 모르는 것(updater 재시작 = 중단, REF-update-p3.md "합의한 해석")
+func (q *Queries) CancelLostDeployments(ctx context.Context, arg CancelLostDeploymentsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, cancelLostDeployments, arg.MainKey, arg.SubKey, arg.Keep)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const cancelLostStepRuns = `-- name: CancelLostStepRuns :many
 UPDATE update_step_runs SET result = 'cancel', log_tail = log_tail || E'\n[updater가 이 실행을 모름 — 결과를 받지 못함]', ended_at = NOW()
 WHERE main_key = $1 AND sub_key = $2 AND result = 'running' AND NOT (id = ANY($3::bigint[]))
@@ -114,6 +151,56 @@ func (q *Queries) CreateBundle(ctx context.Context, arg CreateBundleParams) (Upd
 	return i, err
 }
 
+const createDeployment = `-- name: CreateDeployment :one
+
+INSERT INTO update_deployments (bundle_id, main_key, sub_key, version, sha, uses_sig, auto_rollback, started_by)
+VALUES ($1, $2, $3, $4, $5, update_uses_sig($8::bigint), $6, $7)
+RETURNING id, bundle_id, main_key, sub_key, version, sha, result, started_by, started_at, ended_at, rollback_result, auto_rollback, uses_sig, msg
+`
+
+type CreateDeploymentParams struct {
+	BundleID     pgtype.Int8
+	MainKey      string
+	SubKey       string
+	Version      string
+	Sha          string
+	AutoRollback bool
+	StartedBy    pgtype.Int8
+	SigBundle    int64
+}
+
+// ===== 배포 =====
+func (q *Queries) CreateDeployment(ctx context.Context, arg CreateDeploymentParams) (UpdateDeployment, error) {
+	row := q.db.QueryRow(ctx, createDeployment,
+		arg.BundleID,
+		arg.MainKey,
+		arg.SubKey,
+		arg.Version,
+		arg.Sha,
+		arg.AutoRollback,
+		arg.StartedBy,
+		arg.SigBundle,
+	)
+	var i UpdateDeployment
+	err := row.Scan(
+		&i.ID,
+		&i.BundleID,
+		&i.MainKey,
+		&i.SubKey,
+		&i.Version,
+		&i.Sha,
+		&i.Result,
+		&i.StartedBy,
+		&i.StartedAt,
+		&i.EndedAt,
+		&i.RollbackResult,
+		&i.AutoRollback,
+		&i.UsesSig,
+		&i.Msg,
+	)
+	return i, err
+}
+
 const createStepRun = `-- name: CreateStepRun :one
 
 INSERT INTO update_step_runs (deployment_id, bundle_id, main_key, sub_key, version, list, step_id, step_kind, log_file, started_by)
@@ -200,6 +287,59 @@ func (q *Queries) CreateUpdateDevice(ctx context.Context, arg CreateUpdateDevice
 	return i, err
 }
 
+const createWaitStepRun = `-- name: CreateWaitStepRun :one
+INSERT INTO update_step_runs (deployment_id, bundle_id, main_key, sub_key, version, list, step_id, step_kind, started_by, result)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'wait')
+RETURNING id, deployment_id, bundle_id, main_key, sub_key, version, list, step_id, step_kind, result, exit_code, log_tail, log_file, started_by, started_at, ended_at
+`
+
+type CreateWaitStepRunParams struct {
+	DeploymentID pgtype.Int8
+	BundleID     pgtype.Int8
+	MainKey      string
+	SubKey       string
+	Version      string
+	List         string
+	StepID       string
+	StepKind     string
+	StartedBy    pgtype.Int8
+}
+
+// 배포가 미리 만드는 단계 기록(아직 안 돎) — REF-update-p3.md 단위-1(DB)
+func (q *Queries) CreateWaitStepRun(ctx context.Context, arg CreateWaitStepRunParams) (UpdateStepRun, error) {
+	row := q.db.QueryRow(ctx, createWaitStepRun,
+		arg.DeploymentID,
+		arg.BundleID,
+		arg.MainKey,
+		arg.SubKey,
+		arg.Version,
+		arg.List,
+		arg.StepID,
+		arg.StepKind,
+		arg.StartedBy,
+	)
+	var i UpdateStepRun
+	err := row.Scan(
+		&i.ID,
+		&i.DeploymentID,
+		&i.BundleID,
+		&i.MainKey,
+		&i.SubKey,
+		&i.Version,
+		&i.List,
+		&i.StepID,
+		&i.StepKind,
+		&i.Result,
+		&i.ExitCode,
+		&i.LogTail,
+		&i.LogFile,
+		&i.StartedBy,
+		&i.StartedAt,
+		&i.EndedAt,
+	)
+	return i, err
+}
+
 const deleteBundle = `-- name: DeleteBundle :execrows
 DELETE FROM update_bundles WHERE id = $1
 `
@@ -276,6 +416,38 @@ func (q *Queries) DeleteUpdater(ctx context.Context, arg DeleteUpdaterParams) (i
 	return result.RowsAffected(), nil
 }
 
+const deleteWaitRuns = `-- name: DeleteWaitRuns :exec
+DELETE FROM update_step_runs WHERE deployment_id = $1 AND list = $2 AND result = 'wait'
+`
+
+type DeleteWaitRunsParams struct {
+	DeploymentID pgtype.Int8
+	List         string
+}
+
+func (q *Queries) DeleteWaitRuns(ctx context.Context, arg DeleteWaitRunsParams) error {
+	_, err := q.db.Exec(ctx, deleteWaitRuns, arg.DeploymentID, arg.List)
+	return err
+}
+
+const finishDeployment = `-- name: FinishDeployment :execrows
+UPDATE update_deployments SET result = $2, msg = $3, ended_at = NOW() WHERE id = $1 AND result = 'running'
+`
+
+type FinishDeploymentParams struct {
+	ID     int64
+	Result string
+	Msg    string
+}
+
+func (q *Queries) FinishDeployment(ctx context.Context, arg FinishDeploymentParams) (int64, error) {
+	result, err := q.db.Exec(ctx, finishDeployment, arg.ID, arg.Result, arg.Msg)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const finishStepRun = `-- name: FinishStepRun :exec
 UPDATE update_step_runs SET result = $2, exit_code = $3, log_tail = $4, ended_at = NOW() WHERE id = $1
 `
@@ -301,7 +473,9 @@ const getBundle = `-- name: GetBundle :one
 SELECT b.id, b.kind, b.owner, b.version, b.note, b.sha, b.created_by, b.created_at, b.updated_at,
        COALESCE(cu.nickname, '')::text AS created_by_name,
        EXISTS (SELECT 1 FROM update_locks l WHERE l.bundle_id = b.id)::bool AS locked,
-       (SELECT COUNT(*) FROM update_uses u WHERE u.common_id = b.id)::bigint AS used_by
+       (SELECT COUNT(*) FROM update_uses u WHERE u.common_id = b.id)::bigint AS used_by,
+       (SELECT COALESCE(MAX(d.id), 0) FROM update_deployments d WHERE d.bundle_id = b.id)::bigint AS last_deploy_id,
+       update_lockable(b.id)::bool AS lockable
 FROM update_bundles b LEFT JOIN users cu ON cu.id = b.created_by
 WHERE b.kind = $1 AND b.owner = $2 AND b.version = $3
 `
@@ -325,6 +499,8 @@ type GetBundleRow struct {
 	CreatedByName string
 	Locked        bool
 	UsedBy        int64
+	LastDeployID  int64
+	Lockable      bool
 }
 
 func (q *Queries) GetBundle(ctx context.Context, arg GetBundleParams) (GetBundleRow, error) {
@@ -343,6 +519,8 @@ func (q *Queries) GetBundle(ctx context.Context, arg GetBundleParams) (GetBundle
 		&i.CreatedByName,
 		&i.Locked,
 		&i.UsedBy,
+		&i.LastDeployID,
+		&i.Lockable,
 	)
 	return i, err
 }
@@ -433,6 +611,79 @@ func (q *Queries) GetBundleForUpdate(ctx context.Context, arg GetBundleForUpdate
 		&i.Owner,
 		&i.Version,
 		&i.Locked,
+	)
+	return i, err
+}
+
+const getDeployment = `-- name: GetDeployment :one
+SELECT d.id, d.bundle_id, d.main_key, d.sub_key, d.version, d.sha, d.result, d.started_by, d.started_at, d.ended_at, d.rollback_result, d.auto_rollback, d.uses_sig, d.msg, COALESCE(u.nickname, '')::text AS started_by_name
+FROM update_deployments d LEFT JOIN users u ON u.id = d.started_by
+WHERE d.id = $1
+`
+
+type GetDeploymentRow struct {
+	ID             int64
+	BundleID       pgtype.Int8
+	MainKey        string
+	SubKey         string
+	Version        string
+	Sha            string
+	Result         string
+	StartedBy      pgtype.Int8
+	StartedAt      pgtype.Timestamptz
+	EndedAt        pgtype.Timestamptz
+	RollbackResult string
+	AutoRollback   bool
+	UsesSig        string
+	Msg            string
+	StartedByName  string
+}
+
+func (q *Queries) GetDeployment(ctx context.Context, id int64) (GetDeploymentRow, error) {
+	row := q.db.QueryRow(ctx, getDeployment, id)
+	var i GetDeploymentRow
+	err := row.Scan(
+		&i.ID,
+		&i.BundleID,
+		&i.MainKey,
+		&i.SubKey,
+		&i.Version,
+		&i.Sha,
+		&i.Result,
+		&i.StartedBy,
+		&i.StartedAt,
+		&i.EndedAt,
+		&i.RollbackResult,
+		&i.AutoRollback,
+		&i.UsesSig,
+		&i.Msg,
+		&i.StartedByName,
+	)
+	return i, err
+}
+
+const getDeploymentForUpdate = `-- name: GetDeploymentForUpdate :one
+SELECT id, bundle_id, main_key, sub_key, version, sha, result, started_by, started_at, ended_at, rollback_result, auto_rollback, uses_sig, msg FROM update_deployments WHERE id = $1 FOR UPDATE
+`
+
+func (q *Queries) GetDeploymentForUpdate(ctx context.Context, id int64) (UpdateDeployment, error) {
+	row := q.db.QueryRow(ctx, getDeploymentForUpdate, id)
+	var i UpdateDeployment
+	err := row.Scan(
+		&i.ID,
+		&i.BundleID,
+		&i.MainKey,
+		&i.SubKey,
+		&i.Version,
+		&i.Sha,
+		&i.Result,
+		&i.StartedBy,
+		&i.StartedAt,
+		&i.EndedAt,
+		&i.RollbackResult,
+		&i.AutoRollback,
+		&i.UsesSig,
+		&i.Msg,
 	)
 	return i, err
 }
@@ -536,6 +787,17 @@ type InsertBundleUseParams struct {
 func (q *Queries) InsertBundleUse(ctx context.Context, arg InsertBundleUseParams) error {
 	_, err := q.db.Exec(ctx, insertBundleUse, arg.BundleID, arg.CommonID, arg.Ord)
 	return err
+}
+
+const isLockable = `-- name: IsLockable :one
+SELECT update_lockable($1)::bool
+`
+
+func (q *Queries) IsLockable(ctx context.Context, pBundle int64) (bool, error) {
+	row := q.db.QueryRow(ctx, isLockable, pBundle)
+	var column_1 bool
+	err := row.Scan(&column_1)
+	return column_1, err
 }
 
 const listBundleFiles = `-- name: ListBundleFiles :many
@@ -665,7 +927,8 @@ SELECT b.id, b.kind, b.owner, b.version, b.note, b.sha, b.created_by, b.created_
        EXISTS (SELECT 1 FROM update_locks l WHERE l.bundle_id = b.id)::bool AS locked,
        (SELECT COUNT(*) FROM update_uses u WHERE u.common_id = b.id)::bigint AS used_by,
        (SELECT COUNT(*) FROM update_files f WHERE f.bundle_id = b.id)::bigint AS file_count,
-       (SELECT COALESCE(SUM(f.size), 0) FROM update_files f WHERE f.bundle_id = b.id)::bigint AS total_size
+       (SELECT COALESCE(SUM(f.size), 0) FROM update_files f WHERE f.bundle_id = b.id)::bigint AS total_size,
+       (SELECT COALESCE(MAX(d.id), 0) FROM update_deployments d WHERE d.bundle_id = b.id)::bigint AS last_deploy_id
 FROM update_bundles b LEFT JOIN users cu ON cu.id = b.created_by
 WHERE b.kind = $1 AND b.owner = $2
 ORDER BY b.created_at DESC, b.id DESC
@@ -691,6 +954,7 @@ type ListBundlesByOwnerRow struct {
 	UsedBy        int64
 	FileCount     int64
 	TotalSize     int64
+	LastDeployID  int64
 }
 
 // ===== 번들(빌드·공용 묶음) =====
@@ -719,6 +983,7 @@ func (q *Queries) ListBundlesByOwner(ctx context.Context, arg ListBundlesByOwner
 			&i.UsedBy,
 			&i.FileCount,
 			&i.TotalSize,
+			&i.LastDeployID,
 		); err != nil {
 			return nil, err
 		}
@@ -736,7 +1001,8 @@ SELECT b.id, b.kind, b.owner, b.version, b.note, b.sha, b.created_by, b.created_
        EXISTS (SELECT 1 FROM update_locks l WHERE l.bundle_id = b.id)::bool AS locked,
        (SELECT COUNT(*) FROM update_uses u WHERE u.common_id = b.id)::bigint AS used_by,
        (SELECT COUNT(*) FROM update_files f WHERE f.bundle_id = b.id)::bigint AS file_count,
-       (SELECT COALESCE(SUM(f.size), 0) FROM update_files f WHERE f.bundle_id = b.id)::bigint AS total_size
+       (SELECT COALESCE(SUM(f.size), 0) FROM update_files f WHERE f.bundle_id = b.id)::bigint AS total_size,
+       (SELECT COALESCE(MAX(d.id), 0) FROM update_deployments d WHERE d.bundle_id = b.id)::bigint AS last_deploy_id
 FROM update_bundles b LEFT JOIN users cu ON cu.id = b.created_by
 WHERE b.kind = 'common'
 ORDER BY b.owner, b.created_at DESC, b.id DESC
@@ -757,6 +1023,7 @@ type ListCommonBundlesRow struct {
 	UsedBy        int64
 	FileCount     int64
 	TotalSize     int64
+	LastDeployID  int64
 }
 
 func (q *Queries) ListCommonBundles(ctx context.Context) ([]ListCommonBundlesRow, error) {
@@ -783,6 +1050,48 @@ func (q *Queries) ListCommonBundles(ctx context.Context) ([]ListCommonBundlesRow
 			&i.UsedBy,
 			&i.FileCount,
 			&i.TotalSize,
+			&i.LastDeployID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDeploymentRuns = `-- name: ListDeploymentRuns :many
+SELECT id, deployment_id, bundle_id, main_key, sub_key, version, list, step_id, step_kind, result, exit_code, log_tail, log_file, started_by, started_at, ended_at FROM update_step_runs WHERE deployment_id = $1 ORDER BY id
+`
+
+func (q *Queries) ListDeploymentRuns(ctx context.Context, deploymentID pgtype.Int8) ([]UpdateStepRun, error) {
+	rows, err := q.db.Query(ctx, listDeploymentRuns, deploymentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UpdateStepRun
+	for rows.Next() {
+		var i UpdateStepRun
+		if err := rows.Scan(
+			&i.ID,
+			&i.DeploymentID,
+			&i.BundleID,
+			&i.MainKey,
+			&i.SubKey,
+			&i.Version,
+			&i.List,
+			&i.StepID,
+			&i.StepKind,
+			&i.Result,
+			&i.ExitCode,
+			&i.LogTail,
+			&i.LogFile,
+			&i.StartedBy,
+			&i.StartedAt,
+			&i.EndedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -929,6 +1238,91 @@ func (q *Queries) ListUpdatersByMainKey(ctx context.Context, mainKey string) ([]
 	return items, nil
 }
 
+const lockBuildWithUses = `-- name: LockBuildWithUses :exec
+INSERT INTO update_locks (bundle_id, via_build_id, sha, locked_by)
+SELECT b.id, $1::bigint, b.sha, $2::bigint FROM update_bundles b
+WHERE b.id = $1::bigint OR b.id IN (SELECT common_id FROM update_uses WHERE bundle_id = $1::bigint)
+`
+
+type LockBuildWithUsesParams struct {
+	BuildID  int64
+	LockedBy int64
+}
+
+// 빌드 + 쓰는 공용 묶음마다 잠금 행(via = 이 빌드), sha = 지금 값
+func (q *Queries) LockBuildWithUses(ctx context.Context, arg LockBuildWithUsesParams) error {
+	_, err := q.db.Exec(ctx, lockBuildWithUses, arg.BuildID, arg.LockedBy)
+	return err
+}
+
+const setRollbackResult = `-- name: SetRollbackResult :execrows
+UPDATE update_deployments SET rollback_result = $2, msg = CASE WHEN $3::text = '' THEN msg ELSE $3::text END
+WHERE id = $1
+`
+
+type SetRollbackResultParams struct {
+	ID             int64
+	RollbackResult string
+	Msg            string
+}
+
+func (q *Queries) SetRollbackResult(ctx context.Context, arg SetRollbackResultParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setRollbackResult, arg.ID, arg.RollbackResult, arg.Msg)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setStepRunLogTail = `-- name: SetStepRunLogTail :exec
+UPDATE update_step_runs SET log_tail = $2 WHERE id = $1
+`
+
+type SetStepRunLogTailParams struct {
+	ID      int64
+	LogTail string
+}
+
+func (q *Queries) SetStepRunLogTail(ctx context.Context, arg SetStepRunLogTailParams) error {
+	_, err := q.db.Exec(ctx, setStepRunLogTail, arg.ID, arg.LogTail)
+	return err
+}
+
+const skipWaitRuns = `-- name: SkipWaitRuns :exec
+UPDATE update_step_runs SET result = 'skip', ended_at = NOW() WHERE deployment_id = $1 AND list = $2 AND result = 'wait'
+`
+
+type SkipWaitRunsParams struct {
+	DeploymentID pgtype.Int8
+	List         string
+}
+
+func (q *Queries) SkipWaitRuns(ctx context.Context, arg SkipWaitRunsParams) error {
+	_, err := q.db.Exec(ctx, skipWaitRuns, arg.DeploymentID, arg.List)
+	return err
+}
+
+const skipWaitRunsOf = `-- name: SkipWaitRunsOf :exec
+UPDATE update_step_runs SET result = 'skip', ended_at = NOW() WHERE deployment_id = ANY($1::bigint[]) AND result = 'wait'
+`
+
+func (q *Queries) SkipWaitRunsOf(ctx context.Context, ids []int64) error {
+	_, err := q.db.Exec(ctx, skipWaitRunsOf, ids)
+	return err
+}
+
+const startStepRun = `-- name: StartStepRun :execrows
+UPDATE update_step_runs SET result = 'running', started_at = NOW() WHERE id = $1 AND result = 'wait'
+`
+
+func (q *Queries) StartStepRun(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.Exec(ctx, startStepRun, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const touchUpdater = `-- name: TouchUpdater :exec
 UPDATE updaters SET last_seen_at = NOW() WHERE main_key = $1 AND sub_key = $2
 `
@@ -1055,6 +1449,21 @@ func (q *Queries) UpdateUpdaterInstallDir(ctx context.Context, arg UpdateUpdater
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const updateUpdaterInstalled = `-- name: UpdateUpdaterInstalled :exec
+UPDATE updaters SET installed_version = $3 WHERE main_key = $1 AND sub_key = $2
+`
+
+type UpdateUpdaterInstalledParams struct {
+	MainKey          string
+	SubKey           string
+	InstalledVersion string
+}
+
+func (q *Queries) UpdateUpdaterInstalled(ctx context.Context, arg UpdateUpdaterInstalledParams) error {
+	_, err := q.db.Exec(ctx, updateUpdaterInstalled, arg.MainKey, arg.SubKey, arg.InstalledVersion)
+	return err
 }
 
 const updateUpdaterLabel = `-- name: UpdateUpdaterLabel :execrows

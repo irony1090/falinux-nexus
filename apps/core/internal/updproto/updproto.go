@@ -1,7 +1,11 @@
 // Package updproto: updater <-> supervisor 메시지(봉투·전송은 protocol·transport 재사용). worker 메시지와 섞지 않는다 — REF-update-p2.md
 package updproto
 
-import "nexus/internal/protocol"
+import (
+	"strconv"
+
+	"nexus/internal/protocol"
+)
 
 // WS·파일 받기 경로(브라우저 API가 아니라 /api 밖 — worker 경로와 같은 이유)
 const (
@@ -24,6 +28,12 @@ const (
 	MsgCancel protocol.MsgType = "UPD_CANCEL"  // EVENT s->u Cancel
 	MsgOutput protocol.MsgType = "UPD_OUTPUT"  // EVENT u->s Output
 	MsgEnd    protocol.MsgType = "UPD_END"     // REQ u->s  End -> 빈 응답(받을 때까지 재접속 뒤에도 다시 보냄)
+
+	// P3(배포) — 배포 목록은 updater가 차례로 실행(설계-10(자기 교체) 10-2(순서 주체)). REF-update-p3.md 단위-2(배포 메시지)
+	MsgDeploy    protocol.MsgType = "UPD_DEPLOY"     // REQ s->u  Deploy -> 빈 응답(받음). 단계마다 StepStart·End, 끝 = DeployEnd
+	MsgStepStart protocol.MsgType = "UPD_STEP_START" // EVENT u->s StepStart(끊겨 있으면 버림 — End가 결과를 덮음)
+	MsgDeployEnd protocol.MsgType = "UPD_DEPLOY_END" // REQ u->s  DeployEnd -> 빈 응답(End처럼 받을 때까지 다시 보냄)
+	MsgLog       protocol.MsgType = "UPD_LOG"        // REQ u->s  Log -> 빈 응답. 끊긴 동안 출력이 있던 실행의 로그 전체(10-1(로그 끊김))
 )
 
 // Hello: SubKey 빈 값 = 첫 접속(supervisor가 발급). Running = 아직 끝나지 않은 실행(재접속)
@@ -37,6 +47,7 @@ type Hello struct {
 	Installed string  `json:"installed"` // 마지막으로 끝까지 성공한 배포 버전(P3부터 채움)
 	Version   string  `json:"version"`   // updater 빌드 태그
 	Running   []int64 `json:"running,omitempty"`
+	Deploying []int64 `json:"deploying,omitempty"` // 아직 끝나지 않았거나 DeployEnd를 못 보낸 배포 id
 }
 
 type HelloResponse struct {
@@ -95,7 +106,8 @@ type Resize struct {
 }
 
 type Cancel struct {
-	RunID int64 `json:"runId"`
+	RunID    int64 `json:"runId"`
+	DeployID int64 `json:"deployId,omitempty"` // 배포 중이면 다음 단계로 넘어가지 않음
 }
 
 type Output struct {
@@ -117,3 +129,53 @@ type End struct {
 	ExitCode *int   `json:"exitCode,omitempty"` // script만
 	Msg      string `json:"msg,omitempty"`
 }
+
+// ===== 배포(P3) =====
+
+// 목록 이름(update_step_runs.list)
+const (
+	ListDeploy   = "deploy"
+	ListRollback = "rollback"
+)
+
+// DeployStep: 미리 만든 단계 기록 id + 단계
+type DeployStep struct {
+	RunID int64 `json:"runId"`
+	Step  Step  `json:"step"`
+}
+
+// Deploy: List 목록을 Steps 순서대로. 실패·취소면 멈춤, Rollback이 있으면(autoRollback) 실패 때 이어서 실행
+type Deploy struct {
+	DeployID int64        `json:"deployId"`
+	List     string       `json:"list"`
+	Version  string       `json:"version"`
+	Stage    string       `json:"stage"`
+	Files    []StageFile  `json:"files"`
+	Steps    []DeployStep `json:"steps"`
+	Rollback []DeployStep `json:"rollback,omitempty"`
+	Cols     uint16       `json:"cols,omitempty"`
+	Rows     uint16       `json:"rows,omitempty"`
+}
+
+type StepStart struct {
+	DeployID int64 `json:"deployId"`
+	RunID    int64 `json:"runId"`
+}
+
+// DeployEnd: Result = 목록 결과(ok·fail·cancel), Rollback = 자동 되돌리기 결과(안 했으면 빈 값). Installed = 끝난 뒤 설치본 이름
+type DeployEnd struct {
+	DeployID  int64  `json:"deployId"`
+	List      string `json:"list"`
+	Result    string `json:"result"`
+	Rollback  string `json:"rollback,omitempty"`
+	Installed string `json:"installed"`
+	Msg       string `json:"msg,omitempty"`
+}
+
+type Log struct {
+	RunID int64  `json:"runId"`
+	Data  []byte `json:"data"`
+}
+
+// DeployTag: 배포 id -> updater 쪽 이름(백업 폴더·DEPLOY_ID)
+func DeployTag(id int64) string { return "d" + strconv.FormatInt(id, 10) }

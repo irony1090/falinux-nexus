@@ -99,16 +99,20 @@ type UpdateBundle struct {
 }
 
 type UpdateDeployment struct {
-	ID        int64
-	BundleID  pgtype.Int8
-	MainKey   string
-	SubKey    string
-	Version   string
-	Sha       string
-	Result    string
-	StartedBy pgtype.Int8
-	StartedAt pgtype.Timestamptz
-	EndedAt   pgtype.Timestamptz
+	ID             int64
+	BundleID       pgtype.Int8
+	MainKey        string
+	SubKey         string
+	Version        string
+	Sha            string
+	Result         string
+	StartedBy      pgtype.Int8
+	StartedAt      pgtype.Timestamptz
+	EndedAt        pgtype.Timestamptz
+	RollbackResult string
+	AutoRollback   bool
+	UsesSig        string
+	Msg            string
 }
 
 type UpdateDevice struct {

@@ -104,6 +104,7 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 		updLinks:       newUpdLinks(),
 	}
 	router.updRuns = newUpdRunSet(router.upd.Dir())
+	router.updRuns.pub = router.publishUpdOutput
 	go router.runPurge() // 끝난 process 주기 삭제(K2(supervisor 정리))
 	go router.runTransferSweep()
 	go router.runViewSweep()

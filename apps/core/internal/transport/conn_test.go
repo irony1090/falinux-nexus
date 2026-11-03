@@ -109,3 +109,30 @@ func TestEventAndCallNoInterference(t *testing.T) {
 		}
 	}
 }
+
+// HandleOrdered REQ는 앞서 보낸 EVENT가 다 처리된 뒤에 처리된다(updater 단계 끝 — 마지막 출력 뒤).
+func TestHandleOrderedAfterEvents(t *testing.T) {
+	a, b := newPair(t)
+	const n = 500
+	seen := 0 // 디스패처 고루틴만 만짐
+	b.On(msgData, func(protocol.Frame) {
+		time.Sleep(10 * time.Microsecond)
+		seen++
+	})
+	b.HandleOrdered(msgAdd, func(protocol.Frame) (any, error) { return seen, nil })
+	for i := range n {
+		if err := a.Emit(msgData, i); err != nil {
+			t.Fatalf("emit %d: %v", i, err)
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	res, err := a.Call(ctx, msgAdd, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got int
+	if err := res.Bind(&got); err != nil || got != n {
+		t.Fatalf("REQ 처리 때 본 EVENT 수 = %d(%v), want %d", got, err, n)
+	}
+}
