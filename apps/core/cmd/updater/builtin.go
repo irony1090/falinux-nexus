@@ -123,7 +123,7 @@ func (j *job) backup() error {
 		if !st.Mode().IsRegular() {
 			return fmt.Errorf("%s는 보통 파일이 아니라 백업할 수 없습니다", src)
 		}
-		if err := copyOne(src, filepath.Join(dir, "files", filepath.FromSlash(f.Path)), st.Mode().Perm()); err != nil {
+		if _, err := copyOne(src, filepath.Join(dir, "files", filepath.FromSlash(f.Path)), st.Mode().Perm()); err != nil {
 			return fmt.Errorf("백업 %s: %w", f.Path, err)
 		}
 		saved++
@@ -170,6 +170,11 @@ func (j *job) copyFiles() error {
 	if err != nil {
 		return err
 	}
+	for _, f := range j.run.Files { // 하나라도 걸리면 아무것도 안 씀
+		if err := j.guardSelf(filepath.Join(target, filepath.FromSlash(f.Path))); err != nil {
+			return err
+		}
+	}
 	if _, err := j.findBackup(); err != nil {
 		j.say("주의: 이 배포의 backup이 없어 copy를 되돌릴 수 없습니다")
 	}
@@ -179,10 +184,11 @@ func (j *job) copyFiles() error {
 		}
 		src := filepath.Join(j.stage, filepath.FromSlash(f.Path))
 		dst := filepath.Join(target, filepath.FromSlash(f.Path))
-		if err := copyOne(src, dst, os.FileMode(f.Mode)); err != nil {
+		old, err := copyOne(src, dst, os.FileMode(f.Mode))
+		if err != nil {
 			return fmt.Errorf("copy %s: %w", f.Path, err)
 		}
-		j.say("copy %s (%04o)", f.Path, f.Mode)
+		j.say("copy %s (%04o)%s", f.Path, f.Mode, movedNote(old))
 	}
 	j.say("copy %s — 파일 %d개", target, len(j.run.Files))
 	return nil
@@ -205,6 +211,9 @@ func (j *job) restore() error {
 		j.say("백업 때 경로 %s로 복원합니다(지금 설정 %s)", m.TargetDir, now)
 	}
 	files := filepath.Join(dir, "files")
+	if err := j.guardSelf(m.TargetDir); err != nil {
+		return err
+	}
 	n := 0
 	err = filepath.WalkDir(files, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -218,8 +227,16 @@ func (j *job) restore() error {
 		if err != nil {
 			return err
 		}
-		if err := copyOne(p, filepath.Join(m.TargetDir, rel), st.Mode().Perm()); err != nil {
+		dst := filepath.Join(m.TargetDir, rel)
+		if err := j.guardSelf(dst); err != nil {
+			return err
+		}
+		old, err := copyOne(p, dst, st.Mode().Perm())
+		if err != nil {
 			return fmt.Errorf("복원 %s: %w", rel, err)
+		}
+		if old != "" {
+			j.say("복원 %s%s", rel, movedNote(old))
 		}
 		n++
 		return nil
@@ -235,7 +252,14 @@ func (j *job) restore() error {
 			if rel == "" || !filepath.IsLocal(filepath.FromSlash(rel)) {
 				continue
 			}
-			if os.Remove(filepath.Join(m.TargetDir, filepath.FromSlash(rel))) == nil {
+			dst := filepath.Join(m.TargetDir, filepath.FromSlash(rel))
+			if j.guardSelf(dst) != nil {
+				continue
+			}
+			if old, err := removeFile(dst); err == nil {
+				if old != "" {
+					j.say("새 파일 %s 지우기 거절 — 이름만 바꿈%s", rel, movedNote(old))
+				}
 				removed++
 			}
 		}
@@ -245,19 +269,19 @@ func (j *job) restore() error {
 	return nil
 }
 
-// copyOne: dst 폴더 안 임시 파일 -> 권한 -> 이름 변경
-func copyOne(src, dst string, mode os.FileMode) error {
+// copyOne: dst 폴더 안 임시 파일 -> 권한 -> 이름 변경. 돌려주는 값 = 물린 옛 파일(Windows 실행 중 파일, 없으면 "")
+func copyOne(src, dst string, mode os.FileMode) (string, error) {
 	in, err := os.Open(src)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer in.Close()
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-		return err
+		return "", err
 	}
 	tmp, err := os.CreateTemp(filepath.Dir(dst), "."+filepath.Base(dst)+".nexus-*")
 	if err != nil {
-		return err
+		return "", err
 	}
 	_, err = io.Copy(tmp, in)
 	if err == nil {
@@ -269,11 +293,37 @@ func copyOne(src, dst string, mode os.FileMode) error {
 	if err == nil {
 		err = os.Chmod(tmp.Name(), mode)
 	}
+	var old string
 	if err == nil {
-		err = os.Rename(tmp.Name(), dst)
+		old, err = replaceFile(tmp.Name(), dst)
 	}
 	if err != nil {
 		os.Remove(tmp.Name())
 	}
-	return err
+	return old, err
+}
+
+// guardSelf: 보완-1(자기 폴더 보호) — TARGET_DIR 안에 updater 폴더가 있을 때(예: C:\Nexus\updater) 빌드 파일이 updater 자기 파일을 덮어쓰지 않게.
+// 폴더 전체가 아니라 updater가 쓰는 것만 막는다(설치 경로가 updater 폴더 안이어도 동작하게)
+func (j *job) guardSelf(dst string) error {
+	own := []string{j.a.cfg.path, j.a.statePath(), "staging", "backups", "logs", "updater.log", "updater.log.1"}
+	if exe, err := os.Executable(); err == nil {
+		own = append(own, exe)
+	}
+	for _, p := range own {
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(j.a.dir, p)
+		}
+		if rel, err := filepath.Rel(p, dst); err == nil && (rel == "." || filepath.IsLocal(rel)) {
+			return fmt.Errorf("%s는 updater가 쓰는 파일이라 쓰지 않습니다(%s)", dst, p)
+		}
+	}
+	return nil
+}
+
+func movedNote(old string) string {
+	if old == "" {
+		return ""
+	}
+	return " — 실행 중이던 옛 파일 -> " + filepath.Base(old)
 }

@@ -24,7 +24,28 @@ func buildTag() string {
 	return strings.TrimSpace(strings.TrimPrefix(first, "#"))
 }
 
-var configPath = flag.String("c", "", "설정 파일(기본 = 실행 파일 옆 updater.json)")
+var (
+	configPath = flag.String("c", "", "설정 파일(기본 = 실행 파일 옆 updater.json)")
+	logPath    = flag.String("log", "", "로그 파일(상대 경로 = 설정 폴더 기준, 빈 값 = 표준 출력) — Windows 예약 작업엔 journal이 없어서")
+)
+
+const logMax = 5 << 20 // 켤 때 이보다 크면 <이름>.1로 넘김
+
+// openLog: 켤 때 한 번 — 크면 하나만 넘기고 이어 씀
+func openLog(dir, p string) {
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(dir, p)
+	}
+	if st, err := os.Stat(p); err == nil && st.Size() > logMax {
+		_ = os.Rename(p, p+".1")
+	}
+	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	if err != nil {
+		log.Printf("updater: 로그 파일 %v — 표준 출력에 씀", err)
+		return
+	}
+	log.SetOutput(f)
+}
 
 func main() {
 	flag.Parse()
@@ -37,11 +58,14 @@ func main() {
 		path = filepath.Join(filepath.Dir(exe), "updater.json")
 	}
 	path, _ = filepath.Abs(path)
+	dir := filepath.Dir(path)
+	if *logPath != "" {
+		openLog(dir, *logPath)
+	}
 	cfg, err := loadConfig(path)
 	if err != nil {
 		log.Fatalf("updater: 설정 %v", err)
 	}
-	dir := filepath.Dir(path)
 	for _, d := range []string{"staging", "backups", "logs"} {
 		if err := os.MkdirAll(filepath.Join(dir, d), 0o755); err != nil {
 			log.Fatalf("updater: 폴더 %v", err)

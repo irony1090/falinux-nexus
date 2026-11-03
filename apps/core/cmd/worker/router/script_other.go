@@ -2,10 +2,13 @@
 
 package router
 
-import "nexus/internal/protocol"
+import (
+	"nexus/internal/protocol"
+	"nexus/internal/scriptfmt"
+)
 
 // Linux 등은 기본값 없음(파일 그대로) — env SCRIPT_FORMAT을 주면 그것만 적용한다.
-var defaultScriptFormats = map[string]scriptFormat{}
+var defaultScriptFormats = map[string]scriptfmt.Format{}
 
 // defaultEditor는 EDITOR가 없을 때 쓸 에디터다.
 func defaultEditor() string { return "vi" }

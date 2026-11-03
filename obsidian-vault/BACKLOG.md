@@ -5,7 +5,6 @@
 > 착수하면 CURRENT로 올리고 여기서 지운다. 해결되면 지운다(이력은 history에).
 
 ## 파트(업데이트 app)에서 미룬 것
-- **P4(Windows)** · 2026-11-03 · P3 머지 뒤 다음 순서 · 예약 작업·PowerShell 단계·supervisor 교체, 확인 = 집 서버에서 supervisor·worker 교체 → `REF-update-deploy.md` "단계 계획"
 - **updater 웹 자동 교체** · 2026-11-02 · updater를 바꿀 일이 잦아지거나 장비가 늘 때 · 새 updater 접속 실패 시 되돌릴 주체 필요(설계-10(자기 교체) 10-3) → `REF-update-deploy.md` "자기 교체"
 - **updater 재부팅 단계** · 2026-11-02 · 재부팅이 필요한 배포가 생길 때 · P3는 updater 재시작 = 실행 중 단계 중단 + 배포 멈춤, 이어 가려면 단계 표시(`"reboot": true` 등) 필요 → `REF-update-p3.md` "합의한 해석"
 - **updater 백업 타일** · 2026-11-02 · P3 뒤 · 시안 ③의 백업 목록(위치·덮어쓴/새 파일 수·최근 3회) → `REF-update-p3.md` "P3에 안 넣음"

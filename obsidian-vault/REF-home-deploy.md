@@ -1,6 +1,7 @@
 # REF — 집 서버 배포·업데이트 기록 (2026-10-28 `REF-home-server.md`에서 분할)
 
 > → 이력 `history/home-deploy.md` · → 구성·터널·재부팅 `REF-home-server.md` · → 진행 `CURRENT.md`
+> **2026-11-03부터(updater 설치 묶음 이후) → `REF-home-deploy-updater.md`**
 > 서버 PC 폴더 = `C:\Nexus`. 묶음 위치 = `build/home-update/`(git 제외)
 
 ## 업데이트 빌드 B (2026-10-25, worker_move 포함)
