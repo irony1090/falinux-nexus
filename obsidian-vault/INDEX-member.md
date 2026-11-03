@@ -14,7 +14,8 @@
 ## REF / history 목록 (MEMORY 인덱스에서 옮김)
 - `REF-member.md`(결정 회원-Q1~Q23 · 배포 전 확인) / `history/member.md`
 - `REF-member-impl.md`(구현·확인·격리 환경 다시 띄우기) / `history/member-impl.md`
-- `REF-member-ui.md`(화면 개편 화-1~14 · URL 저장 · 판 계약) / `history/member-ui.md`
+- `REF-member-ui.md`(화면 개편 화-1~14 · URL 저장) / `history/member-ui.md`
+- `REF-member-ui-impl.md`(코드 적용 계획 · 구현 · 판 계약, 2026-11-03 분할) / `history/member-ui-impl.md`
 - `REF-api-prefix.md`(api-1~5) / `history/api-prefix.md`
 - `REF-device-move.md`(이동-Q1~Q6 · 푸터 액션 자리) / 이력은 `history/api-prefix.md`에 같이
 
@@ -26,6 +27,7 @@
   - | `history/member.md` | 회원 관리 — 결정·조율(2026-10-26 착수, 진행 중) ↔ `REF-member.md` | 10-26 회원-Q1~Q23 |
   - | `history/member-impl.md` | 회원 관리 — 구현·확인 ↔ `REF-member-impl.md` | 10-26 오후 회귀 17/17·커밋 `1bd58e7`·`fa50c64`·사용자 test3 배포·관리자 지정 |
   - | `history/member-ui.md` | 회원 관리 — 화면 개편(2026-10-26 `member-impl`에서 분할) ↔ `REF-member-ui.md` | 10-26 밤 폰 첫 타일 이동 버그(`memberUrl.hook` 감시 원천)·빈 페이지 도트·다 닫으면 목록으로, `fix/phone-layout` master 머지 |
+  - | `history/member-ui-impl.md` | 회원 관리 — 화면 개편 구현(2026-11-03 `member-ui`에서 분할) ↔ `REF-member-ui-impl.md` | 10-26 밤 `fix/phone-layout` |
 
 ## 이 파트에만 해당하는 결정 · 남은 것
 - (다른 파트에서도 지킬 것은 MEMORY "확정 결정"에 남김: 회원·장비 인가 / 배포 전 필수 / `/api` 규칙 / 판 계약)

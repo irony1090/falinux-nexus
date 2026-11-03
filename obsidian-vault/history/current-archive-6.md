@@ -19,3 +19,13 @@
   - (11-02 밤) 차이-1~5 사용자 확인 끝(다섯 개 모두 이대로) · P1 마감 커밋
   - (11-02 밤) 타일 아래 줄 넘침 수정(안내 글 `...` + 툴팁 `MbNote`, 버튼 줄바꿈) → `REF-design-chaltteok.md` "타일 아래 줄 넘침". 안내 글이 혼자 한 줄이면 줄바꿈(두 줄-1) · 벽에 붙은 입력칸 벽 쪽 선 없앰(벽-2) → `REF-design-chaltteok.md` "벽에 붙은 입력칸"
   - (11-02 밤) 샘플 데이터를 개발 DB `nexus`에 넣음(`sample-jig`·`sample-board`·공용 2개, 인스턴스·잠금 행 없음) → `REF-update-p1.md` "샘플 데이터"
+
+## 2026-11-03 P3 머지 때 내려보냄 (원문)
+- **(2026-11-02 밤) 파트(업데이트 app) — P1(보관·화면) · P2(updater Linux) 마감, master 머지 끝**(P1 `1f5eda9` · P2 `bd93fa4`, push = 사용자. P1 마감 때 세부 줄 → `history/current-archive-6.md`). 구현 지도·계획과 달라진 것(차이-1(장비 루트 테이블)~차이-5(폴더 업로드)) → `REF-update-p1.md` · 설계 `REF-update-deploy.md` · 규칙 `REF-update-rules.md`
+  - P2(updater Linux) 구현 지도·동작 규칙 → `REF-update-p2.md`
+  - **(11-02 밤 23:30~) `imx8mp-f24` 실기 확인 통과**(builtin 3개·script·interactive 입력·재접속·설치 경로 변경·화면) → `history/update-p2.md`. 보드 서비스 `nexus-updater`는 test2에 붙은 채 켜 둠 → `REF-update-p2.md` "남은 것"
+  - **P2 마감, master 머지 끝**(`bd93fa4`, push = 사용자). 설계-8(supervisor 되돌리기)·설계-10(자기 교체) 11-02 밤 닫음 → `REF-update-deploy.md` "자기 교체"·"대상의 의존성". **P3(배포) 착수 계획 합의 끝** → `REF-update-p3.md`. **다음 = 사용자 "진행" 신호 뒤 브랜치 `feat/updater-p3`로 단위-1(DB)부터**(Linux 먼저, Windows 뒤)
+  - **(11-03 아침) P3(배포) 구현·확인 끝** — 브랜치 `feat/updater-p3`(커밋 안 함), 로컬 `run.sh` 전체 통과 + `imx8mp-f24` 실기 통과 → `REF-update-p3.md` · `history/update-p3.md`. 8012 = P3 코드로 재시작(11-03 07:51, 개발 DB `00018` 적용), 보드 updater = P3 실행 파일(태그는 아직 P2). **11-03 마감 커밋 끝 → 다음 = master 머지 여부(사용자), 그 뒤 Windows(P4) 등은 `BACKLOG.md`**. updater 빌드 태그는 P2 이름 그대로 둠(사용자: 지금은 중요하지 않음)
+  - **(11-03 오전) 화-10(타일 크기) 개정, 커밋 안 함(`feat/updater-p3` 작업 트리)** — 관리·Updater 페이지 상세 타일 처음 높이 = 1칸(Run·Log·Script만 2칸), URL 크기는 그대로 따름. `vue-tsc`·`run.sh` 통과, 사용자 화면 확인 대기 → `history/member-ui.md` 11-03. 이때 `REF-member-ui.md` 10k 넘어 `REF-member-ui-impl.md`(구현·판 계약) 분할
+  - (11-02 밤) 개발 DB `nexus`에 `00017` 적용 · 샘플 `sample-jig`에 키 발급 · 로컬 시험 updater는 재시작 전에 끔(인스턴스 `asWTzHHK` 행은 offline으로 남음, 지워도 됨)
+  - 개발 DB `nexus`에 마이그레이션 `00016`(11-02 17:50)·`00017`(23:13) 적용됨. 8013 빌드본(DB `nexus_build`)은 둘 다 아직 안 들어감

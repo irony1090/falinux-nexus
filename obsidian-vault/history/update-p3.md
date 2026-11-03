@@ -21,3 +21,10 @@
 - test1 화면(헤드리스): v2 빌드 행 Run·Log → 배포 #3 타일 = 배포 실패·되돌리기 성공 태그, `rollback · 자동`, 단계 표시·rollback 로그, 브라우저 오류 없음
 - 배포 id 3개(#1~#3)·빌드 v2·v1 잠김은 개발 DB에 남겨 둠, 보드 서비스는 test2에 붙은 채 켜 둠
 - 빌드 태그를 P3로 바꿀지 물었더니 사용자: 지금은 중요하지 않음 → 그대로. P3 마감 → 브랜치에 코드 커밋 + vault 커밋
+
+## 2026-11-03 오전 — 사용자 화면 확인 · 질문 정리 · master 머지
+- Claude가 test1(8011)·test2(8012) 다시 띄움 → 보드 `pVMx1WwE` 재접속. 사용자 확인 "P3까지 나쁘진 않은 것 같아"
+- 질문 답(코드 변경 없음): builtin은 `backup`·`copy`·`restore` 셋뿐(나머지는 script) / `bash`를 넣은 단계는 `"interactive": true`가 있어야 입력 가능(없으면 stdin `/dev/null` -> 바로 EOF로 끝남) / 보관소 구조(`devices/`·`common/`·`logs/`·`.nexus-db`) / 실행 로그 보관 기한 → `REF-update-p3.md` "로그 보관"
+- 로그 보관 기한은 정하지 않음(사용자: 잊어도 됨, 필요하면 손으로 지움)
+- 같이 커밋: 화-10(타일 크기) 개정(→ `history/member-ui.md` 11-03). `feat/updater-p3` master `--no-ff` 머지
+

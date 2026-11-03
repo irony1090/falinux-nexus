@@ -55,5 +55,13 @@
 | 잠그기 | 판정 = DB 함수(빌드 sha + 공용 서명이 같은 성공 배포). 빌드 + 쓰는 공용 묶음 잠금 행. Run·Log 확인 창에 같이 잠기는 공용 묶음 |
 | Run·Log | 단계 행 = 지금 `steps.json` 정의 + 그 배포의 마지막 기록(빌드가 없으면 기록만). 행 `실행` = 개별 실행(`d<id>` 문맥, 아래 "개별 실행"에 따로). 로그 = 고르지 않으면 진행 중·마지막 단계를 따라감, interactive 진행 중이면 터미널 입력 전달 |
 
+## 로그 보관 (2026-11-03 확인, 기한 없음 — 사용자: 정하지 않음)
+| 위치 | 담는 것 | 손으로 지울 때 |
+|---|---|---|
+| DB `update_step_runs` | 결과·`log_tail`(끝 4KB) | 끝난 개별 실행 행(`deployment_id IS NULL`)만. `update_deployments`는 지우지 말 것(잠그기 판정·마지막 배포·되돌리기 백업 `d<id>`, CASCADE) |
+| supervisor `update-store/logs/<id>.log` | 전체 | 끝난 것은 됨 -> Run·Log가 `log_tail`로 대신 |
+| 보드 updater `logs/<id>.log` | 전체(재접속 재전송 원본) | 끝난 것은 됨 -> 재전송 건너뜀 |
+- 실행 중인 것은 지우지 말 것(둘 다 파일을 연 채 이어 씀, 행은 끝날 때 `FinishStepRun`)
+
 ## P3에 안 넣음 (→ `BACKLOG.md`)
 - 백업 타일(시안 ③의 백업 목록) · `steps.json` 시각 편집 · 서브키 파일 계층 · 재부팅 단계 · updater 웹 자동 교체
