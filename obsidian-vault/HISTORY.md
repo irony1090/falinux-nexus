@@ -46,6 +46,7 @@
 - 빈 곳 길게 누르기(마감) → `INDEX-press-pager.md` (press-pager)
 - supervisor 주소 실시간 변경(마감, 후속 가져오기는 회원 관리 브랜치) → `INDEX-supervisor-move.md` (supervisor-move)
 - 회원 관리(마감, `/api` 정리·열린 장비 주소 일괄 변경·폰 수정 포함) → `INDEX-member.md` (member·member-impl·member-ui·member-ui-impl·api-prefix·device-move)
+  - 2026-11-03 `history/member-ui.md`에 화-7(채우는 순서) 개정 — Grid 폭 = 쓴 열 수(배치 버그, `feat/update-files-tile`에서)
 - 젤리·관리 기록(마감, 젤리 효과·보드로·관리 페이지 replace) → `INDEX-jelly.md` (jelly)
 - 폴더에서 터미널(마감, 장비 타일 "여기서 셸") → `INDEX-dir-shell.md` (dir-shell)
 - 장비 상태 push(마감, `DEVICE:CHANGE` 신호 + 폴링 60초) → `INDEX-device-push.md` (device-push)
@@ -55,7 +56,11 @@
 - 경로 줄 정리(마감, 경로 줄 버튼 묶음·이동 버튼 경로 왼쪽·가로 스크롤) → `INDEX-path-row.md` (path-row)
 - 패널 창 버튼(마감, 컨트롤 패널에 active 타일 [숨기기|크기|닫기]·위치 글자 빼기·도트 최소 폭, 미해결 1건) → `INDEX-pager-head-btns.md` (pager-head-btns)
 - 닫은 뒤 active(마감, active 닫으면 위치 번호 이웃 active, 보드·관리) → `INDEX-close-active.md` (close-active)
-- **파일 편집기(10-28) · 보기 타일(10-28) · 영상 Range(10-29) · 타일 끌기(10-29) · 내 장비·관리자 타일 이동(10-30) 마감 — 아직 INDEX로 안 접음**, REF·history는 아래 표(file-view·view-tile·video-view·tile-drag·tile-drag-impl·tile-order·member-drag)
+- 파일 편집기(마감, 10-28) → `INDEX-file-view.md` (file-view)
+- 보기 타일(마감, 10-28) → `INDEX-view-tile.md` (view-tile)
+- 영상 Range(마감, 10-29) → `INDEX-video-view.md` (video-view)
+- 타일 끌기(마감, 10-29) → `INDEX-tile-drag.md` (tile-drag·tile-drag-impl·tile-order)
+- 내 장비·관리자 타일 이동(마감, 10-30) → `INDEX-member-drag.md` (member-drag)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.
@@ -64,6 +69,7 @@
 |---|---|---|
 | `history/decisions.md` | 확정 결정 상세(2026-10-26 MEMORY 슬림화 때 신설) ↔ `REF-decisions.md` | 10-26 밤 MEMORY 9.9k -> 5.8k자 |
 | `history/decisions-ui.md` | 확정 결정 상세: 화면(2026-10-29 분할) ↔ `REF-decisions-ui.md` | 10-29 터치 제스처·끌기(파트(타일 끌기) 마감) |
+| `history/current-archive-6.md` | CURRENT에서 내려보낸 줄 원문(2026-11-02~) | 11-02 업데이트 app 설계 줄 · 11-03 P1~P4 · 11-03 밤 Files 타일 개선 마감 때 진행 블록 |
 | `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-29 영상 파트 마감 때 10-28 밤 ~ 10-26 밤 줄 |
 | `history/current-archive-5.md` | 위 파일에서 분할(2026-10-30: 10-29 파트 마감 3건·떠 있는 포트 표·build 흔적) | 10-30 업데이트 app 세션 끝 |
 | `history/current-archive-4.md` | 위 파일에서 분할(2026-10-29: 10-27 ~ 10-28 파트(경로 줄 정리)) | 10-28 세션 끝(집 서버 직통 전환 줄) |
@@ -84,14 +90,10 @@
 | `history/update-p2.md` | 파트(업데이트 app) P2(updater Linux)(2026-11-02 신설) ↔ `REF-update-p2.md` | 11-02 밤 P2 실기 확인 통과·마감, master 머지(`bd93fa4`) |
 | `history/update-p3.md` | 파트(업데이트 app) P3(배포)(2026-11-02 신설) ↔ `REF-update-p3.md` | 11-03 오전 사용자 확인·로그 보관 정리·master 머지 |
 | `history/update-p4.md` | 파트(업데이트 app) P4(Windows)(2026-11-03 신설) ↔ `REF-update-p4.md` | 11-03 낮 구현·VM 확인 39/39 · 오후 집 서버 설치 · 마감·머지 |
+| `history/update-files-tile.md` | 파트(업데이트 app) 후속 — Files 타일 개선(2026-11-03 신설) ↔ `REF-update-files-tile.md` | 11-03 steps.json 틀 확장자(미커밋) · Files 타일 요구 조율(결정-1~15) · 시안 확정 · 오해 정정 · DeepSeek 교훈 · 11-03 밤 단위-가 확인·단위-라(실행 권한 이름) 추가 · 11-03 저녁 단위-나 계획 확정(끌기-1~3) · 11-03 밤 단위-나 구현·확인 · 단위-라 · **11-03 밤 마감(커밋 `3caff7b`·master 머지)** |
+| `history/update-replace.md` | Files 타일 단위-다(갈아치우기)(2026-11-03 분리) ↔ `REF-update-replace.md` | 11-03 밤 확인-1 확정 · 다-1~6 구현·시험 |
+| `history/update-trial.md` | 파트(업데이트 app) 후속 — 배포 전 단계별 시험 실행(2026-11-03 신설) ↔ `REF-update-trial.md` | 11-03 밤 요구·조사·질문 조율·결정-1~9·시험-1~5 계획 · 11-03 새 세션 시험-1~5 구현·확인(끝) |
 | `history/review-1030.md` | 10-30 작업 점검(2026-11-02 신설) ↔ `REF-review-1030.md` | 11-02 코드 항목 수정·머지, 설계 항목은 오후에 처리(→ update-redesign) |
-| `history/member-drag.md` | 파트(내 장비·관리자 타일 이동)(2026-10-30 신설) ↔ `REF-member-drag.md` | 10-30 열기 규칙 + 끌기 구현, 헤드리스 4종 통과 |
-| `history/tile-drag.md` | 파트(타일 끌기)(2026-10-29 신설) ↔ `REF-tile-drag.md` | 10-29 끌기 착수 전까지(방향·계획·끄는 모양) |
-| `history/tile-drag-impl.md` | 파트(타일 끌기) 끌기-1·2·제스처-1·보드-1·칸-1·2 구현(2026-10-29 분할) ↔ `REF-tile-drag-impl.md` | 10-29 파트 마감(칸-1·2·끝 띠, 커밋 + master 머지) |
-| `history/tile-order.md` | 파트(타일 끌기) 구조-1~3 순서 구조(2026-10-29 분할) ↔ `REF-tile-order.md` | 10-29 구현 + 격리 확인 |
-| `history/video-view.md` | 파트(영상 Range)(2026-10-29 신설, view-tile에서 분리) ↔ `REF-video-view.md` | 10-29 파트 마감(1·2단계, 커밋 + master 머지) |
-| `history/view-tile.md` | 파트(보기 타일) 구현(2026-10-28 신설) ↔ `REF-view-tile.md` | 10-28 밤 파트(보기 타일) 마감 — 1·2단계, 커밋 + master 머지 |
-| `history/file-view.md` | 장비 파일 편집기·보기 타일(2026-10-28 신설, 구상) | 10-28 파트(파일 편집기) 마감(편집·새 파일·칸 메뉴 내려받기, Windows 확인) · 보기 타일 V1~V5 확인 대기 |
 | `history/worker-screen.md` | worker 화면 송출(아이디어) | 10-15 나(VNC 터널 + noVNC) 추천 · 10-25 VNC 서버 준비 방식(내려받기·설치) 재논의, 보류 |
 | `history/node-ui.md` | node 카탈로그 UI 컨셉 | 08-10 그리드 직접 제작 확정, termspace 영감 피벗 |
 | `history/node-ui-overview.md` | 전체보기 · 화면 내비게이션 | 10-06 active 타일 표시 = 나(약하게 흐림) + 위치 번호 단축키 |

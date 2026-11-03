@@ -51,11 +51,13 @@ func (r *supervisorRouter) mountUpdates(e *echo.Group) {
 	b.DELETE("/file", r.updDeleteFile) // updateFiles.go
 	b.PATCH("/mode", r.updSetMode)     // updateFiles.go
 	b.PUT("/text", r.updSaveText)      // updateFiles.go
+	b.PUT("/replace", r.updSetReplace) // updateFiles.go
 	b.POST("/check", r.updCheckSteps)  // updateFiles.go
 	b.POST("/uploads", r.updStartUpload)
 	b.GET("/zip", r.updZip)         // updateZip.go
 	b.POST("/deploy", r.updDeploy)  // updaterDeploy.go
 	b.POST("/lock", r.updLockBuild) // updaterDeploy.go
+	b.GET("/trial", r.updGetTrial)  // updaterTrial.go
 	g.PUT("/uploads/:id", r.updUploadChunk)
 	g.DELETE("/uploads/:id", r.updCancelUpload)
 }
@@ -518,6 +520,8 @@ type updBundleDetail struct {
 	Users []updUserItem `json:"users"` // 공용만 — 쓰는 빌드
 	// Lockable: 잠그기 판정(DB 함수 update_lockable) — 지금 내용으로 끝까지 성공한 배포가 있음
 	Lockable bool `json:"lockable"`
+	// Replace: 빌드 steps.json의 replace 그대로(폴더 행 토글 표시용). steps.json이 없거나 오류면 빈 배열
+	Replace []string `json:"replace"`
 }
 
 func (r *supervisorRouter) fileItems(ref updstore.Ref, files []superdb.UpdateFile) []updFileItem {
@@ -546,9 +550,10 @@ func (r *supervisorRouter) updGetBundle(c echo.Context) error {
 	out := updBundleDetail{
 		updBundleItem: updBundleItem{Kind: b.Kind, Owner: b.Owner, Version: b.Version, Note: b.Note, Sha: b.Sha, Locked: b.Locked, UsedBy: b.UsedBy,
 			FileCount: int64(len(files)), TotalSize: size, CreatedByName: b.CreatedByName, CreatedAt: b.CreatedAt.Time.Unix(), UpdatedAt: b.UpdatedAt.Time.Unix(), LastDeployID: b.LastDeployID},
-		Files: r.fileItems(ref, files), Uses: []updUseItem{}, Users: []updUserItem{}, Lockable: b.Lockable,
+		Files: r.fileItems(ref, files), Uses: []updUseItem{}, Users: []updUserItem{}, Lockable: b.Lockable, Replace: []string{},
 	}
 	if b.Kind == updstore.KindBuild {
+		out.Replace = r.stepsReplace(ref, files)
 		uses, err := q.ListBundleUses(ctx, b.ID)
 		if err != nil {
 			panic(web.Err(500, "%v", err))
@@ -571,6 +576,25 @@ func (r *supervisorRouter) updGetBundle(c echo.Context) error {
 		}
 	}
 	return c.JSON(200, out)
+}
+
+func (r *supervisorRouter) stepsReplace(ref updstore.Ref, files []superdb.UpdateFile) []string {
+	out := []string{}
+	for _, f := range files {
+		if f.Scope != updstore.ScopeMain || f.Path != updstore.StepsFile || !r.upd.Enabled() {
+			continue
+		}
+		src, err := r.readStoreFile(ref, f)
+		if err != nil {
+			return out
+		}
+		if st, issues := updstore.Check(src); !hasError(issues) {
+			for _, x := range st.Replace {
+				out = append(out, x.Path)
+			}
+		}
+	}
+	return out
 }
 
 type updBundlePatchRequest struct {

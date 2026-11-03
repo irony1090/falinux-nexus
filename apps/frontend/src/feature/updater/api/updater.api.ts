@@ -57,7 +57,8 @@ export type CommonGroup = { name: string; versions: Bundle[] }
 export type UpdFile = { scope: FileScope; subKey: string; path: string; size: number; sha: string; text: boolean; mode: number; updatedAt: number }
 export type UpdUse = { name: string; version: string; sha: string; locked: boolean; files: UpdFile[] }
 export type UpdUser = { mainKey: string; version: string; locked: boolean }
-export type BundleDetail = Bundle & { files: UpdFile[]; uses: UpdUse[]; users: UpdUser[]; lockable: boolean }
+// replace = 빌드 steps.json의 갈아치우기 폴더(단위-다(갈아치우기)), 없거나 오류면 []
+export type BundleDetail = Bundle & { files: UpdFile[]; uses: UpdUse[]; users: UpdUser[]; lockable: boolean; replace: string[] }
 
 export type Ref = { kind: BundleKind; owner: string; version: string }
 
@@ -114,6 +115,8 @@ export const readText = (r: Ref, path: string, scope: FileScope = 'main', sub = 
     BaseAxios.get(`${bundlePath(r)}/file`, { params: { path, scope, sub }, responseType: 'text', transformResponse: x => x }).then(throwThen<string>).catch(throwCatch)
 export const saveText = (r: Ref, path: string, content: string, create = false) =>
     withIssues<IssuesResult>(BaseAxios.put(`${bundlePath(r)}/text`, { path, content, create }))
+// 폴더 행 토글 — 서버가 steps.json의 replace 자리만 고쳐 저장(없으면 404)
+export const setReplace = (r: Ref, replace: string[]) => withIssues<IssuesResult>(BaseAxios.put(`${bundlePath(r)}/replace`, { replace }))
 export const checkSteps = (r: Ref, content: string) => BaseAxios.post(`${bundlePath(r)}/check`, { content }).then(throwThen<IssuesResult>).catch(throwCatch)
 export const setMode = (r: Ref, path: string, mode: number) => BaseAxios.patch(`${bundlePath(r)}/mode`, { path, mode }).then(throwThen<{ mode: number }>).catch(throwCatch)
 export const modeText = (m: number) => m.toString(8).padStart(3, '0')
@@ -194,6 +197,9 @@ export const startStepRun = (mainKey: string, subKey: string, body: { version: s
 export const getRun = (id: number) => BaseAxios.get(`${base}/runs/${id}`).then(throwThen<UpdRun>).catch(throwCatch)
 export const runInput = (id: number, data: string) => BaseAxios.post(`${base}/runs/${id}/input`, { data }).then(throwThen<Empty>).catch(throwCatch)
 export const cancelRun = (id: number) => BaseAxios.post(`${base}/runs/${id}/cancel`).then(throwThen<Empty>).catch(throwCatch)
+// 시험 타일 — 단계 정의 + 그 인스턴스의 시험 기록(배포 밖 단독 실행, REF-update-trial.md 시험-1(서버 조회))
+export type Trial = { deploy: StepDef[]; rollback: StepDef[]; stepsIssue: string; runs: UpdRun[] }
+export const getTrial = (r: Ref, sub: string) => BaseAxios.get(`${bundlePath(r)}/trial`, { params: sub ? { sub } : {} }).then(throwThen<Trial>).catch(throwCatch)
 
 // ---- 다시 조회 ----
 export const invalidateUpdates = (qc: QueryClient) => qc.invalidateQueries({ queryKey: ['UPDATES'] })
@@ -212,17 +218,23 @@ export const useCommons = (params: P) => useQuery({
 })
 // 평소엔 UPD:CHANGE 알림으로 다시 조회(updWatch.hook.ts), 폴링은 안전망
 const POLL_MS = 60_000
-export const useUpdDevice = (mainKey: string) => useQuery({
+export const useUpdDevice = (mainKey: string, enabled = true) => useQuery({
     queryKey: ['UPDATES', 'DEVICE', mainKey],
     queryFn: () => getUpdDevice(mainKey),
     retry: (n, e: any) => e?.status !== 404 && n < 2,
     refetchInterval: POLL_MS,
+    enabled,
 })
 export const useDeployment = (id: number) => useQuery({
     queryKey: ['UPDATES', 'DEPLOY', id],
     queryFn: () => getDeployment(id),
     retry: (n, e: any) => e?.status !== 404 && n < 2,
     refetchInterval: POLL_MS,
+})
+export const useTrial = (r: Ref, sub: MaybeRefOrGetter<string>) => useQuery({
+    queryKey: computed(() => ['UPDATES', 'TRIAL', r.owner, r.version, toValue(sub)]),
+    queryFn: () => getTrial(r, toValue(sub)),
+    retry: (n, e: any) => e?.status !== 404 && n < 2,
 })
 export const useBundle = (r: Ref) => useQuery({
     queryKey: ['UPDATES', 'BUNDLE', r.kind, r.owner, r.version],

@@ -1,8 +1,9 @@
 import { useAppDialog } from '@/feature/layout/store/appDialog.store'
 import { useQueryClient } from '@tanstack/vue-query'
 import { ref } from 'vue'
-import { invalidateUpdates, modeText, saveText, setMode, uploadFile, type Ref, type UpdFile } from '../api/updater.api'
+import { deleteFile, invalidateUpdates, modeText, saveText, setMode, uploadFile, type Ref, type UpdFile } from '../api/updater.api'
 import { useUpdPrompt } from '../component/UpdPrompt.vue'
+import type { UpItem } from '../util/updDrop.util'
 
 // 장비 루트를 만든 직후 받은 키 — 장비 타일이 처음 열릴 때 펼쳐 보인다(회원 페이지 freshKeys와 같은 뜻)
 export const freshUpdKeys = ref<Record<string, string>>({})
@@ -45,22 +46,15 @@ export const useUpdConfirm = () => {
     })
 }
 
-// 폴더 올리기 = 고른 폴더가 번들 맨 위(첫 폴더 이름을 뗀다)
-const relPathOf = (f: File, folder: boolean) => {
-    const rel = folder && f.webkitRelativePath ? f.webkitRelativePath : f.name
-    return folder ? rel.split('/').slice(1).join('/') || f.name : rel
-}
-
 export const useUpdUpload = (ctx: ReturnType<typeof useUpdRun>) => {
     const confirm = useUpdConfirm()
     const prompt = useUpdPrompt()
     const { busy, message, progress, run } = ctx
 
-    // 있는 파일 목록(have)으로 겹치는 이름을 먼저 세어 한 번에 묻는다
-    const upload = async (r: Ref, list: FileList | File[], folder: boolean, have: UpdFile[]) => {
-        const files = Array.from(list)
-        if (!files.length) return
-        const paths = files.map(f => relPathOf(f, folder))
+    // 버튼·끌어 놓기 공용(items = 올릴 경로까지 정한 목록). 있는 파일 목록(have)으로 겹치는 이름을 먼저 세어 한 번에 묻는다
+    const upload = async (r: Ref, items: UpItem[], have: UpdFile[]) => {
+        if (!items.length) { message.value = '올릴 파일이 없습니다'; return }
+        const files = items.map(it => it.file), paths = items.map(it => it.path)
         const exists = new Set(have.filter(f => f.scope === 'main').map(f => f.path))
         const dup = paths.filter(p => exists.has(p))
         if (dup.length && !(await confirm('같은 이름 파일', [`${dup.length}개 파일이 이미 있습니다. 덮어쓸까요?`, dup.slice(0, 5).join(', ') + (dup.length > 5 ? ' …' : '')], '덮어쓰기'))) return
@@ -93,7 +87,33 @@ export const useUpdUpload = (ctx: ReturnType<typeof useUpdRun>) => {
     return { busy, message, progress, upload, newText }
 }
 
-// 파일 권한(정-2(실행 권한)) — 실행 켜기/끄기 = 실행 비트(111)만, 8진수 = 그대로. updater가 copy 때 적용(Files·공용 묶음 타일)
+// 파일 지우기(한 개·여러 개 공용) — 확인창 한 번, 차례로 지우다 실패하면 멈추고 지운 개수·실패 경로를 보인다(결정-2(삭제 확인), 원자적 아님)
+export const useUpdRemove = (ctx: ReturnType<typeof useUpdRun>) => {
+    const confirm = useUpdConfirm()
+    const { progress, run } = ctx
+    return async (r: Ref, paths: string[], title: string): Promise<boolean> => {
+        if (!paths.length) return false
+        const lines = paths.length === 1 ? ['이 빌드에서 파일을 지웁니다.'] : [`${paths.length}개 파일을 이 빌드에서 지웁니다.`, paths.slice(0, 5).join(', ') + (paths.length > 5 ? ' …' : '')]
+        if (paths.includes('steps.json')) lines.push('steps.json을 지우면 uses도 비워집니다.')
+        if (!(await confirm(title, lines, paths.length === 1 ? '삭제' : `삭제 ${paths.length}`, 'error'))) return false
+        let done = 0
+        await run(async () => {
+            for (const p of paths) {
+                if (paths.length > 1) progress.value = `지우는 중 ${done + 1}/${paths.length}`
+                try {
+                    await deleteFile(r, p)
+                } catch (err: any) {
+                    throw { message: `${done ? `${done}개 지운 뒤 ` : ''}${p} 삭제 실패: ${err?.message || '요청에 실패했습니다'}` }
+                }
+                done++
+            }
+        })
+        progress.value = undefined
+        return done === paths.length
+    }
+}
+
+// 파일 권한(정-2(실행 권한)) — `실행 권한` 칸 = 실행 비트(111)만 켜고 끔(단위-라(실행 권한 이름)), 8진수 = 그대로. updater가 copy 때 적용(Files·공용 묶음 타일)
 export const useUpdMode = (bundle: Ref, run: ReturnType<typeof useUpdRun>['run']) => {
     const prompt = useUpdPrompt()
     const isExec = (f: UpdFile) => (f.mode & 0o100) !== 0

@@ -197,6 +197,10 @@ SELECT * FROM update_step_runs WHERE id = $1;
 -- name: ListStepRuns :many
 SELECT * FROM update_step_runs WHERE main_key = $1 AND sub_key = $2 ORDER BY id DESC LIMIT $3;
 
+-- name: ListTrialRuns :many
+-- 시험 타일 — 배포 밖 단독 실행만(배포 기록이 섞이면 LIMIT 안에서 밀려난다)
+SELECT * FROM update_step_runs WHERE main_key = $1 AND sub_key = $2 AND version = $3 AND deployment_id IS NULL ORDER BY id DESC LIMIT $4;
+
 -- name: CancelLostStepRuns :many
 -- updater 재접속 때 — 그 인스턴스의 끝나지 않은 기록 중 updater가 모르는 것(updater 재시작 등)
 UPDATE update_step_runs SET result = 'cancel', log_tail = log_tail || E'\n[updater가 이 실행을 모름 — 결과를 받지 못함]', ended_at = NOW()

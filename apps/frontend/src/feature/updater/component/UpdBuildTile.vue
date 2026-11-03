@@ -6,13 +6,13 @@ import { MAIN_KEY_PATTERN } from '@/feature/member/util/member.util';
 import CtTextField from '@/feature/widget/component/CtTextField.vue';
 import { createBundle, deleteBundle, patchBundle, useBundle, type Ref } from '../api/updater.api';
 import { useUpdConfirm, useUpdRun } from '../hook/updActions.hook';
-import { buildTileKey, commonTileKey, filesTileKey, runTileKey, shortSha, sizeText, stepsTileKey, timeText } from '../util/updGrid.util';
+import { buildTileKey, commonTileKey, filesTileKey, runTileKey, shortSha, sizeText, stepsTileKey, timeText, trialTileKey } from '../util/updGrid.util';
 import UpdDeployDialog from './UpdDeployDialog.vue';
 import UpdZipMenu from './UpdZipMenu.vue';
 import { useUpdPrompt } from './UpdPrompt.vue';
 import MbNote from '@/feature/member/component/MbNote.vue';
 
-// 빌드 타일 — 상세 + 열기 줄 [Files | steps.json | Run · Log] + 삭제·새 버전·전체 받기·배포. REF-update-deploy.md "화면" 순서 2~4
+// 빌드 타일 — 상세 + 열기 줄 [Files | steps.json | 시험 | Run · Log] + 삭제·새 버전·전체 받기·배포. REF-update-deploy.md "화면" 순서 2~4
 // Script 버튼은 없음(안 A, 11-02) — 스크립트는 Files 목록에서 연다
 const props = defineProps<{ tile: MemberTile; bundle: Ref }>();
 const { open, close, dropMissing } = useMemberBoard();
@@ -95,6 +95,7 @@ const remove = async () => {
             <span class="ct-grp ct-grp--sm ct-grp--wrap">
                 <button type="button" class="ct-seg ct-seg--accent" @click="openHere(filesTileKey(b.owner, b.version))">Files</button>
                 <button type="button" class="ct-seg ct-seg--accent" @click="openHere(stepsTileKey(b.owner, b.version))">steps.json</button>
+                <button type="button" class="ct-seg ct-seg--accent" title="배포 전에 단계를 하나씩 실행" @click="openHere(trialTileKey(b.owner, b.version))">시험</button>
                 <button type="button" class="ct-seg ct-seg--accent" :disabled="!b.lastDeployId" :title="b.lastDeployId ? `마지막 배포 #${b.lastDeployId}` : '배포한 적이 없습니다'"
                     @click="openHere(runTileKey(b.lastDeployId))">Run · Log</button>
             </span>

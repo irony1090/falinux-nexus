@@ -1150,6 +1150,60 @@ func (q *Queries) ListStepRuns(ctx context.Context, arg ListStepRunsParams) ([]U
 	return items, nil
 }
 
+const listTrialRuns = `-- name: ListTrialRuns :many
+SELECT id, deployment_id, bundle_id, main_key, sub_key, version, list, step_id, step_kind, result, exit_code, log_tail, log_file, started_by, started_at, ended_at FROM update_step_runs WHERE main_key = $1 AND sub_key = $2 AND version = $3 AND deployment_id IS NULL ORDER BY id DESC LIMIT $4
+`
+
+type ListTrialRunsParams struct {
+	MainKey string
+	SubKey  string
+	Version string
+	Limit   int32
+}
+
+// 시험 타일 — 배포 밖 단독 실행만(배포 기록이 섞이면 LIMIT 안에서 밀려난다)
+func (q *Queries) ListTrialRuns(ctx context.Context, arg ListTrialRunsParams) ([]UpdateStepRun, error) {
+	rows, err := q.db.Query(ctx, listTrialRuns,
+		arg.MainKey,
+		arg.SubKey,
+		arg.Version,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UpdateStepRun
+	for rows.Next() {
+		var i UpdateStepRun
+		if err := rows.Scan(
+			&i.ID,
+			&i.DeploymentID,
+			&i.BundleID,
+			&i.MainKey,
+			&i.SubKey,
+			&i.Version,
+			&i.List,
+			&i.StepID,
+			&i.StepKind,
+			&i.Result,
+			&i.ExitCode,
+			&i.LogTail,
+			&i.LogFile,
+			&i.StartedBy,
+			&i.StartedAt,
+			&i.EndedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUpdateDevices = `-- name: ListUpdateDevices :many
 
 

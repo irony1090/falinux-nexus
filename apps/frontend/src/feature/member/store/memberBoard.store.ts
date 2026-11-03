@@ -59,17 +59,20 @@ export const provideMemberBoard = (page: MemberPageKind, keys: GridKeys = MEMBER
     // 칼럼 한 칸 = 화면 폭 / 열 수(Grid 폭 = 화면 폭, 열 사이 간격 포함)
     const span = computed(() => layout.value.phone ? 1 : layout.value.cols)
     const step = computed(() => viewW.value / span.value)
-    const colCount = computed(() => lead.value + grids.value.length * span.value)
+    // 상세 열 수 = Grid가 쓴 열의 합(배치-가(Grid 폭 = 쓴 열 수))
+    const detailCols = computed(() => grids.value.reduce((n, g) => n + g.cols, 0))
+    const colCount = computed(() => lead.value + detailCols.value)
     const maxCol = computed(() => Math.max(0, colCount.value - span.value))
     // 도트 위치 = 화면 단위 실수(폰은 0 = 목록)
     const pos = computed(() => viewW.value ? scrollX.value / viewW.value : 0)
     // 타일이 없어도 빈 안내 페이지가 한 칸 — 빼면 그 페이지의 위치 표시가 도트 줄 밖에 그려진다
-    const dotCount = computed(() => lead.value + Math.max(1, grids.value.length))
+    // 점 하나 = 화면 폭(span 열) — Grid 수가 아니다(배치-2(페이지 점))
+    const dotCount = computed(() => lead.value + Math.max(1, Math.ceil(detailCols.value / span.value)))
 
     const clampCol = (col: number) => Math.max(0, Math.min(maxCol.value, col))
     const goCol = (col: number, behavior: ScrollBehavior = 'smooth') =>
         scrollEl.value?.scrollTo({ left: clampCol(col) * step.value, behavior })
-    const goDot = (i: number) => goCol(i * span.value)
+    const goDot = (i: number) => goCol(i < lead.value ? i : lead.value + (i - lead.value) * span.value)
 
     const placeOf = (key: string) => {
         for (const [gi, g] of grids.value.entries()) {
@@ -82,7 +85,7 @@ export const provideMemberBoard = (page: MemberPageKind, keys: GridKeys = MEMBER
     const colRange = (key: string) => {
         const p = placeOf(key)
         if (!p) return undefined
-        const l = lead.value + p.gi * span.value + p.c
+        const l = lead.value + grids.value[p.gi]!.at + p.c
         return { l, r: l + p.cw - 1 }
     }
 
@@ -102,8 +105,8 @@ export const provideMemberBoard = (page: MemberPageKind, keys: GridKeys = MEMBER
         if (!step.value) return undefined
         const col = Math.round(scrollX.value / step.value) - lead.value
         if (col < 0) return undefined
-        const g = grids.value[Math.floor(col / span.value)]
-        const local = col % span.value
+        const g = grids.value.find(x => x.at <= col && col < x.at + x.cols)
+        const local = g ? col - g.at : -1
         const items = g?.items.filter(it => it.c <= local && local < it.c + it.cw) ?? []
         return [...items].sort((a, b) => a.r - b.r)[0]?.tile.key
     })
@@ -209,10 +212,10 @@ export const provideMemberBoard = (page: MemberPageKind, keys: GridKeys = MEMBER
         colRange,
         setActive,
         focusTile,
-        peekGrids: computed(() => grids.value.map((g, gi) => ({
-            x: (lead.value + gi * span.value) * step.value + padL.value,
-            w: span.value * step.value - padL.value - GAP,
-            cols: layout.value.cols,
+        peekGrids: computed(() => grids.value.map(g => ({
+            x: (lead.value + g.at) * step.value + padL.value,
+            w: g.cols * step.value - padL.value - GAP,
+            cols: g.cols,
             rows: layout.value.rows,
             half: false,
             items: g.items.map(it => ({ id: it.tile.key, c: it.c, r: it.r, cw: it.cw, ch: it.ch })),

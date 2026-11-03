@@ -62,6 +62,7 @@ func checkStepsRefs(c echo.Context, bundleID int64, src []byte, extra string) (u
 	ctx := c.Request().Context()
 	q := TxQueries(c)
 	have := map[string]bool{extra: true}
+	mains := []string{extra}
 	if bundleID != 0 {
 		files, err := q.ListBundleFiles(ctx, bundleID)
 		if err != nil {
@@ -70,6 +71,7 @@ func checkStepsRefs(c echo.Context, bundleID int64, src []byte, extra string) (u
 		for _, f := range files {
 			if f.Scope == updstore.ScopeMain {
 				have[f.Path] = true
+				mains = append(mains, f.Path)
 			}
 		}
 	}
@@ -89,7 +91,7 @@ func checkStepsRefs(c echo.Context, bundleID int64, src []byte, extra string) (u
 		return true
 	}
 	// 공용 존재 검사가 먼저 돌아야 공용 파일이 have에 들어간다 — CheckRefs가 uses부터 본다
-	issues = append(issues, updstore.CheckRefs(src, st, exists, func(rel string) bool { return have[rel] })...)
+	issues = append(issues, updstore.CheckRefs(src, st, exists, func(rel string) bool { return have[rel] }, mains)...)
 	return st, issues
 }
 
@@ -175,19 +177,72 @@ func (r *supervisorRouter) updSaveText(c echo.Context) error {
 			return c.JSON(422, updIssuesResponse{Issues: issues})
 		}
 	}
+	var stp *updstore.Steps
+	if steps {
+		stp = &st
+	}
+	item := r.storeText(c, ref, id, me, scope, sub, rel, data, stp)
+	return c.JSON(200, updIssuesResponse{Issues: nonNilIssues(issues), File: &item})
+}
+
+// storeText: 텍스트 저장 공통 — 메타 · (steps.json이면 uses) · 폴더 sha · 보관소 파일. 검사는 호출자가 먼저
+func (r *supervisorRouter) storeText(c echo.Context, ref updstore.Ref, id, me int64, scope, sub, rel string, data []byte, st *updstore.Steps) updFileItem {
 	sum := sha256.Sum256(data)
-	f, err := q.UpsertBundleFile(ctx, superdb.UpsertBundleFileParams{BundleID: id, Scope: scope, SubKey: sub, Path: rel, Size: int64(len(data)), Sha: hex.EncodeToString(sum[:]), UpdatedBy: pgtype.Int8{Int64: me, Valid: true}, Mode: updstore.DefaultMode(rel)})
+	f, err := TxQueries(c).UpsertBundleFile(c.Request().Context(), superdb.UpsertBundleFileParams{BundleID: id, Scope: scope, SubKey: sub, Path: rel, Size: int64(len(data)), Sha: hex.EncodeToString(sum[:]), UpdatedBy: pgtype.Int8{Int64: me, Valid: true}, Mode: updstore.DefaultMode(rel)})
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
-	if steps {
-		saveUses(c, id, st)
+	if st != nil {
+		saveUses(c, id, *st)
 	}
 	refreshSha(c, id)
 	if err := r.upd.WriteBytes(ref, scope, sub, rel, data); err != nil {
 		panic(web.Err(500, "파일 저장 실패: %v", err))
 	}
-	item := updFileItem{Scope: f.Scope, SubKey: f.SubKey, Path: f.Path, Size: f.Size, Sha: f.Sha, Text: true, Mode: f.Mode, UpdatedAt: f.UpdatedAt.Time.Unix()}
+	return updFileItem{Scope: f.Scope, SubKey: f.SubKey, Path: f.Path, Size: f.Size, Sha: f.Sha, Text: true, Mode: f.Mode, UpdatedAt: f.UpdatedAt.Time.Unix()}
+}
+
+type updReplaceRequest struct {
+	Replace []string `json:"replace"`
+}
+
+// updSetReplace: Files 타일 폴더 행 토글 — steps.json의 replace 값 자리만 고쳐 저장(확인-2(steps.json 고쳐 쓰기)).
+// steps.json이 없으면 404(프론트가 틀을 먼저 만든다), 고친 결과에 오류가 있으면 저장하지 않고 422 + 줄 목록
+func (r *supervisorRouter) updSetReplace(c echo.Context) error {
+	me := r.requireAdmin(c)
+	r.requireUpdStore()
+	ref := updRef(c)
+	if ref.Kind != updstore.KindBuild {
+		panic(web.Err(400, "갈아치우기는 빌드에만 있습니다"))
+	}
+	var body updReplaceRequest
+	bindJSON(c, &body)
+	dirs, seen := []string{}, map[string]bool{}
+	for _, d := range body.Replace {
+		cd, err := updstore.CleanRel(d)
+		if err != nil {
+			panic(web.Err(400, "폴더 %q: %v", d, err))
+		}
+		if !seen[cd] {
+			seen[cd] = true
+			dirs = append(dirs, cd)
+		}
+	}
+	id := lockBundleForWrite(c, ref)
+	meta := requireBundleFile(c, id, updstore.ScopeMain, "", updstore.StepsFile)
+	src, err := r.readStoreFile(ref, meta)
+	if err != nil {
+		panic(web.Err(500, "steps.json을 읽을 수 없습니다: %v", err))
+	}
+	data, err := updstore.SetReplace(src, dirs)
+	if err != nil {
+		panic(web.Err(422, "%v — steps.json을 먼저 고쳐 주세요", err))
+	}
+	st, issues := checkStepsRefs(c, id, data, updstore.StepsFile)
+	if hasError(issues) {
+		return c.JSON(422, updIssuesResponse{Issues: issues})
+	}
+	item := r.storeText(c, ref, id, me, updstore.ScopeMain, "", updstore.StepsFile, data, &st)
 	return c.JSON(200, updIssuesResponse{Issues: nonNilIssues(issues), File: &item})
 }
 

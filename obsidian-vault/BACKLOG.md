@@ -12,6 +12,10 @@
 - **`steps.json` 시각 편집 UI** · 2026-11-02 · P1(원문 편집 + 검증) 뒤 · 저장 형식은 JSON 그대로, 폼이 모르는 필드는 보존 → `REF-update-redesign.md`
 - **서브키 파일 계층 구현** · 2026-11-02 · P1은 자리만, 구현은 나중 · 서브키 재발급(`state.json` 소실) 시 파일이 주인을 잃는 문제 → `REF-update-redesign.md`
 - **worker·supervisor 실행 중 빌드 표시** · 2026-11-02 · 필요해지면(옛 설계 `//go:embed env` + `RegisterRequest.Build`는 이 파트에서 폐기) → `history/update-rules.md` 2026-10-30 엔트리
+- **DeepSeek 키 재발급 · `ds.sh` 인자 노출 개선** · 2026-11-03 · 사용자 판단 대기 · 키가 `curl -H` 인자라 프로세스 목록·`pgrep -af`로 보임(11-03 세션 출력에 노출됨). 키 재발급 + `-H @파일`/stdin 설정으로 넘기도록 고칠지 → `~/.claude/tools/ds.sh` · `history/update-files-tile.md` 교훈
+- **Nexus 안 타일 간 끌어 오기(Files 타일로)** · 2026-11-03 · 필요해지면 · 이번엔 PC 탐색기 끌어 놓기만(결정-4(끌어 놓기 출처)). 장비 파일 목록에서 끌어 오려면 `transfers.store`와 연결 → `REF-update-files-tile.md`
+- **시험 기록 정리** · 2026-11-03 · 시험을 자주 해 쌓이는 게 보일 때 · 단독 실행 기록(`update_step_runs.deployment_id NULL`)과 `logs/<id>.log` 지우는 코드 없음(질문-3(기록 쌓임)) → `REF-update-trial.md` "시험-1(서버 조회) 구현"
+- **갈아치우기 — 공용 묶음·서브키 폴더** · 2026-11-03 · 필요해지면 · 이번엔 메인키 탭 폴더만(결정-11(적용 범위)) → `REF-update-files-tile.md`
 - **시안 보정 반영 범위** · 2026-11-02 · 사용자 판단 대기 · DeepSeek v2에 찰떡 보정 미반영 / Files 범위 탭·Run·Log deploy-rollback도 안 C로 통일할지 → `REF-design-chaltteok.md`
 
 ## 다음 파트 후보 (기능)

@@ -8,7 +8,7 @@ let runs = 0, bad = 0
 
 for (const [cols, rows] of [[1, 2], [2, 2], [3, 2], [3, 1]] as const) {
     const w = 600, h = 500, gap = 8
-    const f: MemberFrame = { gap, cols, rows, grids: [0, 1, 2].map(i => ({ x: i * (w + 16), y: 0, w, h })) }
+    const f: MemberFrame = { gap, cols, rows, x: 0, y: 0, colW: (w - gap * (cols - 1)) / cols, rowH: (h - gap * (rows - 1)) / rows }
     for (let m = 0; m < SIZES.length ** 4; m++) {
         let x = m
         const tiles = Array.from({ length: 4 }, (_, i) => {

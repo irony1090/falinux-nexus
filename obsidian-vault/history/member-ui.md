@@ -24,3 +24,9 @@
 - 사용자: 내 장비·관리자·Updater 페이지에서 목록을 눌러 처음 연 상세 타일은 높이 1. 크기 조절 뒤 URL에 반영된 크기는 URL을 따름(`decodeTiles` 그대로)
 - 결정: 회원 페이지 = 전부 1칸(장비 2 -> 1) / updater = Run·Log(`run`)·Script(`text`)만 2칸(로그·편집기), 장비·Files·steps.json·공용 묶음 2 -> 1(steps.json도 1 = 사용자)
 - 코드: `memberGrid.util.ts` `MEMBER_KEYS.size` · `updGrid.util.ts` `UPD_KEYS.size` · 확인 `scripts/check/member-drag.mjs` 기댓값 `ddev-1*1x2` -> `*1x1`. `vue-tsc`·`run.sh` 전체 통과. 브랜치 `feat/updater-p3`(커밋 안 함)
+
+## 2026-11-03 화-7(채우는 순서) 개정 — Grid 사이 빈 열 없애기
+- 신고: Updater에서 Script(1x2)를 2x2로 넓히자 Files 오른쪽이 빈 열, Script는 다음 Grid로 넘어가 떨어짐(URL·화면 `user/배치에러.png`). 처음엔 스크롤 문제로 오해(수정-1(도착 확인) 제안) -> 사용자 "스크롤 문제가 아냐, 원래라면 붙어야" -> 원인 = Grid가 늘 3열 폭을 차지
+- 결정: 배치-1(붙는 방식) = 보드처럼 Grid 폭 = 쓴 열 수 / 배치-2(페이지 점) = 점 하나 = 3열 그대로(사용자: "지금처럼 3열이 하나의 점")
+- 코드: 배치-가 `memberGrid.util.ts` `pack`이 Grid마다 `cols`(쓴 열)·`at`(시작 열) / 배치-나 `memberBoard.store.ts` `colCount`·`dotCount`·`goDot`·`colRange`·`anchorKey`·`peekGrids` / 배치-다 `MemberPage.vue` Grid 폭·열 템플릿·스냅을 Grid별로(폰은 CSS 폭 그대로) / 배치-라 `memberDrop.util.ts` `MemberFrame` = 칸 격자(x·y·colW·rowH)로 바꾸고 Grid 상자는 pack 결과로 계산, `memberDrag.store.ts` 잼, `member-drop.check.ts` 맞춤
+- 확인: vue-tsc · 끌기 판정 전수 114만 회 왕복 0 · `run.sh` 전체 통과 · 사용자 URL headless = Files 옆에 Script, 점 2개. 폰 화면은 따로 안 봄(1열이라 쓴 열 = 1)

@@ -44,13 +44,14 @@ export const layoutOf = (w: number, h: number): MemberLayout => {
 }
 
 export type Placed = { tile: MemberTile; c: number; r: number; cw: number; ch: number }
-export type MemberGrid = { items: Placed[] }
+// cols = 실제로 쓴 열 수(끝쪽 빈 열은 폭에서 뺌, 보드 toPlan과 같음), at = strip에서 이 Grid가 시작하는 상세 열 번호
+export type MemberGrid = { items: Placed[]; cols: number; at: number }
 
 // 화-7(채우는 순서): 한 열을 위에서 아래로, 다음 열. Grid 안에서 앞으로만 채우고(앞 빈칸으로 안 돌아감) 안 맞으면 새 Grid
 export const pack = (tiles: readonly MemberTile[], cols: number, rows: number): MemberGrid[] => {
     const read: Array<[number, number]> = []
     for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) read.push([c, r])
-    const grids: Array<MemberGrid & { occ: boolean[]; cursor: number }> = []
+    const grids: Array<{ items: Placed[]; occ: boolean[]; cursor: number }> = []
     for (const tile of tiles) {
         const cw = Math.min(tile.w, cols), ch = Math.min(tile.h, rows)
         const fits = (occ: boolean[], c: number, r: number) => {
@@ -70,7 +71,13 @@ export const pack = (tiles: readonly MemberTile[], cols: number, rows: number): 
         for (let i = 0; i < cw; i++) for (let j = 0; j < ch; j++) g.occ[(c + i) * rows + r + j] = true
         g.items.push({ tile, c, r, cw, ch })
     }
-    return grids.map(({ items }) => ({ items }))
+    let at = 0
+    return grids.map(({ items }) => {
+        const used = Math.max(1, ...items.map(it => it.c + it.cw))
+        const g = { items, cols: used, at }
+        at += used
+        return g
+    })
 }
 
 // 화-9(자식 자리): 보드 openTile과 같음 — 연 곳 바로 뒤(최신이 앞), 연 곳이 없으면 맨 앞

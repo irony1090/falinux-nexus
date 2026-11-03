@@ -11,27 +11,29 @@
 - **(2026-11-03) 파트(업데이트 app) — P1(보관·화면) · P2(updater Linux) · P3(배포) · P4(Windows) 마감, master 머지 끝**(P1 `1f5eda9` · P2 `bd93fa4` · P3 = `feat/updater-p3` · P4 = `feat/updater-p4` 머지, push = 사용자). 사용자 P3 화면 확인 "나쁘지 않음"(11-03). 옛 줄 원문 → `history/current-archive-6.md` 11-03 절
   - 구현 지도: P1 `REF-update-p1.md` · P2 `REF-update-p2.md` · P3 `REF-update-p3.md` / 설계 `REF-update-deploy.md` · 규칙 `REF-update-rules.md`
   - P4(Windows) = 구현 · VM 확인 39/39 · 집 서버 설치(11-03 12:42 `C:\Nexus\updater` 동작) → `REF-update-p4.md` · 집 서버 → `REF-home-deploy-updater.md`(관리자 = irony1090)
-  - **다음 = 단위-7(교체 빌드)**: Updater 화면에서 집 서버 supervisor·worker를 updater로 교체(코드 없음, 보관소 빌드). **사용자 답 대기 = 정-1(old 정리 단계) · 정-2(DB 백업 자리, updater 쪽 + 최근 3개) · 정-3(관찰 방식·실패 되돌리기도 볼지)** → `REF-update-p4.md` "단위-7(교체 빌드) 후속". 답을 받으면 `steps.json`·스크립트 계획을 먼저 보여 줄 것
+  - **그다음 = 단위-7(교체 빌드)**(Files 타일 개선 끝, 정-1~3 답 대기 그대로): Updater 화면에서 집 서버 supervisor·worker를 updater로 교체(코드 없음, 보관소 빌드). **사용자 답 대기 = 정-1(old 정리 단계) · 정-2(DB 백업 자리, updater 쪽 + 최근 3개) · 정-3(관찰 방식·실패 되돌리기도 볼지)** → `REF-update-p4.md` "단위-7(교체 빌드) 후속". 답을 받으면 `steps.json`·스크립트 계획을 먼저 보여 줄 것
+  - **(11-03 밤) Files 타일 개선 마감** — `feat/update-files-tile` 코드 커밋 `3caff7b` + vault 커밋 + master `--no-ff` 머지(push = 사용자). 단위-가(폴더 트리·선택 삭제)·시험 실행·단위-나(끌어 놓기)·단위-다(갈아치우기)·단위-라(실행 권한 이름) 전부 사용자 화면 확인 끝 → `REF-update-files-tile.md` · `REF-update-replace.md` · `REF-update-trial.md`. 남은 것 = **집 서버 updater 새 빌드 교체(사용자)** — 옛 updater는 replace를 무시하고 합치기로 배포. 진행 블록 원문 → `history/current-archive-6.md` 11-03 밤 절
+  - **지금 켜져 있는 것**: VM `nexus-win` + updater `test-win#BGRB5DdV`(test2, `C:\NexusU`, 예약 작업 아님) → `REF-windows-vm.md` 11-03 줄, 다 쓰면 `docker stop nexus-win` / 개발 서버 8011(vite)·8012(supervisor `go run`, 11-03 16:39 이 세션이 `setsid`로 다시 띄움 — 시험-1 라우트 반영, 세션이 끝나도 남음, 로그는 스크래치라 사라짐) / 8013 빌드본. 시험 확인용 ssh 래퍼 `vssh`는 세션 스크래치라 사라짐(`REF-test-scripts-1014.md` "윈도-6"에서 다시 만듦)
+  - **사용자 확인 대기**: DeepSeek API 키 재발급 + `ds.sh` 인자 노출 개선 여부 → `BACKLOG.md`
   - 집 서버 남은 정리(사용자가 지움): `*.old-20261103-123559` 3개(지워도 된다고 답함) · `nexus-before-updater.dump`(단위-7 `pg_dump` 뒤)
   - 로컬 VM `nexus-win`에 시험 흔적 `C:\NexusT`·`C:\NexusS` 남음(지워도 됨). 시험 스크립트(`upd_win*.py`)는 세션 스크래치라 사라짐 — 다시 필요하면 `REF-update-p4.md` "확인" 표로 다시 씀
   - 실기 장비: `imx8mp-f24` 서비스 `nexus-updater`(P3 실행 파일, 태그는 P2 이름 그대로 — 사용자: 중요하지 않음)가 test2에 붙어 있음. 개발 DB `nexus` = 마이그레이션 `00018`까지, 8013 빌드본(`nexus_build`)은 `00016`~ 아직 없음
-  - (11-03) 화-10(타일 크기) 개정: 관리·Updater 상세 타일 처음 높이 1칸(Run·Log·Script만 2칸) → `history/member-ui.md` 11-03. 이때 `REF-member-ui-impl.md` 분할
   - 남은 흔적: 로컬 시험 updater 인스턴스 `sample-jig#asWTzHHK` 행 offline(지워도 됨)
   - 새 의존성: 프론트 `@codemirror/*`·`@lezer/highlight`(`npm i` 필요), 메인 보드 스크립트 편집도 CodeMirror(`CtCode`)로 바뀜. `tsconfig.app.json` `baseUrl` 제거(TS 6 경고 TS5101)
   - 시안(확정) = Claude 아티팩트 https://claude.ai/artifact/XGMJqjg7rHdAHUhRMXHbZa(v15). 시안·화면을 고칠 땐 먼저 `REF-design-chaltteok.md` "시안에서 정리한 규칙(2026-11-02)" 읽기(묶음 쪼개지 말 것). 시안 확인법 = headless Chrome 스크린샷
 - **(2026-11-02) 10-30 작업 점검·수정 마감** — `fix/member-drag-review` master 머지. 코드 항목 수정 + 사용자 실기기 확인 끝 → `REF-review-1030.md` · `history/review-1030.md`. 확인 스크립트 = `scripts/check/run.sh`
   - **아직 안 한 것**: 새 빌드로 색인 금지 배포(코드-6(색인 금지 미배포)) = 사용자. **(11-03 사용자) 파트(업데이트 app)가 끝난 뒤 한 번에 배포**(updater 마이그레이션 `00016`~ 함께). `cmd/*/env` 태그를 바꿔 빌드, 집 서버 묶음은 worker 포함. 8013·집 서버는 지금 옛 빌드(10-30 이후 수정 없음)
-- **(2026-10-30) 파트(내 장비·관리자 타일 이동) 마감** — `feat/member-drag` master 머지 → `REF-member-drag.md` · `history/member-drag.md`. 회원→장비 자식 붙기는 11-02 확인 끝. 남은 것 = `openParent`가 자식 묶음 중간에 낄 수 있음(옛 동작, 안 고침)
-- **(2026-10-29) 파트(타일 끌기) 마감** — `feat/tile-drag` 머지 → `REF-tile-drag.md` · `REF-tile-drag-impl.md` · `REF-tile-order.md`
-- **(2026-10-29) 파트(영상 Range) 마감** — `feat/video-view` 머지(마이그레이션 `00015`) → `REF-video-view.md`. 집 서버 = 10-29 저녁 drag 묶음(`29ae134`)에 들어가 배포됨(11-03 BACKLOG 낡은 줄 정리)
+- (2026-10-30) 파트(내 장비·관리자 타일 이동) 마감 → `INDEX-member-drag.md`. 남은 것 = `openParent`가 자식 묶음 중간에 낄 수 있음(옛 동작, 안 고침)
+- (2026-10-29) 파트(타일 끌기) 마감 → `INDEX-tile-drag.md`
+- (2026-10-29) 파트(영상 Range) 마감 → `INDEX-video-view.md`
 - **(2026-10-29 저녁) 집 서버 drag 묶음 배포 완료**(`build/home-update/nexus-drag.zip`, 태그 `DRAG-HOMESERVER-261029`) → `REF-home-deploy.md` "drag 배포 묶음"
 - **(2026-10-29) 보드 `fa24-PID`(192.168.40.228) worker = `VIEWER_IMAGE-261028`** → `REF-build.md` "보드 worker 교체"
 - 옛 CURRENT 줄 원문 → `history/current-archive-6.md`(11-02 내려보냄: 업데이트 app 10-30 설계 상태·11-02 재검토 중 줄), 그 전 = `-5`(10-29 파트 마감·떠 있는 포트 표·build 흔적), 그 전 = `-4`(10-27 ~ 10-28)·`-3`·`-2`·`-1`·`current-archive.md`
 - **그다음 파트 후보** = `BACKLOG.md`(사용자 예정 "타일 ESC로 닫기")
-- 파일 편집기·보기 타일·영상·타일 끌기·내 장비 다섯 파트 REF는 아직 INDEX로 안 접음(MEMORY·HISTORY가 10k에 닿으면 접기, 파트 묶음은 사용자 확인)
+- 파일 편집기·보기 타일·영상·타일 끌기·내 장비 다섯 파트 = 11-03 INDEX로 접음(`INDEX-file-view`·`-view-tile`·`-video-view`·`-tile-drag`·`-member-drag`)
 
 ## 운영 상태 (2026-11-02 확인)
-- **지금 떠 있는 것**: test3(8013) = supervisor·worker **`build/261029_drag`**(11-02 09:59 사용자 실행). 보관 프로세스 2개(48509·66320)도 실행 파일이 `build/261029_drag/worker` — 그 터미널을 닫기 전엔 지우지 말 것. **test1(8011, vite)·test2(8012, 개발 supervisor `go run`, P3 코드, 11-03 10:05 다시 띄움) Claude 세션이 다시 띄움 — 세션을 다시 시작하면 같이 꺼질 수 있음(`ss -ltnp | grep -E ':801[12]'`로 확인, 다시 띄우기 = `apps/core`에서 `go run ./cmd/supervisor -env dev.env` · `apps/frontend`에서 `npm run dev`)** — 개발 DB `nexus`에 마이그레이션 `00018`까지 적용됨, 보관소 = `apps/core/cmd/supervisor/update-store`(git 제외). 5051·3001은 꺼져 있음
+- **지금 떠 있는 것**: test3(8013) = supervisor·worker **`build/261029_drag`**(11-02 09:59 사용자 실행). 보관 프로세스 2개(48509·66320)도 실행 파일이 `build/261029_drag/worker` — 그 터미널을 닫기 전엔 지우지 말 것. **test1(8011, vite)·test2(8012, 개발 supervisor `go run`, 11-03 16:39 시험-1 코드로 다시 띄움) Claude 세션이 다시 띄움 — 세션을 다시 시작하면 같이 꺼질 수 있음(`ss -ltnp | grep -E ':801[12]'`로 확인, 다시 띄우기 = `apps/core`에서 `go run ./cmd/supervisor -env dev.env` · `apps/frontend`에서 `npm run dev`)** — 개발 DB `nexus`에 마이그레이션 `00018`까지 적용됨, 보관소 = `apps/core/cmd/supervisor/update-store`(git 제외). 5051·3001은 꺼져 있음
 - **`build/`**: `261029_drag/`(지금 test3)·`261029_video_view/`·`video_view_tmp/`·`viewer_image/`·`supervisor.env`·`worker.env`·`worker-sqlite.db*`·`view-cache/`·`home-update/`
 - **git**: master = `fix/member-drag-review` 머지(11-02), push = 사용자. 남은 로컬 브랜치 = `feat/*`·`fix/*` 여러 개(머지됨) · `refactor/socket`·`refactor/tile-kinds`. 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치)·`cmd/worker/test.env`·user vault 전체. 커밋은 파트 단위
 - 남은 판단: 임시 DB `nexus_fv_tmp`·`nexus_member_tmp`·`nexus_api_tmp`도 있음(11-02 목록에서 봄, 안 건드림)

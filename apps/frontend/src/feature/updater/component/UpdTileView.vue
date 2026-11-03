@@ -12,6 +12,7 @@ import UpdFilesTile from './UpdFilesTile.vue';
 import UpdRunTile from './UpdRunTile.vue';
 import UpdStepsTile from './UpdStepsTile.vue';
 import UpdTextTile from './UpdTextTile.vue';
+import UpdTrialTile from './UpdTrialTile.vue';
 
 // updater 페이지 상세 타일 — 경로·끌기 표시·몸통. 틀 = MbTileFrame(회원 페이지와 같음) — REF-update-deploy.md "화면"
 const props = defineProps<{ placed: Placed }>();
@@ -37,6 +38,7 @@ const META = {
     common: { icon: 'mdi-package-variant-closed', color: 'share', label: '공용 묶음 타일' },
     text: { icon: 'mdi-file-document-outline', color: 'primary', label: 'Script 타일' },
     run: { icon: 'mdi-console-line', color: 'primary', label: 'Run · Log 타일' },
+    trial: { icon: 'mdi-flask-outline', color: 'primary', label: '시험 타일' },
 } as const;
 
 const crumbs = computed<MbCrumb[]>(() => {
@@ -54,7 +56,7 @@ const crumbs = computed<MbCrumb[]>(() => {
         : { label: ref!.owner, go: () => pickTab('commons') };
     const bundleKey = ref!.kind === 'build' ? buildTileKey(ref!.owner, ref!.version) : commonTileKey(ref!.owner, ref!.version);
     if (kind === 'build') return [{ label: '장비', go: () => pickTab('devices') }, owner, { label: ref!.version }];
-    const last = kind === 'files' ? 'Files' : kind === 'steps' ? 'steps.json' : path!;
+    const last = kind === 'files' ? 'Files' : kind === 'steps' ? 'steps.json' : kind === 'trial' ? '시험' : path!;
     return [owner, { label: ref!.version, go: () => goTo(bundleKey) }, { label: last }];
 });
 const name = computed(() => crumbs.value.at(-1)?.label ?? '');
@@ -69,6 +71,7 @@ const chip = computed(() => ({ icon: META[t.value.kind].icon, color: META[t.valu
     <upd-steps-tile v-else-if="t.kind === 'steps'" :tile="tile" :bundle="t.ref!" />
     <upd-common-tile v-else-if="t.kind === 'common'" :tile="tile" :bundle="t.ref!" />
     <upd-run-tile v-else-if="t.kind === 'run'" :tile="tile" :deploy-id="t.deployId!" />
+    <upd-trial-tile v-else-if="t.kind === 'trial'" :tile="tile" :bundle="t.ref!" />
     <upd-text-tile v-else :tile="tile" :bundle="t.ref!" :path="t.path!" />
 </mb-tile-frame>
 </template>

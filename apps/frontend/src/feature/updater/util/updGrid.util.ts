@@ -9,20 +9,21 @@ import type { BundleKind, Ref } from '../api/updater.api'
 //   c<이름>~<버전>              공용 묶음 타일(파일 목록 포함)
 //   t<b|c><주인>~<버전>~<경로>  Script(텍스트 파일) 타일 — 경로는 퍼센트 인코딩
 //   r<배포 id>                  Run · Log 타일(배포 하나 × 인스턴스 하나, REF-update-p3.md "합의한 해석")
+//   x<메인키>~<버전>            시험 타일(배포 전 단계 시험, REF-update-trial.md)
 // `~`는 이름 글자([A-Za-z0-9._-])에 없고, URL 구분자 `*` `^` `,`는 경로 인코딩에서 빠진다
 
-export type UpdTileKind = 'device' | 'build' | 'files' | 'steps' | 'common' | 'text' | 'run'
+export type UpdTileKind = 'device' | 'build' | 'files' | 'steps' | 'common' | 'text' | 'run' | 'trial'
 
 const N = '[A-Za-z0-9._-]{1,64}'
-const RE = new RegExp(`^(u${N}|[bfsc]${N}~${N}|t[bc]${N}~${N}~[A-Za-z0-9._%!'()-]{1,1500}|r[1-9][0-9]{0,17})$`)
+const RE = new RegExp(`^(u${N}|[bfscx]${N}~${N}|t[bc]${N}~${N}~[A-Za-z0-9._%!'()-]{1,1500}|r[1-9][0-9]{0,17})$`)
 
-const KIND: Record<string, UpdTileKind> = { u: 'device', b: 'build', f: 'files', s: 'steps', c: 'common', t: 'text', r: 'run' }
+const KIND: Record<string, UpdTileKind> = { u: 'device', b: 'build', f: 'files', s: 'steps', c: 'common', t: 'text', r: 'run', x: 'trial' }
 export const updKindOf = (key: string): UpdTileKind => KIND[key[0]!] ?? 'device'
 
 export const UPD_KEYS: GridKeys = {
     re: RE,
-    // 처음 높이: 로그·편집기(Run·Log, Script)만 2칸, 나머지 1칸(2026-11-03, REF-member-ui.md 화-10)
-    size: key => ({ w: 1, h: ['text', 'run'].includes(updKindOf(key)) ? 2 : 1 }),
+    // 처음 높이: 로그·편집기(Run·Log, 시험, Script)만 2칸, 나머지 1칸(2026-11-03, REF-member-ui.md 화-10)
+    size: key => ({ w: 1, h: ['text', 'run', 'trial'].includes(updKindOf(key)) ? 2 : 1 }),
 }
 
 // `~`·`*`도 인코딩 — encodeURIComponent는 둘 다 남긴다
@@ -34,6 +35,7 @@ export const filesTileKey = (mainKey: string, version: string) => `f${mainKey}~$
 export const stepsTileKey = (mainKey: string, version: string) => `s${mainKey}~${version}`
 export const commonTileKey = (name: string, version: string) => `c${name}~${version}`
 export const runTileKey = (deployId: number) => `r${deployId}`
+export const trialTileKey = (mainKey: string, version: string) => `x${mainKey}~${version}`
 export const textTileKey = (r: Ref, path: string) => `t${r.kind === 'build' ? 'b' : 'c'}${r.owner}~${r.version}~${encPath(path)}`
 
 // 키 -> 대상. 장비 타일은 version 없음, Run · Log는 배포 id만(장비·빌드는 조회해서 안다)
