@@ -36,6 +36,8 @@ for _ in $(seq 1 40); do curl -s -o /dev/null "$BASE/" && break; sleep 0.25; don
 node "$here/member-drag.mjs" || { tail -5 "$work/sup.log"; exit 1; }
 python3 "$here/updates-api.py" || { tail -5 "$work/sup.log"; exit 1; }
 node "$here/updater-ui.mjs" || { tail -5 "$work/sup.log"; exit 1; }
+node "$here/updater-files-ui.mjs" || { tail -5 "$work/sup.log"; exit 1; }
 UPDATER="$work/updater" python3 "$here/updater-run.py" || { tail -5 "$work/sup.log"; exit 1; }
 UPDATER="$work/updater" python3 "$here/updater-deploy.py" || { tail -5 "$work/sup.log"; exit 1; }
 UPDATER="$work/updater" node "$here/updater-deploy-ui.mjs" || { tail -5 "$work/sup.log"; exit 1; }
+UPDATER="$work/updater" node "$here/updater-trial-ui.mjs" || { tail -5 "$work/sup.log"; exit 1; }

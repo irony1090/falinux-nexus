@@ -85,9 +85,9 @@ try {
     // 입력 받는 단계 — 프롬프트가 로그에 보이고, 터미널에 치면 끝남
     const askRow = run.locator('.upd-row', { hasText: 'ask' })
     ok('ask 진행 중 표시', !!await until(async () => /진행 중.*입력 받음/.test(await askRow.textContent())), await askRow.textContent())
-    ok('로그에 프롬프트', !!await until(async () => (await run.locator('.log .xterm-rows').textContent()).includes('name?')))
+    ok('로그에 프롬프트', !!await until(async () => (await run.locator('.upd-log .xterm-rows').textContent()).includes('name?')))
     await shot(page, 'd02-ask')
-    await run.locator('.log .xterm').click()
+    await run.locator('.upd-log .xterm').click()
     await page.keyboard.type('nexus')
     await page.keyboard.press('Enter')
     ok('입력 뒤 배포 성공', !!await until(async () => (await run.locator('.val .mb-tag').first().textContent()).includes('배포 성공')))
@@ -95,7 +95,7 @@ try {
     const askRun = d1.runs.find(r => r.stepId === 'ask')
     ok('ask 로그 = 입력·출력', (await call('get', `/admin/updates/runs/${askRun.id}`)).log.includes('hi nexus'))
     ok('설치 경로에 깔림', readFileSync(join(target, 'app.conf'), 'utf8') === 'ver=1\n')
-    ok('로그 끝까지 따라감(마지막 단계)', !!await until(async () => (await run.locator('.log .xterm-rows').textContent()).includes('hi nexus')))
+    ok('로그 끝까지 따라감(마지막 단계)', !!await until(async () => (await run.locator('.upd-log .xterm-rows').textContent()).includes('hi nexus')))
     await shot(page, 'd03-done')
 
     // 잠그기 — 확인 창

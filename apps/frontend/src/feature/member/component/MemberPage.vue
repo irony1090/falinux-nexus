@@ -6,7 +6,7 @@ import { useGapWheel } from '@/feature/widget/hook/gapWheel.hook';
 import { computed, ref, watch } from 'vue';
 import { useMemberBoard } from '../store/memberBoard.store';
 import { provideMemberDrag } from '../store/memberDrag.store';
-import { GAP, type Placed } from '../util/memberGrid.util';
+import { GAP, type MemberGrid, type Placed } from '../util/memberGrid.util';
 import MemberFooter from './MemberFooter.vue';
 import MemberList from './MemberList.vue';
 import MemberPagerPopup from './MemberPagerPopup.vue';
@@ -46,15 +46,17 @@ const onScroll = (e: Event) => {
 }
 
 const cellStyle = (it: Placed) => ({ gridColumn: `${it.c + 1} / span ${it.cw}`, gridRow: `${it.r + 1} / span ${it.ch}` });
-const gridStyle = computed(() => ({
-    gridTemplateColumns: `repeat(${layout.value.cols}, minmax(0, 1fr))`,
+// Grid 폭 = 쓴 열 수만큼(배치-가) — 다음 Grid가 바로 옆에 붙는다. 폰은 1열이라 CSS 폭(100cqw) 그대로
+const gridStyle = (g: MemberGrid) => ({
+    gridTemplateColumns: `repeat(${g.cols}, minmax(0, 1fr))`,
     gridTemplateRows: `repeat(${layout.value.rows}, minmax(0, 1fr))`,
-}));
+    ...(phone.value ? {} : { width: `calc(100% * ${g.cols} / ${layout.value.cols})` }),
+});
 const listStyle = computed(() => phone.value ? undefined : { width: `${layout.value.cellW}px` });
 // 왼쪽 끝 띠 = 판정 기준인 스크롤 영역 왼쪽에 — PC = 목록 뒤 strip(.outer 여백 + 목록 + 간격, .strip margin -4), 폰 = 맨 왼쪽
 const edgeLeft = computed(() => phone.value ? '0px' : `${GAP + layout.value.cellW + GAP - 4}px`);
 // 칼럼마다 스냅 자리(타일이 없는 칼럼에도 멈추게) — 보드처럼 칼럼 단위 정지
-const snaps = computed(() => Array.from({ length: layout.value.cols }, (_, c) => c));
+const snaps = (g: MemberGrid) => Array.from({ length: g.cols }, (_, c) => c);
 </script>
 
 <template>
@@ -68,8 +70,8 @@ const snaps = computed(() => Array.from({ length: layout.value.cols }, (_, c) =>
                 <div v-if="!grids.length" class="grid">
                     <div class="empty">목록에서 누르면 여기에 타일이 쌓입니다</div>
                 </div>
-                <div v-for="(g, gi) in grids" :key="gi" class="mb-grid grid" :style="gridStyle">
-                    <span v-for="c in snaps" :key="`s${c}`" class="snap" :style="{ gridColumn: c + 1 }" aria-hidden="true" />
+                <div v-for="(g, gi) in grids" :key="gi" class="mb-grid grid" :style="gridStyle(g)">
+                    <span v-for="c in snaps(g)" :key="`s${c}`" class="snap" :style="{ gridColumn: c + 1 }" aria-hidden="true" />
                     <template v-for="it in g.items" :key="it.tile.key">
                         <slot name="tile" :placed="it" :cell="cellStyle(it)">
                             <member-tile-view :placed="it" :style="cellStyle(it)" />

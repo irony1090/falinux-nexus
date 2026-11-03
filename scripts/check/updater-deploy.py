@@ -253,6 +253,40 @@ try:
     ok("updater 재시작 = 배포 cancel + 이유", d and d["result"] == "cancel" and "모름" in d["msg"], d and (d["result"], d["msg"]))
     ok("실행 중이던 단계 cancel · 남은 단계 skip", d and runs_of(d, "deploy") == [("backup", "ok"), ("slow", "cancel"), ("hello", "skip")], d and d["runs"])
     ok("다시 바쁘지 않음", d and not d["busy"], d)
+
+    # ---- 7. 갈아치우기(단위-다): PUT /replace -> 배포 때 web/는 비우고 채움, conf/는 합치기 -> 되돌리기로 지운 파일 복원 ----
+    call(admin, "POST", f"/admin/updates/bundles/build/{MAIN}", {"version": "v5"})
+    B5 = f"/admin/updates/bundles/build/{MAIN}/v5"
+    text(admin, B5, "web/index.html", "new\n")
+    text(admin, B5, "conf/a.env", "new\n")
+    text(admin, B5, "steps.json", json.dumps({"deploy": [{"id": "backup", "builtin": "backup"}, {"id": "copy", "builtin": "copy"}], "rollback": [{"id": "restore", "builtin": "restore"}]}, indent=2) + "\n")
+    s, b = call(admin, "PUT", B5 + "/replace", {"replace": ["web", "web/assets", "gone"]})
+    warns = [i["msg"] for i in (b or {}).get("issues", []) if i["level"] == "warn"]
+    ok("replace 저장 = 200 + 경고(자식·사라진 폴더)", s == 200 and any("web/assets" in w for w in warns) and any("gone/" in w for w in warns), (s, b))
+    s, b = call(admin, "GET", B5)
+    ok("빌드 상세 replace", b["replace"] == ["web", "web/assets", "gone"], b.get("replace"))
+    ok("replace 잘못된 경로 = 400", call(admin, "PUT", B5 + "/replace", {"replace": ["../x"]})[0] == 400)
+    ok("잠긴 빌드 replace = 409", call(admin, "PUT", B1 + "/replace", {"replace": ["web"]})[0] == 409)
+    call(admin, "POST", f"/admin/updates/bundles/build/{MAIN}", {"version": "v6"})
+    ok("steps.json 없음 replace = 404", call(admin, "PUT", f"/admin/updates/bundles/build/{MAIN}/v6/replace", {"replace": ["web"]})[0] == 404)
+    for rel, body in {"web/index.html": "old\n", "web/old.js": "old\n", "web/sub/x.txt": "old\n", "conf/b.env": "old\n"}.items():
+        os.makedirs(os.path.dirname(os.path.join(target, rel)), exist_ok=True)
+        with open(os.path.join(target, rel), "w") as f:
+            f.write(body)
+    s, items = deploy(admin, MAIN, "v5", [SUB])
+    D5 = items[0]["deployId"]
+    d = done(admin, D5)
+    ok("갈아치우기 배포 ok", d and d["result"] == "ok", d and (d["result"], d["msg"]))
+    ok("web/ = 비우고 채움", read(os.path.join(target, "web/index.html")) == "new\n" and read(os.path.join(target, "web/old.js")) is None and read(os.path.join(target, "web/sub/x.txt")) is None)
+    ok("conf/ = 합치기(기존 파일 남음)", read(os.path.join(target, "conf/a.env")) == "new\n" and read(os.path.join(target, "conf/b.env")) == "old\n")
+    cp = [r for r in d["runs"] if r["stepId"] == "copy"][0]
+    log = call(admin, "GET", f"/admin/updates/runs/{cp['id']}")[1]["log"]
+    ok("copy 로그 = 갈아치우기 web/ 2개 지움(부모만, 사라진 폴더 뺌)", "갈아치우기 web/ — 기존 파일 2개 지움" in log, log)
+    s, b = call(admin, "POST", f"/admin/updates/deployments/{D5}/rollback", {})
+    d = done(admin, D5)
+    ok("되돌리기 = 지운 파일 복원", d and d["rollbackResult"] == "ok" and read(os.path.join(target, "web/old.js")) == "old\n" and read(os.path.join(target, "web/sub/x.txt")) == "old\n" and read(os.path.join(target, "web/index.html")) == "old\n", d and d["msg"])
+    s, b = call(admin, "PUT", B5 + "/replace", {"replace": []})
+    ok("빈 목록 = replace 항목째 지움", s == 200 and call(admin, "GET", B5)[1]["replace"] == [], (s, b))
 finally:
     for p in procs:
         if p.poll() is None:

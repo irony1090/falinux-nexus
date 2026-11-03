@@ -63,12 +63,12 @@ await tile('ufa24-PID').getByRole('button', { name: '+ 새 빌드' }).click()
 await fillPrompt(['b1'], '만들기')
 await tile('bfa24-PID~b1').waitFor()
 ok('새 빌드 = 빌드 타일이 장비 바로 뒤', (await page.evaluate(() => [...document.querySelectorAll('[data-tile-key]')].map(e => e.dataset.tileKey))).join() === 'ufa24-PID,bfa24-PID~b1')
-ok('빌드 열기 줄 = Files·steps.json·Run · Log(Script 없음)', (await tile('bfa24-PID~b1').locator('.upd-set .ct-seg').allTextContents()).join('|') === 'Files|steps.json|Run · Log')
+ok('빌드 열기 줄 = Files·steps.json·시험·Run · Log(Script 없음)', (await tile('bfa24-PID~b1').locator('.upd-set .ct-seg').allTextContents()).join('|') === 'Files|steps.json|시험|Run · Log')
 await tile('bfa24-PID~b1').getByRole('button', { name: 'Files' }).click()
 const F = tile('ffa24-PID~b1')
 await F.waitFor()
 
-// 업로드(파일 둘) + 폴더 업로드(첫 폴더 이름 뗌)
+// 업로드(파일 둘) + 폴더 업로드(폴더 이름 유지, 결정-6(폴더 업로드 버튼))
 const bin = Buffer.alloc(700 * 1024, 7)
 await F.locator('input[type=file]:not([webkitdirectory])').setInputFiles([
     { name: 'worker', mimeType: 'application/octet-stream', buffer: bin },
@@ -80,9 +80,10 @@ mkdirSync(join(dir, 'release', 'conf'), { recursive: true })
 writeFileSync(join(dir, 'release', 'conf', 'app.env'), 'X=1\n')
 writeFileSync(join(dir, 'release', '03-start.sh'), '#!/bin/sh\necho start\n')
 await F.locator('input[webkitdirectory]').setInputFiles(join(dir, 'release'))
-await F.locator('.upd-row', { hasText: 'conf/app.env' }).waitFor({ timeout: 5000 }).catch(() => {})
-const paths = (await call('get', '/admin/updates/bundles/build/fa24-PID/b1')).files.map(f => f.path).sort().join()
-ok('업로드·폴더 업로드 = 경로 그대로', paths === '00-stop.sh,03-start.sh,conf/app.env,worker', paths)
+let paths = ''
+for (const t0 = Date.now(); Date.now() - t0 < 5000 && paths.split(',').length < 4; await page.waitForTimeout(100))
+    paths = (await call('get', '/admin/updates/bundles/build/fa24-PID/b1')).files.map(f => f.path).sort().join()
+ok('업로드·폴더 업로드 = 경로 그대로(폴더 이름 유지)', paths === '00-stop.sh,release/03-start.sh,release/conf/app.env,worker', paths)
 ok('바이너리 표시', await F.locator('.upd-row', { hasText: 'worker' }).locator('.sub').textContent().then(t => t.includes('바이너리')))
 // 같은 이름 다시 = 확인 창
 await F.locator('input[type=file]:not([webkitdirectory])').setInputFiles([{ name: 'worker', mimeType: 'application/octet-stream', buffer: Buffer.from('x') }])

@@ -37,6 +37,7 @@ type Step struct {
 
 type Steps struct {
 	Uses         []Use
+	Replace      []Replace // 배포 때 비우고 채울 폴더(단위-다(갈아치우기)) — replace.go
 	Deploy       []Step
 	Rollback     []Step
 	AutoRollback bool // 배포 실패 때 rollback 목록을 이어서(기본 꺼짐)
@@ -79,6 +80,8 @@ func Check(src []byte) (Steps, []Issue) {
 				seen[name] = true
 				st.Uses = append(st.Uses, Use{Name: name, Version: ver, at: it.at})
 			}
+		case "replace":
+			st.Replace = checkReplace(v, add)
 		case "deploy", "rollback":
 			steps := checkSteps(v, kv.key, add)
 			if kv.key == "deploy" {
@@ -198,8 +201,9 @@ func checkSteps(v *jnode, list string, add func(int, string, string, ...any)) []
 	return out
 }
 
-// CheckRefs: uses의 공용 묶음이 있는지(error), script 파일이 빌드·공용 안에 있는지(warn — 나중에 올릴 수 있음)
-func CheckRefs(src []byte, st Steps, commonExists func(name, ver string) bool, fileExists func(rel string) bool) []Issue {
+// CheckRefs: uses의 공용 묶음이 있는지(error), script 파일이 빌드·공용 안에 있는지(warn — 나중에 올릴 수 있음),
+// replace 폴더 아래 메인키 파일이 있는지(warn — 없으면 배포 메시지에서 빠짐). mainPaths = 빌드 메인키 파일 경로
+func CheckRefs(src []byte, st Steps, commonExists func(name, ver string) bool, fileExists func(rel string) bool, mainPaths []string) []Issue {
 	p := &jparser{src: src}
 	var out []Issue
 	for _, u := range st.Uses {
@@ -212,6 +216,11 @@ func CheckRefs(src []byte, st Steps, commonExists func(name, ver string) bool, f
 			if s.Script != "" && !fileExists(s.Script) {
 				out = append(out, p.issue(s.at, "warn", fmt.Sprintf("스크립트 %s가 빌드·공용 묶음에 아직 없습니다", s.Script)))
 			}
+		}
+	}
+	for _, r := range st.Replace {
+		if !dirHas(mainPaths, r.Path) {
+			out = append(out, p.issue(r.at, "warn", fmt.Sprintf("갈아치우기 폴더 %s/ 아래 메인키 파일이 없어 배포 때 빠집니다", r.Path)))
 		}
 	}
 	return out
@@ -239,6 +248,7 @@ type jkv struct {
 type jnode struct {
 	kind  jkind
 	at    int // 값 시작 바이트
+	end   int // 값 끝 바이트(다음 글자)
 	str   string
 	items []*jnode
 	keys  []jkv
@@ -307,6 +317,14 @@ func (p *jparser) parse() (*jnode, *jerr) {
 }
 
 func (p *jparser) value(depth int) (*jnode, *jerr) {
+	n, err := p.value0(depth)
+	if n != nil {
+		n.end = p.i
+	}
+	return n, err
+}
+
+func (p *jparser) value0(depth int) (*jnode, *jerr) {
 	if depth > 64 {
 		return nil, p.fail("너무 깊게 겹쳤습니다")
 	}

@@ -3,8 +3,9 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useMemberBoard } from '@/feature/member/store/memberBoard.store';
 import type { MemberTile } from '@/feature/member/util/memberGrid.util';
 import CtCode, { ctCodeLangOf } from '@/feature/widget/component/CtCode.vue';
-import { invalidateUpdates, readText, saveText, useBundle, type Ref } from '../api/updater.api';
+import { invalidateUpdates, saveText, useBundle, type Ref } from '../api/updater.api';
 import { useUpdConfirm, useUpdRun } from '../hook/updActions.hook';
+import { useUpdLiveText } from '../hook/updText.hook';
 import MbNote from '@/feature/member/component/MbNote.vue';
 
 // Script 타일 — 빌드·공용 묶음의 텍스트 파일 하나 편집(Files 목록에서 연다, 안 A). `.sh`는 서버가 LF로 저장 — REF-update-deploy.md 단위-6(편집 타일)
@@ -19,15 +20,18 @@ const meta = computed(() => b.value?.files.find(f => f.scope === 'main' && f.pat
 const locked = computed(() => !!b.value?.locked);
 const lang = computed(() => ctCodeLangOf(props.path));
 
-const original = ref<string>();
-const text = ref('');
-const dirty = computed(() => original.value !== undefined && text.value !== original.value);
+const sha = computed(() => meta.value?.sha);
+const { original, text, dirty, stale, load, saved } = useUpdLiveText(props.bundle, props.path, sha, m => message.value = m);
 const missing = ref(false);
 watch(b, d => {
     if (!d || original.value !== undefined) return;
     if (!meta.value) { missing.value = true; return; }
-    readText(props.bundle, props.path).then(t => { original.value = t; text.value = t; }).catch(e => message.value = e?.message || '불러오지 못했습니다');
+    void load(sha.value);
 }, { immediate: true });
+// 다른 곳에서 바뀐 뒤 고치던 것을 버리고 다시 읽기
+const reload = async () => {
+    if (await confirm('다시 불러오기', '고치던 내용을 버리고 저장된 내용을 불러옵니다.', '버리고 불러오기', 'error')) await load(sha.value);
+}
 
 const lines = computed(() => text.value ? text.value.split('\n').length - (text.value.endsWith('\n') ? 1 : 0) : 0);
 const eol = computed(() => text.value.includes('\r\n') ? 'CRLF' : 'LF');
@@ -37,10 +41,10 @@ const save = async () => {
     busy.value = true;
     message.value = undefined;
     try {
-        await saveText(props.bundle, props.path, text.value);
+        const r = await saveText(props.bundle, props.path, text.value);
         // .sh는 서버가 LF로 바꿔 저장하므로 화면도 같게
         if (props.path.toLowerCase().endsWith('.sh')) text.value = text.value.replace(/\r\n/g, '\n');
-        original.value = text.value;
+        saved(r.file?.sha);
         await invalidateUpdates(qc);
     } catch (e: any) {
         message.value = e?.message || '저장하지 못했습니다';
@@ -61,10 +65,11 @@ onBeforeUnmount(guardClose(props.tile.key, () => !dirty.value || confirm('저장
     </template>
 </div>
 <div class="mb-foot">
-    <mb-note :text="locked ? '잠겨 있어 고칠 수 없습니다' : '저장하면 sha가 바뀝니다 · 잠그기 전에는 언제든 수정할 수 있습니다'" />
+    <mb-note :text="locked ? '잠겨 있어 고칠 수 없습니다' : stale ? '다른 곳에서 이 파일이 바뀌었습니다' : '저장하면 sha가 바뀝니다 · 잠그기 전에는 언제든 수정할 수 있습니다'" />
     <div class="mb-end">
         <button v-if="missing" type="button" class="mb-btn" @click="close(tile.key)">닫기</button>
-        <button v-else type="button" class="mb-btn mb-btn--primary" :disabled="busy || locked || !dirty" @click="save">저장</button>
+        <button v-else-if="stale" type="button" class="mb-btn" :disabled="busy" @click="reload">다시 불러오기</button>
+        <button v-if="!missing" type="button" class="mb-btn mb-btn--primary" :disabled="busy || locked || !dirty" @click="save">저장</button>
     </div>
 </div>
 </template>

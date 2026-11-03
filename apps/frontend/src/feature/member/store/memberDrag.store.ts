@@ -50,19 +50,19 @@ export const provideMemberDrag = (board: ReturnType<typeof provideMemberBoard>) 
         const el = scrollEl.value
         if (!el) return null
         const r = el.getBoundingClientRect()
-        const boxes = Array.from(el.querySelectorAll<HTMLElement>('.mb-grid'))
-        if (!boxes.length) return null
+        const first = el.querySelector<HTMLElement>('.mb-grid')
+        const k = board.grids.value[0]?.cols
+        if (!first || !k) return null
+        const { cols, rows } = layout.value
+        const cs = getComputedStyle(first), b = first.getBoundingClientRect()
+        const w = b.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+        const h = b.height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
         return {
-            gap: GAP, cols: layout.value.cols, rows: layout.value.rows,
-            grids: boxes.map(g => {
-                const cs = getComputedStyle(g), b = g.getBoundingClientRect()
-                return {
-                    x: b.left - r.left + el.scrollLeft,
-                    y: b.top - r.top,
-                    w: b.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight),
-                    h: b.height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom),
-                }
-            }),
+            gap: GAP, cols, rows,
+            x: b.left - r.left + el.scrollLeft + parseFloat(cs.paddingLeft),
+            y: b.top - r.top + parseFloat(cs.paddingTop),
+            colW: (w - GAP * (k - 1)) / k,
+            rowH: (h - GAP * (rows - 1)) / rows,
         }
     }
 

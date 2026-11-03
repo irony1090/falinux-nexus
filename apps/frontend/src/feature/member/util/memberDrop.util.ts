@@ -5,8 +5,9 @@ import { pack, type MemberTile } from './memberGrid.util'
 
 type Rect = { x: number; y: number; w: number; h: number }
 type Point = { x: number; y: number }
-// grids = 끌기 시작 때 잰 Grid 상자(스크롤 내용 좌표), w·h = 안쪽 여백 뺀 크기
-export type MemberFrame = { gap: number; cols: number; rows: number; grids: Array<Rect> }
+// 끌기 시작 때 잰 칸 격자(스크롤 내용 좌표): x·y = 첫 Grid 안쪽 왼쪽 위, colW·rowH = 칸 크기.
+// Grid 폭이 쓴 열 수만큼이라(배치-가) Grid 상자는 순서가 바뀔 때마다 pack 결과(at·cols)로 다시 낸다 — 열 간격은 Grid 경계에서도 같다
+export type MemberFrame = { gap: number; cols: number; rows: number; x: number; y: number; colW: number; rowH: number }
 
 const inside = (r: Rect, p: Point) => p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h
 export const sameOrder = (a: readonly MemberTile[], b: readonly MemberTile[]) =>
@@ -30,22 +31,10 @@ const moveAfter = (o: readonly MemberTile[], key: string, after: string) => {
 // 끌기 중 미리보기 순서로 배치했을 때의 타일 자리 — 판정은 이 계산 위치로(애니메이션 중 화면 위치 아님)
 const layOut = (tiles: readonly MemberTile[], f: MemberFrame) => {
     const plans = pack(tiles, f.cols, f.rows)
-    const first = f.grids[0]
-    const stepX = f.grids.length > 1 ? f.grids[1]!.x - first!.x : 0
-    // Grid가 새로 생기면(맨 뒤로 옮길 때) 잰 적이 없다 — 같은 간격으로 이어 붙인다
-    const boxOf = (gi: number): Rect | undefined => {
-        const g = f.grids[gi]
-        if (g) return g
-        if (!first || !stepX) return undefined
-        const last = f.grids[f.grids.length - 1]!
-        return { ...last, x: last.x + stepX * (gi - f.grids.length + 1) }
-    }
+    const { colW, rowH } = f
     const placed: Array<{ key: string; rect: Rect }> = []
-    const grids = plans.flatMap((g, gi) => {
-        const box = boxOf(gi)
-        if (!box) return []
-        const colW = (box.w - f.gap * (f.cols - 1)) / f.cols
-        const rowH = (box.h - f.gap * (f.rows - 1)) / f.rows
+    const grids = plans.map(g => {
+        const box = { x: f.x + g.at * (colW + f.gap), y: f.y, w: g.cols * colW + (g.cols - 1) * f.gap, h: f.rows * rowH + (f.rows - 1) * f.gap }
         for (const it of g.items) placed.push({
             key: it.tile.key,
             rect: {
@@ -55,7 +44,7 @@ const layOut = (tiles: readonly MemberTile[], f: MemberFrame) => {
                 h: it.ch * rowH + (it.ch - 1) * f.gap,
             },
         })
-        return [{ box, items: g.items.map(it => ({ key: it.tile.key, c: it.c, r: it.r, cw: it.cw, ch: it.ch })) }]
+        return { box, items: g.items.map(it => ({ key: it.tile.key, c: it.c, r: it.r, cw: it.cw, ch: it.ch })) }
     })
     return { placed, grids }
 }
@@ -80,9 +69,7 @@ const dropOnce = (
     const grid = now.grids.find(g => inside(g.box, p))
     if (grid) {
         const box = grid.box
-        const colW = (box.w - f.gap * (f.cols - 1)) / f.cols
-        const rowH = (box.h - f.gap * (f.rows - 1)) / f.rows
-        const at = cellIndex(Math.floor((p.x - box.x) / (colW + f.gap)), Math.floor((p.y - box.y) / (rowH + f.gap)), f.rows)
+        const at = cellIndex(Math.floor((p.x - box.x) / (f.colW + f.gap)), Math.floor((p.y - box.y) / (f.rowH + f.gap)), f.rows)
         // 그 칸보다 앞(채우는 순서)인 마지막 타일 뒤로 — 없으면 이 Grid 첫 타일 앞
         const before = grid.items.filter(it => cellIndex(it.c, it.r, f.rows) < at).pop()
         if (before) return before.key === key ? tiles : moveAfter(tiles, key, before.key)

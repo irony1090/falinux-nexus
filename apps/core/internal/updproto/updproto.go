@@ -90,6 +90,7 @@ type Run struct {
 	Stage    string      `json:"stage"`
 	Files    []StageFile `json:"files"`
 	Step     Step        `json:"step"`
+	Replace  []string    `json:"replace,omitempty"` // backup·copy가 비우고 채울 폴더(TARGET_DIR 기준, 단위-다(갈아치우기)). 옛 updater는 무시 = 합치기
 	Cols     uint16      `json:"cols,omitempty"`
 	Rows     uint16      `json:"rows,omitempty"`
 }
@@ -153,6 +154,7 @@ type Deploy struct {
 	Files    []StageFile  `json:"files"`
 	Steps    []DeployStep `json:"steps"`
 	Rollback []DeployStep `json:"rollback,omitempty"`
+	Replace  []string     `json:"replace,omitempty"` // Run.Replace로 넘김
 	Cols     uint16       `json:"cols,omitempty"`
 	Rows     uint16       `json:"rows,omitempty"`
 }

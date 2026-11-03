@@ -96,6 +96,17 @@ func (r *supervisorRouter) buildSteps(c echo.Context, ref updstore.Ref, b superd
 	return st
 }
 
+// replaceFor: 메시지에 넣을 replace — 빌드 메인키 파일이 있는 폴더만, 부모가 있으면 자식 뺌(결정-11(적용 범위)·확인-3(사라진 폴더))
+func replaceFor(st updstore.Steps, b superdb.GetBundleRow, files []mergedFile) []string {
+	var mains []string
+	for _, f := range files {
+		if f.bundleID == b.ID && f.scope == updstore.ScopeMain {
+			mains = append(mains, f.path)
+		}
+	}
+	return updstore.EffectiveReplace(st.Replace, mains)
+}
+
 func stageSha(files []mergedFile) string {
 	es := make([]updstore.Entry, len(files))
 	for i, f := range files {
@@ -225,7 +236,7 @@ func (r *supervisorRouter) startDeploy(ctx context.Context, me int64, b superdb.
 		r.abortDeploy(l, dep.ID, updproto.ListDeploy, "다른 단계가 먼저 시작됨")
 		return dep.ID, errors.New("다른 단계가 먼저 시작됐습니다")
 	}
-	req := updproto.Deploy{DeployID: dep.ID, List: updproto.ListDeploy, Version: b.Version, Stage: stageSha(files), Files: stageOf(files), Cols: cols, Rows: rows}
+	req := updproto.Deploy{DeployID: dep.ID, List: updproto.ListDeploy, Version: b.Version, Stage: stageSha(files), Files: stageOf(files), Replace: replaceFor(st, b, files), Cols: cols, Rows: rows}
 	if req.Steps, err = r.waitRuns(ctx, dep, updproto.ListDeploy, runnable(st.Deploy), me); err == nil && st.AutoRollback {
 		req.Rollback, err = r.waitRuns(ctx, dep, updproto.ListRollback, runnable(st.Rollback), me)
 	}

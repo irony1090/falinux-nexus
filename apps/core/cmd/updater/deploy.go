@@ -98,7 +98,7 @@ func (a *agent) runList(r *deployRun, steps []updproto.DeployStep) (result, msg 
 			return updproto.ResultCancel, "취소됨"
 		}
 		a.emit(updproto.MsgStepStart, updproto.StepStart{DeployID: d.DeployID, RunID: s.RunID})
-		run := updproto.Run{RunID: s.RunID, DeployID: updproto.DeployTag(d.DeployID), Version: d.Version, Stage: d.Stage, Files: d.Files, Step: s.Step, Cols: d.Cols, Rows: d.Rows}
+		run := updproto.Run{RunID: s.RunID, DeployID: updproto.DeployTag(d.DeployID), Version: d.Version, Stage: d.Stage, Files: d.Files, Step: s.Step, Replace: d.Replace, Cols: d.Cols, Rows: d.Rows}
 		a.mu.Lock()
 		j, err := newJob(a, run)
 		if err == nil {

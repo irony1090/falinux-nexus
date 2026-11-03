@@ -67,3 +67,23 @@
 	@include vars.font('body-small');
 	color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
+
+// 단계 실행 결과 아이콘·로그 상자·deploy | rollback 줄 — Run · Log 타일과 시험 타일 공용(updLog.hook.ts)
+// deploy | rollback = 오른쪽 벽 묶음(찰떡 "오른쪽 정렬 묶음")
+.upd-lists { padding: 6px 0; border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); }
+.upd-ic {
+	width: 18px;
+	text-align: center;
+	font-weight: vars.$weight-md;
+	&.ok { color: rgb(var(--v-theme-success)); }
+	&.bad { color: rgb(var(--v-theme-error)); }
+	&.run { color: rgb(var(--v-theme-primary)); }
+	&.idle { opacity: 0.5; }
+}
+.upd-log {
+	height: 240px;
+	margin: 0 0 8px;
+	padding: 6px 0 6px 8px;
+	background: rgb(var(--v-theme-terminal));
+	overflow: hidden;
+}

@@ -128,6 +128,24 @@ func (j *job) backup() error {
 		}
 		saved++
 	}
+	// 갈아치우기로 지울 파일도 저장 — restore가 files/에서 되돌린다(결정-12(되돌리기))
+	victims, err := j.replaceVictims(target)
+	if err != nil {
+		return err
+	}
+	for _, rel := range victims {
+		if err := j.ctx.Err(); err != nil {
+			return err
+		}
+		src := filepath.Join(target, filepath.FromSlash(rel))
+		st, err := os.Lstat(src)
+		if err != nil {
+			return err
+		}
+		if _, err := copyOne(src, filepath.Join(dir, "files", filepath.FromSlash(rel)), st.Mode().Perm()); err != nil {
+			return fmt.Errorf("백업 %s: %w", rel, err)
+		}
+	}
 	if err := os.WriteFile(filepath.Join(dir, "new-files.txt"), []byte(strings.Join(news, "\n")+"\n"), 0o644); err != nil {
 		return err
 	}
@@ -136,7 +154,7 @@ func (j *job) backup() error {
 	if err := writeFileAtomic(filepath.Join(dir, "manifest.json"), append(b, '\n'), 0o644); err != nil {
 		return err
 	}
-	j.say("backup %s — 있던 파일 %d개 저장, 새 파일 %d개 기록 (%s)", target, saved, len(news), dir)
+	j.say("backup %s — 있던 파일 %d개 저장, 새 파일 %d개 기록%s (%s)", target, saved, len(news), victimNote(len(victims)), dir)
 	pruneBackups(j.backupRoot(), keepBackups, dir)
 	return nil
 }
@@ -164,7 +182,8 @@ func pruneBackups(root string, keep int, keepAlso string) {
 	}
 }
 
-// copyFiles: staging(합친 결과) -> TARGET_DIR. 임시 이름에 쓴 뒤 이름 변경 — 실행 중 파일도 Linux는 이름 변경으로 바뀜(옛 프로세스는 옛 inode). 지우지 않음
+// copyFiles: staging(합친 결과) -> TARGET_DIR. 임시 이름에 쓴 뒤 이름 변경 — 실행 중 파일도 Linux는 이름 변경으로 바뀜(옛 프로세스는 옛 inode).
+// 지우는 것은 갈아치우기 폴더(run.Replace) 안 기존 파일뿐, 그것도 채우기 전에 먼저(결정-10(비우는 시점))
 func (j *job) copyFiles() error {
 	target, err := j.targetDir()
 	if err != nil {
@@ -175,8 +194,25 @@ func (j *job) copyFiles() error {
 			return err
 		}
 	}
+	victims, err := j.replaceVictims(target)
+	if err != nil {
+		return err
+	}
 	if _, err := j.findBackup(); err != nil {
 		j.say("주의: 이 배포의 backup이 없어 copy를 되돌릴 수 없습니다")
+	}
+	for _, rel := range victims {
+		if err := j.ctx.Err(); err != nil {
+			return err
+		}
+		old, err := removeFile(filepath.Join(target, filepath.FromSlash(rel)))
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("갈아치우기 %s 지우기: %w", rel, err)
+		}
+		j.say("지움 %s%s", rel, movedNote(old))
+	}
+	if len(j.run.Replace) > 0 {
+		j.say("갈아치우기 %s — 기존 파일 %d개 지움", strings.Join(j.run.Replace, "/ · ")+"/", len(victims))
 	}
 	for _, f := range j.run.Files {
 		if err := j.ctx.Err(); err != nil {
@@ -303,17 +339,98 @@ func copyOne(src, dst string, mode os.FileMode) (string, error) {
 	return old, err
 }
 
-// guardSelf: 보완-1(자기 폴더 보호) — TARGET_DIR 안에 updater 폴더가 있을 때(예: C:\Nexus\updater) 빌드 파일이 updater 자기 파일을 덮어쓰지 않게.
-// 폴더 전체가 아니라 updater가 쓰는 것만 막는다(설치 경로가 updater 폴더 안이어도 동작하게)
-func (j *job) guardSelf(dst string) error {
+// replaceDirs: run.Replace -> TARGET_DIR 안 절대 경로. 대상 밖 · updater 폴더 안 · updater 파일을 품은 폴더는 거절(결정-13(안전장치))
+func (j *job) replaceDirs(target string) ([]string, error) {
+	var out []string
+	for _, r := range j.run.Replace {
+		rel := filepath.FromSlash(r)
+		if !filepath.IsLocal(rel) {
+			return nil, fmt.Errorf("갈아치우기 폴더 %q가 설치 경로 밖을 가리킵니다", r)
+		}
+		d := filepath.Join(target, rel)
+		if err := j.guardSelf(d); err != nil {
+			return nil, err
+		}
+		for _, p := range j.ownPaths() {
+			if in, err := filepath.Rel(d, p); err == nil && filepath.IsLocal(in) {
+				return nil, fmt.Errorf("갈아치우기 폴더 %s 안에 updater 파일(%s)이 있어 비울 수 없습니다", d, p)
+			}
+		}
+		out = append(out, d)
+	}
+	return out, nil
+}
+
+// replaceVictims: 갈아치우기로 지울 파일(TARGET_DIR 기준 / 경로) = 폴더 안 기존 파일 중 이번에 쓰지 않는 것. 물린 옛 파일(*.old-*)은 남김
+func (j *job) replaceVictims(target string) ([]string, error) {
+	dirs, err := j.replaceDirs(target)
+	if err != nil || len(dirs) == 0 {
+		return nil, err
+	}
+	keep := map[string]bool{}
+	for _, f := range j.run.Files {
+		keep[f.Path] = true
+	}
+	var out []string
+	for _, d := range dirs {
+		err := filepath.WalkDir(d, func(p string, e fs.DirEntry, err error) error {
+			if err != nil {
+				if p == d && errors.Is(err, fs.ErrNotExist) { // 장비에 아직 없는 폴더
+					return nil
+				}
+				return err
+			}
+			if e.IsDir() {
+				return nil
+			}
+			rel, _ := filepath.Rel(target, p)
+			rel = filepath.ToSlash(rel)
+			if keep[rel] || isOldName(e.Name()) {
+				return nil
+			}
+			if !e.Type().IsRegular() {
+				return fmt.Errorf("%s는 보통 파일이 아니라 갈아치울 수 없습니다", p)
+			}
+			out = append(out, rel)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// isOldName: 잠긴 파일을 물린 이름 <이름>.old-20060102-150405(fs_windows.go oldName)
+func isOldName(n string) bool {
+	i := strings.LastIndex(n, ".old-")
+	return i >= 0 && len(n)-i-len(".old-") == len("20060102-150405")
+}
+
+func victimNote(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf(", 갈아치우기로 지울 파일 %d개 저장", n)
+}
+
+func (j *job) ownPaths() []string {
 	own := []string{j.a.cfg.path, j.a.statePath(), "staging", "backups", "logs", "updater.log", "updater.log.1"}
 	if exe, err := os.Executable(); err == nil {
 		own = append(own, exe)
 	}
-	for _, p := range own {
+	for i, p := range own {
 		if !filepath.IsAbs(p) {
-			p = filepath.Join(j.a.dir, p)
+			own[i] = filepath.Join(j.a.dir, p)
 		}
+	}
+	return own
+}
+
+// guardSelf: 보완-1(자기 폴더 보호) — TARGET_DIR 안에 updater 폴더가 있을 때(예: C:\Nexus\updater) 빌드 파일이 updater 자기 파일을 덮어쓰지 않게.
+// 폴더 전체가 아니라 updater가 쓰는 것만 막는다(설치 경로가 updater 폴더 안이어도 동작하게)
+func (j *job) guardSelf(dst string) error {
+	for _, p := range j.ownPaths() {
 		if rel, err := filepath.Rel(p, dst); err == nil && (rel == "." || filepath.IsLocal(rel)) {
 			return fmt.Errorf("%s는 updater가 쓰는 파일이라 쓰지 않습니다(%s)", dst, p)
 		}

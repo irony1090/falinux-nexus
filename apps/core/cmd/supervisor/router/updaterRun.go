@@ -393,7 +393,7 @@ func (r *supervisorRouter) updStartRun(c echo.Context) error {
 	}
 	run := r.updRuns.open(row.ID, u.MainKey, u.SubKey, step.Interactive)
 	r.updRuns.emit(run, []byte(fmt.Sprintf("[%s %s / %s · %s]\r\n", body.List, step.ID, ref.Version, time.Now().Format("2006-01-02 15:04:05"))))
-	req := updproto.Run{RunID: row.ID, DeployID: body.DeployID, Version: ref.Version, Stage: stageSha(files), Files: stageOf(files), Step: ps, Cols: body.Cols, Rows: body.Rows}
+	req := updproto.Run{RunID: row.ID, DeployID: body.DeployID, Version: ref.Version, Stage: stageSha(files), Files: stageOf(files), Step: ps, Replace: replaceFor(st, b, files), Cols: body.Cols, Rows: body.Rows}
 	cctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	if _, err := l.conn.Call(cctx, updproto.MsgRun, req); err != nil {
