@@ -7,6 +7,7 @@ import { instanceText } from '../util/member.util';
 import CtCheckbox from '@/feature/widget/component/CtCheckbox.vue';
 import CtSelect from '@/feature/widget/component/CtSelect.vue';
 import CtTextField from '@/feature/widget/component/CtTextField.vue';
+import { splitWsAddr } from '@/feature/worker/util/supervisorAddr.util';
 
 // 열린 장비 타일의 supervisor 주소 일괄 변경 — instance를 골라 보냄. 1개 = 저장된 주소 순위 / 여럿 = 바뀔 이름 (REF-device-move.md)
 const props = defineProps<{ devices: DeviceResponse[] }>();
@@ -50,6 +51,15 @@ watch(() => open.value && one.value?.instanceKey, key => {
     .then(r => { if (one.value?.instanceKey === key) addrs.value = r.addrs; })
     .catch(err => message.value = err?.message || '주소 목록을 못 읽었습니다');
 }, { immediate: true });
+
+// 순위 주소를 누르면 입력칸에만 넣는다(저장·옮기기는 버튼으로)
+const pick = (a: string) => {
+    const p = splitWsAddr(a);
+    if (!p) return;
+    scheme.value = p.scheme;
+    host.value = p.host;
+    message.value = undefined;
+};
 
 const submit = () => {
     const h = host.value.trim();
@@ -110,7 +120,7 @@ const submit = () => {
             <template v-if="one">
                 <p class="mb-lbl">저장된 주소(순위) · {{ one.text }}</p>
                 <ol v-if="addrs" class="ranks mb-mono">
-                    <li v-for="a in addrs" :key="a">{{ a }}</li>
+                    <li v-for="a in addrs" :key="a"><button type="button" class="pick" title="입력칸에 넣기" :disabled="busy" @click="pick(a)">{{ a }}</button></li>
                 </ol>
             </template>
             <template v-else-if="pickedRows.length > 1">
@@ -149,5 +159,19 @@ const submit = () => {
 .scheme { flex: 0 0 88px !important; }
 .mode { align-self: flex-end; }   // .ct-join > .ct-field(flex: 1)보다 우선
 .ranks { margin: 0; padding-left: 22px; }
+.pick {
+    padding: 0;
+    border: 0;
+    background: transparent;   // Vuetify reset이 button 기본 배경·테두리를 안 지움
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    word-break: break-all;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    &:disabled { cursor: default; }
+    &:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); border-radius: 2px; }
+}
 .names { margin: 0; white-space: pre-line; }
 </style>

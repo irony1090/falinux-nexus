@@ -179,7 +179,7 @@ export type Deployment = {
     result: DeployResult; rollbackResult: '' | DeployResult; autoRollback: boolean; msg: string
     startedByName: string; startedAt: number; endedAt: number | null
     build: boolean; buildSha: string; buildLocked: boolean; lockable: boolean
-    online: boolean; busy: boolean
+    online: boolean; busy: boolean; rollbackBlock: string   // 되돌리기를 막는 이유(빈 값 = 가능)
     deploy: StepDef[]; rollback: StepDef[]; runs: UpdRun[]; manual: UpdRun[]
 }
 export type DeployItem = { subKey: string; deployId?: number; error?: string }

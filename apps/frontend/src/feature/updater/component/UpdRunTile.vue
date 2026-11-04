@@ -66,7 +66,11 @@ const runStep = (row: Row) => {
 const rollback = async () => {
     const dd = d.value!;
     const names = dd.rollback.filter(s => !s.manual).map(s => s.id).join(' -> ');
-    if (!(await confirm(`되돌리기 · ${target.value}`, [`rollback 목록을 순서대로 실행합니다: ${names}`, '백업은 이 배포 때 만든 것을 씁니다.'], '되돌리기'))) return;
+    if (!(await confirm(`되돌리기 · ${target.value}`, [
+        `이 배포(#${dd.id} ${dd.version})를 취소하고 배포 직전 상태로 돌아갑니다. ${dd.version}으로 가는 것이 아닙니다.`,
+        `rollback 목록을 순서대로 실행합니다: ${names}`,
+        '특정 버전으로 가려면 되돌리기 대신 그 빌드를 다시 배포하세요.',
+    ], '되돌리기'))) return;
     await run(() => rollbackDeployment(dd.id, size()), () => { list.value = 'rollback'; unpin(); });
 };
 const cancel = () => {
@@ -92,6 +96,7 @@ const note = computed(() => {
     if (!dd.build) return '빌드가 지워져 단계 실행·되돌리기를 할 수 없습니다(기록은 남음)';
     if (!dd.online) return 'updater가 접속해 있지 않습니다';
     if (running.value) return dd.result === 'running' ? '배포 진행 중 · 개별 실행은 잠금 판정에 들어가지 않습니다' : '되돌리기 진행 중';
+    if (dd.rollbackBlock && dd.result !== 'running') return dd.rollbackBlock;
     if (dd.buildLocked) return '잠긴 빌드입니다. 배포는 계속할 수 있습니다';
     if (!dd.lockable) return dd.sha !== dd.buildSha ? '배포 뒤 빌드를 고쳐 지금 내용으로 성공한 기록이 없습니다' : '끝까지 성공한 배포가 있어야 잠글 수 있습니다';
     return '같은 내용으로 성공한 배포가 있어 잠글 수 있습니다';
@@ -156,7 +161,7 @@ const note = computed(() => {
     <mb-note :text="note" />
     <div class="mb-end">
         <button v-if="running || manualRunning" type="button" class="mb-btn mb-btn--danger" :disabled="busy" @click="cancel">취소</button>
-        <button type="button" class="mb-btn" :disabled="!canRun || running || !d.rollback.some(s => !s.manual)" @click="rollback">되돌리기</button>
+        <button type="button" class="mb-btn" :disabled="!canRun || running || !!d.rollbackBlock || !d.rollback.some(s => !s.manual)" :title="d.rollbackBlock || '이 배포를 취소하고 배포 직전 상태로'" @click="rollback">되돌리기</button>
         <button type="button" class="mb-btn mb-btn--primary" :disabled="busy || !d.lockable || d.buildLocked" @click="lock">{{ d.buildLocked ? '잠김' : '잠그기' }}</button>
     </div>
 </div>

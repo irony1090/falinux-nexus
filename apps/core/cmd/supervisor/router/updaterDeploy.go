@@ -281,6 +281,22 @@ func depBuild(c echo.Context, d superdb.GetDeploymentRow) (superdb.GetBundleRow,
 	return b, true
 }
 
+// rollbackBlock: 되돌리기를 막는 이유(빈 값 = 가능). 안 A(최신만 되돌리기) — restore는 디스크가 "그 배포 직후"라고 가정하므로
+// 나중 배포가 남아 있거나 이미 되돌린 배포를 되돌리면 백업이 가리키는 파일이 없어진다(11-04 흰 화면, REF-update-rules.md "되돌리기")
+func rollbackBlock(c echo.Context, d superdb.GetDeploymentRow) string {
+	if d.RollbackResult == "ok" {
+		return "이미 되돌린 배포입니다. 이 버전으로 가려면 빌드를 다시 배포하세요"
+	}
+	latest, err := TxQueries(c).LatestLiveDeploymentID(c.Request().Context(), superdb.LatestLiveDeploymentIDParams{MainKey: d.MainKey, SubKey: d.SubKey})
+	if err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	if latest != d.ID {
+		return fmt.Sprintf("나중 배포 #%d부터 되돌려야 합니다(되돌리기는 마지막 배포부터 거꾸로만)", latest)
+	}
+	return ""
+}
+
 // updRollback: Run·Log 타일 되돌리기 = 같은 배포의 rollback 목록. 배포가 끝난 뒤(성공이어도)만
 func (r *supervisorRouter) updRollback(c echo.Context) error {
 	me := r.requireAdmin(c)
@@ -288,6 +304,9 @@ func (r *supervisorRouter) updRollback(c echo.Context) error {
 	d := requireDeployment(c)
 	if d.Result == "running" || d.RollbackResult == "running" {
 		panic(web.Err(409, "배포·되돌리기가 아직 끝나지 않았습니다"))
+	}
+	if why := rollbackBlock(c, d); why != "" {
+		panic(web.Err(409, "%s", why))
 	}
 	b, ok := depBuild(c, d)
 	if !ok {
@@ -380,7 +399,8 @@ type updDeployDetail struct {
 	Lockable       bool         `json:"lockable"`    // 잠그기 판정(DB 함수)
 	Online         bool         `json:"online"`
 	Busy           bool         `json:"busy"`
-	Deploy         []updStepDef `json:"deploy"`   // 지금 steps.json 목록(빌드가 있고 오류 없을 때)
+	RollbackBlock  string       `json:"rollbackBlock"` // 되돌리기를 막는 이유(빈 값 = 가능), rollbackBlock
+	Deploy        []updStepDef `json:"deploy"`   // 지금 steps.json 목록(빌드가 있고 오류 없을 때)
 	Rollback       []updStepDef `json:"rollback"` // 같은 방식
 	Runs           []updRunItem `json:"runs"`     // 이 배포의 단계 기록(목록·순서대로)
 	Manual         []updRunItem `json:"manual"`   // 이 배포 뒤 같은 인스턴스의 개별 실행(최근 순)
@@ -403,7 +423,7 @@ func (r *supervisorRouter) updGetDeployment(c echo.Context) error {
 	q := TxQueries(c)
 	out := updDeployDetail{ID: d.ID, MainKey: d.MainKey, SubKey: d.SubKey, Version: d.Version, Sha: d.Sha, Result: d.Result, RollbackResult: d.RollbackResult,
 		AutoRollback: d.AutoRollback, Msg: d.Msg, StartedByName: d.StartedByName, StartedAt: d.StartedAt.Time.Unix(), EndedAt: tsPtr(d.EndedAt),
-		Deploy: []updStepDef{}, Rollback: []updStepDef{}, Runs: []updRunItem{}, Manual: []updRunItem{}}
+		Deploy: []updStepDef{}, Rollback: []updStepDef{}, Runs: []updRunItem{}, Manual: []updRunItem{}, RollbackBlock: rollbackBlock(c, d)}
 	if b, ok := depBuild(c, d); ok {
 		out.Build, out.BuildSha, out.BuildLocked, out.Lockable = true, b.Sha, b.Locked, b.Lockable
 		if r.upd.Enabled() {
