@@ -19,3 +19,9 @@
 # 이미지 사본(VIEW_CACHE_DIR 기본값, 개발 실행 = 소스 폴더 기준)
 /cmd/supervisor/view-cache/
 /cmd/supervisor/update-store/
+# updater 로컬 실행 흔적(updater.json = API 키) — 실행은 저장소 밖 설정으로 `-c ~/upd-test/updater.json`
+/cmd/updater/updater.json
+/cmd/updater/state.json
+/cmd/updater/staging/
+/cmd/updater/backups/
+/cmd/updater/logs/
