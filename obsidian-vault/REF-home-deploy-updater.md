@@ -21,14 +21,28 @@
 - 남은 것: 집 서버 updater 새 빌드 교체(나중, `install.ps1` 수동 — 옛 P4 updater는 replace 무시) · `C:\Nexus\nexus-before-updater.dump` 삭제(사용자, 이제 `updater\db-backups\`에 새 dump 있음)
 - (옛 줄) 다음: 단위-7(교체 빌드) — Updater 화면에서 집 서버 supervisor·worker 교체 빌드(`steps.json`)를 만들어 배포 → `REF-update-p4.md` "단위-7(교체 빌드) 후속"(정-1~정-3 사용자 답 대기)
 
-## updater 교체 — 사용자 직접 빌드 (2026-11-04 예정, 11-03 밤 사용자 "내일은 내가 직접")
+## updater 교체 — 사용자 직접 빌드 (2026-11-04 예정 -> 11-04 14:33 끝, 실제 방법 = 아래 "11-04 최신 배포 계획")
 | 순서 | 할 일 |
 |---|---|
 | 1. 태그 | `apps/core/cmd/updater/env` 첫 줄을 새 태그로(지금 `# UPDATER-P4-261103`, 예 `# UPDATER-FILES-261104`). 같은 태그면 `build.sh`가 "이미 있음"으로 멈춤 |
-| 2. 빌드 | 저장소 루트에서 `scripts/updater/build.sh` -> `build/updater/<태그>/windows-amd64/{updater.exe, install.ps1}`(linux-arm64도 같이 나옴) |
+| 2. 빌드 | 저장소 루트에서 `scripts/build.sh <폴더명> updater` -> `build/<폴더명>/updater/windows-amd64/{updater.exe, install.ps1}`(linux-arm64도 같이 나옴, 11-04 스크립트 바뀜 → `REF-build-scripts.md`) |
 | 3. 묶기 | 위 두 파일 + `setup.ps1`을 한 폴더에. **`setup.ps1`은 git에 없음** — `build/home-update/updater-p4/updater/setup.ps1`에서 복사(`$PSScriptRoot`의 `install.ps1`·`updater.exe`를 씀) |
 | 4. 확인 | Updater 화면에서 `home-server`에 진행 중 배포가 없는지(설치가 `NexusUpdater` 작업을 멈춤) |
 | 5. 설치 | 집 서버 관리자 PowerShell: `powershell -ExecutionPolicy Bypass -File .\setup.ps1` -> "이미 설치됨 — 설정은 그대로 두고 exe만" -> 작업 재시작. 키 다시 안 넣음 |
 | 6. 확인 | Updater 화면에서 인스턴스 online + 버전 = 새 태그. 이후 배포부터 `replace`(갈아치우기)가 먹음 |
 - 태그를 빌드 뒤 되돌릴지는 사용자 판단(P4 때 Claude는 supervisor·worker env만 되돌렸고 updater env는 그대로 둠)
+
+## 11-04 최신 배포 계획 (사용자 직접, updater 제외 -> updater는 Nexus 터미널로 수동)
+| 순서 | 할 일 |
+|---|---|
+| 1. 빌드 | `scripts/build.sh <폴더명> supervisor worker frontend --os windows` + `scripts/build.sh <폴더명> updater`. 태그 = 지금 그대로(`SUPERVISOR-FILES-261104`·`WORKER-…`·`UPDATER-FILES-261104`, 사용자 11-04) — 같은 태그 경고는 예상됨 |
+| 2. 묶음·배포 | `supervisor.exe`·`worker.exe`·`web/` + files-tile 묶음의 `steps.json`·`nexus-steps/` 재사용, **`updater/` 빼기**(보완-1(자기 폴더 보호)이 copy 전체 거절). 옛 P4 updater라 web은 합치기 |
+| 3. 확인 | 새 supervisor·worker 접속 |
+| 4. updater 수동 | Nexus 집 서버 장비 타일로 `updater.exe`·`install.ps1`·`setup.ps1`을 별도 폴더(예 `C:\Nexus\updater-new\`)에 올리고 터미널에서 `setup.ps1`. 터미널 = elevated(10-26 확인), updater는 `Start-ScheduledTask`로 SYSTEM 실행이라 Job과 무관, supervisor·worker 안 건드림 |
+| 5. 확인 | Updater 화면 인스턴스 online + 버전 |
+- **묶음(11-04, Claude가 만듦)** = `build/home-update/261104-files/`: `build/261104-files_win`(사용자 빌드, 폴더명 밑줄)의 `supervisor.exe`·`worker.exe`·`web/`(60개) + files-tile의 `steps.json`·`nexus-steps/*.ps1` 그대로(ASCII·LF). files-tile 빌드(`8123223`) 뒤 새 마이그레이션 없음 -> rollback에 DB 복원 불필요
+- **결과(11-04 14:18, 배포 #2, Claude가 Chrome으로 읽음)**: 빌드 이름 `supervisor-url-261104`(sha `70df8033`, 사용자가 잠금). 6단계 전부 성공 · stop 16s · dbdump = `C:\Nexus\updater\db-backups\nexus-20261104-141902-supervisor-url-261104.dump` 65,510 B · copy 67개 · start = supervisor pid 9024(port 8013) · 주 worker pid 9704 · prune = `worker.exe.old-20261103-182151` 지움. 공개 `index.html` = 새 해시 `index-L-Np3jCk.js`. updater는 아직 `UPDATER-P4-261103` -> 다음 = 4단계(updater 수동)
+- **updater 교체 폴더(11-04, Claude가 만듦)** = `build/home-update/updater-261104/`: `updater.exe`(`UPDATER-FILES-261104`)·`install.ps1`(261104-files_win) + `setup.ps1`(updater-p4에서, BOM 있음 — PS 5.1 한글). 집 서버 `C:\Nexus\updater-new\`에 올려 터미널에서 실행(사용자)
+- **updater 교체 결과(11-04 14:33, 사용자가 Nexus 디렉토리 타일에서 `setup.ps1` 실행)**: "이미 설치됨 — exe만" · 작업 `NexusUpdater` Running(마지막 결과 267009 = 0x41301 "작업 실행 중", 정상) · 로그 `updater UPDATER-FILES-261104 시작` -> `접속됨 home-server#OaO13Q8R`(서브키 그대로). Updater 화면 online + 버전 확인(Claude, Chrome). **집 서버 supervisor·worker·web·updater 전부 261104** — 이후 배포부터 `replace`(갈아치우기) 먹음. 남은 것 = `C:\Nexus\updater-new\` 삭제(사용자)
+- updater 웹 자기 교체: 서비스 관리자(예약 작업·systemd)로 재시작은 풀리지만 "새 updater가 못 붙을 때 되돌릴 주체"가 없어 보류(설계-10-3) — 지켜보는 스크립트 + `.old` 되돌리기 안은 `BACKLOG.md`
 

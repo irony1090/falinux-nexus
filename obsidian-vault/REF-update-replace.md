@@ -15,7 +15,7 @@
 | updater `restore` | 변경 없음(지운 파일은 `files/`에 있으므로 되돌아옴) |
 | 프론트 `UpdFilesTile.vue` | 폴더 행 `합치기 \| 갈아치우기`(결정-15(토글 모양)), 켤 때 확인 1회 -> steps.json 고쳐 쓰기 |
 | 시험 | `steps_test.go`(replace 검사) · `builtin_test.go`(replace backup -> copy -> restore 왕복) |
-| 배포 | `scripts/updater/build.sh`로 updater 새 빌드, 집 서버 교체는 사용자 |
+| 배포 | updater 새 빌드(11-04~ `scripts/build.sh <폴더명> updater`), 집 서버 교체는 사용자 |
 - **구현 결과(11-03)** — 단계 이름: 다-1(steps 검사) · 다-2(updater 처리) · 다-3(배포 메시지) · 다-4(steps.json 고쳐 쓰기) · 다-5(폴더 행 토글) · 다-6(확인)
   | 단계 | 실제 코드 |
   |---|---|

@@ -12,6 +12,7 @@
 
 ## REF / history 목록 (MEMORY 인덱스에서 옮김)
 - `REF-build.md`(빌드본 분리) / `history/build.md`
+- (11-04 분리, 마감 뒤 새 작업) `REF-build-scripts.md`(빌드 스크립트·빌드 태그) / `history/build-scripts.md`
 
 ## HISTORY 색인 행 (원문)
 ### `history/build.md` — 빌드본 분리 (2026-10-22 신설)

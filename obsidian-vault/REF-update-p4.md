@@ -59,7 +59,7 @@
 | 보완-1(자기 폴더 보호) | `builtin.go` `guardSelf`: updater가 쓰는 것만(설정 파일·`state.json`·`staging`·`backups`·`logs`·`updater.log*`·실행 파일) — `copy`는 전부 먼저 검사(하나라도 걸리면 아무것도 안 씀), `restore`도 같은 검사 |
 | 단위-4(설치) | `scripts/updater/install.ps1`(UTF-8 BOM·CRLF): `-Dir` 기본 `C:\Nexus\updater` · icacls 상속 끊고 SID `S-1-5-32-544`·`S-1-5-18`만 · 예약 작업 `NexusUpdater`(SYSTEM, 부팅 때, `ExecutionTimeLimit` 0, 1분 간격 재시작) · `updater.exe -log updater.log` |
 | 단위-4 로그 | `main.go` `-log`(상대 경로 = 설정 폴더, 켤 때 5MB 넘으면 `.1`로 넘김) — 예약 작업엔 journal이 없어서 |
-| 단위-5(빌드) | `scripts/updater/build.sh` -> `build/updater/<태그>/{linux-arm64, windows-amd64}` + 설치 스크립트. 태그 `UPDATER-P4-261103` |
+| 단위-5(빌드) | `scripts/updater/build.sh` -> `build/updater/<태그>/{linux-arm64, windows-amd64}` + 설치 스크립트(**11-04 `scripts/build/updater.sh`로 옮김 → `REF-build-scripts.md`**). 태그 `UPDATER-P4-261103` |
 
 ## 계획과 달라진 것 (구현 중)
 | 차이 | 내용 · 이유 |

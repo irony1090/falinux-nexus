@@ -10,7 +10,7 @@
 - 폴더-4(실행): 실행 가능한 파일만 "실행" -> 새 터미널 타일, 마이그레이션 00012 `dir_node_id`, 형식 변환 없는 직접 실행
 - 폴더-6(보드 이동)·Q9(루트 장비 탭): 장비 타일 새 보드로 분리·다른 보드로 이동, 루트면 `[파일] [터미널 N]`(그 장비의 볼 수 있는 process 전부, `GET /workers/:main/runs`), 연 폴더 삭제 = "볼 수 없음"
 - 확인: 격리 REST·헤드리스·Windows VM 각 단계 + 사용자 브라우저 확인 OK(test3 `build/worker-dir` + VM worker `win-dev`, 2026-10-23)
-- 커밋: 브랜치 `feat/worker-dir`(`refactor/tile-kinds` 위) -> 2026-10-23 master `--no-ff` 머지. 같은 커밋에 `scripts/build.sh` 태그 출력(→ `REF-build.md` "빌드 태그")
+- 커밋: 브랜치 `feat/worker-dir`(`refactor/tile-kinds` 위) -> 2026-10-23 master `--no-ff` 머지. 같은 커밋에 `scripts/build.sh` 태그 출력(→ `REF-build-scripts.md` "빌드 태그", 11-04 옮김)
 
 ## REF / history 목록 (MEMORY 인덱스에서 옮김)
 - `REF-worker-dir-list.md`(폴더-1(목록 요청)·2(장비 타일)·3(여는 곳)·뒤로-1(타일 안 이동 기록)) / `history/worker-dir-list.md`
