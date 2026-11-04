@@ -57,3 +57,13 @@
 ## 2026-11-02 — 규칙 개정
 - `REF-update-rules.md` 다시 씀: 잠금 = 빌드 단위·`잠그기`·sha 조건·`update_locks`, 삭제 규칙 신설, 되돌리기 = `rollback` 목록·내장 `restore`(스크립트 `trap` 폐기), 버전 = updater `state.json` 설치본 이름(실행 중 비교 폐기), 권한 = 관리자만
 - 위 10-30 엔트리(arch 단위 잠금·`배포 완료`·`//go:embed env` 버전·내 장비 배정 표시)는 옛 규칙의 기록이라 그대로 둠
+
+## 2026-11-04 — 로컬 updater 시험 · 되돌리기 순서(안 A(최신만 되돌리기))
+- 사용자가 회사 PC에서 updater를 직접 실행(`go run ./cmd/updater -c …`, `-c` 필수 — 기본 경로가 go-build 임시 폴더) -> test3(8013) 장비 루트 `dev-main`. 질문: updater `env` = 빌드 태그만(`//go:embed`라 지우면 컴파일 실패, 설정은 `updater.json`) · `update-store` = supervisor 보관소(`UPDATE_STORE_DIR`, 빌드 폴더 공유 `../update-store`로 바꿈)
+- 사용자 직접 `steps.json` = backup -> copy(web만이라 start 불필요, echo Static이 디스크에서 읽음). 처음 `targetDir` 오타(`/home/irony/…`) 지적 -> 고침
+- 배포 후 API_URL 잘못된 빌드를 손으로 교체 -> DB·보관소·staging 불일치(같은 sha 재배포 = 옛 staging 재사용 위험) -> 새로 올려 재배포로 정리
+- **흰 화면**: d2 -> d3 배포 뒤 d2를 먼저 되돌림(d2 새 파일 삭제) -> d3 되돌리기 = d3 백업 `index.html`이 지워진 JS를 가리킴. d2 재되돌리기도 손으로 바꾼 뒤라 흰 화면. 원인 = `restore`는 디스크가 "그 배포 직후"라고 가정, 서버에 순서·중복 검사 없음
+- 사용자 오해 확인: 되돌리기 = "그 버전으로"가 아니라 "그 배포 직전으로"(배포 취소). 특정 버전 = 재배포
+- 결정: 안 A(최신만 되돌리기) + 이미 되돌린 배포 거절 + 확인 창 문구. 구현 = 쿼리 `LatestLiveDeploymentID` · `rollbackBlock`(409 + 상세 필드) · `UpdRunTile` 버튼·안내·문구. 첫 시험 때 버튼이 켜져 보임 = supervisor가 옛 빌드(web만 새것) -> supervisor만 재빌드·재시작 -> 사용자 확인
+- 사용자 질문: 백업 위치 = updater `backups/d<id>/{files, new-files.txt, manifest.json}` 최근 3개 · 현재 빌드 = 장비 타일 인스턴스 줄 "설치본"(`state.json` installed, 되돌리면 `prevInstalled`)
+

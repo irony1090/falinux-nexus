@@ -65,6 +65,9 @@
 ## updater 인가
 - **updater 인가**(2026-11-02, 파트(업데이트 app) P2(updater Linux)): updater 접속 = 메인키 + **장비 루트별 키 `nxu_`**(worker 키 `nxk_`와 별개, 저장·다시 보기 방식은 같음). 장비 루트는 관리자가 만들 때 키 발급 — 첫 접속 자동 생성 없음. updater 화면·API = 관리자만(장비 주인에게도 안 보임) (→ `REF-update-p2.md` 정-1(접속 인증), `REF-update-deploy.md`)
 
+## updater 되돌리기
+- 2026-11-04. 되돌리기 = 그 배포를 취소해 **배포 직전 상태로**(그 버전으로 가는 게 아님). `restore`는 디스크가 "그 배포 직후"라고 가정하므로 인스턴스마다 아직 되돌리지 않은 가장 나중 배포만(역순), 이미 되돌린 배포는 거절. 특정 버전 = 그 빌드 재배포. 손으로 바꾼 파일은 updater가 모름 → `REF-update-rules.md` "되돌리기" · 계기 `history/update-rules.md` 11-04
+
 ## 배포 전 필수
 - **배포 전 필수**(2026-10-26): 회원이 이미 있는 DB에 배포할 때는 **관리자로 지정할 회원을 먼저 사용자에게 묻는다**. worker 실행 파일과 env `API_KEY`는 같이 바꾼다 (→ `REF-member.md` "배포 전 확인", 집 서버 → `REF-home-server.md`)
 

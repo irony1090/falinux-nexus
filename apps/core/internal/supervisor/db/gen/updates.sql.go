@@ -800,6 +800,23 @@ func (q *Queries) IsLockable(ctx context.Context, pBundle int64) (bool, error) {
 	return column_1, err
 }
 
+const latestLiveDeploymentID = `-- name: LatestLiveDeploymentID :one
+SELECT COALESCE(MAX(id), 0)::bigint FROM update_deployments WHERE main_key = $1 AND sub_key = $2 AND rollback_result <> 'ok'
+`
+
+type LatestLiveDeploymentIDParams struct {
+	MainKey string
+	SubKey  string
+}
+
+// 되돌리기 차례 = 그 인스턴스에서 아직 되돌리지 않은 가장 나중 배포(0 = 없음) — REF-update-rules.md "되돌리기"
+func (q *Queries) LatestLiveDeploymentID(ctx context.Context, arg LatestLiveDeploymentIDParams) (int64, error) {
+	row := q.db.QueryRow(ctx, latestLiveDeploymentID, arg.MainKey, arg.SubKey)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const listBundleFiles = `-- name: ListBundleFiles :many
 
 SELECT bundle_id, scope, sub_key, path, size, sha, updated_by, updated_at, mode FROM update_files WHERE bundle_id = $1 ORDER BY scope, sub_key, path

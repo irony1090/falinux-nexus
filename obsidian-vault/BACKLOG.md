@@ -15,8 +15,11 @@
 - **DeepSeek 키 재발급 · `ds.sh` 인자 노출 개선** · 2026-11-03 · 사용자 판단 대기 · 키가 `curl -H` 인자라 프로세스 목록·`pgrep -af`로 보임(11-03 세션 출력에 노출됨). 키 재발급 + `-H @파일`/stdin 설정으로 넘기도록 고칠지 → `~/.claude/tools/ds.sh` · `history/update-files-tile.md` 교훈
 - **Nexus 안 타일 간 끌어 오기(Files 타일로)** · 2026-11-03 · 필요해지면 · 이번엔 PC 탐색기 끌어 놓기만(결정-4(끌어 놓기 출처)). 장비 파일 목록에서 끌어 오려면 `transfers.store`와 연결 → `REF-update-files-tile.md`
 - **시험 기록 정리** · 2026-11-03 · 시험을 자주 해 쌓이는 게 보일 때 · 단독 실행 기록(`update_step_runs.deployment_id NULL`)과 `logs/<id>.log` 지우는 코드 없음(질문-3(기록 쌓임)) → `REF-update-trial.md` "시험-1(서버 조회) 구현"
+- **Files 타일 끌기 안내 말풍선 위치** · 2026-11-03 · 사용자가 원할 때 · 목록이 짧으면 시안 ③(푸터 바로 위)과 달리 목록 바로 아래에 뜸(sticky) → `REF-update-files-tile.md` 단위-나 구현 결과
 - **갈아치우기 — 공용 묶음·서브키 폴더** · 2026-11-03 · 필요해지면 · 이번엔 메인키 탭 폴더만(결정-11(적용 범위)) → `REF-update-files-tile.md`
 - **시안 보정 반영 범위** · 2026-11-02 · 사용자 판단 대기 · DeepSeek v2에 찰떡 보정 미반영 / Files 범위 탭·Run·Log deploy-rollback도 안 C로 통일할지 → `REF-design-chaltteok.md`
+
+- **updater 실행 파일 git 제외** · 2026-11-04 · 다음 updater 작업 때 · 로컬 시험 `apps/core/cmd/updater/`에 `updater.json`(API 키)·`state.json`·`staging/`·`backups/`·`logs/`가 생기는데 `.gitignore`에 없음. 저장소 밖으로 옮기거나 ignore 추가 → `CURRENT.md` 11-04
 
 ## 다음 파트 후보 (기능)
 - **타일 ESC로 닫기** · 2026-10-27 · **다음 파트로 예정(사용자)** · 타일별로 ESC 등 키를 누르면 그 타일을 끄는 동작. 착수 때 조율: ① 터미널 타일 안 ESC = 프로그램 입력(vim 등)과 충돌 ② "끄다" = 닫기인지 최소화인지 ③ "등" = 다른 키도? ④ 어느 타일이 대상인지(active 타일만?) ⑤ 앱 단축키 규칙(`appShortcutsOff` 검사 맨 앞, MEMORY "앱 단축키") · REF 없음, 착수 때 신설

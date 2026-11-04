@@ -4,6 +4,7 @@ import { VCard, VCardText, VCardTitle, VDialog, VForm } from 'vuetify/components
 import CtSelect from '@/feature/widget/component/CtSelect.vue';
 import CtTextField from '@/feature/widget/component/CtTextField.vue';
 import { listWorkerAddrs, moveAllWorkers, moveWorker, type MoveAllResult } from '../api/worker.api';
+import { splitWsAddr } from '../util/supervisorAddr.util';
 
 // supervisor 주소 변경 — 주소-5(화면), REF-supervisor-move.md. instance가 있으면 그 장비 하나(장비 타일 메뉴), 없으면 접속 중 전부(헤더 메뉴, worker_move 권한)
 // worker는 새 주소를 1순위로 저장하고, 못 붙으면 다음 순위(옛 주소)로 돌아간다
@@ -38,6 +39,15 @@ watch(open, val => {
     done.value = undefined;
     load();
 })
+
+// 순위 주소를 누르면 입력칸에만 넣는다(저장·옮기기는 버튼으로)
+const pick = (a: string) => {
+    const p = splitWsAddr(a);
+    if (!p) return;
+    scheme.value = p.scheme;
+    host.value = p.host;
+    message.value = undefined;
+}
 
 const onSubmit = () => {
     const h = host.value.trim();
@@ -94,7 +104,7 @@ const onSubmit = () => {
                 <template v-if="addrs">
                     <p class="label">저장된 주소(순위)</p>
                     <ol class="list mono">
-                        <li v-for="a in addrs" :key="a">{{ a }}</li>
+                        <li v-for="a in addrs" :key="a"><button type="button" class="pick" title="입력칸에 넣기" @click="pick(a)">{{ a }}</button></li>
                     </ol>
                 </template>
                 <template v-if="results?.length">
@@ -124,6 +134,19 @@ const onSubmit = () => {
 .note { margin: 0; @include vars.font('body-medium'); opacity: 0.7; &.ok { color: rgb(var(--v-theme-success)); opacity: 1; } }
 .label { margin: 0; @include vars.font('label-medium'); opacity: 0.7; }
 .list { margin: 0; padding-left: 20px; @include vars.font('body-medium'); }
+.pick {
+    padding: 0;
+    border: 0;
+    background: transparent;   // Vuetify reset이 button 기본 배경·테두리를 안 지움
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    word-break: break-all;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    &:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); border-radius: 2px; }
+}
 .mono { font-family: monospace; }
 .res { display: flex; gap: vars.$spacing-md; @include vars.font('body-small'); min-width: 0; }
 .key { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

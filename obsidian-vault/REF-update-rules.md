@@ -40,6 +40,7 @@
 - 스크립트 단계 실패·timeout: 프로세스 트리 종료 → 배포 실패 표시 → 되돌리기 버튼 제안
 - `builtin`은 셸을 거치지 않아 Linux·Windows 같은 코드(`robocopy` 종료코드 1~7 함정 없음). Windows에서 다른 건 `script` 단계의 스크립트 종류(`.ps1`)와 프로세스 트리 종료
 - supervisor DB 되돌리기 = updater 범위 밖, 빌드 작성자가 스크립트로(설계-8(supervisor 되돌리기) → `REF-update-deploy.md` "대상의 의존성"). 자기 교체 = 확정(설계-10(자기 교체) → `REF-update-deploy.md` "자기 교체")
+- **되돌리기 순서 = 안 A(최신만 되돌리기)(11-04 사용자 확정)**: 되돌리기 = "그 배포를 취소 = 배포 직전 상태로"(그 버전으로 가는 게 아님). 백업은 배포마다 쌓이고 `restore`는 디스크가 "그 배포 직후"라고 가정 -> 인스턴스마다 **아직 되돌리지 않은 가장 나중 배포만** 되돌림(`rollback_result <> 'ok'`의 MAX id, 쿼리 `LatestLiveDeploymentID`). 이미 되돌린 배포(`ok`)도 거절, `fail`·`cancel`은 다시 시도 가능. 서버 `rollbackBlock`(`router/updaterDeploy.go`) 한 곳 -> `updRollback` 409 + 상세 `rollbackBlock` 필드 -> `UpdRunTile` 버튼 비활성·안내 줄. 특정 버전으로 가기 = 그 빌드 재배포. 계기 = 11-04 흰 화면(d3이 깔린 채 d2 되돌림 → `CURRENT.md`). 손으로 바꾼 파일은 updater가 모름 = 운영 규칙(updater 대상은 손으로 바꾸지 않음)
 - 기각한 안: 단계별 rollback 파일 짝(`00-stop.rollback.sh`) · 한 스크립트 + `STAGE=rollback` 분기 · 스크립트 `trap` 자기 되돌림(신호 문제)
 
 ## 버전 표시 (11-02 개정)

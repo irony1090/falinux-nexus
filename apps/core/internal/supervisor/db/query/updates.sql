@@ -247,6 +247,10 @@ UPDATE update_deployments SET result = $2, msg = $3, ended_at = NOW() WHERE id =
 UPDATE update_deployments SET rollback_result = $2, msg = CASE WHEN sqlc.arg(msg)::text = '' THEN msg ELSE sqlc.arg(msg)::text END
 WHERE id = $1;
 
+-- name: LatestLiveDeploymentID :one
+-- 되돌리기 차례 = 그 인스턴스에서 아직 되돌리지 않은 가장 나중 배포(0 = 없음) — REF-update-rules.md "되돌리기"
+SELECT COALESCE(MAX(id), 0)::bigint FROM update_deployments WHERE main_key = $1 AND sub_key = $2 AND rollback_result <> 'ok';
+
 -- name: CancelLostDeployments :many
 -- updater 재접속 때 — 그 인스턴스의 끝나지 않은 배포·되돌리기 중 updater가 모르는 것(updater 재시작 = 중단, REF-update-p3.md "합의한 해석")
 UPDATE update_deployments SET
