@@ -101,3 +101,9 @@
 | 가져오기-4(화면) | `UnregisteredDialog.vue` 찰떡으로 다시(`ct-card`·행 끝 `ct-grp--r` [가져오기(accent) · 끄기(error) · 강제(txt)]·창 아래 `ct-actions` [새로 고침 · 닫기]), 가져오면 창 닫힘 · `nodeOps.adopt` -> `processTerm.adopt` -> `process.api` `adoptUnregistered` · `DeviceTile`이 `tile-id` 넘김 |
 | 가져오기-5(확인) | 격리 A 5051(`nexus_member_tmp`)·B 5052(`nexus_adopt_b`, 새 DB)·C 5053(`nexus_adopt_c`, A 복사본) + vite 3001·3002·3003 + worker `jig-a`. scratchpad `adopt2.mjs` **22/22**: B에 dora가 같은 키로 장비 등록 -> 옮김 -> 미등록 2개 -> eve 폴더 403·가져오기 404 -> dora 가져오기(행 = 주인 dora·node 없음·dir = 폴더·PROCESS) -> 이전 화면 tick-1부터 -> 출력 이어짐 -> 목록에서 빠짐 -> 두 번째 404 -> 종료 / C로 옮김 -> alice 가져오기 = 스크립트 node 연결·실행 기록에 보임 / A로 돌아감 -> A 행으로 그대로 이어짐. `adopt3.mjs` 화면 6/6(장비 타일 메뉴 -> 창 -> [가져오기] -> 터미널 타일, tick-1부터 보임) |
 - 함정: 키는 supervisor DB마다 따로 -> 새 supervisor에선 장비를 **같은 키로** 등록해야 worker가 붙음(내 장비 "키 붙여넣기"·등록 때 `apiKey`). DB를 통째로 옮기면 그대로
+
+## 순위 눌러 입력 (2026-11-04)
+- 주소 바꾸기 창의 "저장된 주소(순위)" 줄 = `button.pick`. 누르면 `splitWsAddr`(`worker/util/supervisorAddr.util.ts`)로 방식·호스트를 나눠 두 입력칸에 넣음. 저장·옮기기는 안 함(Q2(입력 방식))
+- 적용 창 = 장비 타일 `SupervisorMoveDialog.vue` + 일괄 변경 `DeviceMoveDialog.vue`(instance 1개일 때, `busy` 중 비활성)(Q1(대상 창))
+- 모양 = 항상 밑줄(글자 그대로, 배경 없음) — hover 배경 상자는 "버튼 같아 부담"(사용자). 안 A(항상 밑줄) = 폰엔 hover가 없어서. 젤리 없음(목록 줄 글자)
+- **함정**: Vuetify 4 reset(`core.reset`)은 `button`의 font·color·cursor만 바꾸고 **배경·테두리·padding은 브라우저 기본 그대로** -> 맨 `<button>`을 글자처럼 쓰려면 `padding: 0; border: 0; background: transparent` 필수(11-04 첫 배포에서 회색 상자로 보여 사용자 지적)

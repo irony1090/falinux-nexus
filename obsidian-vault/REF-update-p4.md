@@ -78,7 +78,9 @@
 - 무엇: Updater 화면에서 장비 루트 `home-server`에 빌드를 만들어 집 서버 supervisor·worker를 updater로 교체. 코드 변경 없음(빌드 = 보관소 `steps.json` + `.ps1`). 문제가 나오면 새 브랜치로 고침
 - 흐름 초안: deploy = supervisor·주 worker 끄기 -> `pg_dump` -> `backup` -> `copy` -> `Start-ScheduledTask Nexus` -> 8013 응답 확인 / rollback = `restore` -> 켜기, DB 복원 = `manual: true`. 올릴 것 = 지금과 같은 코드, 태그만 바꾼 exe
 - builtin `backup` = 파일만(`updater\backups\<배포 id>`, 최근 3회 보존). DB는 빌드 스크립트가 맡음
-- **사용자 답 대기(11-03)**:
+- **사용자 답(11-03 밤)**: updater 교체 = **나중**(이번 배포는 옛 P4 updater -> replace 무시, `web/`도 합치기) · 정-1(old 정리 단계) = **넣음**(배포 끝 `*.old-*` 삭제, 사용 중이면 넘어감) · 정-2(DB 백업 자리) = **`updater\db-backups\` + 최근 3개** · 정-3(관찰 방식) = 아직 답 없음
+- 알아 둘 것: 단계 스크립트·`steps.json`도 빌드 파일이라 `copy`가 `TARGET_DIR`(`C:\Nexus`)에 같이 깖(`mergedFiles`가 빌드 파일 전부) -> 스크립트는 하위 폴더 하나에 모음
+- **처음 질문(11-03)**:
   - 정-1(old 정리 단계): 배포 중 보관 프로세스가 `worker.exe`를 쥐고 있으면 `worker.exe.old-<시각>`이 생김 -> 배포 끝에 `*.old-*` 삭제 시도(사용 중이면 넘어감) 단계를 넣을지
   - 정-2(DB 백업 자리): `pg_dump` 결과를 `C:\Nexus`가 아니라 updater 쪽(예: `updater\db-backups\`)에 두고 최근 3개만 남길지
   - 정-3(관찰 방식): 배포 중 supervisor가 꺼져 Updater 화면·Nexus 터미널이 잠깐 끊김 -> 회사에서 이대로 지켜봐도 되는지 / 실패 되돌리기도 집 서버에서 한 번 볼지

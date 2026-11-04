@@ -24,3 +24,8 @@
 - 사용자 추가 요청: 옮긴 뒤 미등록 process를 새 supervisor의 장비 주인이 등록·타일로 -> 조율: EXEC만 · 주인 = 가져온 쪽 장비 주인(superA UserC 실행 -> superB UserD가 가져오면 UserD) · worker가 옛 쪽으로 돌아가면 옛 행으로(①) · node 찾기 = 실행 경로 `/<id>/<uid>`(사용자 질문 "node는 어떻게 찾아?") · `feat/member`에서 · 찰떡 UI 참고
 - 구현 가져오기-1~4 → REF "가져오기 구현". 확인 = 격리 supervisor 3개(A·새 DB B·A 복사본 C) + worker, `adopt2.mjs` 22/22 · 화면 `adopt3.mjs` 6/6. 함정: 키는 DB마다 따로(새 DB면 같은 키로 등록)
 - 사용자 확인 -> 커밋 `fa50c64`, 격리 전부 닫고 임시 DB 지움
+
+## 2026-11-04 — 주소 순위 눌러 입력 (BACKLOG에서 착수, `feat/addr-rank-pick`)
+- 조율: Q1(대상 창) 두 창 다 · Q2(입력 방식) 방식·호스트 나눠 채움, 저장 안 함 · Q3 코드 = Claude, 빌드·배포 = 사용자 · Q4 test3 `web/`만
+- 첫 모양 = hover 배경 상자 -> 사용자 "버튼 같아 부담" -> 안 A(항상 밑줄) -> 배포 보니 회색 배경 = Vuetify 4 reset이 button 배경·테두리를 안 지움 -> `padding:0; border:0; background:transparent`. 사용자가 updater로 배포해 확인
+
