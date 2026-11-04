@@ -31,6 +31,7 @@
 - 페이지 이동(마감) → `INDEX-tile-move.md` (tile-move)
 - 리팩터링(마감) → `INDEX-refactor.md` (refactor-socket·refactor-socket-batches·refactor-cleanup)
 - 빌드본 분리(마감) → `INDEX-build.md` (build)
+  - 2026-11-04 `history/build-scripts.md` 신설(↔ `REF-build-scripts.md`) — 빌드 스크립트 대상별로 나눔 · 집 서버 빌드로 실사용 · 커밋·master 머지
 - 새 보드·IUTF8(마감) → `INDEX-fix-board-iutf8.md` (fix-board-iutf8)
 - process 살려 두기(마감) → `INDEX-process-keep.md` (process-keep)
 - 타일 종류 정리(마감) → `INDEX-tile-kinds.md` (tile-kinds)
@@ -83,7 +84,7 @@
 | `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환 계획·회사 준비 |
 | `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝(`nexus`·`direct`), cloudflared 정지, 남은 것 BACKLOG "cloudflared 삭제"(10-29) |
 | `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-29 저녁 drag 묶음 배포 완료(worker 항상 포함 규칙) |
-| `history/home-deploy-updater.md` | 집 서버 배포: updater 이후(2026-11-03 신설) ↔ `REF-home-deploy-updater.md` | 11-03 updater-p4 묶음(VM setup 확인 6/6) · 집 서버 설치 · C:\Nexus 정리 |
+| `history/home-deploy-updater.md` | 집 서버 배포: updater 이후(2026-11-03 신설) ↔ `REF-home-deploy-updater.md` | 11-03 updater-p4 묶음(VM setup 확인 6/6) · 집 서버 설치 · C:\Nexus 정리 · 11-04 최신 배포(261104, 배포 #2) + updater 교체(디렉토리 타일에서 setup.ps1) |
 | `history/update-deploy.md` | 파트(업데이트 app) 설계·화면(2026-10-30 신설, 10-30 분할) ↔ `REF-update-deploy.md` | 11-02 저녁 시안 확정 · P1(보관·화면) 계획 확정, 코드 착수 전 |
 | `history/update-rules.md` | 파트(업데이트 app) 규칙 — 잠금·삭제·되돌리기·버전(2026-10-30 분할) ↔ `REF-update-rules.md` | 11-02 규칙 개정(빌드 단위 잠그기·삭제·rollback 단계) · 11-04 로컬 updater 시험·흰 화면·되돌리기 순서 안 A |
 | `history/update-redesign.md` | 파트(업데이트 app) 설계 개정 결정·시안(2026-11-02 신설) ↔ `REF-update-redesign.md` | 11-02 설계-1~7·9·11·12 합의 + 시안 보정 + 본문 개정 |

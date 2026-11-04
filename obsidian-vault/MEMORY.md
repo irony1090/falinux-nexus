@@ -63,7 +63,7 @@
 - supervisor PostgreSQL = docker 컨테이너 **`postgres15`**(`docker start postgres15` — `postgres`는 이미지명). user `irony` / pass `!Fa1289` / `5432`. 기본 DB `workspace`(구 PortBridge), `nexus` DB는 수동 생성(2026-06-26)
 - supervisor 띄우면 `init()`의 mountStore가 goose 마이그레이션 자동 적용(멱등)
 - **포트**: supervisor 8012(0.0.0.0) · 프론트 8011 · worker -> localhost:8012(외부 접속 설정, 되돌리는 법 → `REF-external-access.md`)
-- **빌드본 = 사용용**: `build/<이름>`(`scripts/build.sh`) = **8013(test3) · DB `nexus_build`**. 사용자 Claude 세션이 그 위에서 돎 — **Claude는 8013을 끄지 않는다**(재기동 = 사용자). 개발 실행 = `go run ./cmd/supervisor -env dev.env` 필수 (→ `REF-build.md`)
+- **빌드본 = 사용용**: `build/<이름>`(`scripts/build.sh`, 대상별 `scripts/build/*.sh` → `REF-build-scripts.md`) = **8013(test3) · DB `nexus_build`**. 사용자 Claude 세션이 그 위에서 돎 — **Claude는 8013을 끄지 않는다**(재기동 = 사용자). 개발 실행 = `go run ./cmd/supervisor -env dev.env` 필수 (→ `REF-build.md`)
 - **Windows VM `nexus-win` = 시험할 때만 켠다**(코드 작성 중엔 `docker stop`) (→ `REF-windows-vm.md`) / 포트 점유 함정(`bind: address already in use`) → `REF-test-env.md`
 
 ## apps/core 디렉토리

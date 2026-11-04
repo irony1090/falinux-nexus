@@ -19,9 +19,9 @@
 - **갈아치우기 — 공용 묶음·서브키 폴더** · 2026-11-03 · 필요해지면 · 이번엔 메인키 탭 폴더만(결정-11(적용 범위)) → `REF-update-files-tile.md`
 - **시안 보정 반영 범위** · 2026-11-02 · 사용자 판단 대기 · DeepSeek v2에 찰떡 보정 미반영 / Files 범위 탭·Run·Log deploy-rollback도 안 C로 통일할지 → `REF-design-chaltteok.md`
 
-- **updater 실행 파일 git 제외** · 2026-11-04 · 다음 updater 작업 때 · 로컬 시험 `apps/core/cmd/updater/`에 `updater.json`(API 키)·`state.json`·`staging/`·`backups/`·`logs/`가 생기는데 `.gitignore`에 없음. 저장소 밖으로 옮기거나 ignore 추가 → `CURRENT.md` 11-04
 
 ## 다음 파트 후보 (기능)
+- **updater 웹 자기 교체** · 2026-11-04 · 수동 교체가 번거로워질 때 · 교체 단계(새 exe + `.old` 남김 + 예약 작업·systemd 재시작) + 지켜보는 스크립트(N분 안에 접속 표시 없으면 `.old`로 되돌림) + 보완-1(자기 폴더 보호) 예외 → `REF-home-deploy-updater.md` "11-04 최신 배포 계획" · `REF-update-deploy.md` 설계-10-3
 - **타일 ESC로 닫기** · 2026-10-27 · **다음 파트로 예정(사용자)** · 타일별로 ESC 등 키를 누르면 그 타일을 끄는 동작. 착수 때 조율: ① 터미널 타일 안 ESC = 프로그램 입력(vim 등)과 충돌 ② "끄다" = 닫기인지 최소화인지 ③ "등" = 다른 키도? ④ 어느 타일이 대상인지(active 타일만?) ⑤ 앱 단축키 규칙(`appShortcutsOff` 검사 맨 앞, MEMORY "앱 단축키") · REF 없음, 착수 때 신설
 - **업로드 한계 보강** · 2026-10-23 · 필요해지면 · 대기 파일 목록 표시·탭 닫은 뒤 이어 올리기·폴더째 올리기(Q26)·worker 간 폴더 전송(Q36, → `REF-transfer-down.md`) → `REF-transfer-ext.md` "알려진 한계"
 - **SFTP 접근** · 2026-10-22 · **진행할 작업이 전혀 없을 때 이야기**(2026-10-23 Q21) · supervisor SFTP 서버로 `/{메인키}/{서브키}/...` 접근, 답 3개 대기 → `REF-worker-dir.md` "나중에"

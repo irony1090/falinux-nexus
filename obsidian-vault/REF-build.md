@@ -1,6 +1,6 @@
 # REF — 빌드본 분리 (개발 실행과 사용 실행 나누기)
 
-> → `history/build.md` / → `CURRENT.md` / 외부 접속 포트 → `REF-external-access.md`
+> → `history/build.md` / 빌드 스크립트·태그 → `REF-build-scripts.md` / → `CURRENT.md` / 외부 접속 포트 → `REF-external-access.md`
 
 ## 목적
 사용자가 Claude 세션 등을 Nexus(개발 실행) 위에서 쓰고 있어, 개발 중 supervisor·worker 재시작이 사용 중인 세션을 끊는다 -> 사용용 빌드본을 따로 띄운다. 파트(worker 폴더 타일)보다 먼저 함 (2026-10-22)
@@ -26,7 +26,7 @@
 | 빌드-1(env 옵션) | `-env <파일>`(상대 = 실행 파일 폴더). 없으면 옛 동작(옆 `env`). **지정한 파일이 없으면 panic**(-> E3(없으면 내뱉고 종료)로 대체) — `LoadEnv`는 두 번째 로드부터 파일 없음을 넘기므로, 안 막으면 embed된 개발 env(8012·`nexus`)로 뜸. 개발 실행(`go run`)은 지금처럼 embed만 | `cmd/supervisor/main.go`, `cmd/worker/main.go` |
 | 빌드-2(웹 서빙) | `WEB_DIR` 있으면 `e.Pre(StaticWithConfig{HTML5})` — 라우팅·tx 앞. 파일 없으면 API로, 404면 `index.html` | `cmd/supervisor/constants/env.go`, `cmd/supervisor/main.go` |
 | 빌드-3(같은 출처 API) | 코드 수정 없음 — `getBaseURL()`이 이미 빈 값이면 `location` 사용. 스크립트가 `VITE_API_URL=`로 빌드 | `scripts/build.sh` |
-| 빌드-4(빌드 스크립트) | `scripts/build.sh <이름>` -> `build/<이름>/{supervisor, worker, web/, supervisor.env, worker.env}`. 이미 있으면 거부, 실패하면 폴더 지움. env = 직전 빌드(가장 최근 폴더)에서 복사 / 첫 빌드는 개발 env에서 `PORT=8013`·`DB_NAME=nexus_build`·`WEB_DIR="./web"`·`WS_HOST="localhost:8013"`만 바꿔 생성. sqlite는 안 건드림 | `scripts/build.sh`, `.gitignore`(`build/`) |
+| 빌드-4(빌드 스크립트) | `scripts/build.sh <이름>`(**11-04 대상별로 나눔 → `REF-build-scripts.md`**) -> `build/<이름>/{supervisor, worker, web/, supervisor.env, worker.env}`. 이미 있으면 거부, 실패하면 폴더 지움. env = 직전 빌드(가장 최근 폴더)에서 복사 / 첫 빌드는 개발 env에서 `PORT=8013`·`DB_NAME=nexus_build`·`WEB_DIR="./web"`·`WS_HOST="localhost:8013"`만 바꿔 생성. sqlite는 안 건드림 | `scripts/build.sh`, `.gitignore`(`build/`) |
 
 - 함정: `npm run build`(run-p `{@}`)는 `--outDir`를 위치 인자로 넘겨 vite가 root로 읽음 -> 스크립트는 `npm run type-check` + `npx vite build --outDir` 따로
 - 확인(2026-10-22): 임시 DB `nexus_chk_build` + 5051로 빌드본 실행 -> `/`·`/w/abc123`·`/login` = index.html, `/favicon.svg` 정적, `/nodes/0/runs` = API 401, `-env nope.env` = panic, worker `-env`로 접속·등록 성공, 번들에 test2 없음. 임시 DB·프로세스 정리함
@@ -64,10 +64,7 @@ embed된 `cmd/*/env` = **배포 값**으로 단정. 빌드 전에 이 파일을 
 - 개발 env 파일 이름: 사용자가 `env.dev` -> **`dev.env`**로 바꿈. 코드 주석·panic 메시지·README 2곳·`.gitignore` 주석도 맞춤. 개발 실행 = `go run ./cmd/supervisor -env dev.env`
 - 남긴 것: 옛 확인용 `build/_check` 폴더 — 지울지 사용자 판단
 
-## 빌드 태그 (2026-10-23)
-- 사용자 관례: embed되는 `cmd/supervisor/env`·`cmd/worker/env` **첫 줄 = `# SUPERVISOR-<작업명>-<YYMMDD>` / `# WORKER-<작업명>-<YYMMDD>`** -> 내뱉은 env로 어느 빌드인지 앎. 바이너리에서 직접 = `grep -aoE '# (SUPERVISOR|WORKER)-[A-Za-z0-9_-]+' <바이너리>`
-- **빌드 전에 태그를 바꿀 것**(2026-10-23 `build/worker-dir`를 옛 태그 `IUTF-261022`로 빌드함 — `build/keep`도 같은 태그)
-- `build.sh`(2026-10-23): 빌드 전에 태그 출력 + 경고(supervisor·worker 태그 뒷부분이 다름 / 같은 태그로 빌드한 `build/*/supervisor`가 있음), 완료 줄에도 태그. 경고만 하고 멈추지 않음. 바이너리 안에서는 env 첫 줄 앞에 줄바꿈이 없어 `grep -x`가 안 맞음 -> 줄 끝만 고정(`"# 태그$"`)
+## 빌드 태그 · 빌드 스크립트 → `REF-build-scripts.md` (2026-11-04 분리)
 
 ## 두 빌드 나란히 (2026-10-22, 파트(process 살려 두기) 시험 배포 때)
 쓰는 빌드(8013)를 둔 채 새 빌드를 다른 포트로 시험할 때. 예: `build/keep` = 8011(test1)
