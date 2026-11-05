@@ -49,8 +49,10 @@ export const renameBoard = (hash: string, name: string) => BaseAxios.patch(
 ).then(throwThen<BoardChangeResponse>)
 .catch(throwCatch)
 
-// DELETE /workspaces/:hash — 안의 타일 전부(실행 중 터미널 포함, kill 없음)를 기본 보드 루트 끝으로 옮기고 삭제(W2(삭제 처리))
-export const deleteBoard = (hash: string) => BaseAxios.delete(
-    `/workspaces/${hash}`
+// DELETE /workspaces/:hash — move = 안의 타일 전부(실행 중 터미널 포함, kill 없음)를 기본 보드 루트 끝으로 옮기고 삭제(W2(삭제 처리))
+// kill = 옮기지 않고 삭제 + 조작할 수 있는 실행 중 터미널에 종료 요청(종료 유예 뒤 강제) — REF-board-close.md
+export type BoardCloseMode = 'move' | 'kill'
+export const deleteBoard = (hash: string, mode: BoardCloseMode = 'move') => BaseAxios.delete(
+    `/workspaces/${hash}${mode === 'kill' ? '?mode=kill' : ''}`
 ).then(throwThen<BoardChangeResponse>)
 .catch(throwCatch)

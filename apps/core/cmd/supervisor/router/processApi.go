@@ -213,7 +213,10 @@ func (r *supervisorRouter) killProcess(c echo.Context) error {
 	if err != nil {
 		panic(web.Err(500, "%v", err))
 	}
-	AfterCommit(c, func() { r.sendKill(row) })
+	AfterCommit(c, func() {
+		r.markKillPending()
+		r.sendKill(row)
+	})
 
 	res := withPermission(newProcessResponse(row), perm)
 	return c.JSON(200, withProcessNames(c, sess.Data.ID, []processResponse{res}, []superdb.Process{row})[0])
@@ -232,19 +235,13 @@ func (r *supervisorRouter) sendKill(row superdb.Process) {
 	}
 }
 
-// forceAbandoned: 종료 요청됐는데 조작 이상 계정의 보드 어디에도 타일이 없으면 강제 종료로 — 종료-4(모두 닫음). 타일 닫기·공유 변경 때만(종료 요청 때는 안 봄)
+// forceAbandoned: 종료 요청 뒤 유예가 지났고 조작 이상 계정의 보드 어디에도 타일이 없으면 강제 종료로 — 종료-4(모두 닫음).
+// 타일 닫기·공유 변경 때 바로 판정, 유예 안의 것은 주기 검사(runKillSweep)가 맡는다
 func (r *supervisorRouter) forceAbandoned(uids []string) {
 	if len(uids) == 0 {
 		return
 	}
-	rows, err := store.GetStorePool().Queries().ForceAbandonedKills(context.Background(), superdb.ForceAbandonedKillsParams{Uids: uids, MinPerm: superdb.PermOperate})
-	if err != nil {
-		log.Printf("[process] 모두 닫음 판정 실패 uids=%v: %v", uids, err)
-		return
-	}
-	for _, row := range rows {
-		r.sendKill(row)
-	}
+	r.forceKills(false, uids)
 }
 
 // resizeRequest: POST /processes/resize/:processId

@@ -1,9 +1,7 @@
 import { useAppDialog } from '@/feature/layout/store/appDialog.store'
-import { isRunning, useProcessTerm } from '@/feature/process/store/processTerm.store'
-import { ref, watch } from 'vue'
+import { useProcessTerm } from '@/feature/process/store/processTerm.store'
+import { ref } from 'vue'
 import { isProcTile, useTileTree } from '../store/tileTree.store'
-
-const CLOSE_WAIT = 10_000   // 종료하고 닫기: 이만큼 기다린 뒤 닫는다
 
 // kill 중인 uid — 머리 줄과 루트 터미널 탭이 같은 상태를 보도록 모듈에 둔다
 const killing = ref<Record<string, true>>({})
@@ -15,9 +13,9 @@ const VIEW: Record<KillChoice, string> = { kill: '종료', killClose: '종료하
 
 const NOTE: Record<KillChoice, string> = {
     kill: '실행 중인 프로세스에 종료를 요청합니다(SIGTERM — 정리할 기회를 줌).',
-    killClose: '종료하고 닫기: 최대 10초 기다린 뒤 타일을 닫습니다. 그때도 끝나지 않았고 조작할 수 있는 다른 계정도 열어 두지 않았으면 강제 종료됩니다.',
+    killClose: '종료하고 닫기: 종료를 요청하고 바로 닫습니다. 10초 안에 끝나지 않고 조작할 수 있는 다른 계정도 열어 두지 않았으면 강제 종료됩니다.',
     force: '강제 종료: 바로 끝냅니다(SIGKILL).',
-    close: '닫기: 타일만 닫습니다. 조작할 수 있는 계정이 모두 닫으면 강제 종료됩니다.',
+    close: '닫기: 타일만 닫습니다. 조작할 수 있는 계정이 모두 닫으면 강제 종료됩니다(종료 요청 10초 뒤부터).',
 }
 
 // 터미널 kill은 어디서든 확인창 뒤에 한다 + 닫기 — SD3(실행 중 터미널 치우기), 종료 요청·강제 종료 → REF-process-kill.md
@@ -33,18 +31,6 @@ export const useTerminalKill = () => {
         if (isProcTile(t)) dispose(t.uid)
     }
 
-    // kill은 신호만 보내고 종료는 STATUS로 비동기로 온다
-    const waitEnded = (uid: string) => new Promise<void>(resolve => {
-        if (!isRunning(procs.value[uid]?.status)) return resolve()
-        const done = () => {
-            clearTimeout(timer)
-            stop()
-            resolve()
-        }
-        const timer = setTimeout(done, CLOSE_WAIT)
-        const stop = watch(() => procs.value[uid]?.status, s => { if (!isRunning(s)) done() })
-    })
-
     const runKill = async (tileId: string | undefined, uid: string, choice: KillChoice) => {
         if (choice === 'close') {
             if (tileId) closeTile(tileId)
@@ -54,8 +40,7 @@ export const useTerminalKill = () => {
         try {
             await kill(uid, choice === 'force')
             if (choice !== 'killClose' || !tileId) return
-            // 안 끝났어도 닫는다 — 닫기로 '모두 닫음' 판정이 돌아 강제 종료될 수 있음(2026-10-12 결정 "기다렸다 닫기")
-            await waitEnded(uid)
+            // 바로 닫는다 — 강제 종료는 서버가 종료 유예(10초) 뒤 판정(브라우저를 닫아도 됨, REF-board-close.md)
             closeTile(tileId)
         } catch (err) {
             openDialog({ type: 'error', content: (err as { message?: string })?.message || '종료하지 못했습니다' })

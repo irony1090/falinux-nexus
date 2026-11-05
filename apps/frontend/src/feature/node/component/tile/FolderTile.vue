@@ -116,7 +116,7 @@ const remoteUsers = computed(() => {
     </template>
 
     <template v-if="isRoot" #unavailable>
-        <span class="sub">루트 타일은 닫을 수 없어 기본 목록으로 돌아갑니다.</span>
+        <span class="sub">루트 타일은 기본 목록으로 돌아가거나, 기본 보드가 아니면 ×로 보드를 닫을 수 있습니다.</span>
         <v-btn size="x-small" variant="tonal" color="primary" @click="navigate(tile.id, null)">기본으로 돌아가기</v-btn>
     </template>
 

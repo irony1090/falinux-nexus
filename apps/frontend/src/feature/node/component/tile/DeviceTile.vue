@@ -95,7 +95,7 @@ const unregOpen = ref(false);
     </template>
 
     <template v-if="isRoot" #unavailable>
-        <span class="sub">장비 타일을 연 폴더가 지워졌습니다. 보드를 삭제하면 이 타일이 기본 보드로 옮겨져 닫을 수 있습니다.</span>
+        <span class="sub">장비 타일을 연 폴더가 지워졌습니다. ×로 보드를 닫을 수 있습니다.</span>
     </template>
 
     <device-tile-body v-show="!isRoot || rootTab === 'files'" :tile-id="tile.id" :inert="overview" />

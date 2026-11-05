@@ -317,14 +317,22 @@ func (r *supervisorRouter) renameWorkspace(c echo.Context) error {
 }
 
 // deleteWorkspace: 트리 전체(루트 폴더 타일째)를 기본 작업 공간 루트 바로 뒤로 옮기고 삭제, kill 없음 — W2(삭제 처리)
+// ?mode=kill = 옮기지 않고 삭제 + 조작할 수 있는 실행 중 터미널에 종료 요청(강제 종료는 종료 유예 뒤 판정) — REF-board-close.md
 func (r *supervisorRouter) deleteWorkspace(c echo.Context) error {
 	sess := r.requireSession(c)
 	userID := sess.Data.ID
+	mode := c.QueryParam("mode")
+	if mode != "" && mode != "kill" {
+		panic(web.Err(400, "mode = kill 또는 생략"))
+	}
 
 	locked := lockWorkspaces(c, userID)
 	target := mustWorkspace(locked, c.Param("hash"))
 	if target.IsDefault {
 		panic(web.Err(400, "기본 보드는 삭제할 수 없습니다"))
+	}
+	if mode == "kill" {
+		return r.killWorkspace(c, userID, locked, target)
 	}
 	var def superdb.TileTree
 	for _, rec := range locked {
@@ -351,4 +359,47 @@ func (r *supervisorRouter) deleteWorkspace(c echo.Context) error {
 	})
 	r.publishWorkspacesAfterCommit(c, userID)
 	return c.JSON(http.StatusOK, workspaceChangeResponse{tileTreeResponse: tileTreeResponse{Hash: defUpd.Hash, Tree: defUpd.Tree, Version: defUpd.Version}})
+}
+
+// killWorkspace: 보드 삭제(모두 종료하고 닫기). 보기 권한만 있는 터미널은 종료 요청 없이 이 보드에서만 빠진다
+func (r *supervisorRouter) killWorkspace(c echo.Context, userID int64, locked map[string]superdb.TileTree, target superdb.TileTree) error {
+	doc := mustParseDoc(target.Tree)
+	uids := doc.terminalUIDs()
+	var killed []superdb.Process
+	for _, uid := range uids {
+		if r.processPerm(uid, userID) < superdb.PermOperate {
+			continue
+		}
+		row, err := TxQueries(c).RequestProcessKill(c.Request().Context(), superdb.RequestProcessKillParams{Uid: uid})
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue // 이미 끝남
+		}
+		if err != nil {
+			panic(web.Err(500, "%v", err))
+		}
+		killed = append(killed, row)
+	}
+	n, err := TxQueries(c).DeleteTileTree(c.Request().Context(), superdb.DeleteTileTreeParams{UserID: userID, Hash: target.Hash})
+	if err != nil || n != 1 {
+		panic(web.Err(500, "보드 삭제 실패: %v", err))
+	}
+
+	AfterCommit(c, func() {
+		if len(killed) > 0 {
+			r.markKillPending()
+		}
+		for _, row := range killed {
+			r.sendKill(row)
+		}
+		r.resyncSizeOwners(uids)
+		r.forceAbandoned(uids) // 전에 종료 요청돼 유예가 지난 것은 바로(타일 닫기와 같은 판정)
+	})
+	r.publishWorkspacesAfterCommit(c, userID)
+	var def superdb.TileTree
+	for _, rec := range locked {
+		if rec.IsDefault {
+			def = rec
+		}
+	}
+	return c.JSON(http.StatusOK, workspaceChangeResponse{tileTreeResponse: tileTreeResponse{Hash: def.Hash, Tree: def.Tree, Version: def.Version}})
 }
