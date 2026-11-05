@@ -27,3 +27,5 @@
 
 ## 2026-10-15 — worker를 꺼도 스크립트가 고아로 남음
 - 재부팅 준비 중 보드 미리보기 중간안 확인(`pw/mid.mjs`)의 `tick-A`·`tick-B` 4개가 worker 종료 뒤에도 돌고 있음 발견(부모 = systemd user) → 정리. 격리 정리 절차에 추가(`REF-test-env.md` "끌 때 함정 — worker 자식"). 제품 쪽 문제 여부는 CURRENT 미해결로
+
+- 2026-11-05 보드 닫기 화면 확인용으로 개발 8011·8012 + 계정 `devtest` + worker `devtest-pc`를 띄움. `.env`의 `VITE_API_URL`이 주석이라 실행 환경변수로 넘김 -> `REF-test-env.md` "환경"

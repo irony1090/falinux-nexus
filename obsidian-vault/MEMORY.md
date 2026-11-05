@@ -34,6 +34,7 @@
 - **앱 단축키**: `appShortcutsOff` 검사를 맨 앞에 — **새 단축키도 반드시**
 - **타일 종류**: `type` 비교 말고 능력으로 묻는다. 서버 `tileKinds`·프론트 `TILE_KINDS` 두 표를 같게
 - **process 범위**: worker에서 실제로 실행한 것(PTY)만. 보기 타일처럼 실행 없는 것은 타일만, 목록엔 트리 조회로 붙임
+- **종료 유예**: 강제 종료(SIGKILL) = 종료 요청 10초 뒤 서버 판정(주기 검사, 조작 계정 타일 없을 때). 브라우저는 기다리지 않음
 - **전송**: supervisor 전송 목록 + `TRANSFER:*` push. 브라우저 본문 = 조각 512KB
 - **브라우저 API**: 전부 `/api` 아래. 새 API는 `mount*` 그룹에만, 프론트는 `getBaseURL()` + 문자열(`new URL` 금지)
 - **회원·장비 인가**: worker 접속에 API 키(메인키마다 하나, env `KEY_SECRET` 필수). 실행 권한 = 장비 주인 + 지정 폴더 공유받은 사람
@@ -93,6 +94,7 @@ sqlc.yaml  README.md  .gitignore
 - **10-30 작업 점검(11-02, 코드 머지됨)**: `REF-review-1030.md` / 업데이트 app 설계 개정(11-02, 점검 결과의 설계 항목 처리) → `REF-update-redesign.md`
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조. 11-02 시안 규칙 추가: 묶음 쪼개지 않기·오른쪽 묶음 벽에 붙이기·줄 넘침 "안 C 한 세트"). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
 - **진행 중 파트**: 업데이트 app(11-02 P1(보관·화면) 마감·master 머지, P2(updater Linux) 마감·master 머지, 설계 전부 닫음, P3(배포) 11-03 마감·master 머지, P4(Windows) 11-03 마감·master 머지, Files 타일 개선 11-03 마감·master 머지(단위-가 폴더 트리·선택 삭제 / 시험 실행 / 단위-나 끌어 놓기 / 단위-다 갈아치우기 / 단위-라 실행 권한 이름) → `REF-update-trial.md` · `REF-update-files-tile.md` · `REF-update-replace.md` / 단위-7(교체 빌드) 집 서버 확인은 사용자 답 대기) → `REF-update-p4.md`(Windows 구현 · 단위-7 후속) · `REF-update-p3.md` · `REF-update-p2.md` · `REF-update-p1.md` · 설계 `REF-update-deploy.md` · 규칙 `REF-update-rules.md` · 경위 `REF-update-redesign.md` / 그 전 마감 파트 = `HISTORY.md` "마감 파트"(11-03 다섯 파트 INDEX로 접음: file-view·view-tile·video-view·tile-drag·member-drag)
+- **보드 닫기·종료 유예(11-05)**: `REF-board-close.md`(루트 ×·확인 창·`?mode=kill`·서버 10초 판정)
 - **공용으로 뗀 것(10-30)**: `PageEdgeBands` = `edge` prop, 띠 판정 = `widget/util/edgeBand.util.ts` `makeEdgeBands`, `TileDragChip` = prop(보드·관리 페이지 공용)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"

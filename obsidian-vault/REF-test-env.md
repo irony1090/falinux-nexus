@@ -11,6 +11,7 @@
 - **실제 계정 화면(test1 -> test3 API, irony) 헤드리스 확인 = 보기만**(2026-10-25 찰떡 UI 때 두 번 실수: `button:has(.mdi-play)`가 칸 "실행"에 걸려 스크립트 실행 · 공유 버튼이 늦게 그려져 좌표 클릭이 "장비 디렉토리 열기"에 걸림): 좌표 클릭 금지, 선택자는 클래스·title로 정확히(`button.dg-lbl:has(.mdi-play)`, `button[title="이 폴더 공유"]`), `.RootTabs` 대기 + 2초 뒤 누름. 로그인 = `.env.development.local` 주석 줄 계정으로 test3 `/users/session` -> `storageState`
 
 - **로그인 기본값(2026-10-19)**: `.env.development.local`의 `VITE_DEV_LOGIN_ID/PW` 줄이 주석 처리돼 있어 폼이 빔 -> 헤드리스 확인은 격리 supervisor에 계정을 만들어 씀(→ `REF-test-scripts-1014.md` "2026-10-19 보드 URL 바인딩")
+- **개발 화면 띄우기(2026-11-05)**: `apps/frontend/.env`의 `VITE_API_URL` 줄이 주석이라 그냥 `npm run dev`면 화면이 같은 출처(8011)의 `/api`를 불러 HTML을 받음(vite에 프록시 없음). `.env`를 안 고치고 `VITE_API_URL="https://test2.falinux.com" npm run dev`(실행 환경변수가 `.env`보다 우선) -> https://test1.falinux.com 접속. 테스트 계정·worker = `POST /api/users` -> `/users/session` -> `POST /api/devices {mainKey}`(응답 `apiKey`) -> worker env(`WS_HOST="localhost:8012"`·`SQLITE`·`NAME`·`API_KEY`, 600) `go run ./cmd/worker -env <절대 경로>` -> 폴더 `POST /nodes {kind: FOLDER, deviceKey}` + 기본 보드 타일
 
 ## 격리 실행(2026-10-07, 개발 DB·5050을 건드리지 않음)
 - supervisor·worker 바이너리는 **dev 판정(`IsDev` = 실행 파일 경로에 `os.TempDir()`·`go-build` 포함)이 아니면 실행 파일 옆 `env`로 설정을 덮어씀**(`godotenv.Overload`). scratchpad는 `/tmp` 아래라 dev로 판정됨 → 실행할 때 `TMPDIR=<scratchpad>/tmp`로 바꿔서 dev 판정을 피함

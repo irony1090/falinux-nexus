@@ -84,3 +84,6 @@
 | 위젯 (Skeleton/SkeletonGroup/StickyBox/TileLayout) | 구현만, 실사용 미배선(TileLayout = index.vue 데모만) | `REF-widget.md` |
 | 타일 판 공용 (`feature/widget` 판 계약 `PagerBoard`) | 알약 끌기·미니맵·빈 곳 휠·컨트롤 패널 여는 길·Ctrl+Alt+숫자를 보드·관리 페이지가 같이 씀. 새 타일 판 = 계약만 채움. 푸터 액션 버튼 = `FootActions`(공용) | `REF-member-ui-impl.md` "판 계약" · `REF-device-move.md` "푸터 액션 자리" |
 | 범용 유틸 (EventInterface/Memoized/LifecycleRegistry/GroupedSet) | 4종 + 공유 리사이즈 관측 그룹(`feature/common`), 반복 주제 | `REF-util.md` · `REF-util-drag.md`(드래그, 보류) |
+
+## 종료 유예
+- (2026-11-05, 사용자 S-b) 강제 종료(SIGKILL)는 **종료 요청 10초 뒤 서버가 판정**한다. 조건 = 조작 이상 계정 보드에 터미널 타일 없음(종료-4(모두 닫음) 그대로). 판정 = 2초마다 주기 검사 + 타일 닫기·공유 변경(유예 지난 것만). 브라우저는 기다리지 않음(종료하고 닫기 = 바로 닫기) → `REF-board-close.md`
