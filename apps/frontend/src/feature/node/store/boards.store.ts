@@ -1,6 +1,6 @@
 import { useTestSocket } from '@/common/websocket/websocket.hook'
 import { computed, inject, onBeforeUnmount, provide, readonly, ref, watch } from 'vue'
-import { deleteBoard, listBoards, renameBoard, type BoardItem } from '../api/board.api'
+import { deleteBoard, listBoards, renameBoard, type BoardCloseMode, type BoardItem } from '../api/board.api'
 
 const BOARDS_STORE_KEY = Symbol('BoardsStore')
 
@@ -65,9 +65,9 @@ export const provideBoards = () => {
         if (!byHash(b.hash)) list_.value = [...list_.value, b]
     }
 
-    const remove = async (hash: string) => {
+    const remove = async (hash: string, mode: BoardCloseMode = 'move') => {
         removedHere.add(hash)
-        await deleteBoard(hash)
+        await deleteBoard(hash, mode)
         list_.value = list_.value.filter(b => b.hash !== hash)
     }
 

@@ -83,14 +83,16 @@ WHERE uid = sqlc.arg(uid)
 RETURNING *;
 
 -- name: ForceAbandonedKills :many
--- 종료-4(모두 닫음): uids 중 종료 요청된 것이 min_perm(조작) 이상 계정의 어느 보드에도 터미널 타일이 없으면 강제로 바꾼다.
+-- 종료-4(모두 닫음): 종료 요청 뒤 grace_secs가 지났고 min_perm(조작) 이상 계정의 어느 보드에도 터미널 타일이 없으면 강제로 바꾼다.
+-- all_uids = 주기 검사(uids 무시), 아니면 uids만(타일 닫기·공유 변경). 유예 = 서버 10초 규칙(REF-board-close.md 종료 유예)
 -- 보기 계정 타일은 세지 않는다(2026-10-12(2)). 같은 순간 다시 연 타일은 못 볼 수 있음 — KP4(동시성 한계)
 UPDATE processes p
 SET kill_forced = true,
     updated_at  = NOW()
-WHERE p.uid = ANY(sqlc.arg(uids)::text[])
+WHERE (sqlc.arg(all_uids)::boolean OR p.uid = ANY(sqlc.arg(uids)::text[]))
   AND p.status IN ('PENDING','PROCESS')
   AND p.kill_requested_at IS NOT NULL
+  AND p.kill_requested_at <= NOW() - make_interval(secs => sqlc.arg(grace_secs)::int)
   AND NOT p.kill_forced
   AND NOT EXISTS (
     SELECT 1 FROM tile_trees t
@@ -98,6 +100,13 @@ WHERE p.uid = ANY(sqlc.arg(uids)::text[])
       AND process_permission(t.user_id, p.uid) >= sqlc.arg(min_perm)::smallint
   )
 RETURNING p.*;
+
+-- name: HasPendingKills :one
+-- 판정을 기다리는 종료 요청이 남았는가(실행 중 · 요청됨 · 아직 강제 아님) — 주기 검사를 쉴지 정함(REF-board-close.md)
+SELECT EXISTS (
+  SELECT 1 FROM processes
+  WHERE status IN ('PENDING','PROCESS') AND kill_requested_at IS NOT NULL AND NOT kill_forced
+);
 
 -- name: ListExpiredProcesses :many
 -- 끝난 지 오래된 process — K2(supervisor 정리, REF-process-keep.md)

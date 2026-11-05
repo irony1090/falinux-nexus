@@ -104,27 +104,36 @@ const forceAbandonedKills = `-- name: ForceAbandonedKills :many
 UPDATE processes p
 SET kill_forced = true,
     updated_at  = NOW()
-WHERE p.uid = ANY($1::text[])
+WHERE ($1::boolean OR p.uid = ANY($2::text[]))
   AND p.status IN ('PENDING','PROCESS')
   AND p.kill_requested_at IS NOT NULL
+  AND p.kill_requested_at <= NOW() - make_interval(secs => $3::int)
   AND NOT p.kill_forced
   AND NOT EXISTS (
     SELECT 1 FROM tile_trees t
     WHERE jsonb_path_exists(t.tree, '$.tiles.* ? (@.type == "terminal" && @.uid == $uid)', jsonb_build_object('uid', p.uid))
-      AND process_permission(t.user_id, p.uid) >= $2::smallint
+      AND process_permission(t.user_id, p.uid) >= $4::smallint
   )
 RETURNING p.uid, p.type, p.owner_user_id, p.node_id, p.device_key, p.cmd, p.args, p.env, p.cwd, p.rows, p.cols, p.status, p.pid, p.exit_code, p.created_at, p.started_at, p.finished_at, p.updated_at, p.started_by, p.kill_requested_at, p.kill_forced, p.dir_node_id
 `
 
 type ForceAbandonedKillsParams struct {
-	Uids    []string
-	MinPerm int16
+	AllUids   bool
+	Uids      []string
+	GraceSecs int32
+	MinPerm   int16
 }
 
-// 종료-4(모두 닫음): uids 중 종료 요청된 것이 min_perm(조작) 이상 계정의 어느 보드에도 터미널 타일이 없으면 강제로 바꾼다.
+// 종료-4(모두 닫음): 종료 요청 뒤 grace_secs가 지났고 min_perm(조작) 이상 계정의 어느 보드에도 터미널 타일이 없으면 강제로 바꾼다.
+// all_uids = 주기 검사(uids 무시), 아니면 uids만(타일 닫기·공유 변경). 유예 = 서버 10초 규칙(REF-board-close.md 종료 유예)
 // 보기 계정 타일은 세지 않는다(2026-10-12(2)). 같은 순간 다시 연 타일은 못 볼 수 있음 — KP4(동시성 한계)
 func (q *Queries) ForceAbandonedKills(ctx context.Context, arg ForceAbandonedKillsParams) ([]Process, error) {
-	rows, err := q.db.Query(ctx, forceAbandonedKills, arg.Uids, arg.MinPerm)
+	rows, err := q.db.Query(ctx, forceAbandonedKills,
+		arg.AllUids,
+		arg.Uids,
+		arg.GraceSecs,
+		arg.MinPerm,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +207,21 @@ func (q *Queries) GetProcess(ctx context.Context, uid string) (Process, error) {
 		&i.DirNodeID,
 	)
 	return i, err
+}
+
+const hasPendingKills = `-- name: HasPendingKills :one
+SELECT EXISTS (
+  SELECT 1 FROM processes
+  WHERE status IN ('PENDING','PROCESS') AND kill_requested_at IS NOT NULL AND NOT kill_forced
+)
+`
+
+// 판정을 기다리는 종료 요청이 남았는가(실행 중 · 요청됨 · 아직 강제 아님) — 주기 검사를 쉴지 정함(REF-board-close.md)
+func (q *Queries) HasPendingKills(ctx context.Context) (bool, error) {
+	row := q.db.QueryRow(ctx, hasPendingKills)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const listActiveByDevice = `-- name: ListActiveByDevice :many

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"nexus/cmd/supervisor/constants"
 	"sync"
+	"sync/atomic"
 
 	"nexus/cmd/supervisor/process"
 	"nexus/internal/manager"
@@ -38,6 +39,7 @@ var upgrader = websocket.Upgrader{
 }
 
 type supervisorRouter struct {
+	killPending    atomic.Bool // 판정을 기다리는 종료 요청이 있을 수 있음 — 꺼져 있으면 주기 검사를 쉼(killGrace.go)
 	workers        *manager.KeyValManager[string, *transport.Conn]
 	workerOS       *manager.KeyValManager[string, string] // InstanceKey -> OS(정규화), workers와 같은 수명 — WW5(OS 표시)
 	tabs           *tabRegistry                           // 브라우저 소켓 = 탭(tabs.go)
@@ -105,7 +107,8 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 	}
 	router.updRuns = newUpdRunSet(router.upd.Dir())
 	router.updRuns.pub = router.publishUpdOutput
-	go router.runPurge() // 끝난 process 주기 삭제(K2(supervisor 정리))
+	go router.runPurge()     // 끝난 process 주기 삭제(K2(supervisor 정리))
+	go router.runKillSweep() // 종료 유예 지난 종료 요청 강제 종료(REF-board-close.md)
 	go router.runTransferSweep()
 	go router.runViewSweep()
 	go router.upd.runSweep()

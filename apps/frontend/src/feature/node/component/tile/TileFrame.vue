@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, toRef, watch, watchEffect, type PropType } from 'vue';
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
 import { VIcon, VList, VMenu, VProgressCircular } from 'vuetify/components';
+import { useBoardClose } from '../../hook/boardClose.hook';
 import { useTileFloat } from '../../hook/tileFloat.hook';
 import { useTileSize } from '../../hook/tileSize.hook';
 import { dragFrom, useTileDrag } from '../../store/tileDrag.store';
@@ -67,6 +68,13 @@ const { shownText, sizeTitle } = useTileSize(toRef(props, 'tileId'));
 const tile = computed(() => tiles.value[props.tileId]);
 const isRoot = computed(() => !tile.value?.parent);
 
+// 루트 × = 보드 닫기(기본 보드 제외), 나머지 × = 종류 컴포넌트가 정함 — REF-board-close.md
+const boardClose = useBoardClose();
+const closeShown = computed(() => !isRoot.value || boardClose.closable.value);
+const closeOff = computed(() => isRoot.value ? boardClose.closing.value : props.closeDisabled);
+const closeLabel = computed(() => isRoot.value ? '보드 닫기' : props.closeTitle);
+const onClose = () => isRoot.value ? boardClose.confirmClose() : emit('close');
+
 // 크기를 바꾸면 버튼이 옮겨지는데 v-menu는 이를 감지 못함 → 프레임 크기 변화·크기 변경 직후에 위치 재계산
 const frameEl = ref<HTMLElement>();
 const sizeMenu = ref<InstanceType<typeof VMenu>>();
@@ -83,9 +91,9 @@ let headActs: TileHeadActs | undefined;
 watchEffect(() => setTileHeadActs(props.tileId, headActs = {
     minimize: props.minimizable && !props.unavailable ? () => emit('minimize') : undefined,
     sizable: !props.unavailable,
-    close: tile.value && !isRoot.value ? () => emit('close') : undefined,
-    closeTitle: props.closeTitle,
-    closeDisabled: props.closeDisabled,
+    close: tile.value && closeShown.value ? onClose : undefined,
+    closeTitle: closeLabel.value,
+    closeDisabled: closeOff.value,
 }));
 onBeforeUnmount(() => clearTileHeadActs(props.tileId, headActs));
 
@@ -157,7 +165,7 @@ const dragClass = computed(() => ({ 'TileFrame--pressing': drag.pressId.value ==
                     </template>
                     <tile-size-card :tile-id="tile.id" @changed="relocateSizeMenu" />
                 </v-menu>
-                <button v-if="!isRoot" class="tile-btn" :disabled="closeDisabled" :title="closeTitle" @click="emit('close')">
+                <button v-if="closeShown" class="tile-btn" :disabled="closeOff" :title="closeLabel" @click="onClose">
                     <v-icon size="16" icon="mdi-close" />
                 </button>
             </span>

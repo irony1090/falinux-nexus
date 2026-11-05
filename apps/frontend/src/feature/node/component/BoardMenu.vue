@@ -8,6 +8,7 @@ import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { VBtn, VDivider, VIcon, VList, VListItem, VListSubheader, VMenu } from 'vuetify/components';
 import type { BoardItem } from '../api/board.api';
+import { useBoardClose } from '../hook/boardClose.hook';
 import { boardLabel, boardPath, useBoards } from '../store/boards.store';
 import MySharesDialog from './dialog/MySharesDialog.vue';
 import NodeNameDialog from './dialog/NodeNameDialog.vue';
@@ -16,9 +17,10 @@ import NodeNameDialog from './dialog/NodeNameDialog.vue';
 defineProps<{ compact?: boolean }>();
 const route = useRoute();
 const router = useRouter();
-const { list, byHash, defaultBoard, rename, remove } = useBoards();
+const { list, byHash, defaultBoard, rename } = useBoards();
+const { closing, confirmClose } = useBoardClose();
 const { auth } = useAuthStore();
-const { open: appDialogOpen, openDialog } = useAppDialog();
+const { openDialog } = useAppDialog();
 
 const hash = computed(() => typeof route.params.hash === 'string' ? route.params.hash : '');
 const current = computed(() => hash.value ? byHash(hash.value) : defaultBoard.value);
@@ -45,32 +47,14 @@ const onSubmitName = (name: string) => {
     run(rename(current.value.hash, name), () => nameOpen.value = false);
 }
 
-// 이름은 title로만 넘긴다 — AppDialog의 content는 v-html로 그려진다
-const onRemove = () => {
-    const b = current.value;
-    if (!b || b.isDefault) return;
-    openDialog({
-        type: 'warning',
-        title: `'${boardLabel(b)}' 삭제`,
-        content: ['보드 안의 폴더·터미널 타일은 기본 보드 끝으로 옮겨집니다.', '실행 중인 터미널은 종료되지 않습니다.'],
-        buttons: [
-            { view: '취소', type: 'info', bindButton: 'Escape', action: () => appDialogOpen.value = false },
-            {
-                view: '삭제', type: 'error',
-                action: () => {
-                    appDialogOpen.value = false;
-                    run(remove(b.hash), () => router.replace('/'));
-                },
-            },
-        ],
-    })
-}
+// 보드 삭제 = 보드 닫기 확인(기본 보드로 보내기 / 모두 종료하고 닫기) — REF-board-close.md
+const onRemove = () => confirmClose();
 </script>
 
 <template>
 <v-menu location="top start" offset="10">
     <template #activator="{ props: act }">
-        <button v-bind="act" class="BoardMenu" :class="{ compact }" :disabled="busy" :title="`보드: ${title}`" :aria-label="`보드 메뉴 - ${title}`">
+        <button v-bind="act" class="BoardMenu" :class="{ compact }" :disabled="busy || closing" :title="`보드: ${title}`" :aria-label="`보드 메뉴 - ${title}`">
             <img class="logo" :src="logoUrl" alt="" />
             <span v-if="!compact" class="name">{{ title }}</span>
             <v-icon size="16" icon="mdi-chevron-up" />
