@@ -417,6 +417,9 @@ type SizeOwnerEvent struct {
 // 소켓 연결 직후 서버가 그 소켓에 가장 먼저 보내는 탭 id (REF-process-sync.md V(탭 id 전달))
 const MsgTabID MsgType = "TAB:ID" // sup→browser EVENT: TabIDEvent
 
+// 브라우저가 화면 복귀 때 연결이 살아 있는지 묻는다(재연결-3(죽은 연결 확인)) — 응답 = 빈 값 (REF-socket-reconnect.md)
+const MsgPing MsgType = "PING" // browser→sup REQUEST
+
 type TabIDEvent struct {
 	TabID string `json:"tabId"`
 }

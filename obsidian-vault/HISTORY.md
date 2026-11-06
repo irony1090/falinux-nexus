@@ -69,6 +69,7 @@
 
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
+| `history/socket-reconnect.md` | 소켓 재연결 · 끊김 표시(11-06 신설) ↔ `REF-socket-reconnect.md` | 11-06 재연결-1~3 · 화면-1 · 끊김 알약 · 확인 14/14 · test3 교체 · 모바일 확인 · 마감 |
 | `history/board-close.md` | 보드 닫기 · 종료 유예(2026-11-05 신설) ↔ `REF-board-close.md` | 11-05 루트 × · 확인 창 · S-b 서버 10초 · 쉬기 안 A · 확인 API 13/13 · 화면 9/9 · 사용자 화면 확인 · 마감 |
 | `history/decisions.md` | 확정 결정 상세(2026-10-26 MEMORY 슬림화 때 신설) ↔ `REF-decisions.md` | 10-26 밤 MEMORY 9.9k -> 5.8k자 |
 | `history/decisions-ui.md` | 확정 결정 상세: 화면(2026-10-29 분할) ↔ `REF-decisions-ui.md` | 10-29 터치 제스처·끌기(파트(타일 끌기) 마감) |
