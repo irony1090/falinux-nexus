@@ -17,3 +17,7 @@
 - Claude가 Chrome 탭(사용자 로그인 세션)으로 Run·Log 읽음: dbdump 65,510 B · start pid 9024/9704 · prune `worker.exe.old-…182151` 지움. 공개 `index.html` 해시 = 묶음과 같음
 - (14:33) updater 교체: `build/home-update/updater-261104/`(exe·install.ps1·setup.ps1) -> 사용자가 `C:\Nexus\updater-new\`에 올려 **Nexus 디렉토리 타일에서 `setup.ps1` 실행**(worker가 관리자 권한이라 통과). `LastTaskResult 267009` = 실행 중(정상). Updater 화면 online + `UPDATER-FILES-261104`
 - 남은 것: `C:\Nexus\updater-new\` 삭제(사용자)
+
+## 2026-11-05 ~ 11-06 보드 닫기 묶음
+- 11-05 Claude가 `scripts/build.sh 261105-board-close_win supervisor worker frontend --os windows`(태그 `SUPERVISOR-`·`WORKER-BOARD-CLOSE-261105`) -> 묶음 `build/home-update/261105-board-close/`(67개, steps·nexus-steps = 261104-files 그대로). Chrome 확장 연결 안 돼 업로드 못 함(회사 PC Chrome은 다시 켬)
+- 11-06 사용자가 Updater 화면에서 직접 올리고 배포. 공개 `index-CqlA8_4K.js` = 묶음과 같음(curl 확인)
