@@ -5,6 +5,7 @@
     </app-body>
 
     <app-dialog />
+    <socket-lost-pill :status="socket.status.value" :on="!!auth" />
 </provide-app-layout>
 </template>
 
@@ -18,6 +19,8 @@ import { provideAppDialog } from '@/feature/layout/store/appDialog.store';
 import { provideAuthStore } from '@/feature/user/store/auth.store';
 import { provideTestSocket } from '@/common/websocket/websocket.hook';
 import { bindTabId } from '@/common/util/tabId.util';
+import { bindSocketWake } from '@/common/websocket/socketWake.util';
+import SocketLostPill from '@/common/websocket/SocketLostPill.vue';
 import { bindDeviceChanges } from '@/feature/worker/hook/deviceChange.hook';
 import { watch } from 'vue';
 
@@ -30,6 +33,7 @@ provideAppDialog();
 
 const socket = provideTestSocket();
 bindTabId(socket);
+bindSocketWake(socket);
 bindDeviceChanges(socket);
 // 로그인 중이면 어느 페이지든 소켓 연결 — 내 장비·관리자 페이지도 장비 상태 push를 받게(REF-device-push.md)
 watch(auth, val => val ? socket.connect() : socket.disconnect(), { immediate: true });

@@ -1,6 +1,6 @@
 import { useTestSocket } from '@/common/websocket/websocket.hook'
 import {
-    adoptUnregistered, execProcess, execWorkerFile, getProcessSnapshot, killProcess, listProcesses, resizeProcess, takeSizeOwner, toProcessResponse,
+    adoptUnregistered, execProcess, execWorkerFile, getProcessSnapshot, killProcess, listProcesses, lookupProcesses, resizeProcess, takeSizeOwner, toProcessResponse,
     type ProcessResponse, type ProcessResponseDto, type ProcessSnapshot, type ProcessStatus, type ProcessType,
 } from '@/feature/process/api/process.api'
 import { muteQueries } from '@/feature/process/util/xtermQuery.util'
@@ -195,6 +195,11 @@ export const provideProcessTerm = () => {
 
     offs.push(on<DataEvent>('DATA', ev => {
         const bytes = base64ToBytes(ev.data)
+        const r = resyncing.get(ev.uid)
+        if (r) {
+            r.push({ bytes, off: ev.off })
+            return
+        }
         const h = handles.get(ev.uid)
         if (h) {
             writeLive(ev.uid, h.term, bytes, ev.off)
@@ -260,8 +265,62 @@ export const provideProcessTerm = () => {
         }))
         .catch(err => console.log('[PROCESS_TERM] syncOwners', err))
 
-    watch(socketStatus, s => {
-        if (s === 'CONNECTED' && Object.keys(procs_.value).length) syncOwners()
+    // 화면-1(다시 받기): 끊긴 사이 출력은 버려져 TUI 화면이 옛 상태로 남는다 -> 다시 붙으면 실행 중 터미널을 스냅샷으로 다시 그린다.
+    // 스냅샷을 받는 동안 온 출력은 resyncing에 모았다가 스냅샷 off 뒤만 쓴다(S1(이음매 처리)과 같음). 끊긴 사이 끝난 것은 종료 상태만 — REF-socket-reconnect.md
+    const resyncing = new Map<string, Chunk[]>()
+    const flushResync = (uid: string, from?: number) => {
+        const chunks = resyncing.get(uid) ?? []
+        resyncing.delete(uid)
+        const h = handles.get(uid)
+        if (!h) return
+        if (from === undefined) chunks.forEach(c => writeLive(uid, h.term, c.bytes, c.off))
+        else writeHeld(uid, h.term, chunks, from)
+    }
+    const redraw = async (uid: string) => {
+        const snap = await getProcessSnapshot(uid).catch(err => {
+            console.log('[PROCESS_TERM] resync snapshot', uid, err)
+            return null
+        })
+        const h = handles.get(uid)
+        if (!snap || !h) return flushResync(uid)
+        replaying.add(uid)
+        h.term.reset()
+        writeSnapshot(h.term, uid, snap)
+        lastOff.set(uid, snap.off)
+        flushResync(uid, snap.off)
+        h.term.write('', () => replaying.delete(uid))
+    }
+    // 순서 의존: resyncing 표시는 동기로 먼저 — 다시 붙은 직후 오는 DATA가 스냅샷보다 먼저 xterm에 쓰이면 안 된다
+    const resync = () => {
+        const uids = [...handles.keys()].filter(uid => isRunning(procs_.value[uid]?.status))
+        uids.forEach(uid => resyncing.set(uid, []))
+        syncOwners()
+        if (!uids.length) return
+        lookupProcesses(uids)
+            .then(list => {
+                const now = new Map(list.map(p => [p.uid, p]))
+                return Promise.all(uids.map(uid => {
+                    const p = now.get(uid)
+                    if (p && isRunning(p.status)) return redraw(uid)
+                    flushResync(uid)
+                    if (p) applyStatus({ uid, status: STATUS_BY_CODE.indexOf(p.status), pid: p.pid ?? undefined, exitCode: p.exitCode ?? 0 })
+                }))
+            })
+            .catch(err => {
+                console.log('[PROCESS_TERM] resync', err)
+                uids.forEach(uid => flushResync(uid))
+            })
+    }
+
+    let dropped = false     // 한 번 붙었다가 끊김 — 처음 붙을 때는 복원(restore)이 화면을 그린다
+    watch(socketStatus, (s, old) => {
+        if (old === 'CONNECTED') dropped = true
+        if (s !== 'CONNECTED') return
+        const again = dropped
+        dropped = false
+        if (!Object.keys(procs_.value).length) return
+        if (again) resync()
+        else syncOwners()
     })
 
     // place = 서버가 터미널 타일을 넣을 자리. 응답의 tile·tileVersion은 호출부가 타일 트리에 반영. type EDIT = worker vi 편집

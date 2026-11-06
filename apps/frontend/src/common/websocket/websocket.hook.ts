@@ -63,8 +63,10 @@ export const jsonFrame: Protocol = {
 export type WebsocketOption = Partial<{
     /** 자동 재연결 최대 횟수. 미지정 시 무제한. */
     maxRetries: number;
-    /** 재연결 간격(ms). 기본 2000. */
+    /** 첫 재연결 간격(ms). 실패할 때마다 두 배, retryMax까지. 기본 2000. */
     retryInterval: number;
+    /** 재연결 간격 상한(ms). 기본 30000. */
+    retryMax: number;
     /** 프레임 전략 주입. 기본 jsonFrame. frame 형태가 바뀌면 이것만 교체. */
     protocol: Protocol;
     /** call 기본 타임아웃(ms). 0 이면 무제한. 기본 10000. */
@@ -89,6 +91,8 @@ export type SocketContext = {
     event: Ref<Event | null>;
     connect: () => void;
     disconnect: () => void;
+    /** 화면 복귀·네트워크 복구 때 부른다: 끊겼으면 바로 연결, 연결됨이면 살아 있는지 확인. 연결 중이 아니면(로그아웃) 아무것도 안 함. */
+    wake: () => void;
     /** REQ 송신 후 RES 까지 대기. 응답 err 가 있으면 reject. */
     call: <Res = unknown>(type: string, data?: unknown, opt?: CallOption) => Promise<Res>;
     /** EVENT 단방향 송신(fire-and-forget). 미연결이면 조용히 무시. */
@@ -98,12 +102,15 @@ export type SocketContext = {
 };
 
 const isConnected = (s: Connect['Status']) => s === 'CONNECTED';
+const STALE_MS = 5000;      // 연결 중인 채 이보다 오래면 멈춘 시도로 본다(wake)
+const PROBE_MS = 3000;      // 화면 복귀 때 PING 응답을 기다리는 시간
 
 // url이 함수면 연결(재연결 포함)할 때마다 다시 만든다 — 쿼리에 그때의 값(탭 id 등)을 싣기 위해
 export const createWebsocketHook = (url: string | (() => string), option: WebsocketOption = {}) => {
     const {
         maxRetries,
         retryInterval = 2000,
+        retryMax = 30000,
         protocol = jsonFrame,
         callTimeout = 10000,
     } = option;
@@ -120,7 +127,9 @@ export const createWebsocketHook = (url: string | (() => string), option: Websoc
         const event = ref<Event | null>(null);
         const ws = ref<WebSocket | null>(null);
         const status = ref<Connect['Status']>('PENDING');
-        let manualDisconnect = false;
+        let active = false;     // connect() ~ disconnect() 사이 = 연결을 유지해야 함(로그인 중)
+        let timer: ReturnType<typeof setTimeout> | undefined;     // 예약된 재연결
+        let connectingAt = 0;
 
         // correlator (Conn.Correlator 대응)
         let seq = 0;
@@ -133,35 +142,42 @@ export const createWebsocketHook = (url: string | (() => string), option: Websoc
             pending.clear();
         };
 
+        // 소켓을 핸들러째 떼고 닫는다 — 그 소켓의 onclose가 재연결을 또 예약하지 않게
+        const drop = () => {
+            const s = ws.value;
+            if (!s) return;
+            s.onclose = null;
+            s.onopen = null;
+            s.onerror = null;
+            s.onmessage = null;
+            s.close();
+            ws.value = null;
+            rejectAllPending(new Error('websocket: connection dropped'));
+        };
+
         const connect = () => {
+            clearTimeout(timer);
+            timer = undefined;
             // 연결 시도가 이미 진행 중이면 중복 소켓 생성 방지(#3).
-            // 재연결 경로의 닫힌 옛 소켓(readyState CLOSED)은 통과시킨다.
             if (ws.value && ws.value.readyState === WebSocket.CONNECTING) return;
-            // 살아있는 연결이면 조용히 교체.
-            if (ws.value && isConnected(status.value)) {
-                ws.value.onclose = () => {};
-                ws.value.close();
-            }
-            manualDisconnect = false;
+            drop();     // 살아 있는 연결이면 조용히 교체, 닫힌 옛 소켓은 정리
+            active = true;
             retry.value += 1;
             const sock = new WebSocket(resolveUrl());
             sock.binaryType = 'arraybuffer'; // Go BinaryMessage 수신용
+            connectingAt = Date.now();
             ws.value = sock;
             status.value = 'CONNECTING';
         };
 
         const disconnect = () => {
-            manualDisconnect = true;
+            active = false;
+            clearTimeout(timer);
+            timer = undefined;
             rejectAllPending(new Error('websocket: disconnected'));
-            if (ws.value) {
-                ws.value.onclose = null;
-                ws.value.onopen = null;
-                ws.value.onerror = null;
-                ws.value.onmessage = null;
-                ws.value.close();
-            }
+            drop();
+            retry.value = 0;
             status.value = 'PENDING';
-            ws.value = null;
         };
 
         const call = <Res = unknown>(type: string, data?: unknown, opt: CallOption = {}) =>
@@ -207,6 +223,33 @@ export const createWebsocketHook = (url: string | (() => string), option: Websoc
         const emit = (type: string, data?: unknown) => {
             if (!ws.value || !isConnected(status.value)) return;
             ws.value.send(protocol.event(type, data));
+        };
+
+        // 재연결-2(돌아오면 바로)·재연결-3(죽은 연결 확인) — REF-socket-reconnect.md
+        // 백그라운드에서 연 소켓은 연결 중인 채 멈춰 있을 수 있어 STALE_MS가 지났으면 버리고 새로 연다
+        const wake = () => {
+            if (!active) return;
+            if (isConnected(status.value)) return probe();
+            if (ws.value?.readyState === WebSocket.CONNECTING && Date.now() - connectingAt < STALE_MS) return;
+            drop();
+            retry.value = 0;
+            connect();
+        };
+
+        let probing = false;
+        const probe = () => {
+            if (probing) return;
+            probing = true;
+            const sock = ws.value;
+            call('PING', undefined, { timeout: PROBE_MS })
+                .catch((err) => {
+                    // 시간 초과만 = 죽은 연결. 닫혀서 실패한 건 onclose가 이미 재연결을 예약했고, 오류 응답은 살아 있다는 뜻(옛 서버엔 PING이 없음)
+                    if (!active || ws.value !== sock || !String(err?.message).includes('timeout')) return;
+                    drop();
+                    retry.value = 0;
+                    connect();
+                })
+                .finally(() => { probing = false; });
         };
 
         const on = <D = unknown>(type: string, handler: (data: D) => void) => {
@@ -265,28 +308,22 @@ export const createWebsocketHook = (url: string | (() => string), option: Websoc
                 sock.onclose = () => {
                     // 끊김 → 매달린 call 전부 실패(Go corr.Close 대응).
                     rejectAllPending(new Error('websocket: connection closed'));
-
-                    if (manualDisconnect) {
-                        manualDisconnect = false;
+                    if (!active || ws.value !== sock) return;
+                    if (maxRetries && retry.value >= maxRetries) {
                         retry.value = 0;
                         status.value = 'PENDING';
                         return;
                     }
-                    if (!maxRetries || retry.value < maxRetries) {
-                        if (status.value !== 'CONNECTING') {
-                            status.value = 'CONNECTING';
-                            setTimeout(connect, retryInterval);
-                        }
-                    } else {
-                        retry.value = 0;
-                        status.value = 'PENDING';
-                    }
+                    // 재연결-1(포기 없음): 실패할수록 간격을 두 배로(2초, 4초 ... retryMax). 화면 복귀·네트워크 복구 땐 wake가 바로 연결
+                    status.value = 'CONNECTING';
+                    clearTimeout(timer);
+                    timer = setTimeout(connect, Math.min(retryInterval * 2 ** retry.value, retryMax));
                 };
             },
             { immediate: true },
         );
 
-        return { status, event, connect, disconnect, call, emit, on };
+        return { status, event, connect, disconnect, wake, call, emit, on };
     };
 
     // root(App.vue 등) setup에서 한 번 호출 — build()+provide(key, ctx)로 생명주기 초기화 지점을 명시.
@@ -334,5 +371,5 @@ export const [provideTestSocket, useTestSocket] = createWebsocketHook(
         url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
         return url.toString();
     },
-    { maxRetries: 2 },
+    {},     // 재연결 횟수 제한 없음(재연결-1(포기 없음)) — 옛 maxRetries: 2는 모바일 복귀 때 두 번 다 실패하면 영영 끊긴 채였음
 );
