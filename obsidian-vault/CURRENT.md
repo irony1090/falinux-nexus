@@ -1,7 +1,7 @@
 # CURRENT
 
 ## 현재 날짜
-2026-11-05
+2026-11-06
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`, 마감 파트는 `INDEX-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
@@ -9,6 +9,7 @@
 
 ## ⚠️ 다음 세션 시작 시
 - **(2026-11-05) 보드 닫기 + 종료 유예(S-b) — 마감, `feat/board-close` 커밋·master `--no-ff` 머지(push = 사용자)** · 사용자 화면 확인 "잘 동작해". 루트 타일 ×(기본 보드 제외)·보드 메뉴 "보드 삭제" = 같은 확인 창(취소 / 기본 보드로 보내기 / 모두 종료하고 닫기). 강제 종료 = 종료 요청 10초 뒤 서버 판정(2초 주기 검사, 남은 요청 없으면 쉼 = 안 A(메모리 표시)). 못 본 것 = 보기 권한 공유 터미널 → `REF-board-close.md` · `history/board-close.md`
+- **(2026-11-06) 집 서버 = 보드 닫기 빌드(`BOARD-CLOSE-261105`)** · 사용자가 Updater로 직접 업로드·배포, 공개 화면 해시 일치 확인 → `REF-home-deploy-updater.md` "11-05 보드 닫기 묶음"
 - **(2026-11-04) 집 서버 최신 배포 — 끝(14:33)** · supervisor·worker·web = updater 배포 #2 성공(빌드 `supervisor-url-261104` 잠김), updater = Nexus 디렉토리 타일에서 `setup.ps1` -> `UPDATER-FILES-261104` online. 남은 것 = `C:\Nexus\updater-new\` 삭제(사용자) → `REF-home-deploy-updater.md` "11-04 최신 배포 계획"
 - 11-04 빌드 스크립트·로컬 updater 시험(주소 순위·되돌리기) 마감 줄 + 11-03 파트(업데이트 app) 진행 블록 원문 → `history/current-archive-7.md`(11-05 내려보냄). 구현 지도: `REF-update-p1.md`~`-p4.md` · 설계 `REF-update-deploy.md` · 규칙 `REF-update-rules.md` · `REF-build-scripts.md`
 - **(2026-11-02) 10-30 작업 점검·수정 마감** — `fix/member-drag-review` master 머지. 코드 항목 수정 + 사용자 실기기 확인 끝 → `REF-review-1030.md` · `history/review-1030.md`. 확인 스크립트 = `scripts/check/run.sh`
@@ -23,7 +24,7 @@
 - 파일 편집기·보기 타일·영상·타일 끌기·내 장비 다섯 파트 = 11-03 INDEX로 접음(`INDEX-file-view`·`-view-tile`·`-video-view`·`-tile-drag`·`-member-drag`)
 
 ## 운영 상태 (2026-11-02 확인)
-- **지금 떠 있는 것(11-05)**: 개발 test1(8011 vite)·test2(8012 supervisor `go run`) + worker `devtest-pc` = 11-05 09:07 이 세션이 띄움(세션이 끝나면 같이 꺼질 수 있음). vite는 `.env`를 안 고치고 실행 환경변수 `VITE_API_URL=https://test2.falinux.com`으로 띄움 → `REF-test-env.md` "환경". 테스트 계정 `devtest`(비밀번호·worker env = 세션 스크래치 `dev/`, vault에 안 적음) + 기본 보드에 장비 폴더 타일. test3(8013) = supervisor·worker **`build/261104-files`**(DB `nexus_build` 마이그레이션 `00018`까지, 보관소 = `build/261104-files/update-store`). 보관 프로세스 하나(59860)는 실행 파일이 `build/261103_updater/worker` — 그 터미널을 닫기 전엔 지우지 말 것. 개발 DB `nexus` 마이그레이션 `00018`까지, 보관소 = `apps/core/cmd/supervisor/update-store`(git 제외). 5051·3001은 꺼져 있음. 옛 줄 원문 → `history/current-archive-7.md`
+- **지금 떠 있는 것(11-06)**: 개발 test1(8011)·test2(8012)·worker `devtest-pc` = **11-06 사용자 요청으로 끔**(다시 띄우는 법 → `REF-test-env.md` "환경" 개발 화면 띄우기, 개발 DB에 계정 `devtest`·장비 `devtest-pc`·폴더 233 남음 — 비밀번호는 세션 스크래치라 사라짐, 다시 쓰려면 새 계정). 회사 PC Chrome = 11-05 Claude가 다시 켬. test3(8013) = supervisor **`build/261105-board-close`**(태그 `SUPERVISOR-BOARD-CLOSE-261105`, 11-05 15:10 사용자가 외부에서 요청해 Claude가 교체 — `swap.sh`로 옛 것 끄고 새 것 켬, 실패 시 옛 빌드로 되돌리게 함. `setsid`로 띄워 터미널 없음, 로그 = `build/261105-board-close/supervisor.log`, 다시 켜기 = `build`에서 `./261105-board-close/supervisor -env ../supervisor.env`) · worker = `build/261104-files`(코드 변경 없음, 그대로)(DB `nexus_build` 마이그레이션 `00018`까지, 보관소 = `build/261104-files/update-store`). 보관 프로세스 하나(59860)는 실행 파일이 `build/261103_updater/worker` — 그 터미널을 닫기 전엔 지우지 말 것. 개발 DB `nexus` 마이그레이션 `00018`까지, 보관소 = `apps/core/cmd/supervisor/update-store`(git 제외). 5051·3001은 꺼져 있음. 옛 줄 원문 → `history/current-archive-7.md`
 - **`build/`**: `261029_drag/`(지금 test3)·`261029_video_view/`·`video_view_tmp/`·`viewer_image/`·`supervisor.env`·`worker.env`·`worker-sqlite.db*`·`view-cache/`·`home-update/`
 - **git**: master = `feat/board-close` 머지(11-05), **push = 사용자(아직)**. 남은 로컬 브랜치 = `feat/*`·`fix/*` 여러 개(머지됨) · `refactor/socket`·`refactor/tile-kinds`. 커밋 제외 = `apps/core/cmd/irony/`(사용자 스크래치)·`cmd/worker/test.env`·user vault 전체. 커밋은 파트 단위
 - 남은 판단: 임시 DB `nexus_fv_tmp`·`nexus_member_tmp`·`nexus_api_tmp`도 있음(11-02 목록에서 봄, 안 건드림)

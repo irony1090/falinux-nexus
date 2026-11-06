@@ -10,3 +10,4 @@
 - 사용자 질문 "종료 요청이 없어도 계속 검사?" -> 예(2초마다 UPDATE 1번). 안 A(메모리 표시)·안 B(부분 인덱스) 중 사용자 **안 A** -> `killPending` + `HasPendingKills`. 확인 13/13(쉬는 동안 0번), 스캔 수 측정이 늦게 반영되는 함정 -> 쿼리 로그로 셈
 - 확인: API 11/11 · 화면 9/9(첫 실행 1건 FAIL = 확인 스크립트가 URL 끝을 비교했는데 `?focus=…&view=…`가 붙음, pathname 비교로 고쳐 통과)
 - 11-05 화면 확인용 개발 서버(8011·8012) + 테스트 계정 `devtest` + worker `devtest-pc` 띄움 -> 사용자 화면 확인 "잘 동작해"
+- 11-05 15:10 test3(8013) 적용: 사용자가 외부(Nexus 세션)라 Claude가 직접 — 태그 `SUPERVISOR-BOARD-CLOSE-261105` · `scripts/build.sh 261105-board-close supervisor frontend` · `swap.sh`(옛 556117 끔 -> 새 것 켬 -> `/` 200 확인, 실패 시 `261104-files`로 되돌림) -> 1초 만에 켜짐, 브라우저·worker 다시 붙음(PROCESS 2 · PENDING 0), 마이그레이션 변화 없음(00018). worker는 그대로
