@@ -95,6 +95,7 @@ sqlc.yaml  README.md  .gitignore
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조. 11-02 시안 규칙 추가: 묶음 쪼개지 않기·오른쪽 묶음 벽에 붙이기·줄 넘침 "안 C 한 세트"). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
 - **진행 중 파트**: 업데이트 app(11-02 P1(보관·화면) 마감·master 머지, P2(updater Linux) 마감·master 머지, 설계 전부 닫음, P3(배포) 11-03 마감·master 머지, P4(Windows) 11-03 마감·master 머지, Files 타일 개선 11-03 마감·master 머지(단위-가 폴더 트리·선택 삭제 / 시험 실행 / 단위-나 끌어 놓기 / 단위-다 갈아치우기 / 단위-라 실행 권한 이름) → `REF-update-trial.md` · `REF-update-files-tile.md` · `REF-update-replace.md` / 단위-7(교체 빌드) 집 서버 확인은 사용자 답 대기) → `REF-update-p4.md`(Windows 구현 · 단위-7 후속) · `REF-update-p3.md` · `REF-update-p2.md` · `REF-update-p1.md` · 설계 `REF-update-deploy.md` · 규칙 `REF-update-rules.md` · 경위 `REF-update-redesign.md` / 그 전 마감 파트 = `HISTORY.md` "마감 파트"(11-03 다섯 파트 INDEX로 접음: file-view·view-tile·video-view·tile-drag·member-drag)
 - **보드 닫기·종료 유예(11-05)**: `REF-board-close.md`(루트 ×·확인 창·`?mode=kill`·서버 10초 판정)
+- **소켓 재연결·끊김 표시(11-06)**: `REF-socket-reconnect.md`(포기 없음·화면 복귀 wake·PING 확인·다시 붙으면 터미널 스냅샷)
 - **공용으로 뗀 것(10-30)**: `PageEdgeBands` = `edge` prop, 띠 판정 = `widget/util/edgeBand.util.ts` `makeEdgeBands`, `TileDragChip` = prop(보드·관리 페이지 공용)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"
