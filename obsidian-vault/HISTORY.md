@@ -69,8 +69,8 @@
 
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
-| `history/socket-reconnect.md` | 소켓 재연결 · 끊김 표시(11-06 신설) ↔ `REF-socket-reconnect.md` | 11-06 재연결-1~3 · 화면-1 · 끊김 알약 · 확인 14/14 · test3 교체 · 모바일 확인 · 마감 |
-| `history/board-close.md` | 보드 닫기 · 종료 유예(2026-11-05 신설) ↔ `REF-board-close.md` | 11-05 루트 × · 확인 창 · S-b 서버 10초 · 쉬기 안 A · 확인 API 13/13 · 화면 9/9 · 사용자 화면 확인 · 마감 |
+| `history/socket-reconnect.md` | 소켓 재연결 · 끊김 표시(11-06 신설) ↔ `REF-socket-reconnect.md` | 11-06 확인 14/14 · test3 교체 · 모바일 확인 · 마감 |
+| `history/board-close.md` | 보드 닫기 · 종료 유예(2026-11-05 신설) ↔ `REF-board-close.md` | 11-05 확인 13/13·9/9 · 사용자 확인 · 마감 |
 | `history/decisions.md` | 확정 결정 상세(2026-10-26 MEMORY 슬림화 때 신설) ↔ `REF-decisions.md` | 10-26 밤 MEMORY 9.9k -> 5.8k자 |
 | `history/decisions-ui.md` | 확정 결정 상세: 화면(2026-10-29 분할) ↔ `REF-decisions-ui.md` | 10-29 터치 제스처·끌기(파트(타일 끌기) 마감) |
 | `history/current-archive-7.md` | CURRENT에서 내려보낸 줄 원문(2026-11-05~) | 11-05 보드 닫기 마감 때 11-04 마감 줄·11-03 업데이트 app 블록 |
@@ -85,19 +85,19 @@
 | `history/demo.md` | 시연 데이터(2026-10-16 신설) | 10-16 안 C(생산 지그 시나리오) 등록, 브라우저 경유 실행 미확인 |
 | `history/design-chaltteok.md` | 찰떡 규칙(디자인 규칙, 2026-10-25 신설) | 11-02 밤 타일 아래 줄 넘침(MbNote·버튼 줄바꿈) |
 | `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환 계획·회사 준비 |
-| `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝(`nexus`·`direct`), cloudflared 정지, 남은 것 BACKLOG "cloudflared 삭제"(10-29) |
+| `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝, cloudflared 정지 |
 | `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-29 저녁 drag 묶음 배포 완료(worker 항상 포함 규칙) |
-| `history/home-deploy-updater.md` | 집 서버 배포: updater 이후(2026-11-03 신설) ↔ `REF-home-deploy-updater.md` | 11-03 updater-p4 묶음(VM setup 확인 6/6) · 집 서버 설치 · C:\Nexus 정리 · 11-04 최신 배포(261104, 배포 #2) + updater 교체(디렉토리 타일에서 setup.ps1) |
+| `history/home-deploy-updater.md` | 집 서버 배포: updater 이후(2026-11-03 신설) ↔ `REF-home-deploy-updater.md` | 11-04 최신 배포 #2 · 11-05 보드 닫기 묶음(11-06 사용자 배포) · 11-06 소켓 재연결 묶음(업로드 대기) |
 | `history/update-deploy.md` | 파트(업데이트 app) 설계·화면(2026-10-30 신설, 10-30 분할) ↔ `REF-update-deploy.md` | 11-02 저녁 시안 확정 · P1(보관·화면) 계획 확정, 코드 착수 전 |
-| `history/update-rules.md` | 파트(업데이트 app) 규칙 — 잠금·삭제·되돌리기·버전(2026-10-30 분할) ↔ `REF-update-rules.md` | 11-02 규칙 개정(빌드 단위 잠그기·삭제·rollback 단계) · 11-04 로컬 updater 시험·흰 화면·되돌리기 순서 안 A |
+| `history/update-rules.md` | 파트(업데이트 app) 규칙 — 잠금·삭제·되돌리기·버전(2026-10-30 분할) ↔ `REF-update-rules.md` | 11-04 로컬 updater 시험 · 되돌리기 순서 안 A |
 | `history/update-redesign.md` | 파트(업데이트 app) 설계 개정 결정·시안(2026-11-02 신설) ↔ `REF-update-redesign.md` | 11-02 설계-1~7·9·11·12 합의 + 시안 보정 + 본문 개정 |
-| `history/update-p1.md` | 파트(업데이트 app) P1(보관·화면) 구현(2026-11-02 신설) ↔ `REF-update-p1.md` | 11-02 밤 P1 마감 커밋(차이 확인·샘플 데이터·아래 줄 수정), master 머지(`1f5eda9`) |
+| `history/update-p1.md` | 파트(업데이트 app) P1(보관·화면) 구현(2026-11-02 신설) ↔ `REF-update-p1.md` | 11-02 밤 P1 마감, master 머지(`1f5eda9`) |
 | `history/update-p2.md` | 파트(업데이트 app) P2(updater Linux)(2026-11-02 신설) ↔ `REF-update-p2.md` | 11-02 밤 P2 실기 확인 통과·마감, master 머지(`bd93fa4`) |
 | `history/update-p3.md` | 파트(업데이트 app) P3(배포)(2026-11-02 신설) ↔ `REF-update-p3.md` | 11-03 오전 사용자 확인·로그 보관 정리·master 머지 |
 | `history/update-p4.md` | 파트(업데이트 app) P4(Windows)(2026-11-03 신설) ↔ `REF-update-p4.md` | 11-03 낮 구현·VM 확인 39/39 · 오후 집 서버 설치 · 마감·머지 |
-| `history/update-files-tile.md` | 파트(업데이트 app) 후속 — Files 타일 개선(2026-11-03 신설) ↔ `REF-update-files-tile.md` | 11-03 steps.json 틀 확장자(미커밋) · Files 타일 요구 조율(결정-1~15) · 시안 확정 · 오해 정정 · DeepSeek 교훈 · 11-03 밤 단위-가 확인·단위-라(실행 권한 이름) 추가 · 11-03 저녁 단위-나 계획 확정(끌기-1~3) · 11-03 밤 단위-나 구현·확인 · 단위-라 · **11-03 밤 마감(커밋 `3caff7b`·master 머지)** |
+| `history/update-files-tile.md` | 파트(업데이트 app) 후속 — Files 타일 개선(2026-11-03 신설) ↔ `REF-update-files-tile.md` | 11-03 밤 단위-가~라 구현·확인 · 마감(`3caff7b`·master 머지) |
 | `history/update-replace.md` | Files 타일 단위-다(갈아치우기)(2026-11-03 분리) ↔ `REF-update-replace.md` | 11-03 밤 확인-1 확정 · 다-1~6 구현·시험 |
-| `history/update-trial.md` | 파트(업데이트 app) 후속 — 배포 전 단계별 시험 실행(2026-11-03 신설) ↔ `REF-update-trial.md` | 11-03 밤 요구·조사·질문 조율·결정-1~9·시험-1~5 계획 · 11-03 새 세션 시험-1~5 구현·확인(끝) |
+| `history/update-trial.md` | 파트(업데이트 app) 후속 — 배포 전 단계별 시험 실행(2026-11-03 신설) ↔ `REF-update-trial.md` | 11-03 시험-1~5 구현·확인(끝) |
 | `history/review-1030.md` | 10-30 작업 점검(2026-11-02 신설) ↔ `REF-review-1030.md` | 11-02 코드 항목 수정·머지, 설계 항목은 오후에 처리(→ update-redesign) |
 | `history/worker-screen.md` | worker 화면 송출(아이디어) | 10-15 나(VNC 터널 + noVNC) 추천 · 10-25 VNC 서버 준비 방식(내려받기·설치) 재논의, 보류 |
 | `history/node-ui.md` | node 카탈로그 UI 컨셉 | 08-10 그리드 직접 제작 확정, termspace 영감 피벗 |
