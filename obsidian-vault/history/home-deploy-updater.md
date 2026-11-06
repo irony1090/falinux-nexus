@@ -21,3 +21,6 @@
 ## 2026-11-05 ~ 11-06 보드 닫기 묶음
 - 11-05 Claude가 `scripts/build.sh 261105-board-close_win supervisor worker frontend --os windows`(태그 `SUPERVISOR-`·`WORKER-BOARD-CLOSE-261105`) -> 묶음 `build/home-update/261105-board-close/`(67개, steps·nexus-steps = 261104-files 그대로). Chrome 확장 연결 안 돼 업로드 못 함(회사 PC Chrome은 다시 켬)
 - 11-06 사용자가 Updater 화면에서 직접 올리고 배포. 공개 `index-CqlA8_4K.js` = 묶음과 같음(curl 확인)
+
+## 2026-11-06 (저녁)
+- 사용자 요청으로 집 서버 묶음 `build/home-update/261106-socket-reconnect/` 만듦(supervisor·worker·web, Windows, 태그 `SOCKET-RECONNECT-261106`) -> 업로드·배포 = 사용자

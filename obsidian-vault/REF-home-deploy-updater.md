@@ -46,6 +46,10 @@
 - **updater 교체 결과(11-04 14:33, 사용자가 Nexus 디렉토리 타일에서 `setup.ps1` 실행)**: "이미 설치됨 — exe만" · 작업 `NexusUpdater` Running(마지막 결과 267009 = 0x41301 "작업 실행 중", 정상) · 로그 `updater UPDATER-FILES-261104 시작` -> `접속됨 home-server#OaO13Q8R`(서브키 그대로). Updater 화면 online + 버전 확인(Claude, Chrome). **집 서버 supervisor·worker·web·updater 전부 261104** — 이후 배포부터 `replace`(갈아치우기) 먹음. 남은 것 = `C:\Nexus\updater-new\` 삭제(사용자)
 - updater 웹 자기 교체: 서비스 관리자(예약 작업·systemd)로 재시작은 풀리지만 "새 updater가 못 붙을 때 되돌릴 주체"가 없어 보류(설계-10-3) — 지켜보는 스크립트 + `.old` 되돌리기 안은 `BACKLOG.md`
 
+## 11-06 소켓 재연결 묶음 (Claude가 만듦, 업로드·배포 = 사용자)
+- `build/home-update/261106-socket-reconnect/`(파일 67개): `build/261106-socket-reconnect_win`의 `supervisor.exe`(`SUPERVISOR-SOCKET-RECONNECT-261106`)·`worker.exe`(`WORKER-SOCKET-RECONNECT-261106`, 코드 변경 없음·묶음 규칙상 포함)·`web/`(`index-AJJLr_Z9.js` = test3와 같음) + 261105 묶음의 `steps.json`·`nexus-steps/` 그대로. updater 제외. 새 마이그레이션 없음(00018) -> rollback DB 복원 불필요
+- 내용 = 소켓 재연결·끊김 표시(`REF-socket-reconnect.md`). 배포 뒤 확인 = 공개 `index.html`이 `index-AJJLr_Z9.js`를 가리키는지
+
 ## 11-05 보드 닫기 묶음 (Claude가 만듦, 업로드·배포 = 사용자 11-06 끝)
 - `build/home-update/261105-board-close/`(파일 67개): `build/261105-board-close_win`의 `supervisor.exe`(`SUPERVISOR-BOARD-CLOSE-261105`)·`worker.exe`(`WORKER-BOARD-CLOSE-261105`)·`web/` + 261104-files의 `steps.json`·`nexus-steps/` 그대로. updater 제외. 새 마이그레이션 없음(00018) -> rollback DB 복원 불필요
 - 사용자 요청 = Updater 화면에서 새 빌드 만들고 파일 업로드까지(배포는 안 함). 11-05 Claude in Chrome 확장 연결 안 됨(Chrome은 다시 켰음) -> 업로드 대기
