@@ -77,6 +77,5 @@
 
 ## 사용자 답 대기
 - **`1ef8a97` 커밋 메시지 형식** · 2026-10-22 · 제목·본문 사이 빈 줄이 빠져 `--oneline`에 본문까지 나옴(내용은 정상). 고치려면 master·`refactor/tile-kinds` rebase 필요(push 안 해서 가능) — 고칠지 사용자 답 대기. 이후 커밋은 빈 줄 확인
-- **업데이트 app 파트 INDEX 접기** · 2026-11-06 제안 · HISTORY가 다시 ~10k에 닿을 때(11-06 9.6k) · 업데이트 app(P1~P4·Files 타일 개선·시험 실행·갈아치우기)을 `INDEX-update-app.md` 하나로 접자고 함, 파트 범위 사용자 답 대기 → CLAUDE.md "색인 2단화"
 - **파트(파일 전송) 이름 정정** · 2026-10-21 제안 · 내부 전송 모듈 검증·수정까지였으니 "파일 전송 검증(내부 모듈)"로 바꾸자고 함. 답 받으면 MEMORY·HISTORY·CURRENT·INDEX 반영
 - **PowerShell 단계 스크립트 공부 이어 가기** · 2026-11-04 · 사용자가 다시 꺼낼 때 · `00-stop.ps1` 줄 단위 분석·Get-CimInstance·Where-Object·`$_` 속성 보기까지 대화로 답함. 남은 질문 = 분석을 vault에 기록할지 · 다음 `01-dbdump.ps1`로 넘어갈지(답 없음) · 스크립트 = `build/home-update/261105-board-close/nexus-steps/`

@@ -63,6 +63,7 @@
 - 영상 Range(마감, 10-29) → `INDEX-video-view.md` (video-view)
 - 타일 끌기(마감, 10-29) → `INDEX-tile-drag.md` (tile-drag·tile-drag-impl·tile-order)
 - 내 장비·관리자 타일 이동(마감, 10-30) → `INDEX-member-drag.md` (member-drag)
+- 업데이트 app(마감, 10-30~11-04, 설계·P1~P4·Files 타일·시험 실행·갈아치우기 + 10-30 점검) → `INDEX-update-app.md` (update-*·review-1030)
 - 공용 타일 틀(마감, 11-07, 공용 틀·메뉴 줄·설정·푸터 오른쪽) → `INDEX-tile-frame.md` (tile-frame·settings-footer)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
@@ -89,17 +90,6 @@
 | `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝, cloudflared 정지 |
 | `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-29 저녁 drag 묶음 배포 완료(worker 항상 포함 규칙) |
 | `history/home-deploy-updater.md` | 집 서버 배포: updater 이후(2026-11-03 신설) ↔ `REF-home-deploy-updater.md` | 11-04 최신 배포 #2 · 11-05 보드 닫기 묶음(11-06 사용자 배포) · 11-06 소켓 재연결 묶음(업로드 대기) |
-| `history/update-deploy.md` | 파트(업데이트 app) 설계·화면(2026-10-30 신설, 10-30 분할) ↔ `REF-update-deploy.md` | 11-02 저녁 시안 확정 · P1(보관·화면) 계획 확정, 코드 착수 전 |
-| `history/update-rules.md` | 파트(업데이트 app) 규칙 — 잠금·삭제·되돌리기·버전(2026-10-30 분할) ↔ `REF-update-rules.md` | 11-04 로컬 updater 시험 · 되돌리기 순서 안 A |
-| `history/update-redesign.md` | 파트(업데이트 app) 설계 개정 결정·시안(2026-11-02 신설) ↔ `REF-update-redesign.md` | 11-02 설계-1~7·9·11·12 합의 + 시안 보정 + 본문 개정 |
-| `history/update-p1.md` | 파트(업데이트 app) P1(보관·화면) 구현(2026-11-02 신설) ↔ `REF-update-p1.md` | 11-02 밤 P1 마감, master 머지(`1f5eda9`) |
-| `history/update-p2.md` | 파트(업데이트 app) P2(updater Linux)(2026-11-02 신설) ↔ `REF-update-p2.md` | 11-02 밤 P2 실기 확인 통과·마감, master 머지(`bd93fa4`) |
-| `history/update-p3.md` | 파트(업데이트 app) P3(배포)(2026-11-02 신설) ↔ `REF-update-p3.md` | 11-03 오전 사용자 확인·로그 보관 정리·master 머지 |
-| `history/update-p4.md` | 파트(업데이트 app) P4(Windows)(2026-11-03 신설) ↔ `REF-update-p4.md` | 11-03 낮 구현·VM 확인 39/39 · 오후 집 서버 설치 · 마감·머지 |
-| `history/update-files-tile.md` | 파트(업데이트 app) 후속 — Files 타일 개선(2026-11-03 신설) ↔ `REF-update-files-tile.md` | 11-03 밤 단위-가~라 구현·확인 · 마감(`3caff7b`·master 머지) |
-| `history/update-replace.md` | Files 타일 단위-다(갈아치우기)(2026-11-03 분리) ↔ `REF-update-replace.md` | 11-03 밤 확인-1 확정 · 다-1~6 구현·시험 |
-| `history/update-trial.md` | 파트(업데이트 app) 후속 — 배포 전 단계별 시험 실행(2026-11-03 신설) ↔ `REF-update-trial.md` | 11-03 시험-1~5 구현·확인(끝) |
-| `history/review-1030.md` | 10-30 작업 점검(2026-11-02 신설) ↔ `REF-review-1030.md` | 11-02 코드 항목 수정·머지, 설계 항목은 오후에 처리(→ update-redesign) |
 | `history/worker-screen.md` | worker 화면 송출(아이디어) | 10-15 나(VNC 터널 + noVNC) 추천 · 10-25 VNC 서버 준비 방식(내려받기·설치) 재논의, 보류 |
 | `history/node-ui.md` | node 카탈로그 UI 컨셉 | 08-10 그리드 직접 제작 확정, termspace 영감 피벗 |
 | `history/node-ui-overview.md` | 전체보기 · 화면 내비게이션 | 10-06 active 타일 표시 = 나(약하게 흐림) + 위치 번호 단축키 |
