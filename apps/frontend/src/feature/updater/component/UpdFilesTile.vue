@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import TileScroll from '@/feature/widget/component/TileScroll.vue';
+import { elRef } from '@/feature/widget/util/elRef.util';
 import { computed, reactive, ref, watch } from 'vue';
 import { useMemberBoard } from '@/feature/member/store/memberBoard.store';
 import type { MemberTile } from '@/feature/member/util/memberGrid.util';
@@ -72,6 +74,7 @@ const removeDir = (r: TreeRow & { kind: 'dir' }) => removeMany(props.bundle, fil
 
 // PC 탐색기 끌어 놓기(결정-5(끌어 놓기 규칙)) — 폴더 행 = 그 폴더, 파일 행 = 그 파일이 든 폴더, 빈 곳 = 루트. 메인키 탭·안 잠김·선택 모드 아님·올리는 중 아님일 때만
 const bodyEl = ref<HTMLElement>();
+const setBody = elRef(bodyEl);
 const dropping = ref(false);
 const dropDir = ref('');
 const canDrop = computed(() => scope.value === 'main' && !locked.value && !sel.selecting.value && !busy.value);
@@ -125,7 +128,7 @@ const setReplaceOn = async (path: string, on: boolean) => {
 </script>
 
 <template>
-<div ref="bodyEl" class="mb-body" :class="{ dropping }" data-pager-press @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
+<tile-scroll :ref="setBody" class="mb-body" :class="{ dropping }" data-pager-press @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
     <p v-if="q.isError.value" class="mb-empty">빌드를 찾을 수 없습니다(지워졌을 수 있습니다)</p>
     <template v-else-if="b">
         <div class="upd-set scopes">
@@ -203,7 +206,7 @@ const setReplaceOn = async (path: string, on: boolean) => {
         <p v-else class="mb-empty">서브키 탭은 한 인스턴스에만 줄 파일을 두는 자리입니다.<br>이번 범위에서는 자리만 있습니다.</p>
     </template>
     <p v-if="dropping" class="drop-tip">놓으면 <span class="upd-mono">{{ dropDir ? `${dropDir}/` : '맨 위(루트)' }}</span> 안으로 올라갑니다(폴더 이름 유지)</p>
-</div>
+</tile-scroll>
 <div v-if="b" class="mb-foot">
     <mb-note :text="progress ?? (sel.selecting.value ? `${selCount}개 선택` : locked ? '잠겨 있어 파일을 고칠 수 없습니다' : replace.length ? `갈아치우기 ${replace.length}곳` : '깔리는 순서: 공용, 메인키, 서브키')" />
     <div v-if="scope === 'main' && sel.selecting.value" class="mb-end">

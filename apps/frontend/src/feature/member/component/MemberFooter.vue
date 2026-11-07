@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useVirtualKeyboard } from '@/common/hook/virtualKeyboard.hook';
-import { useAppActions } from '@/feature/layout/hook/appActions.hook';
+import FootAccount from '@/feature/layout/component/FootAccount.vue';
 import FootPill from '@/feature/node/component/FootPill.vue';
 import FootActions, { type FootAction } from '@/feature/widget/component/FootActions.vue';
 import { computed, ref } from 'vue';
@@ -13,9 +13,8 @@ import MemberMenu from './MemberMenu.vue';
 // 높이 — 보드 푸터(BoardFooter SIZE)와 같게
 const SIZE = { pc: { h: 44, pill: 34 }, phone: { h: 56, pill: 44 } } as const;
 
-// 관리 페이지 아래 줄 = 보드 푸터 모양: 로고 메뉴 | Grid 도트 | 계정·로그아웃 — 화-13(전체 헤더)
+// 관리 페이지 아래 줄 = 보드 푸터 모양: 로고 메뉴 | Grid 도트 | 액션 + 공용 오른쪽 메뉴(알림 없음, Q22(관리 페이지 알림)) — 화-13(전체 헤더)
 const { layout, page } = useMemberBoard();
-const { auth, toggleAuth } = useAppActions();
 const kb = useVirtualKeyboard();
 
 const phone = computed(() => layout.value.phone);
@@ -42,10 +41,7 @@ const actions = computed<FootAction[]>(() => memberPage ? [
     <member-dots />
     <div class="side right">
         <foot-actions :actions="actions" />
-        <foot-pill edge="right" class="acct">
-            <span v-if="!phone" class="nick"><span class="dot" />{{ auth?.nickname }}</span>
-            <v-btn size="small" density="comfortable" variant="text" icon="mdi-logout" title="로그아웃" @click="toggleAuth" />
-        </foot-pill>
+        <foot-account :phone="phone" />
     </div>
     <device-move-dialog v-if="memberPage" v-model="moveOpen" :devices="devices" />
 </footer>
@@ -65,21 +61,4 @@ const actions = computed<FootAction[]>(() => memberPage ? [
 .side { display: flex; min-width: 0; }
 .left { justify-self: start; }
 .right { justify-self: end; align-items: center; gap: 8px; }
-.nick {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 10px 0 14px;
-    @include vars.font('label-large');
-    white-space: nowrap;
-    border-right: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-}
-.dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: rgb(var(--v-theme-primary));
-}
-// 닉네임 칸이 첫 칸이면 로그아웃 버튼은 FootPill의 첫 버튼 모양(넓게)을 쓰지 않는다
-.acct:has(.nick) > :deep(.v-btn) { width: 44px; padding-left: 0; }
 </style>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TileShell from '@/feature/widget/component/TileShell.vue';
 import { PERM_ADMIN, PERM_WORKER_REGISTER } from '@/feature/user/api/user.api';
 import { useAuthStore } from '@/feature/user/store/auth.store';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
@@ -99,8 +100,8 @@ const loading = computed(() => (usersTab.value ? usersQuery?.isPending.value : d
 </script>
 
 <template>
-<section class="MemberList mb-tile" aria-label="목록">
-    <div class="mb-head">
+<tile-shell tag="section" class="MemberList mb-tile" aria-label="목록">
+    <template #head><div class="mb-head">
         <div v-if="admin" class="mb-start" role="group" aria-label="목록 종류">
             <button v-for="t in tabs" :key="t.key" type="button" class="mb-btn" :class="{ 'mb-btn--on': tab === t.key }"
                 :aria-pressed="tab === t.key" @click="pickTab(t.key)"
@@ -129,7 +130,7 @@ const loading = computed(() => (usersTab.value ? usersQuery?.isPending.value : d
                 <button v-for="n in SIZES" :key="n" type="button" class="mb-btn" :class="{ 'mb-btn--on': size === n }" :aria-pressed="size === n" @click="pickSize(n)">{{ n }}</button>
             </div>
         </div>
-    </div>
+    </div></template>
 
     <div class="mb-body">
         <template v-if="usersTab">
@@ -166,7 +167,7 @@ const loading = computed(() => (usersTab.value ? usersQuery?.isPending.value : d
             <button type="button" class="mb-btn arrow" :disabled="pageNo >= pages" aria-label="다음 페이지" @click="goPage(pageNo + 1)"><v-icon icon="mdi-chevron-right" size="18" /></button>
         </div>
     </nav>
-</section>
+</tile-shell>
 </template>
 
 <style scoped lang="scss">

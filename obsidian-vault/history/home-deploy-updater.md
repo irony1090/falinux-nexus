@@ -24,3 +24,4 @@
 
 ## 2026-11-06 (저녁)
 - 사용자 요청으로 집 서버 묶음 `build/home-update/261106-socket-reconnect/` 만듦(supervisor·worker·web, Windows, 태그 `SOCKET-RECONNECT-261106`) -> 업로드·배포 = 사용자
+- 2026-11-07 소켓 재연결 묶음(`261106-socket-reconnect`) 사용자 배포. 공개 `index-AJJLr_Z9.js` = 묶음과 같음(nexus·direct curl 확인)

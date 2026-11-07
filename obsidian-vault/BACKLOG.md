@@ -58,6 +58,7 @@
 - **집 서버 Cloudflare Access** · 2026-10-25 미룸(사용자) · (2026-10-28) 직통 전환으로 Cloudflare를 안 거치므로 **Access는 걸 수 없음** — 막는 것 = 회원 로그인 + worker API 키. 더 막으려면 Caddy 쪽(basic auth·IP 제한)으로 다시 볼 것 · (2026-10-26) 파트(회원 관리)의 worker API 키가 배포되면 가짜 worker 등록은 막히므로 필요성 다시 볼 것(`REF-member.md`) · 집 서버를 다른 사람에게 알리기 전 / `/worker` 무인증이라 열어 둔 동안 가짜 worker 등록 가능 · 걸 때 회사 worker용 `/worker` 경로 예외 필요 · → `REF-home-server.md` "코드 쪽 확인 결과"
 
 ## 보류한 설계 · 정리
+- **확인 스크립트 되돌리기 기대값 낡음** · 2026-11-07 · 다음에 `scripts/check` 손댈 때 · `updater-deploy.py`의 "되돌리기 다시 = 가능"·"백업이 지워진 배포 되돌리기 = fail" 2건이 11-04 `800336c`(이미 되돌린 배포 거절) 전 기대값이라 FAIL → `REF-tile-frame.md` "단계-1 결과"
 - **cloudflared 삭제** · 2026-10-28 · **2026-10-29 써 보고 문제없으면(사용자)** · 관리자 PowerShell `cloudflared service uninstall` + Zero Trust 터널 삭제(지금 Stopped·Disabled) · 보드 `imx8mp-f24` online 확인은 안 함(사용자: 신경 끔) → `user/home-server/주소-전환-명령.md` "5(cloudflared 정지)" · `REF-home-direct.md`
 - **주소 목록 3개 상한이 지금 주소를 밀어냄** · 2026-10-26 · 사용자 판단 대기 · "저장만"을 3번 넘게 하면 지금 붙어 있는 supervisor 주소가 목록에서 지워져, 새 주소가 다 실패하면 돌아올 곳이 없음(주소-1 "3개 넘으면 꼴찌 삭제") · 후보 = 지금 붙은 주소는 지우지 않기 → `REF-device-move.md` "확인"
 - **Label 모듈** · 2026-10-12 · 다시 볼 조건 → `REF-node-label.md` "Label 모듈"

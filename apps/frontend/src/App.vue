@@ -5,6 +5,7 @@
     </app-body>
 
     <app-dialog />
+    <settings-dialog />
     <socket-lost-pill :status="socket.status.value" :on="!!auth" />
 </provide-app-layout>
 </template>
@@ -21,6 +22,7 @@ import { provideTestSocket } from '@/common/websocket/websocket.hook';
 import { bindTabId } from '@/common/util/tabId.util';
 import { bindSocketWake } from '@/common/websocket/socketWake.util';
 import SocketLostPill from '@/common/websocket/SocketLostPill.vue';
+import SettingsDialog from '@/feature/settings/component/SettingsDialog.vue';
 import { bindDeviceChanges } from '@/feature/worker/hook/deviceChange.hook';
 import { watch } from 'vue';
 

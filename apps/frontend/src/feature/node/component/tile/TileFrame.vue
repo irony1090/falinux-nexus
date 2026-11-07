@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, ref, toRef, watch, watchEffect, type PropType } from 'vue';
 import { useResizeCallback } from '@/feature/common/store/resizeGroup.store';
 import { VIcon, VList, VMenu, VProgressCircular } from 'vuetify/components';
+import TileShell from '@/feature/widget/component/TileShell.vue';
+import { elRef } from '@/feature/widget/util/elRef.util';
 import { useBoardClose } from '../../hook/boardClose.hook';
 import { useTileFloat } from '../../hook/tileFloat.hook';
 import { useTileSize } from '../../hook/tileSize.hook';
@@ -77,6 +79,7 @@ const onClose = () => isRoot.value ? boardClose.confirmClose() : emit('close');
 
 // 크기를 바꾸면 버튼이 옮겨지는데 v-menu는 이를 감지 못함 → 프레임 크기 변화·크기 변경 직후에 위치 재계산
 const frameEl = ref<HTMLElement>();
+const setFrame = elRef(frameEl);
 const sizeMenu = ref<InstanceType<typeof VMenu>>();
 const sizeOpen = ref(false);
 const menuOpen = ref(false);
@@ -112,7 +115,7 @@ const dragClass = computed(() => ({ 'TileFrame--pressing': drag.pressId.value ==
 </script>
 
 <template>
-<div v-if="tile" ref="frameEl" class="TileFrame" tabindex="-1"
+<tile-shell v-if="tile" :ref="setFrame" class="TileFrame" tabindex="-1"
     :data-tile-id="tile.id"
     :class="[`TileFrame--${tile.type}`, activeClass, dragClass, { 'TileFrame--overview': overview, 'TileFrame--shared': shared }]"
     :style="floatStyle"
@@ -120,14 +123,14 @@ const dragClass = computed(() => ({ 'TileFrame--pressing': drag.pressId.value ==
     @pointerdown="onDragDown"
 >
     <!-- 전체보기 라벨: 축소 배율을 거꾸로 곱해 읽을 수 있는 크기 유지 -->
-    <div v-if="overview" class="ov-name">
+    <template #overlay><div v-if="overview" class="ov-name">
         <span class="pos">{{ posOf.get(tile.id) }}</span>
         <v-icon size="14" :icon="icon" :color="color" />
         <span class="name">{{ name }}</span>
         <active-badges :users="remoteUsers" />
         <slot name="ov-extra" />
-    </div>
-    <div class="TileFrame__head" :inert="overview">
+    </div></template>
+    <template #head><div class="TileFrame__head" :inert="overview">
         <span class="pos">{{ posOf.get(tile.id) }}</span>
         <v-icon size="14" :icon="icon" :color="color" />
         <slot name="title" />
@@ -170,32 +173,21 @@ const dragClass = computed(() => ({ 'TileFrame--pressing': drag.pressId.value ==
                 </button>
             </span>
         </span>
-    </div>
+    </div></template>
 
-    <slot name="tabs" />
+    <template #tabs><slot name="tabs" /></template>
     <div v-if="unavailable" class="revoked text-warning">
         <v-icon size="18" icon="mdi-link-off" />
         <span>공유가 취소되었거나 삭제되어 볼 수 없습니다.</span>
         <slot name="unavailable"><span class="sub">닫기만 할 수 있습니다.</span></slot>
     </div>
     <slot v-else />
-    <slot name="extra" />
-</div>
+    <template #extra><slot name="extra" /></template>
+</tile-shell>
 </template>
 
 <style scoped lang="scss">
-.TileFrame {
-    flex: 1;
-    min-width: 0;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 6px;
-    background: rgb(var(--v-theme-surface));
-    position: relative;
-}
+.TileFrame { flex: 1; }    // 바탕 모양 = TileShell
 .revoked {
     flex: 1;
     min-height: 0;

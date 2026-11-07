@@ -6,6 +6,8 @@ import { useMemberBoard } from '../store/memberBoard.store';
 import { memberDragFrom, useMemberDrag, type MemberChip } from '../store/memberDrag.store';
 import type { Placed } from '../util/memberGrid.util';
 import MemberSizeCard from './MemberSizeCard.vue';
+import TileShell from '@/feature/widget/component/TileShell.vue';
+import { elRef } from '@/feature/widget/util/elRef.util';
 
 // 상세 타일 공통 틀 — 머리 줄 = 위치 번호 + 경로 제목(화-11) + [크기 | 닫기] 끝 블록(보드 TileFrame과 같음, 화-10). 자식 타일은 옅은 파랑 테두리(화-9)
 // 회원 페이지(MemberTileView)·updater 페이지(UpdTileView)가 경로·끌기 표시·몸통만 바꿔 같이 쓴다 — REF-update-deploy.md 단위-4(페이지 틀)
@@ -27,6 +29,7 @@ const onDown = (e: PointerEvent) => {
 
 // 크기 팝업은 크기가 바뀌면 버튼 자리를 따라간다(보드 relocateSizeMenu와 같음)
 const frameEl = ref<HTMLElement>();
+const setFrame = elRef(frameEl);
 const sizeMenu = ref<InstanceType<typeof VMenu>>();
 const sizeOpen = ref(false);
 const relocateSizeMenu = () => requestAnimationFrame(() => sizeMenu.value?.updateLocation?.(new Event('resize')));
@@ -36,11 +39,11 @@ watch(dragKey, k => { if (k) sizeOpen.value = false; });
 </script>
 
 <template>
-<section ref="frameEl" class="MbTileFrame mb-tile" :class="{ child: !!tile.parent, active, slot, pressing }" :data-tile-key="tile.key" tabindex="-1"
+<tile-shell :ref="setFrame" tag="section" class="MbTileFrame mb-tile" :class="{ child: !!tile.parent, active, slot, pressing }" :data-tile-key="tile.key" tabindex="-1"
     :aria-label="label"
     @pointerdown.capture="setActive(tile.key)" @pointerdown="onDown"
 >
-    <div class="mb-head">
+    <template #head><div class="mb-head">
         <span class="pos">{{ posOf.get(tile.key) }}</span>
         <nav class="crumbs" aria-label="경로">
             <template v-for="(c, i) in crumbs" :key="i">
@@ -60,9 +63,9 @@ watch(dragKey, k => { if (k) sizeOpen.value = false; });
             </v-menu>
             <button type="button" class="tile-btn" title="닫기" aria-label="타일 닫기" @click="requestClose(tile.key)"><v-icon icon="mdi-close" size="16" /></button>
         </span>
-    </div>
+    </div></template>
     <slot />
-</section>
+</tile-shell>
 </template>
 
 <style scoped lang="scss">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TileScroll from '@/feature/widget/component/TileScroll.vue';
 import { computed, ref, watch } from 'vue';
 import { useMemberBoard } from '@/feature/member/store/memberBoard.store';
 import type { MemberTile } from '@/feature/member/util/memberGrid.util';
@@ -85,7 +86,7 @@ const note = computed(() => {
 </script>
 
 <template>
-<div class="mb-body" data-pager-press>
+<tile-scroll class="mb-body" data-pager-press>
     <p v-if="bq.isError.value" class="mb-empty">빌드를 찾을 수 없습니다</p>
     <template v-else>
         <div class="upd-fields">
@@ -128,7 +129,7 @@ const note = computed(() => {
             </div>
         </template>
     </template>
-</div>
+</tile-scroll>
 <div v-if="!bq.isError.value" class="mb-foot">
     <mb-note :text="note" />
     <div class="mb-end">

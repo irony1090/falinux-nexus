@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TileScroll from '@/feature/widget/component/TileScroll.vue';
 import { computed, ref, watch } from 'vue';
 import { useMemberBoard } from '@/feature/member/store/memberBoard.store';
 import type { MemberTile } from '@/feature/member/util/memberGrid.util';
@@ -63,7 +64,7 @@ const remove = async () => {
 </script>
 
 <template>
-<div class="mb-body" data-pager-press>
+<tile-scroll class="mb-body" data-pager-press>
     <p v-if="q.isError.value" class="mb-empty">빌드를 찾을 수 없습니다(지워졌을 수 있습니다)</p>
     <div v-else-if="b" class="upd-fields">
         <span class="mb-lbl">장비</span>
@@ -102,7 +103,7 @@ const remove = async () => {
         </span>
         <p v-if="message" class="mb-err full">{{ message }}</p>
     </div>
-</div>
+</tile-scroll>
 <div v-if="b" class="mb-foot">
     <mb-note :text="b.locked ? '잠겨 있어 파일을 고칠 수 없습니다. 복사해 새 버전을 만듭니다' : '잠그기 전에는 수정할 수 있습니다'" />
     <div class="mb-end">

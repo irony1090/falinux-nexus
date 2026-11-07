@@ -193,6 +193,8 @@ onBeforeUnmount(() => {
     border-radius: 3px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
+// 메뉴 줄이 아래 위치면 위로 연다(아래는 타일 밖이라 잘림)
+.TileScroll__bar--bottom .drop { top: auto; bottom: calc(100% + 2px); }
 .err { padding: 3px 6px; color: rgb(var(--v-theme-error)); }
 .list { display: flex; flex-direction: column; overflow-y: auto; }
 .cand {

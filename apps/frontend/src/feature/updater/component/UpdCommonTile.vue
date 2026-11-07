@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TileScroll from '@/feature/widget/component/TileScroll.vue';
 import { computed, ref, watch } from 'vue';
 import { useMemberBoard } from '@/feature/member/store/memberBoard.store';
 import type { MemberTile } from '@/feature/member/util/memberGrid.util';
@@ -62,7 +63,7 @@ const remove = async () => {
 </script>
 
 <template>
-<div class="mb-body" data-pager-press>
+<tile-scroll class="mb-body" data-pager-press>
     <p v-if="q.isError.value" class="mb-empty">공용 묶음을 찾을 수 없습니다(지워졌을 수 있습니다)</p>
     <template v-else-if="b">
         <div class="upd-fields">
@@ -102,7 +103,7 @@ const remove = async () => {
         </div>
         <p v-if="!b.users.length" class="upd-hint">쓰는 빌드가 없습니다(지울 수 있습니다)</p>
     </template>
-</div>
+</tile-scroll>
 <div v-if="b" class="mb-foot">
     <mb-note :text="progress ?? (b.users.length ? `쓰는 빌드 ${b.users.length}개 · 삭제 불가 · 수정하면 이 빌드들의 내용이 바뀝니다` : '쓰는 빌드 없음')" />
     <div class="mb-end">

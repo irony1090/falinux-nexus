@@ -63,6 +63,7 @@
 - 영상 Range(마감, 10-29) → `INDEX-video-view.md` (video-view)
 - 타일 끌기(마감, 10-29) → `INDEX-tile-drag.md` (tile-drag·tile-drag-impl·tile-order)
 - 내 장비·관리자 타일 이동(마감, 10-30) → `INDEX-member-drag.md` (member-drag)
+- 공용 타일 틀(마감, 11-07, 공용 틀·메뉴 줄·설정·푸터 오른쪽) → `INDEX-tile-frame.md` (tile-frame·settings-footer)
 
 ## 주제별 history 색인 (공용 주제 · 진행 중 파트)
 > 날짜 엔트리는 각 파일에. 여기는 파일·주제·마지막 기록만.
