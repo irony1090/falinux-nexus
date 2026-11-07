@@ -3,6 +3,9 @@
 > 상세 작업 기록은 **주제/모듈별로 `history/` 폴더에 분할**. 이 파일은 어느 파일에 뭐가 있는지 색인만.
 > 요약·재사용 지식은 `REF-*.md`, 현재 진행은 `CURRENT.md`.
 
+## 상황 색인 (INDEX — 그 상황일 때만 연다)
+- 빌드·배포(빌드 스크립트·test3 교체·집 서버 묶음·보드 worker·집 서버 접속) → `INDEX-deploy.md`
+
 ## 마감 파트 (INDEX — 세션 시작 시 안 읽음)
 - 통신 인프라(마감) → `INDEX-infra.md` (transport·transfer·supervisor-web·project)
   - 2026-10-13 `history/supervisor-web.md`에 파트(서버 정리) 정리-2(세션 키 env)·정리-3(createdAt)·정리-4(확인) → 파트(서버 정리) 마감·커밋
@@ -31,7 +34,6 @@
 - 페이지 이동(마감) → `INDEX-tile-move.md` (tile-move)
 - 리팩터링(마감) → `INDEX-refactor.md` (refactor-socket·refactor-socket-batches·refactor-cleanup)
 - 빌드본 분리(마감) → `INDEX-build.md` (build)
-  - 2026-11-04 `history/build-scripts.md` 신설(↔ `REF-build-scripts.md`) — 빌드 스크립트 대상별로 나눔 · 집 서버 빌드로 실사용 · 커밋·master 머지
 - 새 보드·IUTF8(마감) → `INDEX-fix-board-iutf8.md` (fix-board-iutf8)
 - process 살려 두기(마감) → `INDEX-process-keep.md` (process-keep)
 - 타일 종류 정리(마감) → `INDEX-tile-kinds.md` (tile-kinds)
@@ -86,10 +88,6 @@
 | `history/windows-vm.md` | Windows VM `nexus-win`(2026-10-23 `windows-worker`에서 분할) | 10-23 경로 직접 입력 확인, win-dev를 test3에 다시 붙임 |
 | `history/demo.md` | 시연 데이터(2026-10-16 신설) | 10-16 안 C(생산 지그 시나리오) 등록, 브라우저 경유 실행 미확인 |
 | `history/design-chaltteok.md` | 찰떡 규칙(디자인 규칙, 2026-10-25 신설) | 11-02 밤 타일 아래 줄 넘침(MbNote·버튼 줄바꿈) |
-| `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환 계획·회사 준비 |
-| `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝, cloudflared 정지 |
-| `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-29 저녁 drag 묶음 배포 완료(worker 항상 포함 규칙) |
-| `history/home-deploy-updater.md` | 집 서버 배포: updater 이후(2026-11-03 신설) ↔ `REF-home-deploy-updater.md` | 11-04 최신 배포 #2 · 11-05 보드 닫기 묶음(11-06 사용자 배포) · 11-06 소켓 재연결 묶음(업로드 대기) |
 | `history/worker-screen.md` | worker 화면 송출(아이디어) | 10-15 나(VNC 터널 + noVNC) 추천 · 10-25 VNC 서버 준비 방식(내려받기·설치) 재논의, 보류 |
 | `history/node-ui.md` | node 카탈로그 UI 컨셉 | 08-10 그리드 직접 제작 확정, termspace 영감 피벗 |
 | `history/node-ui-overview.md` | 전체보기 · 화면 내비게이션 | 10-06 active 타일 표시 = 나(약하게 흐림) + 위치 번호 단축키 |

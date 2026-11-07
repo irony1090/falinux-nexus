@@ -67,7 +67,7 @@
 - supervisor PostgreSQL = docker 컨테이너 **`postgres15`**(`docker start postgres15` — `postgres`는 이미지명). user `irony` / pass `!Fa1289` / `5432`. 기본 DB `workspace`(구 PortBridge), `nexus` DB는 수동 생성(2026-06-26)
 - supervisor 띄우면 `init()`의 mountStore가 goose 마이그레이션 자동 적용(멱등)
 - **포트**: supervisor 8012(0.0.0.0) · 프론트 8011 · worker -> localhost:8012(외부 접속 설정, 되돌리는 법 → `REF-external-access.md`)
-- **빌드본 = 사용용**: `build/<이름>`(`scripts/build.sh`, 대상별 `scripts/build/*.sh` → `REF-build-scripts.md`) = **8013(test3) · DB `nexus_build`**. 사용자 Claude 세션이 그 위에서 돎 — **Claude는 8013을 끄지 않는다**(재기동 = 사용자). 개발 실행 = `go run ./cmd/supervisor -env dev.env` 필수 (→ `REF-build.md`)
+- **빌드본 = 사용용**: 8013(test3) · DB `nexus_build`. 사용자 Claude 세션이 그 위에서 돎 — **Claude는 8013을 끄지 않는다**(교체는 사용자 요청 때만). 개발 실행 = `go run ./cmd/supervisor -env dev.env` 필수. 빌드·배포 방법 → `INDEX-deploy.md`
 - **Windows VM `nexus-win` = 시험할 때만 켠다**(코드 작성 중엔 `docker stop`) (→ `REF-windows-vm.md`) / 포트 점유 함정(`bind: address already in use`) → `REF-test-env.md`
 
 ## apps/core 디렉토리
@@ -93,7 +93,7 @@ sqlc.yaml  README.md  .gitignore
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
 - 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-decisions.md`·`REF-decisions-ui.md`(확정 결정 상세) · `REF-test-env.md`(테스트 환경·함정) · `REF-photo-upload.md`(폰 사진 올리기 도구, 11-02 분할) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · **집 서버(운영)**: `REF-home-server.md`(서버 PC·옛 터널) · `REF-home-direct.md`(지금 경로 = iptime + Caddy 직통) · `REF-home-deploy.md`(배포·업데이트)
-- **배포·업데이트**: 업데이트 app(마감) → `INDEX-update-app.md`(설계·규칙·P1~P4·Files 타일·시험 실행·갈아치우기·10-30 점검) · 집 서버 `REF-home-deploy-updater.md`(updater 설치·묶음 배포, 지금 방식) · `REF-home-deploy.md`(옛 수동 update.ps1) · `REF-build.md`(보드 worker 교체)
+- **빌드·배포할 때**(빌드 스크립트·test3 교체·집 서버 묶음·보드 worker·집 서버 접속) → `INDEX-deploy.md`(상황 색인) / 업데이트 app(마감) → `INDEX-update-app.md`
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조. 11-02 시안 규칙 추가: 묶음 쪼개지 않기·오른쪽 묶음 벽에 붙이기·줄 넘침 "안 C 한 세트"). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
 - **진행 중 파트**: 없음(다음 = `BACKLOG.md`) / 마감 파트 목록 = `HISTORY.md` "마감 파트"
 - **보드 닫기·종료 유예(11-05)**: `REF-board-close.md`(루트 ×·확인 창·`?mode=kill`·서버 10초 판정)
