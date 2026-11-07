@@ -29,3 +29,4 @@
 ## 2026-11-07 (밤)
 - test3 supervisor 교체 `261106-socket-reconnect` -> `261107-tile-shell`(태그 `SUPERVISOR-TILE-SHELL-261107`, swap.sh, 21:48 켜짐, 공개 `index-BIm258Bp.js`, worker 다시 붙음) · 집 서버 묶음 `build/home-update/261107-tile-shell/` 만듦(업로드·배포 = 사용자) → `REF-home-deploy-updater.md` "11-07 공용 타일 틀 묶음"
 - 사용자 집 서버 배포 -> 공개 `index-BIm258Bp.js` 일치(nexus·direct)
+- 11-07 사용자: 집 서버에 `updater-new` 폴더 없음 -> 할 일에서 뺌(vault엔 이름이 "예"로만 적혀 있었음, 11-04 updater 교체용 임시 업로드 폴더)

@@ -6,7 +6,7 @@
 10-30 설계 시작 -> 11-02 설계 개정(10-30 점검 결과 반영) -> 11-02 P1(보관·화면)·P2(updater Linux) -> 11-03 P3(배포)·P4(Windows)·Files 타일 개선(단위-가 폴더 트리·선택 삭제 / 시험 실행 / 단위-나 끌어 놓기 / 단위-다 갈아치우기 / 단위-라 실행 권한 이름) -> 11-04 집 서버를 updater로 배포(단위-7(교체 빌드) 후속, 그 뒤 11-05·11-06·11-07 묶음도 updater로). 전부 master 머지
 - 다른 파트에서도 지킬 결정(updater 인가·updater 되돌리기·배포 전 필수)은 MEMORY "확정 결정"과 `REF-decisions.md`에 그대로 남김
 - 계속 쓰는 것(접지 않음): 집 서버 배포 `REF-home-deploy-updater.md` · 빌드 스크립트 `REF-build-scripts.md`
-- 남은 것: `run.sh` 되돌리기 기대값 2건 낡음(`BACKLOG.md`) · `C:\Nexus\updater-new\` 삭제(사용자)
+- 남은 것: `run.sh` 되돌리기 기대값 2건 낡음(`BACKLOG.md`) · (updater 교체용 임시 업로드 폴더 삭제 = 11-07 사용자 확인 "폴더 없음", 끝)
 
 ## REF / history 목록
 | REF / history | 내용 |
