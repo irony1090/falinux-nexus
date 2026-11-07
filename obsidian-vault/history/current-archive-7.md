@@ -28,3 +28,15 @@
 
 - **지금 떠 있는 것(11-04 확인)**: test3(8013) = supervisor·worker **`build/261104-files`**(사용자 최신 빌드, DB `nexus_build` 마이그레이션 `00018`까지, 보관소 = `build/261104-files/update-store`). 보관 프로세스 하나(59860)는 실행 파일이 `build/261103_updater/worker` — 그 터미널을 닫기 전엔 지우지 말 것. **11-04 아침 test1(8011)·test2(8012) 둘 다 꺼져 있음.** 옛 메모: test1 = 11-03 밤 끔 · test2(8012, 개발 supervisor `go run`) Claude 세션이 다시 띄움 — 세션을 다시 시작하면 같이 꺼질 수 있음(`ss -ltnp | grep -E ':801[12]'`로 확인, 다시 띄우기 = `apps/core`에서 `go run ./cmd/supervisor -env dev.env` · `apps/frontend`에서 `npm run dev`)** — 개발 DB `nexus`에 마이그레이션 `00018`까지 적용됨, 보관소 = `apps/core/cmd/supervisor/update-store`(git 제외). 5051·3001은 꺼져 있음
   - **화면 확인용으로 띄운 것(11-05 09:07)**: 8012 supervisor `go run -env dev.env` · 8011 vite(`.env`를 안 고치고 실행 환경변수 `VITE_API_URL=https://test2.falinux.com`으로 띄움 — `.env`에선 그 줄이 주석이라 그냥 띄우면 화면이 API를 못 찾음) · worker `devtest-pc`(env·sqlite = 세션 스크래치 `dev/`). 테스트 계정 `devtest`(비밀번호 = 스크래치 `dev/creds.txt`, vault에 안 적음) + 기본 보드에 장비 폴더 타일. 접속 = https://test1.falinux.com
+
+## 2026-11-07 밤 세션 끝에 내려보냄
+- **(2026-11-07) 파트(공용 타일 틀) — 마감, `refactor/tile-shell` 커밋·master `--no-ff` 머지(push = 사용자)**
+  - 끝: 단계-1(공용 틀 리팩터링)·단계-2(메뉴 줄 위치·숨김) 구현·확인 + 사용자 화면 확인("스크롤에 따른 숨김/보임 확인") → `REF-tile-frame.md`
+  - 끝: 단계-3·4 조율 Q14(로그아웃 때 설정)~Q23(설정 창 적용) + 시안(https://claude.ai/artifact/KCroqig1AG5hHjq77h2YTY, 고치지 않음 — Q21·Q22로 달라진 점은 REF에)
+  - 끝(11-07 밤): 단계-3(설정 저장소·dialog)·단계-4(오른쪽 메뉴 통일) 구현 + 헤드리스 0 FAIL · `run.sh` 낡은 2건 외 통과. 착수 때 Q22(관리 페이지 알림) = 없음 · Q21(전송 자리) = 알림과 같은 레벨로 개정. 계획과 다르게 한 것 구현-1(설정 창 방식)~구현-4(폰 펼침 모양) → `REF-settings-footer.md` "구현 결과"
+  - 사용자 화면 확인 "잘 동작해"(11-07 밤) -> **파트 마감**(커밋·master `--no-ff` 머지, push = 사용자) → `INDEX-tile-frame.md`(커밋·머지, MEMORY에 불변 결정 한 줄: 푸터 오른쪽 = `FootAccount` 공용 + 보드 전용 slot / 새 설정 = `settings.store` `SPECS`)
+  - 확인 스크립트 `run.sh`의 FAIL 2건 = 낡은 기대값(→ `BACKLOG.md`), 이번 작업과 무관
+- **(2026-11-06) 소켓 재연결 + 끊김 표시 — 마감, `fix/socket-reconnect` 커밋·master `--no-ff` 머지(push = 사용자)** · 사용자 모바일 확인 "잘 동작해"(test3 `261106-socket-reconnect`). 재연결-1(포기 없음)·재연결-2(화면 복귀·`online` 때 바로)·재연결-3(복귀 때 PING 3초)·화면-1(다시 붙으면 스냅샷으로 다시 그림)·끊김 알약. 못 본 것 = supervisor 재시작 뒤 화면-1. 집 서버 묶음 = `build/home-update/261106-socket-reconnect/`(11-06 만듦, 업로드·배포 = 사용자 대기 → `REF-home-deploy-updater.md` "11-06 소켓 재연결 묶음") → `REF-socket-reconnect.md` · `history/socket-reconnect.md`
+- **(2026-11-05) 보드 닫기 + 종료 유예(S-b) — 마감, `feat/board-close` 커밋·master `--no-ff` 머지(push = 사용자)** · 사용자 화면 확인 "잘 동작해". 루트 타일 ×(기본 보드 제외)·보드 메뉴 "보드 삭제" = 같은 확인 창(취소 / 기본 보드로 보내기 / 모두 종료하고 닫기). 강제 종료 = 종료 요청 10초 뒤 서버 판정(2초 주기 검사, 남은 요청 없으면 쉼 = 안 A(메모리 표시)). 못 본 것 = 보기 권한 공유 터미널 → `REF-board-close.md` · `history/board-close.md`
+- **(2026-11-07) 집 서버 소켓 재연결 묶음 배포 끝** — 공개 `index-AJJLr_Z9.js` 일치(nexus·direct) → `REF-home-deploy-updater.md` "11-06 소켓 재연결 묶음"
+- **(2026-11-06) 집 서버 = 보드 닫기 빌드(`BOARD-CLOSE-261105`)** · 사용자가 Updater로 직접 업로드·배포, 공개 화면 해시 일치 확인 → `REF-home-deploy-updater.md` "11-05 보드 닫기 묶음"
