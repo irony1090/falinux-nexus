@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TileScroll from '@/feature/widget/component/TileScroll.vue';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { lastSeenText } from '@/feature/node/util/presenceView.util';
 import { deleteWorkerInstance, type WorkerInstanceResponse } from '@/feature/worker/api/worker.api';
@@ -137,7 +138,7 @@ const remove = () => openDialog({
 </script>
 
 <template>
-<div class="mb-body" data-pager-press>
+<tile-scroll class="mb-body" data-pager-press>
     <p v-if="deviceQuery.isError.value" class="mb-empty">장비를 찾을 수 없습니다(지워졌을 수 있습니다)</p>
     <template v-else-if="d">
         <div class="mb-fields mb-fields--wall">
@@ -187,7 +188,7 @@ const remove = () => openDialog({
         </div>
         <p v-if="!d.instances.length" class="mb-empty">아직 접속한 worker가 없습니다.<br>API 키의 env 두 줄을 worker에 넣고 실행하면 여기에 나타납니다.</p>
     </template>
-</div>
+</tile-scroll>
 <div v-if="d" class="mb-foot">
     <mb-note text="키를 바꾸면 옛 키의 worker는 다음 접속부터 거부됩니다" />
     <div class="mb-end">

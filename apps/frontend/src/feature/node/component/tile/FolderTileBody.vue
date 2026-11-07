@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import TileScroll from '@/feature/widget/component/TileScroll.vue';
+import { elRef } from '@/feature/widget/util/elRef.util';
 import { tabReady } from '@/common/util/tabId.util';
 import type { ProcessStatus } from '@/feature/process/api/process.api';
 import { isRunning } from '@/feature/process/store/processTerm.store';
@@ -289,6 +291,7 @@ const onPaste = () => doPaste(clip.value.mode, clip.value.nodes, nodeId.value, t
 
 // 칸 끌기 — 칸-2(node 칸 끌기), REF-tile-drag.md 칸Q1~Q5. 순서 = 칸-1(node 순서 API), 넣기 = 붙여넣기와 같은 길(SD4(드롭 = 이동, Ctrl = 복사))
 const rootEl = ref<HTMLElement>();
+const setRoot = elRef(rootEl);
 const { invalidateChanged } = useNodeQueryClient(useQueryClient());
 const grids = useTileGrids();
 const { openDialog } = useAppDialog();
@@ -321,11 +324,11 @@ const { shown, draggingIds, lifted, dwellId, intoKey, landing, landed } = drag;
 </script>
 
 <template>
-<div ref="rootEl" data-pager-press class="FolderTileBody"
+<tile-scroll :ref="setRoot" :bar-pin="editing || drag.active.value" data-pager-press class="FolderTileBody"
     :class="{ drop: intoKey === 'tile', 'jelly-land': landed === 'tile' }"
     @click="onBodyClick"
 >
-    <div class="crumbs" :class="{ editing }" :data-pager-press-off="editing || undefined" @click="onCrumbsClick">
+    <template #bar><div class="crumbs" :class="{ editing }" :data-pager-press-off="editing || undefined" @click="onCrumbsClick">
         <path-input v-if="editing" :value="pathText" :suggest="suggestPath" :submit="submitPath" @pick="onPick" @close="editing = false" />
         <!-- 입력 중엔 도구를 숨겨 입력칸이 줄 전체를 쓴다(좁은 타일에서 자동완성 목록 폭 확보) -->
         <template v-else>
@@ -394,7 +397,7 @@ const { shown, draggingIds, lifted, dwellId, intoKey, landing, landed } = drag;
     </div>
     <div class="bar">
         <v-progress-linear v-if="tileBusy" indeterminate height="2" color="primary" />
-    </div>
+    </div></template>
     <div v-if="error" class="state">
         <span>{{ error.message || '목록을 불러오지 못했습니다' }}</span>
         <v-btn size="x-small" variant="tonal" :disabled="busy" @click="onRefresh">다시 시도</v-btn>
@@ -474,14 +477,11 @@ const { shown, draggingIds, lifted, dwellId, intoKey, landing, landed } = drag;
         <template #head><div class="dg-info"><span class="t">{{ ctxMenu.node.name }}</span><template v-for="[k, v] in infoRows(ctxMenu.node)" :key="k"><span class="k">{{ k }}</span><span class="v">{{ v }}</span></template></div></template>
     </node-row-menu>
     <share-dialog v-if="shareFor" v-model="shareOpen" :node-id="shareFor.id" :node-name="shareFor.name" :tile-id="tileId" />
-</div>
+</tile-scroll>
 </template>
 
 <style scoped lang="scss">
 .FolderTileBody {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
     @include vars.font('body-medium');
     button:where(:not(.v-btn, .tile-btn, .ct-seg, .dg-btn, .dg-lbl)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
         padding: 0;
@@ -507,8 +507,7 @@ const { shown, draggingIds, lifted, dwellId, intoKey, landing, landed } = drag;
     gap: 0 2px;
     min-height: 28px;
     padding: 0;
-    @include vars.font('body-small');
-    border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    @include vars.font('body-small');    // 테두리 = TileScroll 메뉴 줄(위/아래에 맞춰)
     .lead {
         flex: 1 1 270px;    // 이 폭(이동 묶음 + 경로)이 안 되면 도구가 둘째 줄로
         min-width: 0;

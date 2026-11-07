@@ -38,3 +38,10 @@
 - node 칸 순서 = `POST /nodes/order`(X(들)를 Y 뒤로, 서버가 안 보이는 형제까지 1부터 다시 매김, 부모 편집 권한, 루트 = 내 루트끼리만). 칸을 폴더로 옮기면 그 폴더 끝. 폴더 칸 가운데 0.6초 머묾 = 넣기, Ctrl = 복사(넣기에만)
 - 화면 끝 띠 = 칸·타일 끌기 공용(`tileGrids.edge*` + `PageEdgeBands`), 48px 안 0.4초 머물면 칼럼 하나씩. 전체보기는 흐르는 스크롤
 - 선택 막대처럼 strip 위에 잠깐 끼어드는 막대는 칸 수 판정 높이에서 뺀다(`tileGrids.barH`) — 안 그러면 켜고 끌 때 배치·페이지가 바뀜 → `REF-tile-drag-impl.md`
+
+## 타일 틀
+- 2026-11-07 파트(공용 타일 틀) → `INDEX-tile-frame.md`. 타일 바탕 = `TileShell`(스토어 모름, 머리 줄·탭·본문 slot), 본문 스크롤 = `TileScroll`(메뉴 줄 `#bar` = sticky, 위치 = 설정 `tileBarAt`, 내리면 숨김). 메뉴 줄 slot은 본문 컴포넌트가 씀(경로 줄 상태가 본문에 있음) → `REF-tile-frame.md`
+
+## 푸터 오른쪽·설정
+- 2026-11-07 같은 파트. 오른쪽 메뉴 = `feature/layout/component/FootAccount.vue` 공용(PC = 닉네임 메뉴[설정][로그아웃] + 전체 화면, 폰 = ⋯ 하나). 보드 전용 버튼([전송][알림])은 slot — 전송 상태가 보드 페이지 provide라서. 관리 페이지엔 알림 없음(알림 받기가 보드 트리에 기댐)
+- 설정 = `feature/settings/store/settings.store.ts` `SPECS`에 항목(범위·기본값·모양 검사). 브라우저 범위 = userPrefs(로그아웃하면 지워짐), 계정 범위는 첫 계정 항목 때 서버 저장을 붙임. 설정 창 = `SettingsDialog`(App.vue 하나, 고르면 바로 적용) → `REF-settings-footer.md`

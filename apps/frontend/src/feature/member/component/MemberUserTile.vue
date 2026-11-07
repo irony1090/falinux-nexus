@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TileScroll from '@/feature/widget/component/TileScroll.vue';
 import { useAppDialog } from '@/feature/layout/store/appDialog.store';
 import { PERM_ADMIN, PERM_WORKER_REGISTER } from '@/feature/user/api/user.api';
 import { useAuthStore } from '@/feature/user/store/auth.store';
@@ -78,7 +79,7 @@ const remove = () => {
 </script>
 
 <template>
-<div class="mb-body" data-pager-press>
+<tile-scroll class="mb-body" data-pager-press>
     <p v-if="userQuery.isError.value" class="mb-empty">회원을 찾을 수 없습니다(지워졌을 수 있습니다)</p>
     <template v-else-if="u">
         <div class="mb-fields mb-fields--wall">
@@ -115,7 +116,7 @@ const remove = () => {
         </button>
         <p v-if="devicesQuery.isSuccess.value && !devices.length" class="mb-empty">등록한 장비가 없습니다</p>
     </template>
-</div>
+</tile-scroll>
 <div v-if="u" class="mb-foot">
     <mb-note :text="note" />
     <div class="mb-end">

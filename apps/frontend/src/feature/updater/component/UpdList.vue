@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TileShell from '@/feature/widget/component/TileShell.vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { VIcon } from 'vuetify/components';
 import { useMemberBoard } from '@/feature/member/store/memberBoard.store';
@@ -90,8 +91,8 @@ const versionSub = (g: CommonGroup, i: number) => {
 </script>
 
 <template>
-<section class="UpdList mb-tile" aria-label="목록">
-    <div class="mb-head">
+<tile-shell tag="section" class="UpdList mb-tile" aria-label="목록">
+    <template #head><div class="mb-head">
         <div class="mb-start" role="group" aria-label="목록 종류">
             <button v-for="t in tabs" :key="t.key" type="button" class="mb-btn" :class="{ 'mb-btn--on': tab === t.key }"
                 :aria-pressed="tab === t.key" @click="pickTab(t.key)"
@@ -120,7 +121,7 @@ const versionSub = (g: CommonGroup, i: number) => {
             </div>
         </div>
         <p v-if="message" class="mb-err">{{ message }}</p>
-    </div>
+    </div></template>
 
     <div class="mb-body">
         <template v-if="commonsTab">
@@ -158,7 +159,7 @@ const versionSub = (g: CommonGroup, i: number) => {
             <button type="button" class="mb-btn arrow" :disabled="pageNo >= pages" aria-label="다음 페이지" @click="goPage(pageNo + 1)"><v-icon icon="mdi-chevron-right" size="18" /></button>
         </div>
     </nav>
-</section>
+</tile-shell>
 </template>
 
 <style scoped lang="scss">

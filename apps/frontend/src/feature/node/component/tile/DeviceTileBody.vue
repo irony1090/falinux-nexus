@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import TileScroll from '@/feature/widget/component/TileScroll.vue';
+import { elRef } from '@/feature/widget/util/elRef.util';
 import type { CatchErrorResponse } from '@/common/api/api.util';
 import { tabReady } from '@/common/util/tabId.util';
 import type { DirEntry } from '@/feature/worker/api/worker.api';
@@ -141,6 +143,7 @@ const onNewFile = (name: string) => {
 }
 
 const bodyEl = ref<HTMLElement>();
+const setBody = elRef(bodyEl);
 const onScroll = () => {
     const el = bodyEl.value;
     if (el && el.scrollTop + el.clientHeight >= el.scrollHeight - LOAD_MORE_PX) void dir.loadMore();
@@ -321,8 +324,8 @@ watch(lastDone, d => {
 </script>
 
 <template>
-<div ref="bodyEl" data-pager-press class="DeviceTileBody" :class="{ dropping }" @click="onBodyClick" @scroll.passive="onScroll" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
-    <div class="crumbs" :class="{ editing }" :data-pager-press-off="editing || undefined" @click="onCrumbsClick">
+<tile-scroll :ref="setBody" :bar-pin="editing" data-pager-press class="DeviceTileBody" :class="{ dropping }" @click="onBodyClick" @scroll.passive="onScroll" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop">
+    <template #bar><div class="crumbs" :class="{ editing }" :data-pager-press-off="editing || undefined" @click="onCrumbsClick">
         <path-input v-if="editing" :value="here" :suggest="suggestPath" :submit="submitPath" @close="editing = false" />
         <!-- 입력 중엔 도구를 숨겨 입력칸이 줄 전체를 쓴다(좁은 타일에서 자동완성 목록 폭 확보) -->
         <template v-else>
@@ -385,7 +388,7 @@ watch(lastDone, d => {
     </div>
     <div class="bar">
         <v-progress-linear v-if="loading || busyTile === tileId" indeterminate height="2" color="primary" />
-    </div>
+    </div></template>
 
     <div v-if="error" class="state">
         <span>{{ error.status === 409 ? '인스턴스 접속이 끊겼습니다. 다시 접속하면 다시 읽습니다.' : (error.message || '목록을 불러오지 못했습니다') }}</span>
@@ -445,14 +448,11 @@ watch(lastDone, d => {
     <div v-if="mine.length" class="xfer">
         <transfer-row v-for="t in mine" :key="t.id" :item="t" />
     </div>
-</div>
+</tile-scroll>
 </template>
 
 <style scoped lang="scss">
 .DeviceTileBody {
-    flex: 1;
-    min-height: 0;
-    overflow: auto;
     @include vars.font('body-medium');
     button:where(:not(.v-btn, .tile-btn, .ct-seg, .dg-btn, .dg-lbl)) {    // scoped 규칙은 자식 v-btn 루트에도 걸린다 — 여백·글자를 지우지 않게(:where = 우선순위 그대로)
         padding: 0;
@@ -472,18 +472,13 @@ watch(lastDone, d => {
 }
 // 경로 줄 = 28px 한 줄, 좁은 타일은 두 줄. 경로는 앞쪽부터 줄어든다
 .crumbs {
-    position: sticky;
-    top: 0;
-    z-index: 3;     // 목록 칸 버튼·라벨(dir-grid z 1~2)보다 위 — 아니면 자동완성 목록을 뚫고 보인다
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0 2px;
     min-height: 28px;
     padding: 0;
-    @include vars.font('body-small');
-    background: rgb(var(--v-theme-surface));
-    border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    @include vars.font('body-small');    // 테두리 = TileScroll 메뉴 줄(위/아래에 맞춰)
     .lead {
         flex: 1 1 270px;    // 이 폭(이동 묶음 + 경로)이 안 되면 도구가 둘째 줄로
         min-width: 0;
@@ -547,7 +542,7 @@ watch(lastDone, d => {
 .DeviceTileBody.dropping { outline: 2px dashed rgb(var(--v-theme-primary)); outline-offset: -2px; }
 .xfer {
     position: sticky;
-    bottom: 0;
+    bottom: var(--tile-bar-bottom, 0px);    // 아래 위치 메뉴 줄 바로 위(TileScroll)
     padding: 2px vars.$spacing-md;
     background: rgb(var(--v-theme-surface));
     border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));

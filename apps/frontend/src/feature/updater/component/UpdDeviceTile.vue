@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TileScroll from '@/feature/widget/component/TileScroll.vue';
 import { computed, ref, watch } from 'vue';
 import { useMemberBoard } from '@/feature/member/store/memberBoard.store';
 import type { MemberTile } from '@/feature/member/util/memberGrid.util';
@@ -99,7 +100,7 @@ const remove = async () => {
 </script>
 
 <template>
-<div class="mb-body" data-pager-press>
+<tile-scroll class="mb-body" data-pager-press>
     <p v-if="q.isError.value" class="mb-empty">장비를 찾을 수 없습니다(지워졌을 수 있습니다)</p>
     <template v-else-if="d">
         <div class="upd-fields">
@@ -158,7 +159,7 @@ const remove = async () => {
         </div>
         <p v-if="!d.builds.length" class="mb-empty">빌드가 없습니다. 아래 + 새 빌드로 만듭니다</p>
     </template>
-</div>
+</tile-scroll>
 <div v-if="d" class="mb-foot">
     <mb-note text="빌드를 열면 파일·steps.json을 고칠 수 있습니다" />
     <div class="mb-end">

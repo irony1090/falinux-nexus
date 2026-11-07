@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import TileScroll from '@/feature/widget/component/TileScroll.vue';
 import { useAuthStore } from '@/feature/user/store/auth.store';
 import { useQueryClient } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
@@ -48,7 +49,7 @@ const submit = () => {
 </script>
 
 <template>
-<form class="mb-body" data-pager-press @submit.prevent="submit">
+<tile-scroll tag="form" class="mb-body" data-pager-press @submit.prevent="submit">
     <div class="mb-fields top">
         <label for="nf-name" class="mb-lbl">장비 이름</label>
         <CtTextField id="nf-name" v-model="name" size="sm" placeholder="예: line3-pc" autocomplete="off" :disabled="busy" persistent-hint
@@ -68,7 +69,7 @@ const submit = () => {
         <li>접속하면 인스턴스 목록에 나타나고 라벨을 달 수 있습니다</li>
     </ol>
     <button type="submit" hidden />
-</form>
+</tile-scroll>
 <div class="mb-foot">
     <mb-note :text="note" />
     <div class="mb-end">
