@@ -25,3 +25,6 @@
 ## 2026-11-06 (저녁)
 - 사용자 요청으로 집 서버 묶음 `build/home-update/261106-socket-reconnect/` 만듦(supervisor·worker·web, Windows, 태그 `SOCKET-RECONNECT-261106`) -> 업로드·배포 = 사용자
 - 2026-11-07 소켓 재연결 묶음(`261106-socket-reconnect`) 사용자 배포. 공개 `index-AJJLr_Z9.js` = 묶음과 같음(nexus·direct curl 확인)
+
+## 2026-11-07 (밤)
+- test3 supervisor 교체 `261106-socket-reconnect` -> `261107-tile-shell`(태그 `SUPERVISOR-TILE-SHELL-261107`, swap.sh, 21:48 켜짐, 공개 `index-BIm258Bp.js`, worker 다시 붙음) · 집 서버 묶음 `build/home-update/261107-tile-shell/` 만듦(업로드·배포 = 사용자) → `REF-home-deploy-updater.md` "11-07 공용 타일 틀 묶음"
