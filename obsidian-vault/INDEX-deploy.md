@@ -8,15 +8,16 @@
 |---|---|---|
 | 빌드 만들기(어느 대상이든) | `REF-build-scripts.md` | `scripts/build.sh` 사용법·대상별 출력·**빌드 전에 `cmd/*/env` 첫 줄 태그 바꾸기**(env는 git 제외) |
 | test3(8013) supervisor 교체 | `REF-build.md` · 직전 빌드 폴더의 `swap.sh` | 빌드본 구조·두 빌드 나란히·`CLAUDE*` 변수 상속 함정·웹만 교체. 교체 기록은 `CURRENT.md` 운영 상태 |
-| 집 서버 배포 묶음(updater로 올림) | `REF-home-deploy-updater.md` | 최근 묶음 절 하나를 따라 만듦: Windows 빌드 + worker 항상 포함 + `steps.json`·`nexus-steps/` 승계, 배포 뒤 공개 해시 확인(nexus·direct) |
+| 집 서버 배포 묶음(updater로 올림) | `REF-home-deploy-updater.md` | 최근 묶음 절 하나를 따라 만듦: Windows 빌드 + worker 항상 포함 + `steps.json`·`nexus-steps/` 승계 + **`"replace": ["nexus-steps", "web"]`(11-08~, "묶음 규칙: 갈아치우기")**, 배포 뒤 공개 해시 확인(nexus·direct) |
 | 보드(i.MX, arm64) worker 교체 | `REF-build.md` "보드 worker 교체" | IP가 자주 바뀜 -> 사용자에게 먼저 물음 |
 | 집 서버 접속·인증서·PC 구성 | `REF-home-direct.md`(지금, iptime + Caddy) · `REF-home-server.md`(PC 구성·재부팅·옛 Cloudflare 터널) | |
+| updater 도입·설치, updater 자체 교체(11-03~11-04) | `REF-home-deploy-updater-setup.md` | 첫 updater 배포·updater 수동 교체(`setup.ps1`) 절차 |
 | 옛 수동 배포(update.ps1, 11-03 전) | `REF-home-deploy.md` | 참고용 |
 | updater 자체 설계·규칙 | `INDEX-update-app.md` | 업데이트 app 파트(마감) |
 
 ## REF / history 목록
 - `REF-build-scripts.md` / `history/build-scripts.md` · `REF-build.md` / `history/build.md`(빌드본 분리 파트 = `INDEX-build.md`)
-- `REF-home-deploy-updater.md` / `history/home-deploy-updater.md` · `REF-home-deploy.md` / `history/home-deploy.md`
+- `REF-home-deploy-updater.md` / `history/home-deploy-updater.md`(지금 규칙·11-05~ 묶음) · `REF-home-deploy-updater-setup.md` / `history/home-deploy-updater-setup.md`(11-03~11-04 updater 도입·설치) · `REF-home-deploy.md` / `history/home-deploy.md`
 - `REF-home-direct.md` / `history/home-direct.md` · `REF-home-server.md` / `history/home-server.md`
 
 ## MEMORY 줄 · HISTORY 행 (원문)
