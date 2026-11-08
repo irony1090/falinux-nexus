@@ -73,12 +73,12 @@
 
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
-| `history/settings-account.md` | 설정 두 겹: 계정 + 이 브라우저(11-08 신설) ↔ `REF-settings-account.md` | 11-08 조율·구현·확인 24/24 · 사용자 확인 대기 |
+| `history/settings-account.md` | 설정 두 겹: 계정 + 이 브라우저(11-08 신설) ↔ `REF-settings-account.md` | 11-08 조율·구현·확인 24/24 · 사용자 확인 · 마감 · test3·집 서버 배포 |
 | `history/socket-reconnect.md` | 소켓 재연결 · 끊김 표시(11-06 신설) ↔ `REF-socket-reconnect.md` | 11-06 확인 14/14 · test3 교체 · 모바일 확인 · 마감 |
 | `history/board-close.md` | 보드 닫기 · 종료 유예(2026-11-05 신설) ↔ `REF-board-close.md` | 11-05 확인 13/13·9/9 · 사용자 확인 · 마감 |
 | `history/decisions.md` | 확정 결정 상세(2026-10-26 MEMORY 슬림화 때 신설) ↔ `REF-decisions.md` | 10-26 밤 MEMORY 9.9k -> 5.8k자 |
 | `history/decisions-ui.md` | 확정 결정 상세: 화면(2026-10-29 분할) ↔ `REF-decisions-ui.md` | 10-29 터치 제스처·끌기(파트(타일 끌기) 마감) |
-| `history/current-archive-7.md` | CURRENT에서 내려보낸 줄 원문(2026-11-05~) | 11-07 밤 세션 끝: 공용 타일 틀 진행 블록·11-05~06 마감 줄 4개 |
+| `history/current-archive-7.md` | CURRENT에서 내려보낸 줄 원문(2026-11-05~) | 11-08: 11-07 파트(공용 타일 틀) 마감 줄·11-07 빌드 줄 |
 | `history/current-archive-6.md` | CURRENT에서 내려보낸 줄 원문(2026-11-02~) | 11-02 업데이트 app 설계 줄 · 11-03 P1~P4 · 11-03 밤 Files 타일 개선 마감 때 진행 블록 |
 | `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-29 영상 파트 마감 때 10-28 밤 ~ 10-26 밤 줄 |
 | `history/current-archive-5.md` | 위 파일에서 분할(2026-10-30: 10-29 파트 마감 3건·떠 있는 포트 표·build 흔적) | 10-30 업데이트 app 세션 끝 |
