@@ -21,6 +21,12 @@ export const writeUserPref = <T>(key: string, value: T) => {
 	} catch { /* 저장 불가 */ }
 }
 
+export const removeUserPref = (key: string) => {
+	try {
+		localStorage.removeItem(PREFIX + key);
+	} catch { /* 저장 불가 */ }
+}
+
 export const clearUserPrefs = () => {
 	try {
 		Object.keys(localStorage)

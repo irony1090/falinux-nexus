@@ -51,7 +51,7 @@
 - **끌기**: 같은 보드 = 그 타일 하나, 다른 보드 = 연 타일 묶음째. 칸 순서 = `POST /nodes/order`. 화면 끝 띠·`DragSession` = 칸·타일 공용. strip 위에 끼어드는 막대는 칸 수 판정에서 뺌(`barH`)
 - **배포 전 필수**: 회원이 있는 DB에 배포하기 전에 관리자로 지정할 회원을 사용자에게 묻는다
 - **타일 틀**: 타일 바탕 = `TileShell`, 본문 스크롤·메뉴 줄 = `TileScroll`(`#bar`, 위치 = 설정 `tileBarAt`)
-- **푸터 오른쪽·설정**: 오른쪽 메뉴 = `FootAccount` 공용(보드 전용 버튼 = slot, 관리 페이지엔 알림 없음). 새 설정 항목 = `settings.store` `SPECS`(브라우저 범위 = userPrefs)
+- **푸터 오른쪽·설정**: 오른쪽 메뉴 = `FootAccount` 공용(보드 전용 버튼 = slot, 관리 페이지엔 알림 없음). 새 설정 항목 = `settings.store` `SPECS`. 설정 = 두 겹(계정 = 서버·기기 공통 / 이 브라우저에서만 = userPrefs, 있으면 우선, 2026-11-08 Q2 개정)
 - **git 머지**: 파트 브랜치 -> master = `--no-ff`(브랜치 기록을 남김, 2026-11-07 사용자)
 
 ## 기술 스택 (확정)
@@ -98,6 +98,7 @@ sqlc.yaml  README.md  .gitignore
 - **진행 중 파트**: 없음(다음 = `BACKLOG.md`) / 마감 파트 목록 = `HISTORY.md` "마감 파트"
 - **보드 닫기·종료 유예(11-05)**: `REF-board-close.md`(루트 ×·확인 창·`?mode=kill`·서버 10초 판정)
 - **소켓 재연결·끊김 표시(11-06)**: `REF-socket-reconnect.md`(포기 없음·화면 복귀 wake·PING 확인·다시 붙으면 터미널 스냅샷)
+- **설정 두 겹(11-08, 진행 중)**: `REF-settings-account.md`(계정 = 서버·push / 이 브라우저에서만 = userPrefs 우선 / 계정 값 사본)
 - **공용으로 뗀 것(10-30)**: `PageEdgeBands` = `edge` prop, 띠 판정 = `widget/util/edgeBand.util.ts` `makeEdgeBands`, `TileDragChip` = prop(보드·관리 페이지 공용)
 - 작업 이력: `HISTORY.md`가 색인(`history/{주제}.md`, REF와 1:1)
 - **마감 파트(세션 시작 시 안 읽음, REF가 필요하면 INDEX부터)**: 목록·최근 순서 = `HISTORY.md` "마감 파트"

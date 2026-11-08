@@ -44,4 +44,4 @@
 
 ## 푸터 오른쪽·설정
 - 2026-11-07 같은 파트. 오른쪽 메뉴 = `feature/layout/component/FootAccount.vue` 공용(PC = 닉네임 메뉴[설정][로그아웃] + 전체 화면, 폰 = ⋯ 하나). 보드 전용 버튼([전송][알림])은 slot — 전송 상태가 보드 페이지 provide라서. 관리 페이지엔 알림 없음(알림 받기가 보드 트리에 기댐)
-- 설정 = `feature/settings/store/settings.store.ts` `SPECS`에 항목(범위·기본값·모양 검사). 브라우저 범위 = userPrefs(로그아웃하면 지워짐), 계정 범위는 첫 계정 항목 때 서버 저장을 붙임. 설정 창 = `SettingsDialog`(App.vue 하나, 고르면 바로 적용) → `REF-settings-footer.md`
+- 설정 = `feature/settings/store/settings.store.ts` `SPECS`에 항목(기본값·모양 검사). **2026-11-08 Q2(설정 범위) 개정 = 두 겹**: 계정 값(서버, 모든 기기, 바뀌면 `USER:` push로 바로 반영) + 이 브라우저에서만 값(userPrefs, 로그아웃하면 지워짐). 쓰이는 값 = 브라우저 ?? 계정 ?? 기본값. 앞으로 생길 설정 전부 이 구조. 설정 창 = `SettingsDialog`(App.vue 하나, 고르면 바로 적용) → `REF-settings-footer.md` · 두 겹 `REF-settings-account.md`

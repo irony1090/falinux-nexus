@@ -550,6 +550,15 @@ type WorkspacesUpdateEvent struct {
 	Workspaces []WorkspaceItem `json:"workspaces"`
 }
 
+// 계정 설정 변경 — USER:<userId> 토픽(내 탭 포함), 계정 값 전체를 보낸다(REF-settings-footer.md "설정 두 겹")
+const MsgSettingsUpdate MsgType = "SETTINGS:UPDATE" // sup→browser EVENT: SettingsUpdateEvent
+
+// Rev = 가장 최근 저장 시각(unix µs) — 브라우저가 HTTP 응답·push 중 늦게 온 옛 값을 버리는 기준
+type SettingsUpdateEvent struct {
+	Settings map[string]json.RawMessage `json:"settings"`
+	Rev      int64                      `json:"rev"`
+}
+
 // 전송 목록 — USER:<userId> 토픽, 파트(파일 전송 확장) 폴더-8(전송 상태) (REF-transfer-ext.md)
 const (
 	MsgTransferUpdate MsgType = "TRANSFER:UPDATE" // sup→browser EVENT: TransferInfo(새로 생김·진행·끝 모두)
