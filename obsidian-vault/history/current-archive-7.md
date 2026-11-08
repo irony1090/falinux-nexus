@@ -40,3 +40,7 @@
 - **(2026-11-05) 보드 닫기 + 종료 유예(S-b) — 마감, `feat/board-close` 커밋·master `--no-ff` 머지(push = 사용자)** · 사용자 화면 확인 "잘 동작해". 루트 타일 ×(기본 보드 제외)·보드 메뉴 "보드 삭제" = 같은 확인 창(취소 / 기본 보드로 보내기 / 모두 종료하고 닫기). 강제 종료 = 종료 요청 10초 뒤 서버 판정(2초 주기 검사, 남은 요청 없으면 쉼 = 안 A(메모리 표시)). 못 본 것 = 보기 권한 공유 터미널 → `REF-board-close.md` · `history/board-close.md`
 - **(2026-11-07) 집 서버 소켓 재연결 묶음 배포 끝** — 공개 `index-AJJLr_Z9.js` 일치(nexus·direct) → `REF-home-deploy-updater.md` "11-06 소켓 재연결 묶음"
 - **(2026-11-06) 집 서버 = 보드 닫기 빌드(`BOARD-CLOSE-261105`)** · 사용자가 Updater로 직접 업로드·배포, 공개 화면 해시 일치 확인 → `REF-home-deploy-updater.md` "11-05 보드 닫기 묶음"
+
+## 2026-11-08 내려보냄 (CURRENT "다음 세션 시작 시"에서)
+- **(2026-11-07) 파트(공용 타일 틀) — 마감**, `refactor/tile-shell` 커밋·master `--no-ff` 머지 · 사용자 화면 확인 "잘 동작해". 단계-1(공용 틀)~단계-4(오른쪽 메뉴 통일) → `INDEX-tile-frame.md`. `run.sh` FAIL 2건 = 낡은 기대값(→ `BACKLOG.md`)
+- **(2026-11-07 밤) test3 = 공용 타일 틀 빌드로 교체 끝 · 집 서버 = 같은 빌드 배포 끝(공개 `index-BIm258Bp.js` 일치, nexus·direct)** → `REF-home-deploy-updater.md` "11-07 공용 타일 틀 묶음"
