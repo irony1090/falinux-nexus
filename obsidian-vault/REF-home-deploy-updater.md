@@ -46,6 +46,11 @@
 - **updater 교체 결과(11-04 14:33, 사용자가 Nexus 디렉토리 타일에서 `setup.ps1` 실행)**: "이미 설치됨 — exe만" · 작업 `NexusUpdater` Running(마지막 결과 267009 = 0x41301 "작업 실행 중", 정상) · 로그 `updater UPDATER-FILES-261104 시작` -> `접속됨 home-server#OaO13Q8R`(서브키 그대로). Updater 화면 online + 버전 확인(Claude, Chrome). **집 서버 supervisor·worker·web·updater 전부 261104** — 이후 배포부터 `replace`(갈아치우기) 먹음. 남은 것 = `C:\Nexus\updater-new\` 삭제(사용자)
 - updater 웹 자기 교체: 서비스 관리자(예약 작업·systemd)로 재시작은 풀리지만 "새 updater가 못 붙을 때 되돌릴 주체"가 없어 보류(설계-10-3) — 지켜보는 스크립트 + `.old` 되돌리기 안은 `BACKLOG.md`
 
+## 11-08 설정 두 겹 묶음 (Claude가 만듦, 업로드·배포 = 사용자)
+- `build/home-update/261108-settings-account/`(파일 67개): `build/261108-settings-account_win`의 `supervisor.exe`(`SUPERVISOR-SETTINGS-ACCOUNT-261108`)·`worker.exe`(`WORKER-SETTINGS-ACCOUNT-261108`, 코드 변경 없음·묶음 규칙상 포함)·`web/`(`index-Ba5qQ-fM.js` = test3와 같음) + 261107 묶음의 `steps.json`·`nexus-steps/` 그대로(diff 같음). updater 제외
+- 내용 = 설정 두 겹(`REF-settings-account.md`). **새 마이그레이션 `00019`(`user_settings`)** — start 때 supervisor가 적용. 추가만 하는 테이블이라 rollback(파일 복원)만으로 옛 빌드가 돎, DB 복원 불필요(dbdump는 평소대로 남음)
+- 배포 뒤 확인 = 공개 `index.html`이 `index-Ba5qQ-fM.js`를 가리키는지(nexus·direct)
+
 ## 11-07 공용 타일 틀 묶음 (Claude가 만듦, 업로드·배포 = 사용자 11-07 끝)
 - `build/home-update/261107-tile-shell/`(파일 67개): `build/261107-tile-shell_win`의 `supervisor.exe`(`SUPERVISOR-TILE-SHELL-261107`)·`worker.exe`(`WORKER-TILE-SHELL-261107`, 코드 변경 없음·묶음 규칙상 포함)·`web/`(`index-BIm258Bp.js` = test3와 같음) + 261106 묶음의 `steps.json`·`nexus-steps/` 그대로(diff 같음). updater 제외. Go 코드 변경 없음·새 마이그레이션 없음 -> rollback DB 복원 불필요
 - 내용 = 공용 타일 틀·메뉴 줄 위치/숨김·설정 창·푸터 오른쪽 메뉴(`INDEX-tile-frame.md`). 배포 뒤 확인 = 공개 `index.html`이 `index-BIm258Bp.js`를 가리키는지
