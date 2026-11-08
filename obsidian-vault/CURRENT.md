@@ -13,7 +13,7 @@
 - **다음 파트 = `BACKLOG.md`에서 고름**(사용자 예정 "타일 ESC로 닫기")
 - **(2026-11-07 밤) test3 = 공용 타일 틀 빌드로 교체 끝 · 집 서버 = 같은 빌드 배포 끝(공개 `index-BIm258Bp.js` 일치, nexus·direct)** → `REF-home-deploy-updater.md` "11-07 공용 타일 틀 묶음"
 - **사용자 할 일 남음**: master push
-- **(2026-11-04) 집 서버 최신 배포 — 끝(14:33)** · supervisor·worker·web = updater 배포 #2 성공(빌드 `supervisor-url-261104` 잠김), updater = Nexus 디렉토리 타일에서 `setup.ps1` -> `UPDATER-FILES-261104` online. 남은 것 = `C:\Nexus\updater-new\` 삭제(사용자) → `REF-home-deploy-updater.md` "11-04 최신 배포 계획"
+- **(2026-11-04) 집 서버 최신 배포 — 끝(14:33)** · supervisor·worker·web = updater 배포 #2 성공(빌드 `supervisor-url-261104` 잠김), updater = Nexus 디렉토리 타일에서 `setup.ps1` -> `UPDATER-FILES-261104` online. 남은 것 = `C:\Nexus\updater-new\` 삭제(사용자) → `REF-home-deploy-updater-setup.md` "11-04 최신 배포 계획"
 - 11-04 빌드 스크립트·로컬 updater 시험(주소 순위·되돌리기) 마감 줄 + 11-03 파트(업데이트 app) 진행 블록 원문 → `history/current-archive-7.md`(11-05 내려보냄). 구현 지도: `REF-update-p1.md`~`-p4.md` · 설계 `REF-update-deploy.md` · 규칙 `REF-update-rules.md` · `REF-build-scripts.md`
 - **(2026-11-02) 10-30 작업 점검·수정 마감** — `fix/member-drag-review` master 머지. 코드 항목 수정 + 사용자 실기기 확인 끝 → `REF-review-1030.md` · `history/review-1030.md`. 확인 스크립트 = `scripts/check/run.sh`
   - **아직 안 한 것**: 새 빌드로 색인 금지 배포(코드-6(색인 금지 미배포)) = 사용자. **(11-03 사용자) 파트(업데이트 app)가 끝난 뒤 한 번에 배포**(updater 마이그레이션 `00016`~ 함께). `cmd/*/env` 태그를 바꿔 빌드, 집 서버 묶음은 worker 포함. 8013·집 서버는 지금 옛 빌드(10-30 이후 수정 없음)
