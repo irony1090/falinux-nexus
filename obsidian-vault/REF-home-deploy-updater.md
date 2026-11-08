@@ -13,6 +13,7 @@
 - `build/home-update/261108-settings-account/`(파일 67개): `build/261108-settings-account_win`의 `supervisor.exe`(`SUPERVISOR-SETTINGS-ACCOUNT-261108`)·`worker.exe`(`WORKER-SETTINGS-ACCOUNT-261108`, 코드 변경 없음·묶음 규칙상 포함)·`web/`(`index-Ba5qQ-fM.js` = test3와 같음) + 261107 묶음의 `steps.json`·`nexus-steps/` 그대로(diff 같음). updater 제외
 - 내용 = 설정 두 겹(`REF-settings-account.md`). **새 마이그레이션 `00019`(`user_settings`)** — start 때 supervisor가 적용. 추가만 하는 테이블이라 rollback(파일 복원)만으로 옛 빌드가 돎, DB 복원 불필요(dbdump는 평소대로 남음)
 - 배포 뒤 확인 = 공개 `index.html`이 `index-Ba5qQ-fM.js`를 가리키는지(nexus·direct)
+- **결과(11-08)**: 사용자가 배포(replace 직접 넣음). 공개 `index.html` = `index-Ba5qQ-fM.js`(nexus·direct 둘 다) · `/api/settings` = 401(새 API 있음) · **`web/` 갈아치우기 확인**: 옛 빌드 `index-BIm258Bp.js`·`index-AJJLr_Z9.js`·`index-L-Np3jCk.js` = SPA 대체 HTML(1,731B `text/html`, 없는 파일과 같음), 새 것만 JS. 확인 함정: 없는 assets도 200으로 오므로 상태 코드 말고 `content_type`으로 판정
 
 ## 11-07 공용 타일 틀 묶음 (Claude가 만듦, 업로드·배포 = 사용자 11-07 끝)
 - `build/home-update/261107-tile-shell/`(파일 67개): `build/261107-tile-shell_win`의 `supervisor.exe`(`SUPERVISOR-TILE-SHELL-261107`)·`worker.exe`(`WORKER-TILE-SHELL-261107`, 코드 변경 없음·묶음 규칙상 포함)·`web/`(`index-BIm258Bp.js` = test3와 같음) + 261106 묶음의 `steps.json`·`nexus-steps/` 그대로(diff 같음). updater 제외. Go 코드 변경 없음·새 마이그레이션 없음 -> rollback DB 복원 불필요
