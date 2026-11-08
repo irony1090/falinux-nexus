@@ -1,10 +1,13 @@
 # REF — 설정 저장소 · 설정 창 · 푸터 오른쪽 메뉴 통일 (2026-11-07 신설, 파트(공용 타일 틀) 단계-3·4)
 
-> → 이력 `history/settings-footer.md` · 앞 단계(공용 틀·메뉴 줄) `REF-tile-frame.md` · 찰떡 규칙 `REF-design-chaltteok.md` · 푸터 배치 `REF-board-chrome.md` · 진행 `CURRENT.md`
+> → 이력 `history/settings-footer.md` · 뒤 파트(설정 두 겹) `REF-settings-account.md` · 앞 단계(공용 틀·메뉴 줄) `REF-tile-frame.md` · 찰떡 규칙 `REF-design-chaltteok.md` · 푸터 배치 `REF-board-chrome.md` · 진행 `CURRENT.md`
 
 ## 설정 저장소
 - 이미 `common/util/userPrefs.util.ts`(브라우저별 localStorage, 접두사 `nexus.user.`, **로그아웃 때 전부 삭제**)가 있다
 - **Q14(로그아웃 때 설정) 확정(2026-11-07 사용자)**: 경로 줄 위치도 로그아웃하면 지워짐 -> 브라우저 범위 항목은 `userPrefs` 위에 얹는다
+
+## 설정 두 겹
+- 2026-11-08 파트(설정 두 겹)로 분리 → `REF-settings-account.md` (Q2(설정 범위) 개정: 계정 + 이 브라우저)
 
 ## 푸터 오른쪽 메뉴 (확정 2026-11-07, 사용자)
 | 이름 | 결정 |

@@ -24,6 +24,7 @@ import { bindSocketWake } from '@/common/websocket/socketWake.util';
 import SocketLostPill from '@/common/websocket/SocketLostPill.vue';
 import SettingsDialog from '@/feature/settings/component/SettingsDialog.vue';
 import { bindDeviceChanges } from '@/feature/worker/hook/deviceChange.hook';
+import { bindAccountSettings } from '@/feature/settings/store/settings.store';
 import { watch } from 'vue';
 
 provideAppWindow()
@@ -37,6 +38,7 @@ const socket = provideTestSocket();
 bindTabId(socket);
 bindSocketWake(socket);
 bindDeviceChanges(socket);
+bindAccountSettings(socket);
 // 로그인 중이면 어느 페이지든 소켓 연결 — 내 장비·관리자 페이지도 장비 상태 push를 받게(REF-device-push.md)
 watch(auth, val => val ? socket.connect() : socket.disconnect(), { immediate: true });
 

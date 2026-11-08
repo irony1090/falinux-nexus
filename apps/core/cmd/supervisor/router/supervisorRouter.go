@@ -148,6 +148,7 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 	router.mountTiles(api)
 	router.mountWorkspaces(api)
 	router.mountTransfers(api)
+	router.mountSettings(api)
 
 	return e, router
 }
