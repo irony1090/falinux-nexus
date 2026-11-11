@@ -8,6 +8,11 @@
 - 근거: 집 서버 updater `UPDATER-FILES-261104`가 갈아치우기 지원 · 두 폴더 모두 updater 거절 조건에 안 걸림 · 단계 스크립트는 staging 사본으로 실행(`cmd/updater/job.go` `script`)이라 copy 중 `nexus-steps/`를 비워도 됨 · 지운 파일은 backup -> restore로 되돌아옴 · `web/`에 쌓인 옛 해시 assets 정리. 설계 → `REF-update-replace.md`
 - 주의: 두 폴더에 묶음에 없는 파일을 손으로 넣었다면 지워짐(백업은 남음, `*.old-*`는 남김)
 
+## 11-11 칼럼 흐름 묶음 (Claude가 만듦, 업로드·배포 = 사용자)
+- `build/home-update/261111-column-flow/`(파일 67개): `build/261111-column-flow_win`의 `supervisor.exe`(`SUPERVISOR-COLUMN-FLOW-261111`)·`worker.exe`(`WORKER-COLUMN-FLOW-261111`, 코드 변경 없음·묶음 규칙상 포함)·`web/`(`index-DYuchPlR.js` = test3용 빌드 `build/261111-column-flow`와 같음) + 261108 묶음의 `nexus-steps/` 그대로(diff 같음) + `steps.json`은 261108 것에 **`"replace": ["nexus-steps", "web"]`를 Claude가 넣음**(묶음 규칙: 갈아치우기 첫 적용). updater 제외
+- 내용 = 칼럼 흐름(`REF-column-flow.md`, 프론트만). 11-08 이후 Go 코드 변경 없음·새 마이그레이션 없음(`00019` 그대로) -> rollback DB 복원 불필요
+- 배포 뒤 확인 = 공개 `index.html`이 `index-DYuchPlR.js`를 가리키는지(nexus·direct, 옛 assets는 `content_type`으로 판정)
+
 ## 11-08 설정 두 겹 묶음 (Claude가 만듦, 업로드·배포 = 사용자)
 - **이 묶음의 `replace`는 사용자가 업로드 전에 직접 넣음**(Claude는 안 고침, 11-08 사용자)
 - `build/home-update/261108-settings-account/`(파일 67개): `build/261108-settings-account_win`의 `supervisor.exe`(`SUPERVISOR-SETTINGS-ACCOUNT-261108`)·`worker.exe`(`WORKER-SETTINGS-ACCOUNT-261108`, 코드 변경 없음·묶음 규칙상 포함)·`web/`(`index-Ba5qQ-fM.js` = test3와 같음) + 261107 묶음의 `steps.json`·`nexus-steps/` 그대로(diff 같음). updater 제외
