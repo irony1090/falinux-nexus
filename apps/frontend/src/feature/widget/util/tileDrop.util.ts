@@ -1,39 +1,36 @@
-import type { Area, Capacity, CellSpan, GridPlan, TileSize } from './tile.type';
-import { pack } from './tileOrder.util';
-import { effectiveSize } from './tileSplit.util';
+import type { Area, Capacity, GridItem, TileSize } from './tile.type';
+import { lastBefore, pack, spanOf } from './tileOrder.util';
+import { colWidth, flowWidth } from './tileSplit.util';
 
 export type Rect = { x: number; y: number; w: number; h: number };
 export type DropPoint = { x: number; y: number };
 
 const inside = (r: Rect, p: DropPoint) => p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p.y < r.y + r.h;
 
-// 배치 계산 위치. Grid 안은 TileStrip CSS와 같은 가정(전체 폭 = area.w, 1칼럼 = (area.w - gap) / 2, 행 = 2)
-// boxes = Grid마다 왼쪽 위(p와 같은 좌표계), scale = 전체보기 축소 비율(평소 1)
-export type DropFrame = { area: Area; cap: Capacity; gap: number; scale: number; boxes: (cols: Array<CellSpan>) => Array<DropPoint> };
-
-export const gridWidth = (cols: CellSpan, area: Area, gap: number) => cols === 1 ? (area.w - gap) / 2 : area.w;
+// 배치 계산 위치. 판 안은 TileStrip CSS와 같은 가정(칼럼 폭 = colWidth, 행 = 2)
+// origin = 판 왼쪽 위(p와 같은 좌표계, 판 폭(px)에 따라 달라질 수 있음 — 전체보기 가운데 정렬), scale = 전체보기 축소 비율(평소 1)
+export type DropFrame = { area: Area; cap: Capacity; gap: number; scale: number; origin: (flowW: number) => DropPoint };
 
 type Placed = { id: string; rect: Rect };
-type Laid = { tiles: Array<Placed>; grids: Array<{ rect: Rect; ids: Array<string> }> };
+type Laid<T> = { tiles: Array<Placed>; flow: Rect; cell: (p: DropPoint) => { c: number; r: number }; items: Array<GridItem<T>> };
 
-const layOut = <T extends { id: string; size: TileSize }>(list: Array<T>, f: DropFrame): Laid => {
-    const plans: Array<GridPlan<T>> = pack(list, t => effectiveSize(t.size, f.cap));
-    const boxes = f.boxes(plans.map(g => g.cols));
-    const rowH = (f.area.h - f.gap) / 2, s = f.scale;
-    const tiles: Array<Placed> = [];
-    const grids = plans.map((g, gi) => {
-        const o = boxes[gi]!, w = gridWidth(g.cols, f.area, f.gap);
-        const colW = g.cols === 2 ? (w - f.gap) / 2 : w;
-        g.items.forEach(it => tiles.push({
-            id: it.tile.id,
-            rect: {
-                x: o.x + it.c * (colW + f.gap) * s, y: o.y + it.r * (rowH + f.gap) * s,
-                w: (it.cw * colW + (it.cw - 1) * f.gap) * s, h: (it.ch * rowH + (it.ch - 1) * f.gap) * s,
-            },
-        }));
-        return { rect: { x: o.x, y: o.y, w: w * s, h: f.area.h * s }, ids: g.items.map(it => it.tile.id) };
+const layOut = <T extends { id: string; size: TileSize }>(list: Array<T>, f: DropFrame): Laid<T> => {
+    const plan = pack(list, t => spanOf(t.size, f.cap));
+    const w = flowWidth(plan.cols, f.area.w, f.cap, f.gap);
+    const o = f.origin(w * f.scale);
+    const colW = colWidth(f.area.w, f.cap, f.gap), rowH = (f.area.h - f.gap) / 2, s = f.scale;
+    const tiles = plan.items.map(it => ({
+        id: it.tile.id,
+        rect: {
+            x: o.x + it.c * (colW + f.gap) * s, y: o.y + it.r * (rowH + f.gap) * s,
+            w: (it.cw * colW + (it.cw - 1) * f.gap) * s, h: (it.ch * rowH + (it.ch - 1) * f.gap) * s,
+        },
+    }));
+    const cell = (p: DropPoint) => ({
+        c: Math.floor((p.x - o.x) / ((colW + f.gap) * s)),
+        r: Math.min(1, Math.floor((p.y - o.y) / ((rowH + f.gap) * s))),
     });
-    return { tiles, grids };
+    return { tiles, flow: { x: o.x, y: o.y, w: w * s, h: f.area.h * s }, cell, items: plan.items };
 };
 
 type Laying = { id: string; size: TileSize; minimized?: true };
@@ -55,7 +52,7 @@ const insertAfter = (order: ReadonlyArray<string>, ids: ReadonlyArray<string>, y
 // 끄는 중 미리보기 순서(같은 보드, 끄는 타일 하나) — 흔들림 방지 규칙 ①②③(REF-tile-drag.md):
 // ① 판정은 배치 계산 위치로 ② 커서가 끄는 타일(빈 자리) 위면 그대로
 // ③ 옮긴 결과에서 끄는 타일이 커서를 덮을 때만 옮긴다(아니면 반대쪽, 둘 다 아니면 그대로) — 크기가 섞여 있으면 덮지 않는 자리로 갔다가 되돌아오며 흔들린다
-// 빈 칸·Grid 밖은 ③ 없이 옮긴다 — 옮긴 뒤엔 끄는 타일이 그 Grid 끝(맨 뒤)이라 같은 자리에서 다시 옮기지 않는다. root = 맨 앞 고정
+// 빈 칸·판 밖은 ③ 없이 옮긴다 — 빈 칸 = 채우는 순서상 그 칸 앞 마지막 타일 뒤(칼럼-4(빈 칸에 놓기)), 옮긴 뒤 그 타일이 다시 같은 답이라 흔들리지 않는다. root = 맨 앞 고정
 export const dropOrder = <T extends Laying>(
     order: ReadonlyArray<string>, tiles: Readonly<Record<string, T>>, id: string, rootId: string, p: DropPoint, f: DropFrame,
 ): ReadonlyArray<string> => {
@@ -74,12 +71,13 @@ export const dropOrder = <T extends Laying>(
         const before = insert(order, [id], over.id), behind = insertAfter(order, [id], over.id);
         return forward ? pick(behind, before) : pick(before, behind);
     }
-    // 빈 칸 = 그 Grid 마지막 타일 뒤, 모든 Grid 뒤 = 맨 뒤
-    const grid = now.grids.find(g => inside(g.rect, p));
-    const last = grid?.ids[grid.ids.length - 1];
-    if (grid) return last && last !== id ? insertAfter(order, [id], last) : order;
-    const end = now.grids[now.grids.length - 1];
-    if (end && p.x >= end.rect.x + end.rect.w) return insert(order, [id], null);
+    // 빈 칸 = 그 칸 앞 마지막 타일 뒤, 판 오른쪽 너머 = 맨 뒤
+    if (inside(now.flow, p)) {
+        const { c, r } = now.cell(p);
+        const before = lastBefore(now.items, c, r)?.id;
+        return before && before !== id ? insertAfter(order, [id], before) : order;
+    }
+    if (now.flow.w && p.x >= now.flow.x + now.flow.w) return insert(order, [id], null);
     return order;
 };
 
@@ -102,10 +100,10 @@ export const dropBundle = <T extends Laying>(
         const hit = cands.find(covers);
         return hit ? keep(hit) : cur.some(x => bundle.includes(x)) ? cur : keep(insert(base, bundle, null));
     }
-    const grid = now.grids.find(g => inside(g.rect, p));
-    if (grid) {
-        const last = [...grid.ids].reverse().find(x => !bundle.includes(x));
-        return last ? keep(insertAfter(base, bundle, last)) : cur;
+    if (inside(now.flow, p)) {
+        const { c, r } = now.cell(p);
+        const before = lastBefore(now.items, c, r, t => bundle.includes(t.id))?.id;
+        return before ? keep(insertAfter(base, bundle, before)) : cur;
     }
     return keep(insert(base, bundle, null));
 };

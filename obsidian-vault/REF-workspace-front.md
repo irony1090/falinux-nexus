@@ -30,7 +30,7 @@
 | 서버 변경(같이 함) | `tileTreeResponse`에 `hash` 추가 + 사용자 문구 "작업 공간" → "보드" (`tile.go`·`workspace.go`) |
 
 ## 확인 결과 (작업공간-e, 2026-10-07)
-격리 실행(임시 DB `nexus_wse_tmp` + supervisor 5051 + worker `wse-dev` + 프론트 3001, 확인 뒤 종료·삭제) + 헤드리스 탭 3개(같은 계정). 34개 통과, 두 번 돌려 같은 결과. 스크립트 = 세션 scratchpad `pw/board.mjs`(재부팅 시 사라짐, 격리 프론트 띄우는 법 → `REF-test-env.md` "격리 실행").
+격리 실행(임시 DB `nexus_wse_tmp` + supervisor 5051 + worker `wse-dev` + 프론트 3001, 확인 뒤 종료·삭제) + 헤드리스 탭 3개(같은 계정). 34개 통과, 두 번 돌려 같은 결과. 스크립트 = 세션 scratchpad `pw/board.mjs`(재부팅 시 사라짐, 격리 프론트 띄우는 법 → `REF-test-isolation.md` "격리 실행").
 
 | 묶음 | 항목(전부 통과) |
 |---|---|

@@ -45,24 +45,25 @@ export const provideMemberDrag = (board: ReturnType<typeof provideMemberBoard>) 
     const viewCol = () => step.value ? Math.round(scrollX.value / step.value) : 0
     const bands = makeEdgeBands({ el: () => scrollEl.value, viewCol, maxCol: () => maxCol.value, goCol: c => board.goCol(c) })
 
-    // 끌기 시작 때 한 번 잰다 — Grid 상자·칸 크기는 끄는 동안 안 바뀐다(끝 띠 스크롤로 위치만 움직임)
+    // 끌기 시작 때 한 번 잰다 — 칸 크기는 끄는 동안 안 바뀐다(끝 띠 스크롤로 위치만 움직임)
     const frame = () => {
         const el = scrollEl.value
         if (!el) return null
         const r = el.getBoundingClientRect()
         const first = el.querySelector<HTMLElement>('.mb-grid')
-        const k = board.grids.value[0]?.cols
+        const k = board.plan.value?.cols
         if (!first || !k) return null
         const { cols, rows } = layout.value
         const cs = getComputedStyle(first), b = first.getBoundingClientRect()
         const w = b.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
         const h = b.height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+        const gapX = parseFloat(cs.columnGap) || GAP, gapY = parseFloat(cs.rowGap) || GAP
         return {
-            gap: GAP, cols, rows,
+            gapX, gapY, cols, rows,
             x: b.left - r.left + el.scrollLeft + parseFloat(cs.paddingLeft),
             y: b.top - r.top + parseFloat(cs.paddingTop),
-            colW: (w - GAP * (k - 1)) / k,
-            rowH: (h - GAP * (rows - 1)) / rows,
+            colW: (w - gapX * (k - 1)) / k,
+            rowH: (h - gapY * (rows - 1)) / rows,
         }
     }
 

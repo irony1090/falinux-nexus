@@ -11,11 +11,11 @@ const SP = 22;
 const PAD = 24;
 const COUNT_W = 72;
 
-// 푸터 인디케이터: Grid마다 도트 + 지금 위치(반 칸 = 두 도트 사이 작은 도트). 드래그 = 칼럼 이동, 당기면 타일 이동 — REF-board-pager.md
+// 푸터 인디케이터: 페이지(화면 폭)마다 도트 + 지금 위치(반 칸 = 두 도트 사이 작은 도트). 드래그 = 칼럼 이동, 당기면 타일 이동 — REF-board-pager.md
 // pull = 타일 이동으로 당기는 쪽(푸터 = 위, 커서 팝업 = 위·아래)
 // count = 위치 글자(1-2 / 3) — 컨트롤 패널은 끔(푸터에 보이므로) / minDots = 도트 자리 최소 폭(도트 수), 컨트롤 패널 = 3 — 파트(패널 창 버튼)
 const props = withDefaults(defineProps<{ pull?: PagerPull; count?: boolean; minDots?: number }>(), { pull: 'up', count: true, minDots: 0 });
-const { grids, pos, range, goGrid, goColumn } = useTileGrids();
+const { pages, pos, range, goPage, goColumn } = useTileGrids();
 const { mode, pullDir, nudge, down, move, up } = usePagerDrag(props.pull);
 defineExpose({ mode });
 
@@ -33,7 +33,7 @@ useResizeCallback(endEl, () => endW.value = endEl.value?.offsetWidth ?? 0);
 
 // 보이는 도트 수 — 폭이 모자라면 숫자부터 빼고(도트 5개 기준), 그래도 넘치면 현재 위치 주변만
 const fit = computed(() => {
-    const n = grids.value.length;
+    const n = pages.value;
     const w = width.value - PAD - startW.value - endW.value;
     const count = props.count && w - COUNT_W >= Math.min(n, 5) * SP;
     const k = Math.max(3, Math.floor((w - (count ? COUNT_W : 0)) / SP));
@@ -41,12 +41,12 @@ const fit = computed(() => {
 })
 // 보이는 도트의 시작(실수) — 스크롤을 따라 미끄러진다
 const ws = computed(() => {
-    const n = grids.value.length, { k } = fit.value;
+    const n = pages.value, { k } = fit.value;
     return n > k ? Math.max(0, Math.min(n - k, pos.value - (k - 1) / 2)) : 0;
 })
 // 더 있는 쪽 끝 도트는 작게
 const dotScale = (i: number) => {
-    const n = grids.value.length, { k } = fit.value, rel = i - ws.value;
+    const n = pages.value, { k } = fit.value, rel = i - ws.value;
     let s = 1;
     if (ws.value > 0.001) s = Math.min(s, 0.35 + 0.65 * Math.max(0, rel) / 1.5);
     if (ws.value < n - k - 0.001) s = Math.min(s, 0.35 + 0.65 * Math.max(0, k - 1 - rel) / 1.5);
@@ -62,7 +62,7 @@ const pillStyle = computed(() => {
 
 const countText = computed(() => {
     const { lo, hi } = range.value;
-    return `${lo === hi ? lo + 1 : `${lo + 1}-${hi + 1}`} / ${grids.value.length}`;
+    return `${lo === hi ? lo + 1 : `${lo + 1}-${hi + 1}`} / ${pages.value}`;
 })
 
 // 칼럼 화살표 버튼 대신 — 인디케이터 안에 포커스가 있을 때 ←/→
@@ -77,7 +77,7 @@ const onKey = (e: KeyboardEvent) => {
 <div ref="wrapEl" class="GridPager">
     <foot-pill class="shell">
         <span v-if="$slots.start" ref="startEl" class="end"><slot name="start" /></span>
-        <nav ref="barEl" class="bar" :class="{ held: mode !== 'idle' }" aria-label="보드 Grid 위치"
+        <nav ref="barEl" class="bar" :class="{ held: mode !== 'idle' }" aria-label="보드 페이지 위치"
             :style="{ minWidth: `${minDots * SP + 24}px` }"
             @pointerdown="down"
             @pointermove="move"
@@ -88,13 +88,13 @@ const onKey = (e: KeyboardEvent) => {
             <div class="track" :class="{ dim: mode === 'tile' }" :style="{ width: `${fit.k * SP}px` }">
                 <div class="row" :style="{ transform: `translateX(${-ws * SP}px)` }">
                     <div class="pill" :style="pillStyle" aria-hidden="true" />
-                    <button v-for="(_, i) in grids" :key="i" type="button" class="dot-btn"
+                    <button v-for="i in pages" :key="i" type="button" class="dot-btn"
                         :style="{ width: `${SP}px` }"
-                        :aria-label="`Grid ${i + 1}로 이동`"
-                        :aria-current="i >= range.lo && i <= range.hi"
-                        @click="goGrid(i)"
+                        :aria-label="`페이지 ${i}로 이동`"
+                        :aria-current="i - 1 >= range.lo && i - 1 <= range.hi"
+                        @click="goPage(i - 1)"
                     >
-                        <span class="dot" :style="{ transform: `scale(${dotScale(i)})` }" />
+                        <span class="dot" :style="{ transform: `scale(${dotScale(i - 1)})` }" />
                     </button>
                 </div>
             </div>

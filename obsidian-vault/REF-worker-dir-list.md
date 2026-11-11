@@ -26,7 +26,7 @@ flowchart LR
 - 프론트는 아직 없음 -> api 함수·`expired` 다시 요청은 폴더-2(장비 타일)에서
 
 ### 확인(2026-10-22 밤, 격리 실행 18/18)
-- 격리: supervisor 5051 + 임시 DB `nexus_dir_tmp`, worker `dir-dev`(→ `REF-test-env.md` "격리 실행"). 끝나고 프로세스 종료·DB 삭제
+- 격리: supervisor 5051 + 임시 DB `nexus_dir_tmp`, worker `dir-dev`(→ `REF-test-isolation.md` "격리 실행"). 끝나고 프로세스 종료·DB 삭제
 - 스크립트 scratchpad `iso/dir_test.py`(세션 끝나면 사라짐) — 명세: 계정 2개, 폴더 `dev`(deviceKey `dir-dev`) + 하위 `child` + 장비 없는 폴더. 픽스처 폴더 = `big/`(빈 파일 1203개)·`sub/`·`linkdir -> sub`(절대)·`rel -> sub`(상대)·`broken -> ../nowhere`·`run.sh`(+x)·`locked/`(chmod 000)
 - 항목: 최상위 `/` · 하위 폴더에서 열기(Q12) · 폴더 먼저 정렬 · 링크 폴더·상대 링크·끊긴 링크 · 실행 비트 · parent · 페이지 500/1203 -> offset 1000에서 203 · 없는 cursor 410 · 파일 400 · 없음 404 · 권한 없음 403 · 상대 경로 400 · 장비 없는 폴더 403 · 다른 계정 404 · 없는 인스턴스 409
 - 함정: worker를 `TMPDIR=<scratchpad>/...`로 띄우면 보관 프로세스 소켓 경로가 너무 길어(>85) 시작 실패 -> worker는 기본 TMPDIR로 띄움(-env 절대 경로라 dev 판정이어도 됨). `pgrep -af 'worker -hold' | grep <경로>`는 자기 명령줄을 세므로 `/proc/<pid>/cwd`로 확인

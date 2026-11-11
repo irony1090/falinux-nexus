@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { usePagerBoard } from '../store/pagerBoard.store';
 
-// 미니맵 높이 / 미니맵 사이 / 전체 Grid 미니맵 폭 범위 / 패널 최대 폭
+// 미니맵 높이 / 미니맵 사이 / 화면 하나 미니맵 폭 범위 / 패널 최대 폭
 const MH = 26;
 const MG = 6;
 const MW = { min: 12, max: 52 };
@@ -10,7 +10,7 @@ const MAX_W = 560;
 // 끝 타일에서 더 끌 때 active 표시가 밀리는 최대 px
 const EDGE = 4;
 
-// 인디케이터를 위로 당긴 동안의 타일 패널: Grid별 미니맵 + 지금 보이는 범위 틀 + active — REF-board-pager.md
+// 인디케이터를 위로 당긴 동안의 타일 패널: 미니맵(보드 = 판 하나, 관리 페이지 = Grid별) + 지금 보이는 범위 틀 + active — REF-board-pager.md
 // below = 막대 아래쪽에 띄움(커서 팝업을 아래로 당김). 판은 PagerBoard 계약으로만 본다(보드·관리 페이지 공용)
 // nudge = 지금 타일 기준 끈 양(usePagerDrag, 타일 단위)
 const props = defineProps<{ open: boolean; below?: boolean; nudge?: number }>();
@@ -18,11 +18,11 @@ const { peekGrids, peekView, aspect, activeId, order } = usePagerBoard();
 
 const fullW = computed(() => Math.max(MW.min, Math.min(MW.max, Math.round(aspect.value ? MH * aspect.value : MW.max))));
 
-// 미니맵 칸 = Grid 칸 비율. 반 폭 Grid는 폭도 반
+// 미니맵 칸 = 판 칸 비율, 폭 = 화면 하나 폭 × size
 const minis = computed(() => {
     let x = 0;
     return peekGrids.value.map(g => {
-        const w = g.half ? Math.round((fullW.value - MG) / 2) : fullW.value;
+        const w = Math.round(fullW.value * g.size);
         const m = {
             x,
             w,
@@ -40,7 +40,7 @@ const minis = computed(() => {
         return m;
     });
 })
-// 타일별 미니맵 칸 자리(px, row 좌표) — active 표시를 Grid를 넘어 옮기려고
+// 타일별 미니맵 칸 자리(px, row 좌표) — active 표시를 미니맵 사이로도 옮기려고
 type Rect = { x: number; y: number; w: number; h: number };
 const rects = computed(() => {
     const map = new Map<string, Rect>();

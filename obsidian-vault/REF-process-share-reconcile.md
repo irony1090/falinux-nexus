@@ -56,7 +56,7 @@ reconcileAccess(users, uids)        -- accessMu held
 - `ListProcessPermissionMatrix`: A 전부 40 · B p1·p3·p4 = 10, p2 = 0 · C p1 = 20(단독 공유가 차단보다 우선), p2 = 10, p3·p4 = 0 · D p4만 20 · 없는 uid = 0 — 전부 기대값
 - `ListLiveProcessesUnder`: F1·F2 → p1·p4(COMPLETED p3 제외) / F3 → p4 / G → p2 / 스크립트 S → p1
 - `ListShareUsersAround`: S → B·C / F3 → B·C·D / G → C(하위 PENDING process 단독 공유) / F1 → B·C·D
-- 마이그레이션은 격리 supervisor를 임시 DB로 한 번 띄워 적용(`REF-test-env.md` "격리 실행"), 쿼리는 생성된 Go 상수에서 SQL을 꺼내 `PREPARE`/`EXECUTE`. 픽스처 함정: `nodes.created_by`·`processes.started_by` NOT NULL
+- 마이그레이션은 격리 supervisor를 임시 DB로 한 번 띄워 적용(`REF-test-isolation.md` "격리 실행"), 쿼리는 생성된 Go 상수에서 SQL을 꺼내 `PREPARE`/`EXECUTE`. 픽스처 함정: `nodes.created_by`·`processes.started_by` NOT NULL
 
 ## 실시간-2 구현 메모 (2026-10-07)
 | 자리 | 한 것 |

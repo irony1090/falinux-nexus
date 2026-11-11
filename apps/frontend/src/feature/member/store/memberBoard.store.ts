@@ -48,25 +48,26 @@ export const provideMemberBoard = (page: MemberPageKind, keys: GridKeys = MEMBER
     const activeKey = ref<string | null>(null)
     const area = ref({ w: 0, h: 0 })
     const layout = computed(() => layoutOf(area.value.w, area.value.h))
-    const grids = computed(() => area.value.w ? pack(shown.value, layout.value.cols, layout.value.rows) : [])
-    // 폰은 목록이 맨 앞 한 칸(Grid 0 앞)
+    // 판 측정 전(폭 0) = null
+    const plan = computed(() => area.value.w ? pack(shown.value, layout.value.cols, layout.value.rows) : null)
+    // 폰은 목록이 맨 앞 한 칸(판 앞)
     const lead = computed(() => layout.value.phone ? 1 : 0)
 
     // ---- 가로 스크롤 — MemberPage가 요소·값을 기록 ----
     const scrollEl = shallowRef<HTMLElement>()
     const scrollX = ref(0)
     const viewW = ref(0)
-    // 칼럼 한 칸 = 화면 폭 / 열 수(Grid 폭 = 화면 폭, 열 사이 간격 포함)
+    // 칼럼 한 칸 = 화면 폭 / 열 수(열 사이 간격 포함)
     const span = computed(() => layout.value.phone ? 1 : layout.value.cols)
     const step = computed(() => viewW.value / span.value)
-    // 상세 열 수 = Grid가 쓴 열의 합(배치-가(Grid 폭 = 쓴 열 수))
-    const detailCols = computed(() => grids.value.reduce((n, g) => n + g.cols, 0))
+    // 상세 열 수 = 판이 쓴 칼럼 수
+    const detailCols = computed(() => plan.value?.cols ?? 0)
     const colCount = computed(() => lead.value + detailCols.value)
     const maxCol = computed(() => Math.max(0, colCount.value - span.value))
     // 도트 위치 = 화면 단위 실수(폰은 0 = 목록)
     const pos = computed(() => viewW.value ? scrollX.value / viewW.value : 0)
     // 타일이 없어도 빈 안내 페이지가 한 칸 — 빼면 그 페이지의 위치 표시가 도트 줄 밖에 그려진다
-    // 점 하나 = 화면 폭(span 열) — Grid 수가 아니다(배치-2(페이지 점))
+    // 점 하나 = 페이지(화면 폭 = span 열) — 칼럼-2(Grid 개념 폐지)
     const dotCount = computed(() => lead.value + Math.max(1, Math.ceil(detailCols.value / span.value)))
 
     const clampCol = (col: number) => Math.max(0, Math.min(maxCol.value, col))
@@ -74,51 +75,23 @@ export const provideMemberBoard = (page: MemberPageKind, keys: GridKeys = MEMBER
         scrollEl.value?.scrollTo({ left: clampCol(col) * step.value, behavior })
     const goDot = (i: number) => goCol(i < lead.value ? i : lead.value + (i - lead.value) * span.value)
 
-    const placeOf = (key: string) => {
-        for (const [gi, g] of grids.value.entries()) {
-            const it = g.items.find(x => x.tile.key === key)
-            if (it) return { gi, ...it }
-        }
-        return undefined
-    }
     // 타일 칼럼 [l, r] — 목록 칸 포함 전체 번호
     const colRange = (key: string) => {
-        const p = placeOf(key)
+        const p = plan.value?.items.find(x => x.tile.key === key)
         if (!p) return undefined
-        const l = lead.value + grids.value[p.gi]!.at + p.c
+        const l = lead.value + p.c
         return { l, r: l + p.cw - 1 }
     }
 
     // 타일 위치 규칙 — 화면 밖일 때만 막 다 보이는 만큼(보드 reveal과 같은 규칙). 막 바뀐 배치가 DOM에 붙은 뒤 읽는다
-    const reveal = async (key: string) => {
+    const reveal = async (key: string, behavior: ScrollBehavior = 'smooth') => {
         await nextTick()
         const el = scrollEl.value
         const range = colRange(key)
         if (!el || !range || !step.value) return
         const cur = Math.round(el.scrollLeft / step.value)
         const v = revealCol(range.l, range.r, cur, span.value, maxCol.value)
-        if (v !== cur) goCol(v)
-    }
-
-    // 보던 자리 = 화면 왼쪽 칼럼을 차지하는 타일(위쪽 먼저). 폰에서 목록을 보는 중이면 없음 — 주소-4(보던 위치)
-    const anchorKey = computed(() => {
-        if (!step.value) return undefined
-        const col = Math.round(scrollX.value / step.value) - lead.value
-        if (col < 0) return undefined
-        const g = grids.value.find(x => x.at <= col && col < x.at + x.cols)
-        const local = g ? col - g.at : -1
-        const items = g?.items.filter(it => it.c <= local && local < it.c + it.cw) ?? []
-        return [...items].sort((a, b) => a.r - b.r)[0]?.tile.key
-    })
-    // URL 복원 — 그 타일 칼럼으로 바로. 스크롤 폭(viewW) 측정이 Grid 측정보다 늦을 수 있어 몇 프레임 기다린다
-    const restoreView = async (key: string) => {
-        await nextTick()
-        for (let i = 0; i < 10 && !step.value; i++) await new Promise(r => requestAnimationFrame(r))
-        const range = colRange(key)
-        const el = scrollEl.value
-        if (!range || !el) return
-        goCol(range.l, 'instant')
-        scrollX.value = el.scrollLeft     // scroll 이벤트를 기다리지 않고 보던 자리(anchorKey)를 맞춘다
+        if (v !== cur) goCol(v, behavior)
     }
 
     const setActive = (key: string) => {
@@ -195,7 +168,18 @@ export const provideMemberBoard = (page: MemberPageKind, keys: GridKeys = MEMBER
     const scrubbing = ref(false)
     const focusTile = (key: string) =>
         scrollEl.value?.querySelector<HTMLElement>(`[data-tile-key="${CSS.escape(key)}"]`)?.focus({ preventScroll: true })
-    // Grid 안쪽 여백 — PC = 오른쪽만, 폰 = 양쪽(MemberPage .grid padding)
+
+    // URL ?focus로 들어올 때(새로고침·재진입) — active + 타일 위치 규칙(reveal)으로 바로, 포커스는 PC에서만(보드 restore와 같음).
+    // 스크롤 폭(viewW) 측정이 판 측정보다 늦을 수 있어 몇 프레임 기다린다 — 포커스-4(관리 페이지)
+    const restore = async (key: string) => {
+        await nextTick()
+        for (let i = 0; i < 10 && !step.value; i++) await new Promise(r => requestAnimationFrame(r))
+        if (!tiles.value.some(t => t.key === key)) return
+        activeKey.value = key
+        await reveal(key, 'instant')
+        if (matchMedia('(pointer: fine)').matches) focusTile(key)
+    }
+    // 판 안쪽 여백 — PC = 오른쪽만, 폰 = 양쪽(MemberPage .grid padding)
     const padL = computed(() => layout.value.phone ? GAP : 0)
     const pager = providePagerBoard({
         off: computed(() => false),
@@ -212,14 +196,19 @@ export const provideMemberBoard = (page: MemberPageKind, keys: GridKeys = MEMBER
         colRange,
         setActive,
         focusTile,
-        peekGrids: computed(() => grids.value.map(g => ({
-            x: (lead.value + g.at) * step.value + padL.value,
-            w: g.cols * step.value - padL.value - GAP,
-            cols: g.cols,
-            rows: layout.value.rows,
-            half: false,
-            items: g.items.map(it => ({ id: it.tile.key, c: it.c, r: it.r, cw: it.cw, ch: it.ch })),
-        }))),
+        // 미니맵 = 판 하나(보드와 같음), 폭 = 페이지 수
+        peekGrids: computed(() => {
+            const p = plan.value
+            if (!p?.cols) return []
+            return [{
+                x: lead.value * step.value + padL.value,
+                w: p.cols * step.value - padL.value - GAP,
+                cols: p.cols,
+                rows: layout.value.rows,
+                size: p.cols / span.value,
+                items: p.items.map(it => ({ id: it.tile.key, c: it.c, r: it.r, cw: it.cw, ch: it.ch })),
+            }]
+        }),
         peekView: computed(() => ({ l: scrollX.value + padL.value, r: scrollX.value + viewW.value - GAP })),
         aspect: computed(() => area.value.h ? viewW.value / area.value.h : 0),
     })
@@ -227,9 +216,9 @@ export const provideMemberBoard = (page: MemberPageKind, keys: GridKeys = MEMBER
     const ctx = {
         page, admin, keys, tabs,
         tab, q, filter, pageNo, size, pickTab,
-        tiles, preview, shown, activeKey, area, layout, grids, lead,
+        tiles, preview, shown, activeKey, area, layout, plan, lead,
         scrollEl, scrollX, viewW, span, step, maxCol, pos, dotCount, scrubbing,
-        pager, goCol, goDot, colRange, reveal, anchorKey, restoreView, setActive, open, close, requestClose, guardClose, dropMissing, openParent, setSize, posOf, activate, freshKeys, replaceTile,
+        pager, goCol, goDot, colRange, reveal, restore, setActive, open, close, requestClose, guardClose, dropMissing, openParent, setSize, posOf, activate, freshKeys, replaceTile,
     }
     provide(MEMBER_BOARD_KEY, ctx)
     return ctx

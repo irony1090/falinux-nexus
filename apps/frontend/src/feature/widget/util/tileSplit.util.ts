@@ -1,4 +1,4 @@
-import type { Area, Capacity, CellSpan, TileSize } from './tile.type';
+import type { Area, Capacity, TileSize } from './tile.type';
 
 // 2분할 기준치: Grid 영역이 이 값 이상인 축만 2칸 (REF-node-ui-projection.md)
 export const TILE_THRESHOLD: Readonly<Area> = { w: 728, h: 560 };
@@ -21,78 +21,48 @@ export const minSize = (cap: Capacity): TileSize => ({
 	h: cap.y === 2 ? 0.5 : 1,
 });
 
-// Grid 안 스냅 오프셋(px): 가로 2칸 + 2칼럼 폭이면 칼럼 단위, 아니면 Grid 단위
-export const columnStops = (gridWidth: number, cap: Capacity, tileGap: number, cols: CellSpan = 2): Array<number> =>
-	cap.x === 2 && cols === 2 ? [0, (gridWidth + tileGap) / 2] : [0];
+// 칼럼 폭(px): 가로 2칸 = 화면 반, 1칸 = 화면 전체
+export const colWidth = (areaW: number, cap: Capacity, gap: number) => cap.x === 2 ? (areaW - gap) / 2 : areaW;
+// 칼럼 cols개를 이은 판 폭(px)
+export const flowWidth = (cols: number, areaW: number, cap: Capacity, gap: number) =>
+	Math.max(0, cols * colWidth(areaW, cap, gap) + (cols - 1) * gap);
 
 // 가로 구간(px). 좌표 = strip 스크롤 내용 기준(padding 포함)
 export interface StripSpan { x: number; w: number }
-// pos = 이 칼럼이 화면 왼쪽 끝일 때 Grid 단위 위치(오른쪽 칼럼 = +0.5) — 인디케이터 도트용
-export interface StripColumn extends StripSpan { grid: number; pos: number }
-export interface StripGeometry {
-	grids: Array<StripSpan>;
-	columns: Array<StripColumn>;    // 칼럼 = 스냅 한 칸 (가로 1칸 화면에선 Grid 하나)
-}
+// 칼럼 = 스냅 한 칸. 판이 이어져 있어 폭·간격이 모두 같다
+export interface StripGeometry { columns: Array<StripSpan> }
 
-// Grid 나열 기하. TileStrip CSS와 같은 가정: padding = Grid 간격 = gap, 전체 폭 Grid = areaW, 1칼럼 Grid = (areaW - gap) / 2
-export const stripGeometry = (gridCols: ReadonlyArray<CellSpan>, areaW: number, cap: Capacity, gap: number): StripGeometry => {
-	const half = (areaW - gap) / 2;
-	const grids: Array<StripSpan> = [];
-	const columns: Array<StripColumn> = [];
-	let x = gap;
-	gridCols.forEach((cols, grid) => {
-		const w = cols === 1 ? half : areaW;
-		const stops = columnStops(areaW, cap, gap, cols);
-		grids.push({ x, w });
-		stops.forEach((s, i) => columns.push({ x: x + s, w: stops.length === 2 ? half : w, grid, pos: grid + i / 2 }));
-		x += w + gap;
-	});
-	return { grids, columns };
+// 칼럼 나열 기하. TileStrip CSS와 같은 가정: padding = 칼럼 간격 = gap
+export const stripGeometry = (cols: number, areaW: number, cap: Capacity, gap: number): StripGeometry => {
+	const w = colWidth(areaW, cap, gap);
+	return { columns: Array.from({ length: cols }, (_, c) => ({ x: gap + c * (w + gap), w })) };
 };
 
-// 모두 0부터: grid = 가장 많이 보이는 Grid(동점이면 뒤쪽), col = 스냅 기준 왼쪽 칼럼, from~to = 절반 이상 보이는 칼럼
-export interface StripView { grid: number; col: number; from: number; to: number }
+// 모두 0부터: col = 스냅 기준 왼쪽 칼럼, from~to = 절반 이상 보이는 칼럼
+export interface StripView { col: number; from: number; to: number }
 
 const overlap = (s: StripSpan, from: number, to: number) => Math.max(0, Math.min(s.x + s.w, to) - Math.max(s.x, from));
 
 // scrollX = scrollLeft, viewW = strip clientWidth, gap = scroll-padding(스냅 위치 = 칼럼 x - gap)
 export const stripView = (geo: StripGeometry, scrollX: number, viewW: number, gap: number): StripView => {
 	const end = scrollX + viewW;
-
-	// Grid가 보이는 양 = 칼럼(타일 영역)이 보이는 양의 합. Grid 구간으로 재면 칼럼 사이 gap까지 세어 동점이 깨짐
-	const seen = geo.grids.map(() => 0);
-	geo.columns.forEach(c => { seen[c.grid] = (seen[c.grid] ?? 0) + overlap(c, scrollX, end); });
-
-	let grid = 0;
-	let best = -1;
-	seen.forEach((v, i) => {
-		// 0.5px 이내는 동점 — 소수 폭 오차로 앞쪽이 이기지 않게
-		if (v >= best - 0.5) { grid = i; best = Math.max(best, v); }
-	});
-
 	let col = 0;
 	geo.columns.forEach((c, i) => {
 		if (Math.abs(c.x - gap - scrollX) < Math.abs(geo.columns[col]!.x - gap - scrollX)) col = i;
 	});
-
 	const shown = geo.columns.flatMap((c, i) => overlap(c, scrollX, end) >= c.w / 2 ? [i] : []);
-	return {
-		grid,
-		col,
-		from: shown[0] ?? col,
-		to: shown[shown.length - 1] ?? col,
-	};
+	return { col, from: shown[0] ?? col, to: shown[shown.length - 1] ?? col };
 };
 
-// 스크롤 위치 -> Grid 단위 실수 위치(2.5 = Grid 2 오른쪽 칼럼부터). 칼럼 시작 사이는 선형, 양 끝 밖은 끝값
+// 스크롤 위치 -> 칼럼 단위 실수 위치. 칼럼 시작 사이는 선형, 양 끝 밖은 끝값
 export const stripPos = (geo: StripGeometry, scrollX: number, gap: number): number => {
 	const cols = geo.columns, t = scrollX + gap;
 	if (!cols.length) return 0;
 	for (let i = 0; i < cols.length - 1; i++) {
 		const a = cols[i]!, b = cols[i + 1]!;
-		if (t < b.x) return a.pos + Math.max(0, t - a.x) / (b.x - a.x) * (b.pos - a.pos);
+		if (t < b.x) return i + Math.max(0, t - a.x) / (b.x - a.x);
 	}
-	return cols[cols.length - 1]!.pos;
+	return cols.length - 1;
 };
 
 // 칼럼 번호(실수) -> scrollLeft. 인디케이터 드래그 중 칼럼 사이 위치

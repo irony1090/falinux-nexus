@@ -9,7 +9,6 @@ import { provideNodeOps } from '../store/nodeOps.store';
 import { provideTileDrag } from '../store/tileDrag.store';
 import { provideTileGrids } from '../store/tileGrids.store';
 import BoardFooter from './BoardFooter.vue';
-import GridToast from './GridToast.vue';
 import NodeOpsHost from './NodeOpsHost.vue';
 import NodeSelectionBar from './NodeSelectionBar.vue';
 import PageEdgeBands from './PageEdgeBands.vue';
@@ -36,11 +35,10 @@ const bodyStyle = computed(() => ({ height: kb.open ? `${kb.baseH}px` : undefine
 <div class="TileWorkspace">
 <div class="TileWorkspace__body" :style="bodyStyle" @wheel="onWheel">
     <node-selection-bar />
-    <!-- Grid 정보 토스트의 위치 기준(strip은 가로로 스크롤되므로 그 밖) -->
+    <!-- 화면 끝 띠의 위치 기준(strip은 가로로 스크롤되므로 그 밖) -->
     <div class="TileWorkspace__stage">
         <tile-strip />
         <page-edge-bands :edge="edge" />
-        <grid-toast />
     </div>
     <board-footer />
     <node-ops-host />

@@ -8,7 +8,7 @@ import { useMemberBoard } from '../store/memberBoard.store';
 // 도트 한 칸 폭 — 보드 GridPager와 같게
 const SP = 22;
 
-// Grid 도트 + 지금 위치(칼럼 사이면 작은 도트). 폰은 맨 앞 도트 = 목록(진하게). 양 끝 슬롯 = 커서 팝업 버튼 — 화-13(전체 헤더)
+// 페이지 도트 + 지금 위치(칼럼 사이면 작은 도트). 폰은 맨 앞 도트 = 목록(진하게). 양 끝 슬롯 = 커서 팝업 버튼 — 화-13(전체 헤더)
 // 끌기 = 칼럼 이동, 당긴 채 끌기 = 타일 하나씩 active(보드 GridPager와 같음, usePagerDrag). pull = 당기는 쪽(푸터 = 위, 컨트롤 패널 = 위·아래)
 // minDots = 도트 자리 최소 폭(도트 수), 컨트롤 패널 = 3 — 파트(패널 창 버튼)
 const props = withDefaults(defineProps<{ pull?: PagerPull; minDots?: number }>(), { pull: 'up', minDots: 0 });
@@ -22,13 +22,13 @@ const pillStyle = computed(() => {
     const w = Math.max(5, 18 - 26 * half), h = 6 - 2 * half;
     return { width: `${w}px`, height: `${h}px`, marginTop: `${-h / 2}px`, left: `${pos.value * SP + SP / 2 - w / 2}px` };
 });
-const label = (i: number) => i < lead.value ? '목록' : `Grid ${i - lead.value + 1}`;
+const label = (i: number) => i < lead.value ? '목록' : `페이지 ${i - lead.value + 1}`;
 </script>
 
 <template>
 <foot-pill class="MemberDots">
     <span v-if="$slots.start" class="end"><slot name="start" /></span>
-    <nav ref="barEl" class="bar" :class="{ held: mode !== 'idle' }" aria-label="Grid 위치"
+    <nav ref="barEl" class="bar" :class="{ held: mode !== 'idle' }" aria-label="페이지 위치"
         :style="{ minWidth: `${minDots * SP + 24}px` }"
         @pointerdown="down"
         @pointermove="move"

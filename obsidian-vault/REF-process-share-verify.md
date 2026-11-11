@@ -5,7 +5,7 @@
 **상태(2026-10-12): 통합 API 70/70 + 터미널 위치 회귀 21/21 + 헤드리스 화면(⑥ "나") 통과. ⑥(실행한 사람 표시) "나" 수정 포함. 커밋 `9cee192` → 파트(5 공유) 마감(→ `INDEX-process-share.md`).**
 
 ## 방법
-- 격리 실행: 임시 DB `nexus_of_tmp` + supervisor 5051 + worker `of-dev` + 격리 프론트 3001(`vite.iso.mts`) → `REF-test-env.md` "격리 실행". 끝나고 전부 삭제
+- 격리 실행: 임시 DB `nexus_of_tmp` + supervisor 5051 + worker `of-dev` + 격리 프론트 3001(`vite.iso.mts`) → `REF-test-isolation.md` "격리 실행". 끝나고 전부 삭제
 - 스크립트(세션 scratchpad, 재부팅 시 사라짐): `g_test.py`(통합 70, `of_test.py`의 `Client`를 `exec`) · `of_test.py`(터미널 위치·폴더 uid 21) · `ui_prep.py` + `pw/ui.mjs`(헤드리스, playwright-core 1.56.1)
 - 계정 3개: A(소유자) · B(받는 쪽) · C(공유 없음). 트리 = A의 F(of-dev) > {s(cat), sub > s2(cat)} / A의 priv > ps / B의 bf
 

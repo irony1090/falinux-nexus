@@ -1,73 +1,63 @@
-import type { Cell, CellSpan, GridItem, GridPlan, GridSlot, TileSize } from './tile.type';
+import type { Capacity, CellSpan, FlowPlan, GridItem, GridSlot, TileSize } from './tile.type';
 
 // 화면 순서 = 문서 order 그대로, 연 곳(parent)과 무관 (REF-tile-drag.md 구조-1(순서 배열))
 export function ordered<T>(order: ReadonlyArray<string>, tiles: Readonly<Record<string, T>>): Array<T> {
 	return order.flatMap(id => tiles[id] ? [tiles[id]] : []);
 }
 
-// 칸 찾는 순서 [c, r] = 위->아래, 다음 칼럼 (모든 기기 공통)
-const READ: ReadonlyArray<[Cell, Cell]> = [[0, 0], [0, 1], [1, 0], [1, 1]];
-
-// cursor = 직전 타일이 시작한 칸의 READ 인덱스
-type Packing<T> = { occ: Array<boolean>; items: Array<GridItem<T>>; cursor: number };
-
+// 칸 번호 = 채우는 순서(위->아래, 다음 칼럼): c*2 + r
 const at = (c: number, r: number) => c * 2 + r;
-const span = (v: number): CellSpan => v === 1 ? 2 : 1;
 
-function fits(occ: Array<boolean>, c: Cell, r: Cell, cw: CellSpan, ch: CellSpan) {
-	if (c + cw > 2 || r + ch > 2) return false;
+// 타일 크기 -> 칸 수. 가로 1칸 화면은 칼럼 하나 = 화면 폭이라 늘 1칼럼, 세로는 판이 늘 2행이라 1.0 = 2행
+export const spanOf = (size: TileSize, cap: Capacity): { cw: CellSpan; ch: CellSpan } => ({
+	cw: cap.x === 2 && size.w === 1 ? 2 : 1,
+	ch: cap.y === 1 || size.h === 1 ? 2 : 1,
+});
+
+function fits(occ: Array<boolean>, c: number, r: number, cw: CellSpan, ch: CellSpan) {
+	if (r + ch > 2) return false;
 	for (let i = 0; i < cw; i++)
 		for (let j = 0; j < ch; j++)
 			if (occ[at(c + i, r + j)]) return false;
 	return true;
 }
 
-// 순서대로 2×2칸에 채운다. 안 들어가면 그 타일부터 다음 Grid (이전 Grid로 돌아가지 않음 = 순서 유지)
-export function pack<T>(list: Array<T>, sizeOf: (tile: T) => TileSize): Array<GridPlan<T>> {
-	const grids: Array<Packing<T>> = [];
+// 순서대로 이어진 칼럼에 채운다 — Grid 경계 없음(칼럼-3(채우는 순서)), 앞으로만 채움(건너뛴 칸은 빈칸) = ⑧(같은 Grid 앞쪽 빈칸 채우기) 그대로
+export function pack<T>(list: Array<T>, spans: (tile: T) => { cw: CellSpan; ch: CellSpan }): FlowPlan<T> {
+	const occ: Array<boolean> = [];
+	const items: Array<GridItem<T>> = [];
+	let cursor = -1;
 	for (const tile of list) {
-		const size = sizeOf(tile);
-		const cw = span(size.w), ch = span(size.h);
-		const last = grids[grids.length - 1];
-		// 같은 Grid 안에서도 앞으로만 채움(건너뛴 칸은 빈칸) — ⑧(같은 Grid 앞쪽 빈칸 채우기) 확정
-		const idx = last ? READ.findIndex(([c, r], i) => i > last.cursor && fits(last.occ, c, r, cw, ch)) : -1;
-		const g = last && idx >= 0 ? last : newPacking(grids);
-		g.cursor = Math.max(idx, 0);
-		const [c, r] = READ[g.cursor];
-		for (let i = 0; i < cw; i++)
-			for (let j = 0; j < ch; j++)
-				g.occ[at(c + i, r + j)] = true;
-		g.items.push({ tile, c, r, cw, ch });
+		const { cw, ch } = spans(tile);
+		let i = cursor + 1;
+		while (!fits(occ, Math.floor(i / 2), i % 2, cw, ch)) i++;
+		cursor = i;
+		const c = Math.floor(i / 2), r = (i % 2) as 0 | 1;
+		for (let a = 0; a < cw; a++)
+			for (let b = 0; b < ch; b++)
+				occ[at(c + a, r + b)] = true;
+		items.push({ tile, c, r, cw, ch });
 	}
-	return grids.map(toPlan);
+	const cols = items.reduce((n, it) => Math.max(n, it.c + it.cw), 0);
+	return { items, empty: emptySlots(occ, cols), cols };
 }
 
-function newPacking<T>(grids: Array<Packing<T>>): Packing<T> {
-	const g: Packing<T> = { occ: [false, false, false, false], items: [], cursor: -1 };
-	grids.push(g);
-	return g;
-}
-
-function toPlan<T>({ occ, items }: Packing<T>): GridPlan<T> {
-	const spanC = items.some(it => it.cw === 2);
-	const spanR = items.some(it => it.ch === 2);
-	const axis = spanC && spanR ? null : spanC ? 'row' : 'column';
-	const cols: CellSpan = occ[at(1, 0)] || occ[at(1, 1)] ? 2 : 1;
-	return { items, empty: emptySlots(occ, axis, cols), cols, axis };
-}
-
-// Band 단위로 빈칸을 모은다: 통째로 빈 Band는 슬롯 하나, 아니면 빈 칸마다 하나
-function emptySlots(occ: Array<boolean>, axis: GridPlan<unknown>['axis'], cols: CellSpan): Array<GridSlot> {
-	if (!axis) return [];
+// 쓴 칼럼 안의 빈 칸 — 한 칼럼이 통째로 비면 슬롯 하나
+function emptySlots(occ: Array<boolean>, cols: number): Array<GridSlot> {
 	const out: Array<GridSlot> = [];
-	const bands: Array<Cell> = axis === 'column' && cols === 1 ? [0] : [0, 1];
-	for (const b of bands) {
-		const cells: Array<[Cell, Cell]> = axis === 'row' ? [[0, b], [1, b]] : [[b, 0], [b, 1]];
-		const free = cells.filter(([c, r]) => !occ[at(c, r)]);
-		if (free.length === 2)
-			out.push(axis === 'row' ? { c: 0, r: b, cw: 2, ch: 1 } : { c: b, r: 0, cw: 1, ch: 2 });
-		else
-			free.forEach(([c, r]) => out.push({ c, r, cw: 1, ch: 1 }));
+	for (let c = 0; c < cols; c++) {
+		const top = !occ[at(c, 0)], bottom = !occ[at(c, 1)];
+		if (top && bottom) out.push({ c, r: 0, cw: 1, ch: 2 });
+		else if (top) out.push({ c, r: 0, cw: 1, ch: 1 });
+		else if (bottom) out.push({ c, r: 1, cw: 1, ch: 1 });
 	}
 	return out;
+}
+
+// 칸 (c, r) 앞에서 채우는 순서상 가장 늦게 시작한 타일 — 빈 칸에 놓기(칼럼-4)
+export function lastBefore<T>(items: ReadonlyArray<GridItem<T>>, c: number, r: number, skip: (tile: T) => boolean = () => false): T | undefined {
+	let best: GridItem<T> | undefined;
+	for (const it of items)
+		if (!skip(it.tile) && at(it.c, it.r) < at(c, r) && (!best || at(it.c, it.r) > at(best.c, best.r))) best = it;
+	return best?.tile;
 }

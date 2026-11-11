@@ -1,11 +1,9 @@
 import { DragSession, type DragPoint } from '@/common/listener/dragSession'
 import { useAppDialog } from '@/feature/layout/store/appDialog.store'
 import { useVirtualKeyboard } from '@/common/hook/virtualKeyboard.hook'
-import type { CellSpan } from '@/feature/widget/util/tile.type'
-import { dropBundle, dropOrder, gridWidth, type DropFrame } from '@/feature/widget/util/tileDrop.util'
+import { dropBundle, dropOrder, type DropFrame } from '@/feature/widget/util/tileDrop.util'
 import { TILE_KINDS } from '@/feature/widget/util/tileKind.util'
 import { viewIcon } from '@/feature/worker/util/fileKind.util'
-import { stripGeometry } from '@/feature/widget/util/tileSplit.util'
 import { inject, onBeforeUnmount, provide, ref, watch } from 'vue'
 import { useBoardTrees } from './boardTrees.store'
 import { TILE_GAP, type provideTileGrids } from './tileGrids.store'
@@ -16,7 +14,6 @@ const TILE_DRAG_STORE_KEY = Symbol('TileDragStore')
 const HOLD_MS = 500         // 터치 길게 누르기 — 목록 칸 체크(itemPress)와 같은 시간
 const EDGE = 48             // 전체보기: 화면 끝 이만큼 안이면 자동 스크롤(px). 평소 = 끝 띠(grids.edgeTrack)로 칼럼씩
 const SPEED = 18            // 끝에 붙었을 때 한 프레임 스크롤(px)
-const OV_CELL_GAP = 14      // 전체보기 Grid 사이 — TileStrip `.overview .board-cells` gap과 같게
 
 export type DragChip = { icon: string; color: string; name: string }
 
@@ -99,27 +96,20 @@ export const provideTileDrag = (grids: ReturnType<typeof provideTileGrids>) => {
         if (!area) return null
         return {
             area, cap: grids.cap.value, gap: TILE_GAP, scale: 1,
-            boxes: cols => stripGeometry(cols, area.w, grids.cap.value, TILE_GAP).grids.map(g => ({ x: g.x, y: TILE_GAP })),
+            origin: () => ({ x: TILE_GAP, y: TILE_GAP }),
         }
     }
-    // 전체보기 = 화면 좌표. 첫 Grid 상자 위치를 재고 나머지는 폭으로 잇는다(Grid 칸 폭 = 상자 폭, 캡션은 그 안에서 줄임).
-    // 보드가 하나면 줄이 가운데 정렬이라 Grid 수가 바뀌면 시작점도 옮겨 간다
+    // 전체보기 = 화면 좌표. 판 상자 위치를 잰다.
+    // 보드가 하나면 줄이 가운데 정렬이라 판 폭이 바뀌면 시작점도 옮겨 간다
     const ovFrame = (row: Element): DropFrame | null => {
         const area = grids.area.value, strip = grids.stripEl.value
-        const boxes = row.querySelectorAll<HTMLElement>('.board-cells > .cell > .box')
-        if (!area || !strip || !boxes.length) return null
-        const s = grids.ovScale.value
-        const first = boxes[0]!.getBoundingClientRect(), lastBox = boxes[boxes.length - 1]!.getBoundingClientRect()
-        const curW = lastBox.right - first.left
+        const box = row.querySelector<HTMLElement>('.board-cells > .cell > .box')
+        if (!area || !strip || !box) return null
+        const r = box.getBoundingClientRect()
         const centered = !strip.classList.contains('multi') && strip.scrollWidth <= strip.clientWidth + 1
         return {
-            area, cap: grids.cap.value, gap: TILE_GAP, scale: s,
-            boxes: (cols: Array<CellSpan>) => {
-                const ws = cols.map(c => gridWidth(c, area, TILE_GAP) * s)
-                const total = ws.reduce((a, w) => a + w, 0) + OV_CELL_GAP * (ws.length - 1)
-                let x = first.left + (centered ? (curW - total) / 2 : 0)
-                return ws.map(w => { const o = { x, y: first.top }; x += w + OV_CELL_GAP; return o })
-            },
+            area, cap: grids.cap.value, gap: TILE_GAP, scale: grids.ovScale.value,
+            origin: w => ({ x: r.left + (centered ? (r.width - w) / 2 : 0), y: r.top }),
         }
     }
 

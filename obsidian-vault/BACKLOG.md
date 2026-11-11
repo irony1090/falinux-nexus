@@ -79,4 +79,3 @@
 - **`1ef8a97` 커밋 메시지 형식** · 2026-10-22 · 제목·본문 사이 빈 줄이 빠져 `--oneline`에 본문까지 나옴(내용은 정상). 고치려면 master·`refactor/tile-kinds` rebase 필요(push 안 해서 가능) — 고칠지 사용자 답 대기. 이후 커밋은 빈 줄 확인
 - **파트(파일 전송) 이름 정정** · 2026-10-21 제안 · 내부 전송 모듈 검증·수정까지였으니 "파일 전송 검증(내부 모듈)"로 바꾸자고 함. 답 받으면 MEMORY·HISTORY·CURRENT·INDEX 반영
 - **PowerShell 단계 스크립트 공부 이어 가기** · 2026-11-04 · 사용자가 다시 꺼낼 때 · `00-stop.ps1` 줄 단위 분석·Get-CimInstance·Where-Object·`$_` 속성 보기까지 대화로 답함. 남은 질문 = 분석을 vault에 기록할지 · 다음 `01-dbdump.ps1`로 넘어갈지(답 없음) · 스크립트 = `build/home-update/261105-board-close/nexus-steps/`
-- **타일이 Grid 경계에 걸쳐 배치(칼럼 흐름)** · 2026-11-11 · 사용자가 검토 여부 답할 때 · 예 A[.5,.5] B[1,.5] C[1,.5]에서 C가 A 옆(G1 오른쪽 칼럼 + G2 왼쪽 칼럼)으로. 지금은 `pack`의 "Grid = 2×2 상자, 경계 안 넘음" 전제(금지 결정 기록 없음). 바꾸면 pack·tileDrop·memberDrop·인디케이터 도트·TilePeek·1칼럼 Grid·전체보기·GridToast·memberGrid 영향, 폰은 무관 → 착수 시 기능 단위 영향 조사 먼저(`REF-node-ui-projection.md` 규칙 3)

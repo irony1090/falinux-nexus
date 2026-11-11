@@ -2,13 +2,13 @@ import { inject, provide, type Ref } from 'vue'
 
 const PAGER_BOARD_KEY = Symbol('PagerBoard')
 
-// 미니맵 Grid 하나 — x·w = view와 같은 스크롤 좌표, 칸 위치는 cols·rows 기준
+// 미니맵 하나(보드 = 판 전체, 관리 페이지 = Grid) — x·w = view와 같은 스크롤 좌표, 칸 위치는 cols·rows 기준
 export type PeekGrid = {
     x: number
     w: number
     cols: number
     rows: number
-    half: boolean                   // 반 폭 Grid(보드 1칼럼 Grid)
+    size: number                    // 미니맵 폭 = 화면 몇 개(보드 = 페이지 수, 관리 페이지 Grid = 1)
     items: Array<{ id: string; c: number; r: number; cw: number; ch: number }>
 }
 
@@ -32,7 +32,7 @@ export type PagerBoard = {
     // 미니맵
     peekGrids: Readonly<Ref<PeekGrid[]>>
     peekView: Readonly<Ref<{ l: number; r: number }>>   // 지금 보이는 범위(peekGrids 좌표)
-    aspect: Readonly<Ref<number>>                   // 전체 폭 Grid의 가로/세로(0 = 모름)
+    aspect: Readonly<Ref<number>>                   // 화면 하나(타일 영역)의 가로/세로(0 = 모름)
 }
 
 export const providePagerBoard = (board: PagerBoard) => {

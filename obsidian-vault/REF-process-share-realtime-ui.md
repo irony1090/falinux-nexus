@@ -52,7 +52,7 @@
 - 실행 중 X → 취소·종료·종료하고 닫기 / 취소 → RUN 그대로 / `RUN▾` 종료… → 취소·종료만 → 종료 → 타일 남고 DONE/FAIL / 끝난 X → 확인 없이 닫힘 / 종료하고 닫기 → 타일까지 닫힘
 - 목록 stop → 종료 → 행 DONE/FAIL → 행 X → 사라짐 / 폴더 `minimized` PUT → 400
 - **주의**: 사용자가 띄운 supervisor(5050)는 옛 바이너리면 `minimized`를 저장 때 버림 → 다시 빌드해야 최소화가 유지됨
-- 확인 스크립트 `pw/rt0.mjs`(scratchpad, 재부팅 시 사라짐) — 다시 쓸 땐 위 항목 + `REF-test-env.md` "격리 실행"
+- 확인 스크립트 `pw/rt0.mjs`(scratchpad, 재부팅 시 사라짐) — 다시 쓸 땐 위 항목 + `REF-test-isolation.md` "격리 실행"
 
 ## 실시간-6a(스크립트 행 "실행 중 N · 최소화 n") 구현 메모 (2026-10-08)
 | 자리 | 한 것 |
