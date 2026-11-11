@@ -4,8 +4,8 @@ import { isRunning, useProcessTerm } from '@/feature/process/store/processTerm.s
 import { removeUnit } from '@/common/util/index.util';
 import Tile from '@/feature/widget/component/Tile.vue';
 import TileLayout from '@/feature/widget/component/TileLayout.vue';
-import type { Area, CellSpan } from '@/feature/widget/util/tile.type';
-import { columnStops } from '@/feature/widget/util/tileSplit.util';
+import type { Area } from '@/feature/widget/util/tile.type';
+import { colWidth, flowWidth } from '@/feature/widget/util/tileSplit.util';
 import { computed, onBeforeUnmount, onMounted, type CSSProperties } from 'vue';
 import { useRouter } from 'vue-router';
 import type { BoardItem } from '../api/board.api';
@@ -21,7 +21,7 @@ import OverviewTile from './tile/OverviewTile.vue';
 import { TILE_COMPONENTS } from './tile/tileComponents';
 
 const {
-    grids, cap, area, barH, stripEl, scrollX, viewW,
+    plan, cap, area, barH, stripEl, scrollX, viewW,
     overview, ovScale, otherBoards, leaveOverview, activate, scrubbing,
 } = useTileGrids();
 useTileShortcut();
@@ -32,8 +32,12 @@ const { byHash } = useBoards();
 const { procs } = useProcessTerm();
 const router = useRouter();
 
-// 칼럼 단위 스냅 앵커 위치(px). 전체 폭 Grid의 폭 = 측정한 area.w. 전체보기에선 앵커 없음(스냅 끔)
-const stopsOf = (cols: CellSpan) => overview.value ? [] : columnStops(area.value?.w ?? 0, cap.value, GAP, cols);
+// 칼럼 단위 스냅 앵커 위치(px, 판 기준). 전체보기에선 앵커 없음(스냅 끔)
+const stops = computed(() => {
+    if (overview.value || !plan.value) return [];
+    const w = colWidth(area.value?.w ?? 0, cap.value, GAP);
+    return Array.from({ length: plan.value.cols }, (_, c) => c * (w + GAP));
+});
 
 // Grid 영역 = strip - padding. 스크롤바 두께는 빼지 않는다(전체보기에선 스크롤바가 생기므로, 빼면 칸 수가 바뀜)
 // 전체보기도 strip 크기·padding은 그대로 둔다 — 여기서 재는 값이 바뀌면 "현재 배치 그대로"가 깨짐
@@ -73,27 +77,24 @@ const onKey = (e: KeyboardEvent) => {
 onMounted(() => window.addEventListener('keydown', onKey));
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
-// 전체보기에서 고른 타일 = active, 나가며 그 Grid로
+// 전체보기에서 고른 타일 = active, 나가며 그 타일로
 const onTileKey = (e: KeyboardEvent, tileId: string) => {
     if (!overview.value || (e.key !== 'Enter' && e.key !== ' ')) return;
     e.preventDefault();
     activate(tileId);
 }
 
-// 전체보기: Grid를 실제 px로 그린 뒤 축소, 바깥 상자는 축소 크기만 차지
-const gridPx = (cols: CellSpan) => ({
-    w: cols === 1 ? ((area.value?.w ?? 0) - GAP) / 2 : area.value?.w ?? 0,
-    h: area.value?.h ?? 0,
-})
-const boxStyle = (cols: CellSpan): CSSProperties | undefined => {
+// 판 폭 = 칼럼 수만큼(평소에도 px로 준다 — strip 가로 스크롤 내용 폭)
+const flowW = (cols: number) => flowWidth(cols, area.value?.w ?? 0, cap.value, GAP);
+const cellStyle = (cols: number): CSSProperties | undefined => overview.value ? undefined : { width: `${flowW(cols)}px` };
+// 전체보기: 판을 실제 px로 그린 뒤 축소, 바깥 상자는 축소 크기만 차지
+const boxStyle = (cols: number): CSSProperties | undefined => {
     if (!overview.value) return undefined;
-    const { w, h } = gridPx(cols);
-    return { width: `${w * ovScale.value}px`, height: `${h * ovScale.value}px` };
+    return { width: `${flowW(cols) * ovScale.value}px`, height: `${(area.value?.h ?? 0) * ovScale.value}px` };
 }
-const layoutStyle = (cols: CellSpan): CSSProperties | undefined => {
+const layoutStyle = (cols: number): CSSProperties | undefined => {
     if (!overview.value) return undefined;
-    const { w, h } = gridPx(cols);
-    return { width: `${w}px`, height: `${h}px`, transform: `scale(${ovScale.value})` };
+    return { width: `${flowW(cols)}px`, height: `${area.value?.h ?? 0}px`, transform: `scale(${ovScale.value})` };
 }
 
 // 폰 = 보드 푸터와 같은 판정(한 칸). 전체보기 방향은 PC·폰 모두 가로 한 줄, 폰은 보드 이름만 줄 위로
@@ -104,7 +105,7 @@ const currentName = computed(() => boardLabel(byHash(hash.value)) || '기본 보
 
 // 보드 줄 요약 — 배치된 터미널 수 + 실행 중 수
 const summaryOf = (b: BoardGrids) => {
-    const uids = b.grids.flatMap(g => g.items.flatMap(it => isProcTile(it.tile) ? [it.tile.uid] : []));
+    const uids = (b.plan?.items ?? []).flatMap(it => isProcTile(it.tile) ? [it.tile.uid] : []);
     const running = uids.filter(u => isRunning(procs.value[u]?.status)).length;
     return uids.length ? `터미널 ${uids.length} · 실행 중 ${running}` : '터미널 없음';
 }
@@ -142,15 +143,14 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
         <span class="now">지금 보드</span>
     </div>
     <div class="board-cells">
-    <div v-for="(g, gi) in grids" :key="gi" class="cell" :class="{ narrow: g.cols === 1 }">
-        <div v-if="overview" class="cap"><b>G{{ gi + 1 }}</b> · {{ g.items.length }}타일</div>
-        <div class="box" :style="boxStyle(g.cols)">
+    <div v-if="plan && plan.cols" class="cell" :style="cellStyle(plan.cols)">
+        <div class="box" :style="boxStyle(plan.cols)">
             <tile-layout
-                :cols="g.cols"
+                :cols="plan.cols"
                 :gap="GAP"
-                :style="layoutStyle(g.cols)"
+                :style="layoutStyle(plan.cols)"
             >
-                <tile v-for="it in g.items" :key="it.tile.id" :cell="it"
+                <tile v-for="it in plan.items" :key="it.tile.id" :cell="it"
                     :data-tile-id="it.tile.id"
                     :class="{ 'drag-slot': drag.dragId.value === it.tile.id, 'drag-bundle': drag.bundleIds.value.includes(it.tile.id) }"
                     :tabindex="overview ? 0 : undefined"
@@ -163,10 +163,10 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
                     <!-- 끄는 동안 다른 보드에서 들어온 타일(미리보기) -->
                     <overview-tile v-else :tile="it.tile" />
                 </tile>
-                <tile v-for="(e, ei) in g.empty" :key="`empty-${ei}`" :cell="e" empty />
+                <tile v-for="e in plan.empty" :key="`empty-${e.c}-${e.r}`" :cell="e" empty />
 
                 <template #overlay>
-                    <span v-for="x in stopsOf(g.cols)" :key="x" class="snap" :style="{ left: `${x}px` }" />
+                    <span v-for="x in stops" :key="x" class="snap" :style="{ left: `${x}px` }" />
                 </template>
             </tile-layout>
         </div>
@@ -181,11 +181,10 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
         <span>{{ b.loading ? '불러오는 중…' : b.error ?? summaryOf(b) }}</span>
     </div>
     <div class="board-cells">
-        <div v-for="(g, gi) in b.grids" :key="gi" class="cell" :class="{ narrow: g.cols === 1 }">
-            <div class="cap"><b>G{{ gi + 1 }}</b> · {{ g.items.length }}타일</div>
-            <div class="box" :style="boxStyle(g.cols)">
-                <tile-layout :cols="g.cols" :gap="GAP" :style="layoutStyle(g.cols)">
-                    <tile v-for="it in g.items" :key="it.tile.id" :cell="it"
+        <div v-if="b.plan && b.plan.cols" class="cell">
+            <div class="box" :style="boxStyle(b.plan.cols)">
+                <tile-layout :cols="b.plan.cols" :gap="GAP" :style="layoutStyle(b.plan.cols)">
+                    <tile v-for="it in b.plan.items" :key="it.tile.id" :cell="it"
                         :data-tile-id="it.tile.id"
                         :class="{ 'drag-slot': drag.dragId.value === it.tile.id, 'drag-bundle': drag.bundleIds.value.includes(it.tile.id) }"
                         tabindex="0"
@@ -197,7 +196,7 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
                     >
                         <overview-tile :tile="it.tile" :pos="b.posOf.get(it.tile.id)" />
                     </tile>
-                    <tile v-for="(e, ei) in g.empty" :key="`empty-${ei}`" :cell="e" empty />
+                    <tile v-for="e in b.plan.empty" :key="`empty-${e.c}-${e.r}`" :cell="e" empty />
                 </tile-layout>
             </div>
         </div>
@@ -208,7 +207,7 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
 
 <style scoped lang="scss">
 .TileStrip {
-    // ⑥ Grid 높이: 남은 높이 전부(선택 막대·푸터가 있으면 그만큼 줄어듦)
+    // ⑥ 판 높이: 남은 높이 전부(선택 막대·푸터가 있으면 그만큼 줄어듦)
     flex: 1;
     min-height: 0;
     display: flex;
@@ -216,7 +215,7 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     padding: var(--gap);
     overflow-x: auto;
     overflow-y: hidden;
-    // 칼럼(Grid 가로 절반) 단위 스냅 — Grid 자체엔 snap-align 없음, 앵커(.snap)만
+    // 칼럼 단위 스냅 — 판 자체엔 snap-align 없음, 앵커(.snap)만
     scroll-snap-type: x mandatory;
     scroll-padding: var(--gap);
     // 인디케이터 드래그 중 — scrollLeft를 줄 때마다 칼럼으로 튀지 않게(놓으면 인디케이터가 칼럼에 맞춘 뒤 다시 켬)
@@ -228,14 +227,10 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     }
 }
 .cell {
-    flex: 0 0 100%;
+    flex: none;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    // 오른쪽 칼럼이 통째로 빈 Grid = 칼럼 하나 폭
-    &.narrow {
-        flex-basis: calc((100% - var(--gap)) / 2);
-    }
 }
 .box {
     flex: 1;
@@ -295,7 +290,7 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
         gap: 14px;
         align-items: center;
     }
-    // Grid 가로 한 줄 + 세로 가운데(PC·폰 같음 — 2026-10-26 폰 세로 나열 폐기)
+    // 판 가로 한 줄 + 세로 가운데(PC·폰 같음 — 2026-10-26 폰 세로 나열 폐기)
     justify-content: safe center;
     align-items: flex-start;
     // 보드 여럿: 보드마다 가로 한 줄(이름 왼쪽), 위에서부터 — EV2(보드 쌓는 방향)
@@ -326,18 +321,6 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     &.multi.phone {
         .board { flex-direction: column; }
         .board-cap { width: auto; flex-direction: row; align-items: baseline; justify-content: flex-start; }
-    }
-    .cell {
-        flex: none;
-        gap: 4px;
-    }
-    // 칸 폭 = 상자 폭(캡션이 넓히지 않게) — 끌기 놓을 자리 계산이 상자 폭으로 Grid 위치를 잇는다(tileDrag.store ovFrame)
-    .cap {
-        width: 0;
-        min-width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
     }
     .box {
         flex: none;
@@ -372,11 +355,5 @@ const onOtherKey = (e: KeyboardEvent, board: BoardItem, tileId: string) => {
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     b { @include vars.font('title-small'); color: rgb(var(--v-theme-on-surface)); }
     .now { color: rgb(var(--v-theme-primary)); }
-}
-.cap {
-    @include vars.font('body-small');
-    font-family: monospace;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    b { color: rgb(var(--v-theme-on-surface)); }
 }
 </style>

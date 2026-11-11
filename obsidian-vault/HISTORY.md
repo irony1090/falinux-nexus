@@ -74,6 +74,7 @@
 
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
+| `history/column-flow.md` | 칼럼 흐름: Grid 경계 걸침(11-11 신설) ↔ `REF-column-flow.md` | 11-11 조율·보드 구현·URL focus·관리 페이지·헤드리스 확인 · 사용자 확인 · 마감 |
 | `history/settings-account.md` | 설정 두 겹: 계정 + 이 브라우저(11-08 신설) ↔ `REF-settings-account.md` | 11-08 조율·구현·확인 24/24 · 사용자 확인 · 마감 · test3·집 서버 배포 |
 | `history/socket-reconnect.md` | 소켓 재연결 · 끊김 표시(11-06 신설) ↔ `REF-socket-reconnect.md` | 11-06 확인 14/14 · test3 교체 · 모바일 확인 · 마감 |
 | `history/board-close.md` | 보드 닫기 · 종료 유예(2026-11-05 신설) ↔ `REF-board-close.md` | 11-05 확인 13/13·9/9 · 사용자 확인 · 마감 |
@@ -98,7 +99,8 @@
 | `history/widget.md` | 위젯 | 08-07 StickyBox · Skeleton |
 | `history/util.md` | 범용 유틸(반복 주제) | 08-07 GroupedSet · 공유 리사이즈 관측 그룹 |
 | `history/util-drag.md` | 드래그 인프라 | 10-12 보류 결정 |
-| `history/test-env.md` | 테스트 환경 · 확인용 클라이언트 | 10-15 고아 스크립트 격리 정리 절차 |
+| `history/test-env.md` | 테스트 환경 · 확인용 클라이언트 | 10-15 고아 스크립트 격리 정리 절차 · 11-11 8012 점유 시 5051 |
+| `history/test-isolation.md` | 격리 실행(11-11 `test-env`에서 분할) ↔ `REF-test-isolation.md` | 10-08 공유-e 격리 확인 함정 |
 | `history/photo-upload.md` | 폰 사진 올리기 도구(2026-11-02 `REF-test-env`에서 분할) ↔ `REF-photo-upload.md` | 11-02 분할 |
 | `history/test-scripts.md` · `-1014.md` · `-1020.md` · `-1022.md` · `-1023.md` | 확인 스크립트 명세(날짜별) | 10-23 글자-5 전후 스크린샷 `ty/pw` |
 | `history/external-access.md` | 외부 접속 · HTTPS 프록시 | 10-13 마감·커밋 |

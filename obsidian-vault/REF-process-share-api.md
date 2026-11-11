@@ -81,7 +81,7 @@ $$;
 | 공유API-4(노드 공유) | `GET/PUT/DELETE /nodes/:id/shares...` | `router/share.go`(새 파일), `shareDto` |
 | 공유API-5(process 공유) | `GET/PUT/DELETE /processes/:uid/shares...` + SC6 | `router/share.go` |
 | 공유API-6(노드 복사) | `POST /nodes/:id/copy` | `router/node.go` 또는 `nodeCopy.go` |
-| 공유API-7(확인) | build/vet + 격리 실행(`REF-test-env.md` "격리 실행"): 계정 3개로 조회·걸기·upsert·풀기·목록 출처·재공유 403·자기 자신 400·복사(차단 하위 제외·자기 아래 복사·소유자·장비) | — |
+| 공유API-7(확인) | build/vet + 격리 실행(`REF-test-isolation.md` "격리 실행"): 계정 3개로 조회·걸기·upsert·풀기·목록 출처·재공유 403·자기 자신 400·복사(차단 하위 제외·자기 아래 복사·소유자·장비) | — |
 
 ## 구현 메모(2026-10-07)
 | 단위 | 실제 코드 |

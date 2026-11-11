@@ -96,4 +96,4 @@ playwright-core(세션 scratchpad) + `~/.cache/ms-playwright/chromium-1234`. 로
 - 환경: 임시 DB `nexus_check_tmp` + supervisor 5051 + worker `NAME=check-dev`를 socat 5152 -> 5051 경유 / Python 소켓 클라이언트(`chk/i3.py`, scratchpad) / 스크립트 `#!/bin/sh\ncat`
 - 순서·결과: ① 실행 -> PROCESS ② 입력 전달(PTY 에코 + cat 출력 2번) ③ socat 끊음 -> 0.2초에 PENDING ④ PENDING 중 `pending-0`~`4` 입력 ⑤ socat 재기동 -> 3.9초에 PROCESS ⑥ 재접속 뒤 입력 전달 ⑦ 재접속 뒤 출력·스냅샷 어디에도 `pending-*` 없음
 - 버리는 곳 = `router/input.go` `input()`: worker 끊김이면 Detach로 memory에서 빠져 `Get` 실패, 아니면 `Status != PROCESS`. 실행 직후 RUNNING 전 PENDING은 시간 창이 짧아 따로 재현 안 함(같은 `Status` 조건)
-- 함정: socat 리스너만 끄면 연결을 맡은 fork 자식이 살아 있어 **끊기지 않는다** -> 명령줄이 socat인 프로세스 전부(자식 포함)를 끈다(`REF-test-env.md` "끌 때 함정")
+- 함정: socat 리스너만 끄면 연결을 맡은 fork 자식이 살아 있어 **끊기지 않는다** -> 명령줄이 socat인 프로세스 전부(자식 포함)를 끈다(`REF-test-isolation.md` "끌 때 함정")

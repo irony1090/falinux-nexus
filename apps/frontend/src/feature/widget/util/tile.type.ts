@@ -1,4 +1,4 @@
-// 타일 크기 = Grid 대비 비율 (0.5 = 반 칸, 1 = 한 줄 전체)
+// 타일 크기 = 화면(타일 영역) 대비 비율 (0.5 = 반 칸, 1 = 화면 폭·높이 전체)
 export type TileSpan = 0.5 | 1;
 export type TileSize = { w: TileSpan; h: TileSpan };
 
@@ -20,9 +20,9 @@ export type Capacity = { x: 1 | 2; y: 1 | 2 };
 export type Cell = 0 | 1;
 export type CellSpan = 1 | 2;
 
-// Grid 안 위치: c = 칼럼, r = 행, cw/ch = 차지하는 칸 수
+// 판 위치: c = 칼럼(0부터, 끝없이 이어짐), r = 행, cw/ch = 차지하는 칸 수
 export interface GridSlot {
-	c: Cell;
+	c: number;
 	r: Cell;
 	cw: CellSpan;
 	ch: CellSpan;
@@ -32,9 +32,9 @@ export interface GridItem<T> extends GridSlot {
 	tile: T;
 }
 
-export interface GridPlan<T> {
+// 보드 배치 = 2행짜리 칼럼이 이어진 판 하나(Grid 경계 없음) — REF-node-ui-projection.md 칼럼-2(Grid 개념 폐지)
+export interface FlowPlan<T> {
 	items: Array<GridItem<T>>;
-	empty: Array<GridSlot>;             // 빈 칸 (통째로 빈 Band는 슬롯 하나)
-	cols: CellSpan;                     // 오른쪽 칼럼이 통째로 비면 1
-	axis: 'row' | 'column' | null;      // Band 방향, 표시용 (null = 1×1 타일 하나)
+	empty: Array<GridSlot>;             // 빈 칸 (한 칼럼이 통째로 비면 슬롯 하나)
+	cols: number;                       // 쓴 칼럼 수
 }

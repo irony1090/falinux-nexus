@@ -85,7 +85,7 @@
 - 상태 코드: 소유자 다른 폴더로 이동 = 403, 자기 아래로 이동 = 400, 루트로 이동(받는 쪽) = 403, 아래에 편집 미만 공유 = 403
 
 ## 확인 결과(2026-10-07)
-격리 실행(→ `REF-test-env.md` "격리 실행")으로 계정 A(소유자)·B(받는 쪽)·C(무관) + psql 공유 행. 스크립트 = 세션 scratchpad `authz_test.py`(Python `websockets`, 재부팅 시 사라짐).
+격리 실행(→ `REF-test-isolation.md` "격리 실행")으로 계정 A(소유자)·B(받는 쪽)·C(무관) + psql 공유 행. 스크립트 = 세션 scratchpad `authz_test.py`(Python `websockets`, 재부팅 시 사라짐).
 
 | 영역 | 확인 항목(전부 통과) |
 |---|---|

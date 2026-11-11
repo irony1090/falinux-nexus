@@ -8,20 +8,20 @@ import GridPager from './GridPager.vue';
 import PagerPopup from './PagerPopup.vue';
 
 // 푸터 가운데: 인디케이터(GridPager) + 알약 오른쪽 끝 전체보기 버튼(옛 OverviewButton) — REF-board-chrome.md 배치 F(확정안)
-const { cap, grids, overview, ovPercent, zoomOverview, enterOverview, leaveOverview } = useTileGrids();
+const { cap, plan, overview, ovPercent, zoomOverview, enterOverview, leaveOverview } = useTileGrids();
 
 // 가로 1칸 화면 = 아이콘만
 const phone = computed(() => cap.value.x === 1);
 
 // 전체보기 중: 같은 자리 알약에 요약 + 축소 비율 조절 + 돌아가기 — ⑫(전체보기 세부)
-const procCount = computed(() => grids.value.reduce((n, g) => n + g.items.filter(it => holdsProc(it.tile)).length, 0));
+const procCount = computed(() => plan.value?.items.filter(it => holdsProc(it.tile)).length ?? 0);
 </script>
 
 <template>
-<div v-if="grids.length && overview" class="TileNav">
+<div v-if="plan?.items.length && overview" class="TileNav">
     <foot-pill class="ov">
         <span class="info text-body-small text-medium-emphasis">
-            <template v-if="!phone">프로세스 {{ procCount }} · </template>Grid {{ grids.length }}
+            <template v-if="!phone">프로세스 {{ procCount }} · </template>타일 {{ plan.items.length }}
         </span>
         <v-btn icon="mdi-minus" size="small" density="comfortable" variant="text" title="더 작게"
             :disabled="ovPercent <= OV_PERCENT.min"
@@ -43,7 +43,7 @@ const procCount = computed(() => grids.value.reduce((n, g) => n + g.items.filter
         </v-btn>
     </foot-pill>
 </div>
-<div v-else-if="grids.length" class="TileNav">
+<div v-else-if="plan?.items.length" class="TileNav">
     <grid-pager>
         <template #end>
             <v-btn class="end" color="primary" variant="flat" rounded="pill" height="100%"

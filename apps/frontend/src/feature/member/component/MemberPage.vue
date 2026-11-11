@@ -6,16 +6,16 @@ import { useGapWheel } from '@/feature/widget/hook/gapWheel.hook';
 import { computed, ref, watch } from 'vue';
 import { useMemberBoard } from '../store/memberBoard.store';
 import { provideMemberDrag } from '../store/memberDrag.store';
-import { GAP, type MemberGrid, type Placed } from '../util/memberGrid.util';
+import { GAP, type Placed } from '../util/memberGrid.util';
 import MemberFooter from './MemberFooter.vue';
 import MemberList from './MemberList.vue';
 import MemberPagerPopup from './MemberPagerPopup.vue';
 import MemberTileView from './MemberTileView.vue';
 
-// 내 장비·관리자·updater 페이지 틀 — 목록 열 + 상세 Grid strip + 보드와 같은 아래 푸터. REF-member-ui.md 화-1(방향)·화-6(Grid 크기)·화-13(전체 헤더)·화-14(폰)
-// 슬롯 list·tile = 페이지별 목록·타일(없으면 회원 페이지 것). tile 슬롯은 받은 style을 타일 뿌리에 그대로 붙여야 Grid 칸에 놓인다 — REF-update-deploy.md 단위-4(페이지 틀)
+// 내 장비·관리자·updater 페이지 틀 — 목록 열 + 상세 칼럼 strip(판 하나) + 보드와 같은 아래 푸터. REF-member-ui.md 화-1(방향)·화-6(Grid 크기)·화-13(전체 헤더)·화-14(폰)
+// 슬롯 list·tile = 페이지별 목록·타일(없으면 회원 페이지 것). tile 슬롯은 받은 style을 타일 뿌리에 그대로 붙여야 판 칸에 놓인다 — REF-update-deploy.md 단위-4(페이지 틀)
 const board = useMemberBoard();
-const { area, layout, grids, scrollEl, scrollX, viewW, scrubbing, pager } = board;
+const { area, layout, plan, scrollEl, scrollX, viewW, scrubbing, pager } = board;
 // 타일 끌기(순서 바꾸기) — 타일 컴포넌트들이 inject로 쓴다
 const drag = provideMemberDrag(board);
 const edge = drag.edge;   // 끝 띠 상태(칼럼 넘기기)
@@ -27,7 +27,7 @@ const onWheel = useGapWheel(pager, t => !!t.closest('.mb-tile'));
 const bodyEl = ref<HTMLElement>();
 useResizeCallback(bodyEl, () => area.value = { w: bodyEl.value?.clientWidth ?? 0, h: bodyEl.value?.clientHeight ?? 0 });
 
-// PC = strip만 스크롤, 폰 = 목록 + Grid 한 줄 스크롤
+// PC = strip만 스크롤, 폰 = 목록 + 판 한 줄 스크롤
 const outerEl = ref<HTMLElement>();
 const stripEl = ref<HTMLElement>();
 const phone = computed(() => layout.value.phone);
@@ -46,17 +46,21 @@ const onScroll = (e: Event) => {
 }
 
 const cellStyle = (it: Placed) => ({ gridColumn: `${it.c + 1} / span ${it.cw}`, gridRow: `${it.r + 1} / span ${it.ch}` });
-// Grid 폭 = 쓴 열 수만큼(배치-가) — 다음 Grid가 바로 옆에 붙는다. 폰은 1열이라 CSS 폭(100cqw) 그대로
-const gridStyle = (g: MemberGrid) => ({
-    gridTemplateColumns: `repeat(${g.cols}, minmax(0, 1fr))`,
+// 판 하나 = 쓴 칼럼 수만큼 폭(칼럼-2(Grid 개념 폐지)). PC = 칼럼 한 칸 = 화면 폭 / 열 수.
+// 폰 = 칼럼 한 칸 = 화면 폭(100cqw) — 양쪽 여백 gap이라 칼럼 사이는 2gap
+const cols = computed(() => plan.value?.cols ?? 0);
+const gridStyle = computed(() => ({
+    gridTemplateColumns: `repeat(${cols.value}, minmax(0, 1fr))`,
     gridTemplateRows: `repeat(${layout.value.rows}, minmax(0, 1fr))`,
-    ...(phone.value ? {} : { width: `calc(100% * ${g.cols} / ${layout.value.cols})` }),
-});
+    ...(phone.value
+        ? { width: `calc(100cqw * ${cols.value})`, columnGap: 'calc(2 * var(--gap))' }
+        : { width: `calc(100% * ${cols.value} / ${layout.value.cols})` }),
+}));
 const listStyle = computed(() => phone.value ? undefined : { width: `${layout.value.cellW}px` });
 // 왼쪽 끝 띠 = 판정 기준인 스크롤 영역 왼쪽에 — PC = 목록 뒤 strip(.outer 여백 + 목록 + 간격, .strip margin -4), 폰 = 맨 왼쪽
 const edgeLeft = computed(() => phone.value ? '0px' : `${GAP + layout.value.cellW + GAP - 4}px`);
 // 칼럼마다 스냅 자리(타일이 없는 칼럼에도 멈추게) — 보드처럼 칼럼 단위 정지
-const snaps = (g: MemberGrid) => Array.from({ length: g.cols }, (_, c) => c);
+const snaps = computed(() => Array.from({ length: cols.value }, (_, c) => c));
 </script>
 
 <template>
@@ -67,12 +71,12 @@ const snaps = (g: MemberGrid) => Array.from({ length: g.cols }, (_, c) => c);
                 <slot name="list"><member-list /></slot>
             </div>
             <div ref="stripEl" class="strip" @scroll.passive="onScroll">
-                <div v-if="!grids.length" class="grid">
+                <div v-if="!plan?.items.length" class="grid">
                     <div class="empty">목록에서 누르면 여기에 타일이 쌓입니다</div>
                 </div>
-                <div v-for="(g, gi) in grids" :key="gi" class="mb-grid grid" :style="gridStyle(g)">
-                    <span v-for="c in snaps(g)" :key="`s${c}`" class="snap" :style="{ gridColumn: c + 1 }" aria-hidden="true" />
-                    <template v-for="it in g.items" :key="it.tile.key">
+                <div v-else class="mb-grid grid" :style="gridStyle">
+                    <span v-for="c in snaps" :key="`s${c}`" class="snap" :style="{ gridColumn: c + 1 }" aria-hidden="true" />
+                    <template v-for="it in plan.items" :key="it.tile.key">
                         <slot name="tile" :placed="it" :cell="cellStyle(it)">
                             <member-tile-view :placed="it" :style="cellStyle(it)" />
                         </slot>
@@ -162,7 +166,7 @@ const snaps = (g: MemberGrid) => Array.from({ length: g.cols }, (_, c) => c);
     :deep(.mb-tile) { user-select: text; -webkit-touch-callout: default; }
     :deep(.mb-head) { user-select: none; -webkit-touch-callout: none; }
 }
-// 화-14(폰): 목록이 가로 줄 첫 칸, 넘기면 상세 Grid가 이어진다. 한 칸 = 화면 폭(100cqw)
+// 화-14(폰): 목록이 가로 줄 첫 칸, 넘기면 상세 칼럼이 이어진다. 한 칸 = 화면 폭(100cqw)
 .phone {
     .outer {
         gap: 0;
@@ -184,13 +188,14 @@ const snaps = (g: MemberGrid) => Array.from({ length: g.cols }, (_, c) => c);
         overflow: visible;
         scroll-snap-type: none;
         margin: 0;
-        padding: 0;   // 폰 = Grid 여백(gap)이 선 자리
+        padding: 0;   // 폰 = 판 여백(gap)이 선 자리
     }
     .grid {
         width: 100cqw;
         padding: var(--gap);
-        scroll-snap-align: start;
+        scroll-snap-align: start;   // 빈 안내 칸용(판은 칼럼마다 .snap)
     }
-    .snap { display: none; }
+    // 칼럼 시작 = 칸 왼쪽 - gap(여백까지 화면 한 칸)
+    .snap { scroll-margin-left: var(--gap); }
 }
 </style>

@@ -1,4 +1,4 @@
-// 관리 페이지(내 장비·관리자) 타일 격자 — REF-member-ui.md 화-5(상세 쌓기)~화-11(경로), 주소-3(형식). 보드 tileOrder.util.ts와 따로 둔다
+// 관리 페이지(내 장비·관리자) 타일 격자 — REF-member-ui.md 화-5(상세 쌓기)~화-11(경로), 주소-3(형식). 보드 tileOrder.util.ts(2행 고정)와 따로 둔다
 
 // 최소 칸 / 간격 / 상세 최대 열·행 / 전체 열 최대(목록 1 + 상세 3)
 export const CELL_MIN_W = 364
@@ -43,41 +43,35 @@ export const layoutOf = (w: number, h: number): MemberLayout => {
     return { phone, cols: phone ? 1 : total - 1, rows, cellW }
 }
 
+// c = 판 전체 칼럼 번호(목록 칸 제외)
 export type Placed = { tile: MemberTile; c: number; r: number; cw: number; ch: number }
-// cols = 실제로 쓴 열 수(끝쪽 빈 열은 폭에서 뺌, 보드 toPlan과 같음), at = strip에서 이 Grid가 시작하는 상세 열 번호
-export type MemberGrid = { items: Placed[]; cols: number; at: number }
+// 이어진 판 하나 — cols = 쓴 칼럼 수(끝쪽 빈 칼럼 없음). REF-column-flow.md 칼럼-2(Grid 개념 폐지)
+export type MemberPlan = { items: Placed[]; cols: number }
 
-// 화-7(채우는 순서): 한 열을 위에서 아래로, 다음 열. Grid 안에서 앞으로만 채우고(앞 빈칸으로 안 돌아감) 안 맞으면 새 Grid
-export const pack = (tiles: readonly MemberTile[], cols: number, rows: number): MemberGrid[] => {
-    const read: Array<[number, number]> = []
-    for (let c = 0; c < cols; c++) for (let r = 0; r < rows; r++) read.push([c, r])
-    const grids: Array<{ items: Placed[]; occ: boolean[]; cursor: number }> = []
+// 칸 번호 = c * rows + r(채우는 순서)
+export const cellIndex = (c: number, r: number, rows: number) => c * rows + r
+
+// 칼럼-3(채우는 순서): 칼럼을 위에서 아래로, 다음 칼럼. 앞으로만 채우고(건너뛴 칸은 빈칸) Grid 경계 없이 이어진다.
+// 타일 폭은 화면 칼럼 수(cols)까지만 — 화면보다 넓으면 잘린다(화-10)
+export const pack = (tiles: readonly MemberTile[], cols: number, rows: number): MemberPlan => {
+    const occ: boolean[] = []
+    const items: Placed[] = []
+    let cursor = -1
     for (const tile of tiles) {
         const cw = Math.min(tile.w, cols), ch = Math.min(tile.h, rows)
-        const fits = (occ: boolean[], c: number, r: number) => {
-            if (c + cw > cols || r + ch > rows) return false
-            for (let i = 0; i < cw; i++) for (let j = 0; j < ch; j++) if (occ[(c + i) * rows + r + j]) return false
+        const fits = (c: number, r: number) => {
+            if (r + ch > rows) return false
+            for (let i = 0; i < cw; i++) for (let j = 0; j < ch; j++) if (occ[cellIndex(c + i, r + j, rows)]) return false
             return true
         }
-        let g = grids[grids.length - 1]
-        let idx = g ? read.findIndex(([c, r], i) => i > g!.cursor && fits(g!.occ, c, r)) : -1
-        if (!g || idx < 0) {
-            g = { occ: new Array(cols * rows).fill(false), items: [], cursor: -1 }
-            grids.push(g)
-            idx = read.findIndex(([c, r]) => fits(g!.occ, c, r))
-        }
-        g.cursor = idx
-        const [c, r] = read[idx]!
-        for (let i = 0; i < cw; i++) for (let j = 0; j < ch; j++) g.occ[(c + i) * rows + r + j] = true
-        g.items.push({ tile, c, r, cw, ch })
+        let i = cursor + 1
+        while (!fits(Math.floor(i / rows), i % rows)) i++
+        cursor = i
+        const c = Math.floor(i / rows), r = i % rows
+        for (let a = 0; a < cw; a++) for (let b = 0; b < ch; b++) occ[cellIndex(c + a, r + b, rows)] = true
+        items.push({ tile, c, r, cw, ch })
     }
-    let at = 0
-    return grids.map(({ items }) => {
-        const used = Math.max(1, ...items.map(it => it.c + it.cw))
-        const g = { items, cols: used, at }
-        at += used
-        return g
-    })
+    return { items, cols: items.reduce((n, it) => Math.max(n, it.c + it.cw), 0) }
 }
 
 // 화-9(자식 자리): 보드 openTile과 같음 — 연 곳 바로 뒤(최신이 앞), 연 곳이 없으면 맨 앞

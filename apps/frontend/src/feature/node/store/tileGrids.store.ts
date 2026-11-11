@@ -1,6 +1,6 @@
-import type { Area, Capacity, GridPlan } from '@/feature/widget/util/tile.type'
-import { ordered, pack } from '@/feature/widget/util/tileOrder.util'
-import { capacity, colScroll, effectiveSize, minSize, revealCol, stripGeometry, stripPos, stripView } from '@/feature/widget/util/tileSplit.util'
+import type { Area, Capacity, FlowPlan } from '@/feature/widget/util/tile.type'
+import { ordered, pack, spanOf } from '@/feature/widget/util/tileOrder.util'
+import { capacity, colScroll, colWidth, minSize, revealCol, stripGeometry, stripPos, stripView } from '@/feature/widget/util/tileSplit.util'
 import { makeEdgeBands } from '@/feature/widget/util/edgeBand.util'
 import { readUserPref, writeUserPref } from '@/common/util/userPrefs.util'
 import { providePagerBoard } from '@/feature/widget/store/pagerBoard.store'
@@ -14,7 +14,7 @@ import { isProcTile, useTileTree, type Tile } from './tileTree.store'
 
 const TILE_GRIDS_STORE_KEY = Symbol('TileGridsStore')
 
-// strip padding = Grid 간격 = 타일 간격 (1칼럼 Grid 폭 계산이 이 셋이 같다고 가정)
+// strip padding = 칼럼 간격 = 타일 간격 (칼럼 위치 계산이 이 셋이 같다고 가정)
 export const TILE_GAP = 8
 // 전체보기 축소 비율(%) — ⑫(전체보기 세부) 사용자 조절
 export const OV_PERCENT = { init: 30, min: 15, max: 60, step: 5 } as const
@@ -27,15 +27,15 @@ const readOvPercent = () => {
     return typeof v === 'number' && v >= min && v <= max && (v - min) % step === 0 ? v : init
 }
 
-// 배치 = 최소화 제외(최소화한 터미널은 위치 번호가 없다) -> 같은 Grid 규칙으로 채움. 지금 보드·전체보기의 다른 보드가 같이 씀(미리보기-3(Grid 파생))
+// 배치 = 최소화 제외(최소화한 터미널은 위치 번호가 없다) -> 이어진 칼럼에 채움. 지금 보드·전체보기의 다른 보드가 같이 씀(미리보기-3(Grid 파생))
 const layoutOf = (treeOrder: ReadonlyArray<string>, tiles: Readonly<Record<string, Tile>>, cap: Capacity) => {
     const order = ordered(treeOrder, tiles).filter(t => !t.minimized)
-    return { order, grids: pack(order, t => effectiveSize(t.size, cap)) }
+    return { order, plan: pack(order, t => spanOf(t.size, cap)) }
 }
 
 export type DragPreview = { orders: Readonly<Record<string, ReadonlyArray<string>>>; tiles: Readonly<Record<string, Tile>> }
 
-export type BoardGrids = { board: BoardItem; grids: Array<GridPlan<Tile>>; posOf: Map<string, number>; loading: boolean; error?: string }
+export type BoardGrids = { board: BoardItem; plan: FlowPlan<Tile> | null; posOf: Map<string, number>; loading: boolean; error?: string }
 
 // 트리 + 측정한 Grid 영역 -> Grid 목록 + 가로 스크롤 위치 -> 헤더 내비 — REF-node-ui-impl.md "④ Grid 파생"
 // 측정·스크롤 기록은 TileStrip, 여기는 등록된 strip 요소에 scrollTo만 한다
@@ -59,8 +59,8 @@ export const provideTileGrids = () => {
         return o ? layoutOf(o, { ...tiles.value, ...preview.value!.tiles }, cap.value) : layoutOf(treeOrder.value, tiles.value, cap.value)
     })
     const order = computed(() => layout.value.order)
-    // 측정 전엔 그리지 않는다 — 기본 cap을 가정해 그리면 측정 직후 배치가 튄다
-    const grids = computed(() => area.value ? layout.value.grids : [])
+    // 측정 전엔 그리지 않는다(null) — 기본 cap을 가정해 그리면 측정 직후 배치가 튄다
+    const plan = computed(() => area.value ? layout.value.plan : null)
     const newSize = computed(() => minSize(cap.value))
 
     // 타일 순번(1부터)
@@ -97,34 +97,31 @@ export const provideTileGrids = () => {
     const scrollX = ref(0)
     const viewW = ref(0)
 
-    const geometry = computed(() => stripGeometry(grids.value.map(g => g.cols), area.value?.w ?? 0, cap.value, TILE_GAP))
+    const geometry = computed(() => stripGeometry(plan.value?.cols ?? 0, area.value?.w ?? 0, cap.value, TILE_GAP))
     const view = computed(() => stripView(geometry.value, scrollX.value, viewW.value, TILE_GAP))
 
     // x = 칼럼/Grid 시작. 스냅 위치와 맞추려고 scroll-padding(gap)만큼 뺀다
     const scrollTo = (x: number, behavior: ScrollBehavior = 'smooth') => stripEl.value?.scrollTo({ left: x - TILE_GAP, behavior })
 
-    const goGrid = (index: number) => {
-        const s = geometry.value.grids[index]
-        if (s) scrollTo(s.x)
-    }
     const goColumn = (delta: -1 | 1) => {
         const c = geometry.value.columns[view.value.col + delta]
         if (c) scrollTo(c.x)
     }
 
     // ---- 인디케이터(GridPager) — REF-board-pager.md ----
-    // 도트 위치 = Grid 단위 실수(2.5 = Grid 2 오른쪽 칼럼부터)
-    const pos = computed(() => stripPos(geometry.value, scrollX.value, TILE_GAP))
-    // 화면에 절반 이상 보이는 칼럼의 Grid 범위 — 인디케이터 숫자·Grid 정보 토스트(푸터-6)
+    // 페이지 = 화면 폭(칼럼 cap.x개), 도트 하나 = 페이지 하나 — 칼럼-2(Grid 개념 폐지)
+    const pages = computed(() => Math.ceil((plan.value?.cols ?? 0) / cap.value.x))
+    // 도트 위치 = 페이지 단위 실수(0.5 = 첫 페이지 오른쪽 칼럼부터)
+    const pos = computed(() => stripPos(geometry.value, scrollX.value, TILE_GAP) / cap.value.x)
+    // 화면에 절반 이상 보이는 칼럼의 페이지 범위 — 인디케이터 숫자
     const range = computed(() => {
-        const cols = geometry.value.columns
-        const lo = cols[view.value.from]?.grid ?? 0
-        return { lo, hi: cols[view.value.to]?.grid ?? lo }
+        const lo = Math.floor(view.value.from / cap.value.x)
+        return { lo, hi: Math.max(lo, Math.floor(view.value.to / cap.value.x)) }
     })
     // 화면 왼쪽 끝이 될 수 있는 마지막 칼럼 — 그 뒤 칼럼은 스크롤 끝에 막힌다
     const maxCol = computed(() => {
-        const { grids: gs, columns } = geometry.value
-        const last = gs[gs.length - 1]
+        const { columns } = geometry.value
+        const last = columns[columns.length - 1]
         if (!last) return 0
         const maxScroll = last.x + last.w + TILE_GAP - viewW.value
         return columns.reduce((k, c, i) => c.x - TILE_GAP <= maxScroll + 1 ? i : k, 0)
@@ -135,15 +132,17 @@ export const provideTileGrids = () => {
         const c = geometry.value.columns[col]
         if (c) scrollTo(c.x, behavior)
     }
+    // 페이지 i의 첫 칼럼으로(끝 페이지는 스크롤 끝에 막힘)
+    const goPage = (i: number) => goCol(Math.min(i * cap.value.x, maxCol.value))
     // col = 칼럼 번호(실수), 손가락을 바로 따라가게 애니메이션 없이
     const scrubTo = (col: number) => {
         if (stripEl.value) stripEl.value.scrollLeft = colScroll(geometry.value, col, TILE_GAP)
     }
 
     // 타일이 화면 밖이면 인디케이터와 같은 "타일 위치 규칙"(revealCol)으로 이동, 보이면 그대로 — 이동-1(타일 위치 규칙 통일).
-    // nextTick 필수: 트리 변경 직후엔 늘어난 Grid가 아직 DOM에 없어 scrollTo가 옛 스크롤 폭에서 잘린다.
+    // nextTick 필수: 트리 변경 직후엔 늘어난 칼럼이 아직 DOM에 없어 scrollTo가 옛 스크롤 폭에서 잘린다.
     // 스크롤 위치도 scrollX(스크롤 이벤트로 늦게 갱신)가 아니라 요소에서 직접 읽는다 — 폭이 줄며 잘린 직후일 수 있음
-    const reveal = async (tileId: string) => {
+    const reveal = async (tileId: string, behavior: ScrollBehavior = 'smooth') => {
         await nextTick()
         if (overview.value) return
         const el = stripEl.value
@@ -151,7 +150,7 @@ export const provideTileGrids = () => {
         if (!el || !range) return
         const cur = stripView(geometry.value, el.scrollLeft, el.clientWidth, TILE_GAP).col
         const v = revealCol(range.l, range.r, cur, cap.value.x, maxCol.value)
-        if (v !== cur) goCol(v)
+        if (v !== cur) goCol(v, behavior)
     }
 
     // ---- 끄는 동안 화면 끝 띠 — 칸·타일 끌기 공용, 모양 = PageEdgeBands ----
@@ -162,33 +161,11 @@ export const provideTileGrids = () => {
     const edgeTrack = bands.track
     const edgeEnd = bands.end
 
-    // 타일이 차지하는 칼럼 — gi = Grid 번호
-    const columnsOf = (tileId: string) => {
-        const gi = grids.value.findIndex(g => g.items.some(it => it.tile.id === tileId))
-        const it = grids.value[gi]?.items.find(it => it.tile.id === tileId)
-        if (!it) return undefined
-        const cols = geometry.value.columns.filter(c => c.grid === gi)
-        return { gi, first: cols[Math.min(it.c, cols.length - 1)]!, last: cols[Math.min(it.c + it.cw - 1, cols.length - 1)]! }
-    }
-
     // 타일이 차지하는 칼럼 번호 [l, r]
     const colRange = (tileId: string) => {
-        const span = columnsOf(tileId)
-        if (!span) return undefined
-        const cols = geometry.value.columns
-        return { l: cols.indexOf(span.first), r: cols.indexOf(span.last) }
+        const it = plan.value?.items.find(it => it.tile.id === tileId)
+        return it ? { l: it.c, r: it.c + it.cw - 1 } : undefined
     }
-
-    // 보던 자리 = 스냅 기준 왼쪽 칼럼을 차지하는 타일(위쪽 먼저). URL ?view= — REF-tile-url.md U1(넣을 것)
-    const anchorId = computed(() => {
-        if (overview.value) return undefined
-        const cols = geometry.value.columns
-        const col = cols[view.value.col]
-        if (!col) return undefined
-        const local = view.value.col - cols.findIndex(c => c.grid === col.grid)
-        const items = grids.value[col.grid]?.items.filter(it => it.c <= local && local < it.c + it.cw) ?? []
-        return [...items].sort((a, b) => a.r - b.r)[0]?.tile.id
-    })
 
     // 전체보기 — 현재 배치를 축소해 한 번에 보기 (REF-node-ui-overview.md "전체보기 모드")
     const overview = ref(false)
@@ -203,7 +180,7 @@ export const provideTileGrids = () => {
         const l = tree ? layoutOf(o ?? tree.order, o ? { ...tree.tiles, ...preview.value!.tiles } : tree.tiles, cap.value) : undefined
         return {
             board,
-            grids: l?.grids ?? [],
+            plan: l?.plan ?? null,
             posOf: new Map((l?.order ?? []).map((t, i) => [t.id, i + 1])),
             loading: !tree && !error,
             error,
@@ -215,19 +192,17 @@ export const provideTileGrids = () => {
         ovPercent.value = Math.min(max, Math.max(min, ovPercent.value + delta * step))
     }
 
-    // 들어가기 전 스크롤을 기억하고, 보던 Grid가 전체보기에서도 보이게 둔다
+    // 들어가기 전 스크롤을 기억하고, 보던 칼럼이 전체보기에서도 보이게 둔다
     const enterOverview = async () => {
         const el = stripEl.value
         if (!el || overview.value) return
         normScroll = el.scrollLeft
-        const gi = view.value.grid
+        const col = view.value.col
         overview.value = true
         boardTrees.open()
         await nextTick()
-        // 첫 Grid 기준 — 앞에 보드 이름 칸이 있어도 첫 Grid면 스크롤 0
-        const cells = el.querySelectorAll<HTMLElement>('.cell')
-        const cell = cells[gi], first = cells[0]
-        el.scrollLeft = cell && first ? cell.offsetLeft - first.offsetLeft : 0
+        // 판 시작 기준 칼럼 위치(축소) — 앞에 보드 이름 칸이 있어도 첫 칼럼이면 스크롤 0
+        el.scrollLeft = col * (colWidth(area.value?.w ?? 0, cap.value, TILE_GAP) + TILE_GAP) * ovScale.value
         el.scrollTop = 0
     }
 
@@ -291,16 +266,15 @@ export const provideTileGrids = () => {
         focusTile(tileId)
     }
 
-    // URL 복원(새로고침) — view 타일 칼럼으로 바로 스크롤(없으면 active가 보이게) + active.
-    // 포커스는 PC에서만: 폰에서 새로고침마다 가상 키보드가 뜨지 않게 — U3(복원 때 포커스)
-    const restore = async (focusId?: string, viewId?: string) => {
+    // URL ?focus로 이동(새로고침·접속·다른 화면이 보낸 이동 공용) — active + 타일 위치 규칙으로 스크롤, 전체보기 중이면 나가며.
+    // 포커스는 PC에서만: 폰에서 터미널 입력칸에 포커스가 가면 가상 키보드가 뜬다 — U3(복원 때 포커스), 2026-11-11 view 폐지로 두 경로를 합침
+    const restore = async (focusId: string, behavior: ScrollBehavior) => {
         await nextTick()
-        const fid = focusId && posOf.value.has(focusId) ? focusId : null
-        if (fid) activeId.value = fid
-        const span = viewId ? columnsOf(viewId) : undefined
-        if (span) scrollTo(span.first.x, 'instant')
-        else if (fid) await reveal(fid)
-        if (fid && matchMedia('(pointer: fine)').matches) focusTile(fid)
+        if (!posOf.value.has(focusId)) return
+        activeId.value = focusId
+        if (overview.value) await leaveOverview(focusId)
+        else await reveal(focusId, behavior)
+        if (matchMedia('(pointer: fine)').matches) focusTile(focusId)
     }
 
     // 다른 계정에 알릴 active 대상 — 터미널 = uid / 폴더 = 보여 주는 nodeId(루트 = 계정마다 다른 목록이라 없음). REF-node-ui-active.md "원격 active 구조안"
@@ -344,10 +318,13 @@ export const provideTileGrids = () => {
         colRange,
         setActive,
         focusTile,
-        peekGrids: computed(() => grids.value.map((g, i) => {
-            const s = geometry.value.grids[i] ?? { x: 0, w: 0 }
-            return { x: s.x, w: s.w, cols: g.cols, rows: 2, half: g.cols === 1, items: g.items.map(it => ({ id: it.tile.id, c: it.c, r: it.r, cw: it.cw, ch: it.ch })) }
-        })),
+        // 미니맵 = 이어진 판 하나, 폭 = 페이지 수(화면 몇 개)
+        peekGrids: computed(() => {
+            const p = plan.value, cols = geometry.value.columns
+            if (!p || !cols.length) return []
+            const x = cols[0]!.x, w = cols[cols.length - 1]!.x + cols[cols.length - 1]!.w - x
+            return [{ x, w, cols: p.cols, rows: 2, size: p.cols / cap.value.x, items: p.items.map(it => ({ id: it.tile.id, c: it.c, r: it.r, cw: it.cw, ch: it.ch })) }]
+        }),
         peekView: computed(() => ({ l: scrollX.value + TILE_GAP, r: scrollX.value + viewW.value - TILE_GAP })),
         aspect: computed(() => area.value?.h ? area.value.w / area.value.h : 0),
     })
@@ -358,7 +335,7 @@ export const provideTileGrids = () => {
         cap,
         preview,
         order,
-        grids,
+        plan,
         newSize,
         posOf,
         instanceOf,
@@ -369,8 +346,9 @@ export const provideTileGrids = () => {
         viewW,
         geometry,
         view,
-        goGrid,
+        goPage,
         goColumn,
+        pages,
         pos,
         range,
         maxCol,
@@ -395,7 +373,6 @@ export const provideTileGrids = () => {
         setActive,
         focusTile,
         activate,
-        anchorId,
         restore,
         pager,
     }

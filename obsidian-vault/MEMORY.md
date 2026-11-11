@@ -46,6 +46,7 @@
 - **경로 줄 도구**: 폴더·장비 타일 경로 줄 버튼 = `.ct-grp` 묶음(`chaltteok.scss`) + 넘치면 `HScroll`, 이동 묶음은 경로 왼쪽. 몸통의 버튼 초기화 제외 목록에 새 버튼 클래스 넣기
 - **입력칸**: input·select·textarea·체크 = `Ct*` 컴포넌트(`feature/widget/component`, 모양 = `styles/ct-field.scss` 한 곳). 기본 `<select>`·직접 그린 입력칸 금지
 - **타일 추가 주체**: 하나만 있어야 하는 타일(터미널·영상 보기) = 서버가 넣음(PUT은 추가 거절), 나머지 타일·배치 = 프론트 PUT
+- **타일 배치**: 칼럼이 이어진 판 하나(Grid 경계 없음, 걸침 허용, 보드 2행·관리 페이지 1~2행), 위→아래·다음 칼럼·앞으로만. 점 = 페이지(화면 폭). URL = active `?focus`(새로고침도 그 타일로, `?view` 폐지)
 - **타일 순서**: 화면 순서 = 문서 `order`(연 곳 `parent`와 분리). 새 타일 = 연 곳 바로 뒤, 연 곳 없음 = 루트 바로 뒤. **parent null = 루트뿐**(터미널 탭)
 - **터치 제스처**: 두 손가락 펼치기 = 컨트롤 패널, 빈 곳 길게 = 타일 끌기, 목록 칸 길게 = 들림(떼면 체크·움직이면 칸 끌기)
 - **끌기**: 같은 보드 = 그 타일 하나, 다른 보드 = 연 타일 묶음째. 칸 순서 = `POST /nodes/order`. 화면 끝 띠·`DragSession` = 칸·타일 공용. strip 위에 끼어드는 막대는 칸 수 판정에서 뺌(`barH`)
@@ -92,10 +93,10 @@ sqlc.yaml  README.md  .gitignore
 
 ## reference 인덱스
 - **★ 반복 주제(프로젝트 무관, 다른 프로젝트에서도 생김)**: `REF-mobile-viewport.md`(모바일 키보드·뷰포트, Edge 하단 막대 오류 실측) / `REF-util.md`(범용 유틸)
-- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-decisions.md`·`REF-decisions-ui.md`(확정 결정 상세) · `REF-test-env.md`(테스트 환경·함정) · `REF-photo-upload.md`(폰 사진 올리기 도구, 11-02 분할) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · **집 서버(운영)**: `REF-home-server.md`(서버 PC·옛 터널) · `REF-home-direct.md`(지금 경로 = iptime + Caddy 직통) · `REF-home-deploy.md`(배포·업데이트)
+- 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-decisions.md`·`REF-decisions-ui.md`(확정 결정 상세) · `REF-test-env.md`(테스트 환경·함정) · `REF-test-isolation.md`(격리 실행 = 임시 DB + 5051, 11-11 분할) · `REF-photo-upload.md`(폰 사진 올리기 도구, 11-02 분할) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · **집 서버(운영)**: `REF-home-server.md`(서버 PC·옛 터널) · `REF-home-direct.md`(지금 경로 = iptime + Caddy 직통) · `REF-home-deploy.md`(배포·업데이트)
 - **빌드·배포할 때**(빌드 스크립트·test3 교체·집 서버 묶음·보드 worker·집 서버 접속) → `INDEX-deploy.md`(상황 색인) / 업데이트 app(마감) → `INDEX-update-app.md`
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조. 11-02 시안 규칙 추가: 묶음 쪼개지 않기·오른쪽 묶음 벽에 붙이기·줄 넘침 "안 C 한 세트"). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
-- **진행 중 파트**: 없음(다음 = `BACKLOG.md`) / 마감 파트 목록 = `HISTORY.md` "마감 파트"
+- **진행 중 파트**: 없음(칼럼 흐름 11-11 마감 `REF-column-flow.md`) / 마감 파트 목록 = `HISTORY.md` "마감 파트"
 - **보드 닫기·종료 유예(11-05)**: `REF-board-close.md`(루트 ×·확인 창·`?mode=kill`·서버 10초 판정)
 - **소켓 재연결·끊김 표시(11-06)**: `REF-socket-reconnect.md`(포기 없음·화면 복귀 wake·PING 확인·다시 붙으면 터미널 스냅샷)
 - **설정 두 겹(11-08, 진행 중)**: `REF-settings-account.md`(계정 = 서버·push / 이 브라우저에서만 = userPrefs 우선 / 계정 값 사본)
