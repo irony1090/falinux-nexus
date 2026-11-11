@@ -5,7 +5,7 @@ import TilePeek from './TilePeek.vue';
 
 // 알약 끌기 중 뜨는 것 = 안내(칼럼 이동) + 타일 패널(당긴 채) — 보드 GridPager·관리 페이지 MemberDots 공용, REF-board-pager.md
 // 알약은 앱 바(overflow 잘림) 안이라 body에 고정 위치로, 끌기를 시작할 때 막대 자리를 잰다
-const props = defineProps<{ bar?: HTMLElement; mode: PagerMode; pullDir: 'up' | 'down'; pull: PagerPull }>();
+const props = defineProps<{ bar?: HTMLElement; mode: PagerMode; pullDir: 'up' | 'down'; pull: PagerPull; nudge: number }>();
 
 const anchor = ref({ bottom: 0, top: 0, center: 0 });
 watch(() => props.mode, m => {
@@ -21,7 +21,7 @@ const hintText = computed(() => props.pull === 'both' ? '위·아래로 당기�
 <template>
 <teleport to="body">
     <div class="PagerFloat__hint text-body-small" :class="{ show: mode === 'col' }" :style="floatStyle" aria-hidden="true">{{ hintText }}</div>
-    <tile-peek :open="mode === 'tile'" :below="pullDir === 'down'" :style="peekStyle" />
+    <tile-peek :open="mode === 'tile'" :below="pullDir === 'down'" :nudge="nudge" :style="peekStyle" />
 </teleport>
 </template>
 

@@ -28,6 +28,8 @@ export const usePagerDrag = (pull: PagerPull = 'up') => {
     const mode = ref<PagerMode>('idle')
     // 타일 이동에 들어간 쪽 — 타일 패널을 그쪽에 띄운다
     const pullDir = ref<'up' | 'down'>('up')
+    // tile 모드에서 지금 타일 기준 끈 양(타일 단위, ±0.5 = 판정 경계, 끝 타일이면 넘어감) — 미니맵 active 표시가 따라간다
+    const nudge = ref(0)
     let d: Drag | null = null
     let stopSettle = () => {}
 
@@ -104,11 +106,13 @@ export const usePagerDrag = (pull: PagerPull = 'up') => {
                 : list.find(id => inView(id, v)) ?? list.find(id => (colRange(id)?.l ?? -1) >= v)
             if (cur) stepTo(cur, v)
             Object.assign(d, { col: v, x0: e.clientX, tile0: cur ? list.indexOf(cur) : 0 })
+            nudge.value = 0
             mode.value = 'tile'
             return
         }
         if (mode.value === 'tile' && pulled < TILE_BACK) {
             Object.assign(d, { col0: d.col, x0: e.clientX })
+            nudge.value = 0
             mode.value = 'col'
             return
         }
@@ -119,7 +123,10 @@ export const usePagerDrag = (pull: PagerPull = 'up') => {
             return
         }
         const list = ids()
-        const next = list[Math.max(0, Math.min(list.length - 1, d.tile0 + Math.round(dx / TILE_PX)))]
+        const f = dx / TILE_PX
+        const i = Math.max(0, Math.min(list.length - 1, d.tile0 + Math.round(f)))
+        nudge.value = f - (i - d.tile0)
+        const next = list[i]
         if (next && next !== activeId.value) d.col = stepTo(next, d.col)
     }
 
@@ -131,6 +138,7 @@ export const usePagerDrag = (pull: PagerPull = 'up') => {
         if (!held) return
         if (el.hasPointerCapture(id)) el.releasePointerCapture(id)
         mode.value = 'idle'
+        nudge.value = 0
         settle(clampCol(Math.round(col)))
         // 터치에선 포커스를 주지 않는다 — 가상 키보드가 올라온다(U3(복원 때 포커스)와 같은 규칙)
         if (wasTile && activeId.value && matchMedia('(pointer: fine)').matches) focusTile(activeId.value)
@@ -138,5 +146,5 @@ export const usePagerDrag = (pull: PagerPull = 'up') => {
 
     onBeforeUnmount(() => stopSettle())
 
-    return { mode, pullDir, down, move, up }
+    return { mode, pullDir, nudge, down, move, up }
 }

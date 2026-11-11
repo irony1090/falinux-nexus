@@ -1,13 +1,15 @@
 # CURRENT
 
 ## 현재 날짜
-2026-11-08
+2026-11-11
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`, 마감 파트는 `INDEX-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
 ---
 
 ## ⚠️ 다음 세션 시작 시
+- **(2026-11-11) 미니맵 진행도 — 마감**(`feat/peek-nudge` 커밋·master `--no-ff` 머지, 사용자 "맘에 들어") → `history/board-pager.md` · `REF-board-pager.md` "미니맵 진행도". 확인용으로 test1(8011) vite·test2(8012) dev supervisor 켜 둠
+- (2026-11-11) 열린 질문 = 타일이 Grid 경계에 걸쳐 놓이게(칼럼 흐름) → `BACKLOG.md`
 - **(2026-11-08) 파트(설정 두 겹) — 마감**, `feat/settings-account` 커밋·master `--no-ff` 머지 · 사용자 화면 확인 "확인했어". 계정 설정(서버 `00019`·`/api/settings`·`SETTINGS:UPDATE`) + 이 브라우저에서만 + 계정 값 사본 → `REF-settings-account.md`. **test3 = `261108-settings-account`로 교체 끝(11:06) · 집 서버 = 같은 빌드 배포 끝(공개 `index-Ba5qQ-fM.js` 일치, nexus·direct, `web/` 갈아치우기 동작)** → `REF-home-deploy-updater.md` "11-08 설정 두 겹 묶음"
 - (2026-11-07) 파트(공용 타일 틀) 마감 줄·test3/집 서버 11-07 빌드 줄 → `history/current-archive-7.md`(11-08 내려보냄)
 - **다음 파트 = `BACKLOG.md`에서 고름**(사용자 예정 "타일 ESC로 닫기")

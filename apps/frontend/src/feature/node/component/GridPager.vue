@@ -16,7 +16,7 @@ const COUNT_W = 72;
 // count = 위치 글자(1-2 / 3) — 컨트롤 패널은 끔(푸터에 보이므로) / minDots = 도트 자리 최소 폭(도트 수), 컨트롤 패널 = 3 — 파트(패널 창 버튼)
 const props = withDefaults(defineProps<{ pull?: PagerPull; count?: boolean; minDots?: number }>(), { pull: 'up', count: true, minDots: 0 });
 const { grids, pos, range, goGrid, goColumn } = useTileGrids();
-const { mode, pullDir, down, move, up } = usePagerDrag(props.pull);
+const { mode, pullDir, nudge, down, move, up } = usePagerDrag(props.pull);
 defineExpose({ mode });
 
 const wrapEl = ref<HTMLElement>();
@@ -102,7 +102,7 @@ const onKey = (e: KeyboardEvent) => {
         </nav>
         <span ref="endEl" class="end"><slot name="end" /></span>
     </foot-pill>
-    <pager-float :bar="barEl" :mode="mode" :pull-dir="pullDir" :pull="pull" />
+    <pager-float :bar="barEl" :mode="mode" :pull-dir="pullDir" :pull="pull" :nudge="nudge" />
 </div>
 </template>
 

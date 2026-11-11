@@ -13,7 +13,7 @@ const SP = 22;
 // minDots = 도트 자리 최소 폭(도트 수), 컨트롤 패널 = 3 — 파트(패널 창 버튼)
 const props = withDefaults(defineProps<{ pull?: PagerPull; minDots?: number }>(), { pull: 'up', minDots: 0 });
 const { pos, dotCount, lead, goDot } = useMemberBoard();
-const { mode, pullDir, down, move, up } = usePagerDrag(props.pull);
+const { mode, pullDir, nudge, down, move, up } = usePagerDrag(props.pull);
 defineExpose({ mode });
 const barEl = ref<HTMLElement>();
 
@@ -45,7 +45,7 @@ const label = (i: number) => i < lead.value ? '목록' : `Grid ${i - lead.value 
         </div>
     </nav>
     <span v-if="$slots.end" class="end"><slot name="end" /></span>
-    <pager-float :bar="barEl" :mode="mode" :pull-dir="pullDir" :pull="pull" />
+    <pager-float :bar="barEl" :mode="mode" :pull-dir="pullDir" :pull="pull" :nudge="nudge" />
 </foot-pill>
 </template>
 
