@@ -21,3 +21,9 @@
 ## 2026-10-20(3) — 사용자 확인 -> 파트 마감
 - 사용자 "확인 매우 맘에 든다" -> 좁은 Grid 표시·폰 도트 3개는 별도 지시 없어 현재 동작 유지로 기록
 - 파트(페이지 표시 개편) 마감 -> `INDEX-board-pager.md`로 접음, 코드 + vault 한 커밋
+
+## 2026-11-11 — 미니맵 진행도(`feat/peek-nudge`) -> 마감
+- 사용자 요청: tile 모드(당긴 채 X축)에서 다음 타일로 바뀌기 전 진행도가 보이는 애니메이션
+- 조율: 대상 = tile 모드만 / 모양 = active 칸이 끌려감 / 방식 = ① 연속 추종(판정 round 그대로, ② 고무줄+튕김은 튕긴 직후 반대 끝까지 기운 상태가 되어 탈락) / 끝 타일 = 살짝 밀림
+- 구현: `usePagerDrag` `nudge` -> GridPager·MemberDots -> PagerFloat -> TilePeek `.puck`(이웃 칸으로 보간) → `REF-board-pager.md` "미니맵 진행도"
+- 헤드리스 확인(irony 보드 타일 3개) 후 사용자 "맘에 들어" -> 마감, 커밋·master `--no-ff` 머지

@@ -28,6 +28,7 @@
 - 터미널 터치 스크롤(마감) → `INDEX-term-touch.md` (term-touch)
 - URL 바인딩(마감) → `INDEX-tile-url.md` (tile-url)
 - 페이지 표시 개편(마감) → `INDEX-board-pager.md` (board-pager)
+  - 2026-11-11 `history/board-pager.md`에 미니맵 진행도(tile 모드 끄는 양만큼 active 칸이 이웃 쪽으로, `feat/peek-nudge`)
 - 파일 전송(마감) → `INDEX-transfer-e2e.md` (transfer-e2e)
 - 한글 입력 중복(마감) → `INDEX-term-ime.md` (term-ime)
 - 헤더·푸터 개편(마감) → `INDEX-board-chrome.md` (board-chrome·board-keyboard)

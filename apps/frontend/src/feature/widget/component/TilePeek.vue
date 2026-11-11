@@ -7,10 +7,13 @@ const MH = 26;
 const MG = 6;
 const MW = { min: 12, max: 52 };
 const MAX_W = 560;
+// 끝 타일에서 더 끌 때 active 표시가 밀리는 최대 px
+const EDGE = 4;
 
 // 인디케이터를 위로 당긴 동안의 타일 패널: Grid별 미니맵 + 지금 보이는 범위 틀 + active — REF-board-pager.md
 // below = 막대 아래쪽에 띄움(커서 팝업을 아래로 당김). 판은 PagerBoard 계약으로만 본다(보드·관리 페이지 공용)
-defineProps<{ open: boolean; below?: boolean }>();
+// nudge = 지금 타일 기준 끈 양(usePagerDrag, 타일 단위)
+const props = defineProps<{ open: boolean; below?: boolean; nudge?: number }>();
 const { peekGrids, peekView, aspect, activeId, order } = usePagerBoard();
 
 const fullW = computed(() => Math.max(MW.min, Math.min(MW.max, Math.round(aspect.value ? MH * aspect.value : MW.max))));
@@ -25,7 +28,6 @@ const minis = computed(() => {
             w,
             tiles: g.items.map(it => ({
                 id: it.id,
-                on: it.id === activeId.value,
                 style: {
                     left: `${it.c / g.cols * 100}%`,
                     top: `${it.r / g.rows * 100}%`,
@@ -38,6 +40,32 @@ const minis = computed(() => {
         return m;
     });
 })
+// 타일별 미니맵 칸 자리(px, row 좌표) — active 표시를 Grid를 넘어 옮기려고
+type Rect = { x: number; y: number; w: number; h: number };
+const rects = computed(() => {
+    const map = new Map<string, Rect>();
+    peekGrids.value.forEach((g, i) => {
+        const m = minis.value[i]!;
+        for (const it of g.items) map.set(it.id, { x: m.x + it.c / g.cols * m.w, y: it.r / g.rows * MH, w: it.cw / g.cols * m.w, h: it.ch / g.rows * MH });
+    });
+    return map;
+})
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+// active 표시: 끈 쪽 이웃 칸으로 |nudge|만큼 보간(중간 = 판정 경계라 교대해도 이어짐), 이웃이 없으면 EDGE까지만 밀림
+const puck = computed(() => {
+    const id = activeId.value;
+    const cur = id ? rects.value.get(id) : undefined;
+    if (!id || !cur) return undefined;
+    const n = props.nudge ?? 0;
+    const nb = n ? rects.value.get(order.value[order.value.indexOf(id) + Math.sign(n)] ?? '') : undefined;
+    const t = Math.min(Math.abs(n), 0.5);
+    const r = nb
+        ? { x: lerp(cur.x, nb.x, t), y: lerp(cur.y, nb.y, t), w: lerp(cur.w, nb.w, t), h: lerp(cur.h, nb.h, t) }
+        : { ...cur, x: cur.x + Math.sign(n) * EDGE * (1 - Math.exp(-3 * Math.abs(n))) };
+    return { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px` };
+})
+
 const total = computed(() => {
     const last = minis.value[minis.value.length - 1];
     return last ? last.x + last.w : 0;
@@ -85,8 +113,9 @@ const label = computed(() => {
     <div class="clip" :style="clipStyle">
         <div class="row" :style="{ width: `${total}px`, transform: `translateX(${-off}px)` }">
             <div v-for="(m, gi) in minis" :key="gi" class="mini" :style="{ left: `${m.x}px`, width: `${m.w}px` }">
-                <span v-for="t in m.tiles" :key="t.id" class="cell" :class="{ on: t.on }" :style="t.style" />
+                <span v-for="t in m.tiles" :key="t.id" class="cell" :style="t.style" />
             </div>
+            <span v-if="puck" class="puck" :class="{ live: open }" :style="puck" />
             <div class="frame" :style="{ left: `${frame.l - 3}px`, width: `${frame.r - frame.l + 6}px` }" />
         </div>
     </div>
@@ -143,8 +172,16 @@ const label = computed(() => {
         border: 1px solid rgb(var(--v-theme-surface));
         border-radius: 2px;
         background: rgba(var(--v-theme-on-surface), 0.15);
-        transition: background 0.15s;
-        &.on { background: rgb(var(--v-theme-primary)); }
+    }
+    // 끄는 동안(live)은 손을 그대로 따라가고, 그 밖의 변화(손 뗌·클릭)만 짧게 옮겨 간다
+    .puck {
+        position: absolute;
+        box-sizing: border-box;
+        border: 1px solid rgb(var(--v-theme-surface));
+        border-radius: 2px;
+        background: rgb(var(--v-theme-primary));
+        transition: left 0.15s, top 0.15s, width 0.15s, height 0.15s;
+        &.live { transition: none; }
     }
     .frame {
         position: absolute;

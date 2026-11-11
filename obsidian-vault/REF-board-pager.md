@@ -48,7 +48,7 @@
 | N2(스토어 동작) | `node/store/tileGrids.store.ts` | `pos` · `maxCol`(스크롤 끝에 막히는 칼럼 제외) · `scrubbing` · `goCol` · `scrubTo` · `colRange` · `stepTo` · `focusTile` 노출 |
 | N3(스냅 끄기) | `TileStrip.vue` | `.scrubbing` = `scroll-snap-type: none` |
 | N4(인디케이터) | `GridPager.vue` + `hook/pagerDrag.hook.ts`(2026-10-26 `widget/hook`으로 옮김, 판 계약 → `REF-member-ui-impl.md` "판 계약") | 도트·막대(반 칸 = 작은 도트)·창 방식(폭 재서 개수, 도트 5개도 안 들어가면 숫자 숨김)·←/→ 키. 드래그 상수 START 6 · TILE_DOWN 36 · TILE_UP 16 · COL_PX 36 · TILE_PX 29(2026-10-26 54·44로 넓힘 → `REF-member-ui.md`) |
-| N5(타일 미니맵) | `TilePeek.vue`(2026-10-26 `widget/component`) | Grid 칸 비율 미니맵 + 보이는 범위 틀(strip 좌표 -> 미니맵 선형) + 창 방식 + `타일 i / N` |
+| N5(타일 미니맵) | `TilePeek.vue`(2026-10-26 `widget/component`) | Grid 칸 비율 미니맵 + 보이는 범위 틀(strip 좌표 -> 미니맵 선형) + 창 방식 + `타일 i / N`. 2026-11-11 active 표시 = 겹침 칸 `.puck`(아래 "미니맵 진행도") |
 | N6(TileNav 교체) | `TileNav.vue` | `VPagination`·칼럼 화살표·"칼럼 n/m" 제거 -> `GridPager`. 전체보기 분기 그대로 |
 - 안내·패널은 앱 바(`v-app-bar`, overflow 잘림 + transform) 안에서 못 나오므로 **body로 teleport + fixed**, 위치는 드래그 시작 때 인디케이터 rect로
 - 놓으면 `settle`: 가까운 칼럼 `goCol` -> 그 위치에 도착(`scrollend` + 위치 확인, 최대 700ms)한 뒤 스냅 복원 — smooth 도중 스냅을 켜면 다른 칼럼으로 튈 수 있음
@@ -60,3 +60,10 @@
 - 터치 드래그는 헤드리스로 못 봄(마우스로만) -> 사용자 실기기 확인
 - 보드 이동 애니메이션 = 브라우저 기본 smooth(결정 1), 전체보기 TileNav는 그대로
 - 확인 스크립트 명세 → `REF-test-scripts-1020.md` "2026-10-20 페이지 표시"
+
+## 미니맵 진행도 (2026-11-11, `feat/peek-nudge`)
+- 요청: tile 모드(당긴 채 X축)에서 다음 타일로 바뀌기 전 얼마나 끌었는지 보이게. 판정(round, `TILE_PX` 44 -> ±22px)은 그대로
+- 사용자 선택 = **① 연속 추종**(② 고무줄+튕김은 round와 안 맞음 — 튕긴 직후 반대 끝까지 기운 상태가 되어 기준점 재설정이 필요해 탈락), 끝 타일 = 살짝 밀림
+- `usePagerDrag`의 `nudge` = `dx/TILE_PX - (i - tile0)`(±0.5 = 경계, 끝 타일이면 넘음, 손 뗌·col 모드 = 0) -> GridPager·MemberDots -> PagerFloat -> TilePeek
+- TilePeek: 칸 색(`.on`)을 없애고 겹침 칸 `.puck` 하나가 active 자리 -> 끈 쪽 이웃(`order` 앞뒤) 자리로 `|nudge|`만큼 보간(위치·크기, 다른 줄·다른 Grid면 대각선). 중간 = 판정 경계라 active가 바뀌어도 위치가 이어짐. 이웃 없음 = `EDGE` 4px까지 지수로 밀림. 끄는 동안 transition 없음(`.live`)
+- 확인(헤드리스, 타일 3개): dx 21 -> 23에서 위치 이어지며 `타일 1 -> 2`, 끝에서 -4px. 끝에서 밀린 칸은 `.clip`에 잘려 좁아 보임
