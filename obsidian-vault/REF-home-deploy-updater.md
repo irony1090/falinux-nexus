@@ -12,6 +12,7 @@
 - `build/home-update/261111-column-flow/`(파일 67개): `build/261111-column-flow_win`의 `supervisor.exe`(`SUPERVISOR-COLUMN-FLOW-261111`)·`worker.exe`(`WORKER-COLUMN-FLOW-261111`, 코드 변경 없음·묶음 규칙상 포함)·`web/`(`index-DYuchPlR.js` = test3용 빌드 `build/261111-column-flow`와 같음) + 261108 묶음의 `nexus-steps/` 그대로(diff 같음) + `steps.json`은 261108 것에 **`"replace": ["nexus-steps", "web"]`를 Claude가 넣음**(묶음 규칙: 갈아치우기 첫 적용). updater 제외
 - 내용 = 칼럼 흐름(`REF-column-flow.md`, 프론트만). 11-08 이후 Go 코드 변경 없음·새 마이그레이션 없음(`00019` 그대로) -> rollback DB 복원 불필요
 - 배포 뒤 확인 = 공개 `index.html`이 `index-DYuchPlR.js`를 가리키는지(nexus·direct, 옛 assets는 `content_type`으로 판정)
+- **결과(11-11)**: 사용자가 배포. 공개 `index.html` = `index-DYuchPlR.js`(nexus·direct 둘 다) · 직전 빌드 `index-Ba5qQ-fM.js` = `text/html`(SPA 대체, 갈아치우기 동작). Claude가 curl로 확인
 
 ## 11-08 설정 두 겹 묶음 (Claude가 만듦, 업로드·배포 = 사용자)
 - **이 묶음의 `replace`는 사용자가 업로드 전에 직접 넣음**(Claude는 안 고침, 11-08 사용자)
