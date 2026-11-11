@@ -23,3 +23,4 @@
 ## 2026-11-11
 - 파트(칼럼 흐름) 마감 뒤 사용자 요청 "test3용 빌드 + 집 서버 updater 묶음": 태그 `SUPERVISOR-/WORKER-COLUMN-FLOW-261111` -> `scripts/build.sh 261111-column-flow`(Linux) · `261111-column-flow_win supervisor worker frontend --os windows` -> 묶음 `home-update/261111-column-flow`(67개, `replace` 넣음) → `REF-home-deploy-updater.md` "11-11 칼럼 흐름 묶음"
 - test3 교체용 `build/261111-column-flow/swap.sh`(되돌림 = `261108-settings-account`) 만들어 둠 — 실행 안 함(8013 재기동은 사용자 확인 뒤)
+- 사용자가 test3·집 서버 둘 다 교체 → 확인: 8013 = `build/261111-column-flow/supervisor`(14:49:30 켜짐)·`index-DYuchPlR.js` / 집 서버 공개 nexus·direct = `index-DYuchPlR.js`, 옛 `index-Ba5qQ-fM.js` = HTML
