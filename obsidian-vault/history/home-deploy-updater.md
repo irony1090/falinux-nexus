@@ -30,3 +30,8 @@
 - test3 교체(사용자 swap.sh) 확인: 8013 = `261112-account`, `nexus_build` 마이그레이션 `00021`, 아이디 빈 계정 0/9, `/api/users/sessions` 401, rollback.log 없음
 - 집 서버 배포 전 확인(사용자가 `C:\Nexus`에서 `261112-account-check.ps1` 실행): users=1, 아이디 빌 계정 0 -> `RESULT: SAFE`. 배포 대기
 - 사용자 집 서버 배포 -> Claude 확인: nexus·direct 공개 `index-Ca04n1MO.js`, `/api/users/sessions` 401, 옛 js `text/html`
+
+## 2026-11-12 알림 찰떡 묶음 — web만
+- 사용자 "web만 갈아주고, 홈서버용 역시 web만" -> `build/261112-notice/web`(`index-DjIbCsCR.js`) · test3 = `build/261112-account/web` 교체(재시작 없음, `web.bak-1714`) · 묶음 `build/home-update/261112-notice`(63개, exe 없음 — worker 포함 규칙의 예외, 메모리에 예외 추가) → `REF-home-deploy-updater.md` "11-12 알림 찰떡 묶음"
+- 사용자 "web 파일만 교체되는데 supervisor를 재시작해?" -> steps를 web 전용으로(deploy = backup·copy·prune, rollback = restore). `updstore.Check` 임시 테스트로 오류 0
+- 사용자 배포 -> Claude 확인: nexus·direct 공개 `index-DjIbCsCR.js`, CSS에 `toast-x`, 옛 js `text/html`, `/api/users/sessions` 401

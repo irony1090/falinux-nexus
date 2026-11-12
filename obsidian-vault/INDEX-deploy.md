@@ -8,7 +8,7 @@
 |---|---|---|
 | 빌드 만들기(어느 대상이든) | `REF-build-scripts.md` | `scripts/build.sh` 사용법·대상별 출력·**빌드 전에 `cmd/*/env` 첫 줄 태그 바꾸기**(env는 git 제외) |
 | test3(8013) supervisor 교체 | `REF-build.md` · 직전 빌드 폴더의 `swap.sh` | 빌드본 구조·두 빌드 나란히·`CLAUDE*` 변수 상속 함정·웹만 교체. 교체 기록은 `CURRENT.md` 운영 상태 |
-| 집 서버 배포 묶음(updater로 올림) | `REF-home-deploy-updater.md` | 최근 묶음 절 하나를 따라 만듦: Windows 빌드 + worker 항상 포함 + `steps.json`·`nexus-steps/` 승계 + **`"replace": ["nexus-steps", "web"]`(11-08~, "묶음 규칙: 갈아치우기")**, 배포 뒤 공개 해시 확인(nexus·direct) |
+| 집 서버 배포 묶음(updater로 올림) | `REF-home-deploy-updater.md` | 최근 묶음 절 하나를 따라 만듦: Windows 빌드 + worker 항상 포함 + `steps.json`·`nexus-steps/` 승계 + **`"replace": ["nexus-steps", "web"]`(11-08~, "묶음 규칙: 갈아치우기")**, 배포 뒤 공개 해시 확인(nexus·direct). **web만 바뀌면** = web + web 전용 `steps.json`(재시작 없음, "11-12 알림 찰떡 묶음") |
 | 보드(i.MX, arm64) worker 교체 | `REF-build.md` "보드 worker 교체" | IP가 자주 바뀜 -> 사용자에게 먼저 물음 |
 | 집 서버 접속·인증서·PC 구성 | `REF-home-direct.md`(지금, iptime + Caddy) · `REF-home-server.md`(PC 구성·재부팅·옛 Cloudflare 터널) | |
 | updater 도입·설치, updater 자체 교체(11-03~11-04) | `REF-home-deploy-updater-setup.md` | 첫 updater 배포·updater 수동 교체(`setup.ps1`) 절차 |
@@ -27,4 +27,4 @@
 - HISTORY: | `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환 계획·회사 준비 |
 - HISTORY: | `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝, cloudflared 정지 |
 - HISTORY: | `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-29 저녁 drag 묶음 배포 완료(worker 항상 포함 규칙) |
-- HISTORY: | `history/home-deploy-updater.md` | 집 서버 배포: updater 이후(2026-11-03 신설) ↔ `REF-home-deploy-updater.md` | 11-04 최신 배포 #2 · 11-05 보드 닫기 묶음(11-06 사용자 배포) · 11-06 소켓 재연결 묶음(업로드 대기) · 11-08 test3 교체·설정 두 겹 묶음 배포 끝(갈아치우기 첫 사용) |
+- HISTORY: | `history/home-deploy-updater.md` | 집 서버 배포: updater 이후(2026-11-03 신설) ↔ `REF-home-deploy-updater.md` | 11-04 최신 배포 #2 · 11-05 보드 닫기 묶음(11-06 사용자 배포) · 11-06 소켓 재연결 묶음(업로드 대기) · 11-08 test3 교체·설정 두 겹 묶음 배포 끝(갈아치우기 첫 사용) · 11-12 web 전용 묶음 배포 끝 |
