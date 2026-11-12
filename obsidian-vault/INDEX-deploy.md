@@ -9,6 +9,7 @@
 | 빌드 만들기(어느 대상이든) | `REF-build-scripts.md` | `scripts/build.sh` 사용법·대상별 출력·**빌드 전에 `cmd/*/env` 첫 줄 태그 바꾸기**(env는 git 제외) |
 | test3(8013) supervisor 교체 | `REF-build.md` · 직전 빌드 폴더의 `swap.sh` | 빌드본 구조·두 빌드 나란히·`CLAUDE*` 변수 상속 함정·웹만 교체. 교체 기록은 `CURRENT.md` 운영 상태 |
 | 집 서버 배포 묶음(updater로 올림) | `REF-home-deploy-updater.md` | 최근 묶음 절 하나를 따라 만듦: Windows 빌드 + worker 항상 포함 + `steps.json`·`nexus-steps/` 승계 + **`"replace": ["nexus-steps", "web"]`(11-08~, "묶음 규칙: 갈아치우기")**, 배포 뒤 공개 해시 확인(nexus·direct). **web만 바뀌면** = web + web 전용 `steps.json`(재시작 없음, "11-12 알림 찰떡 묶음") |
+| **옛 빌드 폴더 정리** | `REF-build.md` "정리할 때" | 지우기 전에 `ls -l /proc/<worker pid>/exe`로 그 폴더 바이너리를 쓰는 worker가 없는지 확인. 있으면 worker를 새 빌드로 먼저 교체(안 하면 새 process 실행 = `fork/exec ... no such file`, 11-12 실제로 겪음) |
 | 보드(i.MX, arm64) worker 교체 | `REF-build.md` "보드 worker 교체" | IP가 자주 바뀜 -> 사용자에게 먼저 물음 |
 | 집 서버 접속·인증서·PC 구성 | `REF-home-direct.md`(지금, iptime + Caddy) · `REF-home-server.md`(PC 구성·재부팅·옛 Cloudflare 터널) | |
 | updater 도입·설치, updater 자체 교체(11-03~11-04) | `REF-home-deploy-updater-setup.md` | 첫 updater 배포·updater 수동 교체(`setup.ps1`) 절차 |

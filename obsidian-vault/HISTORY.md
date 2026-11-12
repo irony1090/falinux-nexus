@@ -36,6 +36,7 @@
 - 페이지 이동(마감) → `INDEX-tile-move.md` (tile-move)
 - 리팩터링(마감) → `INDEX-refactor.md` (refactor-socket·refactor-socket-batches·refactor-cleanup)
 - 빌드본 분리(마감) → `INDEX-build.md` (build)
+  - 2026-11-12 `history/build.md`에 test3 worker 교체(옛 빌드 폴더 삭제로 새 process 실행 실패 -> 새 빌드 worker로)
 - 새 보드·IUTF8(마감) → `INDEX-fix-board-iutf8.md` (fix-board-iutf8)
 - process 살려 두기(마감) → `INDEX-process-keep.md` (process-keep)
 - 타일 종류 정리(마감) → `INDEX-tile-kinds.md` (tile-kinds)

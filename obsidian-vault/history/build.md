@@ -28,3 +28,11 @@
 
 ## 2026-10-28 — 보드 worker 2대 mochi로
 - 사용자 요청: `fa24-PID`(40.211)·`imx8mp-f24`(80.119) worker 최신화(supervisor = test3, 버전 = mochi). 둘 다 `WORKER-261026-TAKE_PROCESS` -> master `28053b7` arm64(`WORKER-MOCHI-261027`, sha256 `a86e7e41…`). 10:29·10:30 재시작 -> test3 등록 성공, 보관 process 다시 붙음(713·16119 유지). 옛 파일 `worker.old-20261028-1029*`/`-1030*`(+ 원래 있던 `worker.prev`) 남김 → REF-build "보드 worker 교체"
+
+## 2026-11-12 test3 worker 교체 (옛 빌드 폴더 삭제)
+- 증상(사용자): test3 worker로 process 실행 -> `worker가 실행을 거부했습니다: fork/exec /home/jh-bae/irony/nexus/build/261111-column-flow/worker: no such file or directory`
+- 원인: 사용자가 옛 빌드라 생각해 `build/261111-column-flow/`를 지움(17:14~17:22 무렵). 그런데 test3 worker(36473, 10:04 사용자 터미널에서 시작)는 그 폴더 바이너리로 돌고 있었음(`/proc/36473/exe` = `(deleted)`). supervisor만 15:11 `261112-account`로 교체되고 worker는 그대로였음. `router/hold.go` `spawn()`이 `os.Executable()` 경로로 `worker -hold`를 띄우므로 새 process만 실패, 떠 있던 보관 프로세스는 메모리에 있어 정상
+- 사용자 걱정: 이 Claude 세션이 그 worker 위에서 돎 -> 프로세스 트리 확인: Claude는 보관 프로세스 807976(자기 세션, `setsid`)의 PTY 안 -> worker SIGTERM이 전달 안 됨, worker 종료 = `os.Exit`만(K4(기본 종료 동작))
+- 조치(Claude, 23:13): `kill -TERM 36473` -> `build/`에서 `env -u CLAUDE* setsid nohup ./261112-account/worker -env ../worker.env >> 261112-account/worker.log` -> pid 514088, `CLAUDE*` 0개, `[hold] 다시 붙음` 2개·등록 성공. 옛 보관 프로세스 2개(37855·807976)는 부모가 `systemd --user`로 바뀌고 지워진 옛 바이너리로 계속 돎. 작업 폴더는 빌드 폴더 -> `build/`로 바뀜(env·sqlite는 같은 파일 읽음 확인)
+- 사용자 확인 "이제 된다"
+- 재발 방지: `REF-build.md` "정리할 때"에 이미 있던 규칙이 빌드·배포 때 보는 표에 없어서 놓침 -> `INDEX-deploy.md` 표에 "옛 빌드 폴더 정리" 줄(지우기 전 `ls -l /proc/<worker pid>/exe` 확인)

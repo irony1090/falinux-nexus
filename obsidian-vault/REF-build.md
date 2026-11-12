@@ -76,7 +76,7 @@ embed된 `cmd/*/env` = **배포 값**으로 단정. 빌드 전에 이 파일을 
 | 메인키 NAME | 같게 둬도 됨(폴더 deviceKey가 메인키 기준이라 같아야 스크립트가 돎). 보관 프로세스 소켓 폴더는 공유되지만 파일 이름이 uid라 안 겹침 |
 | 실행 | `setsid ./supervisor ... >> log/x.log 2>&1 < /dev/null &` — Claude 세션이 끝나도 유지. **Claude가 띄울 땐 `CLAUDE*` 변수를 지우고**(아래 "Claude가 띄운 빌드본") |
 | 하나만 끄기 | **PID 지정 SIGTERM**(`kill <supervisor> <worker>`). 같은 바이너리라 `pkill worker`·`pkill -f 'worker -'`는 다른 빌드(와 그 위 Claude 세션)까지 죽임. worker 종료는 `os.Exit`만, 보관 소켓 폴더를 훑지 않음 -> 다른 빌드 영향 없음(2026-10-22 코드 확인) |
-| 정리할 때 | 그 빌드 전용 파일만(env·sqlite·DB). **바이너리 폴더를 다른 빌드가 쓰면 지우지 말 것** — 실행 중인 쪽이 새 터미널을 못 엶(보관 프로세스를 `os.Executable()`로 띄움) |
+| 정리할 때 | 그 빌드 전용 파일만(env·sqlite·DB). **바이너리 폴더를 다른 빌드가 쓰면 지우지 말 것** — 실행 중인 쪽이 새 터미널을 못 엶(보관 프로세스를 `os.Executable()`로 띄움). 지우기 전 `ls -l /proc/<worker pid>/exe` 확인(11-12 겪음 → `history/build.md`) |
 | 같은 DB를 안 쓰는 이유 | 보드 변경이 상대 supervisor 화면에 push 안 됨, 24시간 purge가 공용 DB에 적용 |
 
 ## Claude가 띄운 빌드본 = `CLAUDE*` 변수 상속 (2026-10-22 발견)
