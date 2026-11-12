@@ -62,7 +62,7 @@ const style = computed(() => ({ height: `${size.value.h}px`, '--pill-h': `${size
             <template #default="{ phone: p }">
                 <transfer-button :dense="p" />
                 <v-btn :size="p ? undefined : 'small'" density="comfortable" variant="text" icon title="위치 알림" @click="drawerOpen = p || !drawerOpen">
-                    <v-badge v-if="unread" :content="unreadText" color="error" floating>
+                    <v-badge v-if="unread" :content="unreadText" color="error" floating class="foot-badge">
                         <v-icon icon="mdi-bell-outline" />
                     </v-badge>
                     <v-icon v-else icon="mdi-bell-outline" />

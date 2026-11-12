@@ -44,3 +44,6 @@
 ## 2026-11-08 내려보냄 (CURRENT "다음 세션 시작 시"에서)
 - **(2026-11-07) 파트(공용 타일 틀) — 마감**, `refactor/tile-shell` 커밋·master `--no-ff` 머지 · 사용자 화면 확인 "잘 동작해". 단계-1(공용 틀)~단계-4(오른쪽 메뉴 통일) → `INDEX-tile-frame.md`. `run.sh` FAIL 2건 = 낡은 기대값(→ `BACKLOG.md`)
 - **(2026-11-07 밤) test3 = 공용 타일 틀 빌드로 교체 끝 · 집 서버 = 같은 빌드 배포 끝(공개 `index-BIm258Bp.js` 일치, nexus·direct)** → `REF-home-deploy-updater.md` "11-07 공용 타일 틀 묶음"
+
+## 2026-11-12 내려보냄
+- **(2026-11-08) 파트(설정 두 겹) — 마감**, `feat/settings-account` 커밋·master `--no-ff` 머지 · 사용자 화면 확인 "확인했어". 계정 설정(서버 `00019`·`/api/settings`·`SETTINGS:UPDATE`) + 이 브라우저에서만 + 계정 값 사본 → `REF-settings-account.md`. **test3 = `261108-settings-account`로 교체 끝(11:06) · 집 서버 = 같은 빌드 배포 끝(공개 `index-Ba5qQ-fM.js` 일치, nexus·direct, `web/` 갈아치우기 동작)** → `REF-home-deploy-updater.md` "11-08 설정 두 겹 묶음"

@@ -9,14 +9,14 @@
 
 ## ⚠️ 다음 세션 시작 시
 - **(2026-11-12) 파트(계정) — 마감**(사용자 test1 화면 확인 "확인했어"), `feat/account` 커밋·master `--no-ff` 머지. 개발 DB `nexus` 마이그레이션 `00021`까지(11-12 test1 확인 때 적용). **test3·집 서버 배포 전**: 전원 재로그인 + 집 서버 아이디 빌 계정 먼저 조회 → `REF-account.md` "배포 때". test1·test2는 확인 뒤 끔
-- **(2026-11-12) 푸터 알림 배지 잘림 수정 중** — `fix/footer-badge`. 원인 = 푸터 오른쪽 알약 `overflow: hidden`, 배지를 작게 해 아이콘에 겹침(알림 + 전송 버튼)
+- **(2026-11-12) 푸터 배지 잘림 — 수정·커밋·master `--no-ff` 머지**(사용자 "머지커밋") — `fix/footer-badge`. 원인 = 푸터 오른쪽 알약 `overflow: hidden`, `styles/global.scss` `.foot-badge`로 배지를 작게 해 아이콘에 겹침(알림 + 전송) → `history/board-chrome.md` "11-12"
 - **(2026-11-11) 미니맵 진행도 — 마감**(`feat/peek-nudge` 커밋·master `--no-ff` 머지, 사용자 "맘에 들어") → `history/board-pager.md` · `REF-board-pager.md` "미니맵 진행도". test1·test2는 11-11 끔
 - **(2026-11-11) 칼럼 흐름 빌드 — test3·집 서버 교체 끝**(사용자가 교체, Claude 확인): test3(8013) = `build/261111-column-flow`(14:49 켜짐) · 집 서버 = 묶음 `build/home-update/261111-column-flow` 배포, 공개 `index-DYuchPlR.js`(nexus·direct) → `REF-home-deploy-updater.md` "11-11 칼럼 흐름 묶음"
 - **(2026-11-11) 파트(칼럼 흐름) — 마감**(사용자 "문제 없어 마감해도돼"), `feat/column-flow` 커밋·master `--no-ff` 머지 → `REF-column-flow.md` · `history/column-flow.md`. 보드(흐름-1(채우기)~흐름-5(인디케이터)) + URL focus(포커스-1(스크롤 위치)~포커스-3(경로 합치기)) + 관리 페이지(관리-1(채우기)~관리-5(인디케이터)·포커스-4(관리 페이지))
   - 확인용 dev supervisor 5051·vite 8011 = 마감 때 Claude가 끔(다시 띄우는 법 `REF-test-env.md` "8012가 다른 작업공간에 잡혀 있을 때"). 개발 DB에 계정 `mflow-*` 2개 남음
-- **(2026-11-08) 파트(설정 두 겹) — 마감**, `feat/settings-account` 커밋·master `--no-ff` 머지 · 사용자 화면 확인 "확인했어". 계정 설정(서버 `00019`·`/api/settings`·`SETTINGS:UPDATE`) + 이 브라우저에서만 + 계정 값 사본 → `REF-settings-account.md`. **test3 = `261108-settings-account`로 교체 끝(11:06) · 집 서버 = 같은 빌드 배포 끝(공개 `index-Ba5qQ-fM.js` 일치, nexus·direct, `web/` 갈아치우기 동작)** → `REF-home-deploy-updater.md` "11-08 설정 두 겹 묶음"
 - (2026-11-07) 파트(공용 타일 틀) 마감 줄·test3/집 서버 11-07 빌드 줄 → `history/current-archive-7.md`(11-08 내려보냄)
-- 파트(칼럼 흐름) 다음 파트 = `BACKLOG.md`에서 고름(사용자 예정 "타일 ESC로 닫기")
+- (2026-11-08) 파트(설정 두 겹) 마감·배포 줄 → `history/current-archive-7.md`(11-12 내려보냄)
+- 다음 파트 = `BACKLOG.md`에서 고름(사용자 예정 "타일 ESC로 닫기")
 - **사용자 할 일 남음**: master push
 - **(2026-11-04) 집 서버 최신 배포 — 끝(14:33)** · supervisor·worker·web = updater 배포 #2 성공(빌드 `supervisor-url-261104` 잠김), updater = Nexus 디렉토리 타일에서 `setup.ps1` -> `UPDATER-FILES-261104` online. 남은 것 = `C:\Nexus\updater-new\` 삭제(사용자) → `REF-home-deploy-updater-setup.md` "11-04 최신 배포 계획"
 - 11-04 빌드 스크립트·로컬 updater 시험(주소 순위·되돌리기) 마감 줄 + 11-03 파트(업데이트 app) 진행 블록 원문 → `history/current-archive-7.md`(11-05 내려보냄). 구현 지도: `REF-update-p1.md`~`-p4.md` · 설계 `REF-update-deploy.md` · 규칙 `REF-update-rules.md` · `REF-build-scripts.md`
