@@ -8,7 +8,7 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
-- **(2026-11-12) 계정 빌드 — 만듦, 교체·배포 = 사용자**: test3용 `build/261112-account`(태그 `ACCOUNT-261112`, web `index-Ca04n1MO.js`, 교체 = `build/261112-account/swap.sh <지금 8013 pid>`, 실패 시 `261111-column-flow`로 되돌림) · 집 서버 묶음 `build/home-update/261112-account` — **배포 전 `261112-account-check.sql` 실행(0행 확인), rollback엔 DB 복원 필요** → `REF-home-deploy-updater.md` "11-12 계정 묶음"
+- **(2026-11-12) 계정 빌드 — test3·집 서버 교체 끝**(사용자가 교체, Claude 확인): test3(8013) = `build/261112-account`(되돌림 = `261111-column-flow`, `nexus_build` `00021`) · 집 서버 = 묶음 `build/home-update/261112-account` 배포(배포 전 확인 SAFE), 공개 `index-Ca04n1MO.js`(nexus·direct) · 둘 다 전원 재로그인. rollback엔 DB 복원 필요 → `REF-home-deploy-updater.md` "11-12 계정 묶음"
 - **(2026-11-12) 파트(계정) — 마감**(사용자 test1 화면 확인 "확인했어"), `feat/account` 커밋·master `--no-ff` 머지. 개발 DB `nexus` 마이그레이션 `00021`까지(11-12 test1 확인 때 적용). **test3·집 서버 배포 전**: 전원 재로그인 + 집 서버 아이디 빌 계정 먼저 조회 → `REF-account.md` "배포 때". test1·test2는 확인 뒤 끔
 - **(2026-11-12) 푸터 배지 잘림 — 수정·커밋·master `--no-ff` 머지**(사용자 "머지커밋") — `fix/footer-badge`. 원인 = 푸터 오른쪽 알약 `overflow: hidden`, `styles/global.scss` `.foot-badge`로 배지를 작게 해 아이콘에 겹침(알림 + 전송) → `history/board-chrome.md` "11-12"
 - **(2026-11-11) 미니맵 진행도 — 마감**(`feat/peek-nudge` 커밋·master `--no-ff` 머지, 사용자 "맘에 들어") → `history/board-pager.md` · `REF-board-pager.md` "미니맵 진행도". test1·test2는 11-11 끔
