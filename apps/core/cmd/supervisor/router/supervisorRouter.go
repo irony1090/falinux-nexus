@@ -56,6 +56,7 @@ type supervisorRouter struct {
 	copySlots      chan struct{}                                 // worker 간 중계 동시 수(copy.go)
 	unregistered   *unregisteredSet                              // 인스턴스별 미등록 process(workerMove.go)
 	blocked        *blockedUsers                                 // 정지·삭제된 회원(admin.go)
+	logins         *loginSessions                                // 로그인 세션(loginSessions.go)
 	view           *viewCache                                    // 이미지 사본(viewCache.go)
 	upd            *updStore                                     // 업데이트 app 보관소·받는 중 파일(update.go)
 	updLinks       *updLinks                                     // 접속한 updater(updaterConn.go)
@@ -101,12 +102,14 @@ func NewSupervisorRouter(workerPath, sessionKey string) (*echo.Echo, *supervisor
 		copySlots:      make(chan struct{}, copyParallel),
 		unregistered:   newUnregisteredSet(),
 		blocked:        loadBlockedUsers(),
+		logins:         loadLoginSessions(),
 		view:           newViewCache(constants.GetEnv()),
 		upd:            newUpdStore(constants.GetEnv()),
 		updLinks:       newUpdLinks(),
 	}
 	router.updRuns = newUpdRunSet(router.upd.Dir())
 	router.updRuns.pub = router.publishUpdOutput
+	go router.runLoginSweep()
 	go router.runPurge()     // 끝난 process 주기 삭제(K2(supervisor 정리))
 	go router.runKillSweep() // 종료 유예 지난 종료 요청 강제 종료(REF-board-close.md)
 	go router.runTransferSweep()

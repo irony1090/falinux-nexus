@@ -15,12 +15,25 @@ SELECT pg_advisory_xact_lock(hashtext('users_create'));
 SELECT COUNT(*) FROM users;
 
 -- name: UpdateUserPassword :exec
--- 옛 sha256 -> bcrypt 다시 저장(회원-Q9(bcrypt 전환))
+-- 옛 sha256 -> bcrypt 다시 저장(회원-Q9(bcrypt 전환)) · 비밀번호 변경·재설정(세션-4(비밀번호 API))
 UPDATE users SET password = $2 WHERE id = $1;
+
+-- name: UpdateUserIdentification :exec
+UPDATE users SET identification = $2, updated_at = NOW() WHERE id = $1;
+
+-- name: UpdateUserNickname :exec
+UPDATE users SET nickname = $2, updated_at = NOW() WHERE id = $1;
+
+-- name: IdentificationTaken :one
+-- 대소문자 무시(uq_users_identification과 같은 기준)
+SELECT EXISTS (SELECT 1 FROM users WHERE identification <> '' AND lower(identification) = lower(@identification::text));
+
+-- name: NicknameTaken :one
+SELECT EXISTS (SELECT 1 FROM users WHERE lower(nickname) = lower(@nickname::text));
 
 -- name: ListUsersWithDevices :many
 -- 관리자 페이지 — 회원과 등록한 장비 이름 수
-SELECT u.id, u.nickname, u.perms, u.worker_limit, u.created_at, u.suspended_at,
+SELECT u.id, u.identification, u.nickname, u.perms, u.worker_limit, u.created_at, u.suspended_at,
        (SELECT COUNT(*) FROM devices d WHERE d.owner_user_id = u.id)::int AS device_count
 FROM users u
 ORDER BY u.id;
@@ -35,7 +48,8 @@ RETURNING *;
 SELECT * FROM users WHERE id = $1;
 
 -- name: GetUserByIdentification :one
-SELECT * FROM users WHERE identification = $1;
+-- 대소문자 무시, '' = 아이디 없음은 찾지 않음
+SELECT * FROM users WHERE identification <> '' AND lower(identification) = lower(@identification::text);
 
 -- name: ListUserNicknames :many
 SELECT id, nickname FROM users WHERE id = ANY(@ids::bigint[]);

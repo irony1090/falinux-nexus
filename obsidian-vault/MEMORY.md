@@ -38,6 +38,7 @@
 - **전송**: supervisor 전송 목록 + `TRANSFER:*` push. 브라우저 본문 = 조각 512KB
 - **브라우저 API**: 전부 `/api` 아래. 새 API는 `mount*` 그룹에만, 프론트는 `getBaseURL()` + 문자열(`new URL` 금지)
 - **회원·장비 인가**: worker 접속에 API 키(메인키마다 하나, env `KEY_SECRET` 필수). 실행 권한 = 장비 주인 + 지정 폴더 공유받은 사람
+- **로그인·계정**: 유효 세션 = `user_sessions` 행(메모리 대조, 지우면 그 기기 `SESSION:END`). 아이디 = 평문·대소문자 무시 유일(`''` = 아이디 없음). 화면 표시 = 닉네임, 초대 = 아이디 (→ `REF-account.md`, 2026-11-12)
 - **updater 인가**: 장비 루트별 키 `nxu_`(worker 키와 별개, 관리자가 장비 루트를 만들 때 발급). updater 경로 `/updater/*`는 `/api` 밖, 화면은 관리자만
 - **updater 되돌리기**: = 그 배포 취소(직전 상태로), 인스턴스마다 최신만·역순, 이미 되돌린 건 거절. 특정 버전 = 재배포. updater 대상 파일은 손으로 안 바꿈
 - **젤리 효과**: 누를 수 있는 것·컨트롤 패널 = `styles/jelly.scss` 한 곳. 새 버튼 클래스는 `$box` 목록에, 가운데 팝업은 `translate` 속성 + `jelly-pop`
@@ -96,7 +97,7 @@ sqlc.yaml  README.md  .gitignore
 - 설계/재사용 지식(위 모듈 현황표에 있는 것 말고): `REF-decisions.md`·`REF-decisions-ui.md`(확정 결정 상세) · `REF-test-env.md`(테스트 환경·함정) · `REF-test-isolation.md`(격리 실행 = 임시 DB + 5051, 11-11 분할) · `REF-photo-upload.md`(폰 사진 올리기 도구, 11-02 분할) · `REF-test-scripts*.md`(확인 스크립트 재작성 명세, 날짜별 5개) · `REF-external-access.md`(외부 접속 test1~3 = 8011~8013) · `REF-demo.md`(시연 데이터) · `REF-worker-screen.md`(worker 화면 송출, 아이디어) · **집 서버(운영)**: `REF-home-server.md`(서버 PC·옛 터널) · `REF-home-direct.md`(지금 경로 = iptime + Caddy 직통) · `REF-home-deploy.md`(배포·업데이트)
 - **빌드·배포할 때**(빌드 스크립트·test3 교체·집 서버 묶음·보드 worker·집 서버 접속) → `INDEX-deploy.md`(상황 색인) / 업데이트 app(마감) → `INDEX-update-app.md`
 - **디자인 규칙**: `REF-design-chaltteok.md` 찰떡 규칙(알약 버튼·라벨이 부모 벽에 닿으면 그 끝 = 부모 모양, 다른 작업공간도 직접 참조. 11-02 시안 규칙 추가: 묶음 쪼개지 않기·오른쪽 묶음 벽에 붙이기·줄 넘침 "안 C 한 세트"). Nexus 적용 = 파트(찰떡 UI) 10-25, 묶음 클래스 `styles/chaltteok.scss`
-- **진행 중 파트**: 없음(칼럼 흐름 11-11 마감 `REF-column-flow.md`) / 마감 파트 목록 = `HISTORY.md` "마감 파트"
+- **진행 중 파트**: 없음(계정 11-12 마감 `REF-account.md` — 로그인 기기·비밀번호 변경·평문 아이디) / 직전 마감 = 칼럼 흐름 11-11 `REF-column-flow.md` / 마감 파트 목록 = `HISTORY.md` "마감 파트"
 - **보드 닫기·종료 유예(11-05)**: `REF-board-close.md`(루트 ×·확인 창·`?mode=kill`·서버 10초 판정)
 - **소켓 재연결·끊김 표시(11-06)**: `REF-socket-reconnect.md`(포기 없음·화면 복귀 wake·PING 확인·다시 붙으면 터미널 스냅샷)
 - **설정 두 겹(11-08, 진행 중)**: `REF-settings-account.md`(계정 = 서버·push / 이 브라우저에서만 = userPrefs 우선 / 계정 값 사본)

@@ -1,13 +1,15 @@
 # CURRENT
 
 ## 현재 날짜
-2026-11-11
+2026-11-12
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`, 마감 파트는 `INDEX-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
 ---
 
 ## ⚠️ 다음 세션 시작 시
+- **(2026-11-12) 파트(계정) — 마감**(사용자 test1 화면 확인 "확인했어"), `feat/account` 커밋·master `--no-ff` 머지. 개발 DB `nexus` 마이그레이션 `00021`까지(11-12 test1 확인 때 적용). **test3·집 서버 배포 전**: 전원 재로그인 + 집 서버 아이디 빌 계정 먼저 조회 → `REF-account.md` "배포 때". test1·test2는 확인 뒤 끔
+- **(2026-11-12) 푸터 알림 배지 잘림 수정 중** — `fix/footer-badge`. 원인 = 푸터 오른쪽 알약 `overflow: hidden`, 배지를 작게 해 아이콘에 겹침(알림 + 전송 버튼)
 - **(2026-11-11) 미니맵 진행도 — 마감**(`feat/peek-nudge` 커밋·master `--no-ff` 머지, 사용자 "맘에 들어") → `history/board-pager.md` · `REF-board-pager.md` "미니맵 진행도". test1·test2는 11-11 끔
 - **(2026-11-11) 칼럼 흐름 빌드 — test3·집 서버 교체 끝**(사용자가 교체, Claude 확인): test3(8013) = `build/261111-column-flow`(14:49 켜짐) · 집 서버 = 묶음 `build/home-update/261111-column-flow` 배포, 공개 `index-DYuchPlR.js`(nexus·direct) → `REF-home-deploy-updater.md` "11-11 칼럼 흐름 묶음"
 - **(2026-11-11) 파트(칼럼 흐름) — 마감**(사용자 "문제 없어 마감해도돼"), `feat/column-flow` 커밋·master `--no-ff` 머지 → `REF-column-flow.md` · `history/column-flow.md`. 보드(흐름-1(채우기)~흐름-5(인디케이터)) + URL focus(포커스-1(스크롤 위치)~포커스-3(경로 합치기)) + 관리 페이지(관리-1(채우기)~관리-5(인디케이터)·포커스-4(관리 페이지))

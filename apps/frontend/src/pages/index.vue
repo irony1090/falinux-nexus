@@ -55,7 +55,8 @@ useShareChange();
 useNodeChange();
 
 // 계정이 바뀔 때만 xterm을 비운다 — 3-d④(계정 바뀜). 같은 계정의 세션 재확인(auth 객체 교체)에는 미확정 변경을 버리지 않도록 다시 불러오지 않는다
-watch(() => auth.value?.identification, id => {
+// 기준 = 회원 id(아이디는 관리자가 바꿀 수 있음, REF-account.md)
+watch(() => auth.value?.id, id => {
     resetTerms();
     clearNotices();     // 위치 알림 내역은 계정마다
     if (id) {

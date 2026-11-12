@@ -24,6 +24,8 @@ func (r *supervisorRouter) mountAdmin(e *echo.Group) {
 	g.GET("/users", r.adminListUsers)
 	g.GET("/users/:id", r.adminGetUser)
 	g.PATCH("/users/:id", r.adminPatchUser)
+	g.PATCH("/users/:id/account", r.adminPatchAccount)
+	g.PUT("/users/:id/password", r.adminResetPassword)
 	g.POST("/users/:id/suspend", r.adminSuspendUser)
 	g.DELETE("/users/:id", r.adminDeleteUser)
 	g.GET("/devices", r.adminListDevices)
@@ -92,13 +94,14 @@ func (r *supervisorRouter) cutOff(userID int64, mainKeys []string) {
 // ===== 회원 =====
 
 type adminUserResponse struct {
-	ID          int64    `json:"id"`
-	Nickname    string   `json:"nickname"`
-	Perms       []string `json:"perms"`
-	WorkerLimit int32    `json:"workerLimit"`
-	DeviceCount int32    `json:"deviceCount"`
-	CreatedAt   int64    `json:"createdAt"`
-	SuspendedAt *int64   `json:"suspendedAt"`
+	ID             int64    `json:"id"`
+	Identification string   `json:"identification"` // "" = 아이디 없음(로그인 불가, 아이디-1(평문 이전))
+	Nickname       string   `json:"nickname"`
+	Perms          []string `json:"perms"`
+	WorkerLimit    int32    `json:"workerLimit"`
+	DeviceCount    int32    `json:"deviceCount"`
+	CreatedAt      int64    `json:"createdAt"`
+	SuspendedAt    *int64   `json:"suspendedAt"`
 }
 
 type adminUserPatchRequest struct {
@@ -145,7 +148,7 @@ func allAdminUsers(c echo.Context) []adminUserResponse {
 	}
 	out := make([]adminUserResponse, len(rows))
 	for i, u := range rows {
-		out[i] = adminUserResponse{ID: u.ID, Nickname: u.Nickname, Perms: u.Perms, WorkerLimit: u.WorkerLimit, DeviceCount: u.DeviceCount, CreatedAt: u.CreatedAt.Time.Unix()}
+		out[i] = adminUserResponse{ID: u.ID, Identification: u.Identification, Nickname: u.Nickname, Perms: u.Perms, WorkerLimit: u.WorkerLimit, DeviceCount: u.DeviceCount, CreatedAt: u.CreatedAt.Time.Unix()}
 		if out[i].Perms == nil {
 			out[i].Perms = []string{}
 		}
@@ -157,11 +160,13 @@ func allAdminUsers(c echo.Context) []adminUserResponse {
 	return out
 }
 
-// adminListUsers: ?q=닉네임&f=all|admin|suspended|noreg&page=&size=(0 = 전부) — 화-4(서버 목록)
+// adminListUsers: ?q=아이디·닉네임&f=all|admin|suspended|noreg&page=&size=(0 = 전부) — 화-4(서버 목록)
 func (r *supervisorRouter) adminListUsers(c echo.Context) error {
 	r.requireAdmin(c)
 	lq := parseListQuery(c)
-	match := func(u adminUserResponse) bool { return containsFold(u.Nickname, lq.Q) }
+	match := func(u adminUserResponse) bool {
+		return containsFold(u.Nickname, lq.Q) || containsFold(u.Identification, lq.Q)
+	}
 	return c.JSON(200, pageList(allAdminUsers(c), lq, match, userFilters))
 }
 
@@ -219,6 +224,52 @@ func (r *supervisorRouter) adminPatchUser(c echo.Context) error {
 	return c.JSON(200, map[string]any{})
 }
 
+type adminAccountRequest struct {
+	Identification *string `json:"identification"`
+	Nickname       *string `json:"nickname"`
+}
+
+type adminPasswordRequest struct {
+	Password string `json:"password" validate:"required"`
+}
+
+// adminPatchAccount: 회원의 아이디·닉네임 수정(보낸 것만). 로그인은 유지 — REF-account.md "관리자 계정 수정"
+func (r *supervisorRouter) adminPatchAccount(c echo.Context) error {
+	r.requireAdmin(c)
+	id := userIDParam(c)
+	var body adminAccountRequest
+	if err := c.Bind(&body); err != nil {
+		panic(web.Err(400, "%v", err))
+	}
+	if body.Identification != nil {
+		r.setLoginID(c, id, *body.Identification)
+	}
+	if body.Nickname != nil {
+		r.setNickname(c, id, *body.Nickname)
+	}
+	return c.JSON(200, map[string]any{})
+}
+
+// adminResetPassword: 비밀번호 재설정 -> 그 회원 기기 전부 로그아웃(자기 자신이면 지금 기기는 남김)
+func (r *supervisorRouter) adminResetPassword(c echo.Context) error {
+	me := r.requireAdmin(c)
+	id := userIDParam(c)
+	var body adminPasswordRequest
+	if err := c.Bind(&body); err != nil {
+		panic(web.Err(400, "%v", err))
+	}
+	if err := c.Validate(&body); err != nil {
+		panic(web.Err(400, "비밀번호를 입력하세요"))
+	}
+	requireUser(c, id)
+	keep := ""
+	if id == me {
+		keep = sessionLogin(r.sessions.GetSession(c.Request(), nil))
+	}
+	r.setPassword(c, id, body.Password, keep)
+	return c.JSON(200, map[string]any{})
+}
+
 func ownedMainKeys(c echo.Context, userID int64) []string {
 	keys, err := TxQueries(c).ListOwnedMainKeys(c.Request().Context(), userID)
 	if err != nil {
@@ -243,6 +294,9 @@ func (r *supervisorRouter) adminSuspendUser(c echo.Context) error {
 		panic(web.Err(500, "%v", err))
 	}
 	keys := ownedMainKeys(c, id)
+	if body.Suspended {
+		r.dropLogins(c, id, "") // 세션-3(정지 연동) — 해제해도 다시 로그인해야 함
+	}
 	AfterCommit(c, func() {
 		r.blocked.set(id, body.Suspended)
 		if body.Suspended {
@@ -270,6 +324,7 @@ func (r *supervisorRouter) adminDeleteUser(c echo.Context) error {
 		panic(web.Err(409, "실행 중인 process가 %d개 있습니다. 먼저 종료하세요", n))
 	}
 	keys := ownedMainKeys(c, id)
+	r.dropLogins(c, id, "") // 행은 CASCADE로도 지워지지만 메모리·소켓 정리에 id가 필요
 	for _, step := range []func(context.Context, int64) error{q.DeleteProcessesOfUser, q.ReassignNodeCreatedBy, q.DeleteNodesOfUser} {
 		if err := step(ctx, id); err != nil {
 			panic(web.Err(500, "%v", err))
