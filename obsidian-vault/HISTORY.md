@@ -82,6 +82,7 @@
 | `history/board-close.md` | 보드 닫기 · 종료 유예(2026-11-05 신설) ↔ `REF-board-close.md` | 11-05 확인 13/13·9/9 · 사용자 확인 · 마감 |
 | `history/decisions.md` | 확정 결정 상세(2026-10-26 MEMORY 슬림화 때 신설) ↔ `REF-decisions.md` | 10-26 밤 MEMORY 9.9k -> 5.8k자 |
 | `history/decisions-ui.md` | 확정 결정 상세: 화면(2026-10-29 분할) ↔ `REF-decisions-ui.md` | 10-29 터치 제스처·끌기(파트(타일 끌기) 마감) |
+| `history/current-archive-8.md` | CURRENT에서 내려보낸 줄 원문(2026-11-12~) | 11-12: 11-11 미니맵·칼럼 흐름 마감·빌드 줄, 11-12 푸터 배지 줄 |
 | `history/current-archive-7.md` | CURRENT에서 내려보낸 줄 원문(2026-11-05~) | 11-08: 11-07 파트(공용 타일 틀) 마감 줄·11-07 빌드 줄 |
 | `history/current-archive-6.md` | CURRENT에서 내려보낸 줄 원문(2026-11-02~) | 11-02 업데이트 app 설계 줄 · 11-03 P1~P4 · 11-03 밤 Files 타일 개선 마감 때 진행 블록 |
 | `history/current-archive.md` | CURRENT에서 내려보낸 줄 원문(REF 없음) | 10-29 영상 파트 마감 때 10-28 밤 ~ 10-26 밤 줄 |
@@ -92,7 +93,7 @@
 | `history/current-archive-1.md` | 위 파일에서 분할(2026-10-26 낮까지: 재부팅 전·세션 끝 정리) | 10-26 세션 끝 |
 | `history/windows-vm.md` | Windows VM `nexus-win`(2026-10-23 `windows-worker`에서 분할) | 10-23 경로 직접 입력 확인, win-dev를 test3에 다시 붙임 |
 | `history/demo.md` | 시연 데이터(2026-10-16 신설) | 10-16 안 C(생산 지그 시나리오) 등록, 브라우저 경유 실행 미확인 |
-| `history/design-chaltteok.md` | 찰떡 규칙(디자인 규칙, 2026-10-25 신설) | 11-02 밤 타일 아래 줄 넘침(MbNote·버튼 줄바꿈) |
+| `history/design-chaltteok.md` | 찰떡 규칙(디자인 규칙, 2026-10-25 신설) | 11-12 알림 drawer·토스트·전송 찰떡(`feat/notice-chaltteok`), `.tile-btn-row-end` 빠뜨림 정정 |
 | `history/worker-screen.md` | worker 화면 송출(아이디어) | 10-15 나(VNC 터널 + noVNC) 추천 · 10-25 VNC 서버 준비 방식(내려받기·설치) 재논의, 보류 |
 | `history/node-ui.md` | node 카탈로그 UI 컨셉 | 08-10 그리드 직접 제작 확정, termspace 영감 피벗 |
 | `history/node-ui-overview.md` | 전체보기 · 화면 내비게이션 | 10-06 active 타일 표시 = 나(약하게 흐림) + 위치 번호 단축키 |
