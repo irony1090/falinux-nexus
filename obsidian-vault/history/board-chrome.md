@@ -30,3 +30,8 @@
 - 사용자 "계속 진행" -> 위로 당김·스크롤바 숨김·Grid 정보 토스트·빈 곳 휠 구현(→ `REF-board-chrome.md` "구현 메모")
 - 격리 헤드리스 1차 34/38: 스크립트 정규식 2 + 메뉴 측정 타이밍 2, 그 과정에서 알약 안 버튼이 알약보다 큰 것 발견 -> `density="comfortable"` -> 40/40 (→ `REF-test-scripts-1020.md` "2026-10-20 헤더·푸터 개편")
 - 격리 supervisor·vite 종료, `nexus_foot_tmp` 삭제. 사용자 확인 대기
+
+## 2026-11-12 푸터 배지 잘림 (`fix/footer-badge`, 마감 뒤 수정)
+- 사용자: 알림 아이콘 숫자 배지가 아이콘 경계에서 잘림 -> 격리 헤드리스로 재현: 푸터 오른쪽 알약(`FootPill` `edge-right`)의 `overflow: hidden`(버튼 바탕을 알약 모양으로 자르는 것)이 위로 튀어나간 `floating` 배지를 윗선에서 자름, `99+`는 옆 칸까지 넘어감
+- 고침: `styles/global.scss` `.foot-badge`(높이 16px·`label-small`, 아이콘 오른쪽 위에 겹침, 점 배지 9px) + 알림(`BoardFooter`)·전송(`TransferButton`) 배지에 클래스. Vuetify가 위치를 인라인 style로 넣어 `!important`
+- 확인: PC·폰 폭에서 `9`·`99+`·점 모두 알약 안(헤드리스 스크린샷, 실제 v-badge 마크업을 끼워 재현). PC의 `99+`는 종 아이콘을 거의 가림. 격리 서버·`nexus_badge_tmp` 정리

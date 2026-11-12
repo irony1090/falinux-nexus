@@ -7,3 +7,23 @@ html {
 .v-btn.v-btn--size-x-small:not(.v-btn--icon, .v-btn--stacked) {
 	@include vars.font('label-medium');
 }
+
+// 푸터 알약 안 버튼 배지 — 알약이 overflow: hidden이라 위로 튀어나간 배지가 윗선에서 잘림 -> 작게 해서 아이콘 오른쪽 위에 겹친다(BoardFooter 알림·TransferButton)
+// Vuetify가 위치를 인라인 style(bottom·left)로 넣어서 !important
+.v-badge.foot-badge > .v-badge__wrapper > .v-badge__badge {
+	bottom: auto !important;
+	left: auto !important;
+	top: -3px;
+	right: -9px;
+	height: 16px;
+	min-width: 16px;
+	padding: 0 4px;
+	@include vars.font('label-small');
+}
+.v-badge.foot-badge.v-badge--dot > .v-badge__wrapper > .v-badge__badge {
+	top: 1px;
+	right: -2px;
+	height: 9px;
+	min-width: 9px;
+	padding: 0;
+}

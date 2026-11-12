@@ -15,10 +15,10 @@ const icon = computed(() => running.value ? 'mdi-swap-vertical-bold' : 'mdi-swap
 <v-menu v-if="list.length" location="top end" offset="10" :close-on-content-click="false">
     <template #activator="{ props: act, isActive }">
         <v-btn v-bind="act" :size="dense ? undefined : 'small'" density="comfortable" variant="text" icon :active="isActive" title="전송" aria-label="전송 목록">
-            <v-badge v-if="running" :content="running" color="primary" floating>
+            <v-badge v-if="running" :content="running" color="primary" floating class="foot-badge">
                 <v-icon :icon="icon" />
             </v-badge>
-            <v-badge v-else-if="failed" dot color="error" floating>
+            <v-badge v-else-if="failed" dot color="error" floating class="foot-badge">
                 <v-icon :icon="icon" />
             </v-badge>
             <v-icon v-else :icon="icon" />

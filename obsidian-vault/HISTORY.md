@@ -32,6 +32,7 @@
 - 파일 전송(마감) → `INDEX-transfer-e2e.md` (transfer-e2e)
 - 한글 입력 중복(마감) → `INDEX-term-ime.md` (term-ime)
 - 헤더·푸터 개편(마감) → `INDEX-board-chrome.md` (board-chrome·board-keyboard)
+  - 2026-11-12 `history/board-chrome.md`에 푸터 배지 잘림(`.foot-badge`, `fix/footer-badge`)
 - 페이지 이동(마감) → `INDEX-tile-move.md` (tile-move)
 - 리팩터링(마감) → `INDEX-refactor.md` (refactor-socket·refactor-socket-batches·refactor-cleanup)
 - 빌드본 분리(마감) → `INDEX-build.md` (build)
