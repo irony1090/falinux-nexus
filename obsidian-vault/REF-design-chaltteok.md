@@ -45,6 +45,10 @@
 | 경로 줄 도구(폴더·장비 타일) | `.ct-grp`(+`--l` 이동 묶음, `--keep` 꺼진 칸 바탕 유지) > `.ct-seg`(+`--dim`·`--ok`·`--share`·`--accent`) · 같은 파일 + `HScroll.vue` | 이동 묶음은 타일 왼쪽 벽에 붙음, 가운데 묶음은 넘치면 가로 스크롤(→ `REF-path-row.md`) |
 | 창 아래 버튼 | `.ct-actions` + 카드에 `.ct-card`(`overflow: hidden`) · 같은 파일 | 창 오른쪽 아래 끝 블록, 모서리는 카드가 자름 |
 | 푸터 보드 메뉴·앱 버튼 | `FootPill edge="left"/"right"` · `FootPill.vue` | 상자가 안 보이는 자리 — 알약이 `0 999px 999px 12px` / `999px 0 12px 999px`를 직접 그림, 안쪽 버튼은 칸으로 꽉 채움 |
+| 알림 drawer 머리 줄 "비우기" | 줄 `.tile-btn-row-end` > `.tile-btn-end` > `.tile-btn--text` · `NoticeCenter.vue` | drawer 오른쪽 벽(= 화면 끝) 끝 블록, 머리 줄 40px 꽉 |
+| 알림 drawer 행 시각 | `.ct-grp--l.ct-grp--sm` > `.ct-seg--txt` · 같은 파일 | drawer 왼쪽 벽 라벨, 행 위쪽 정렬(본문 여러 줄) |
+| 토스트 닫기 | `.ct-seg--icon.toast-x` · `NoticeToasts.vue`(토스트 `overflow: hidden`) | 오른쪽 위 모서리 끝 블록(높이 28), 모서리는 토스트 8px 곡선이 자름, 젤리 기준점 `right top`(`jelly.scss`) |
+| 전송 행 상태 + 중단 | `.ct-grp--r.ct-grp--sm` > `.ct-seg`(+`--accent` 진행·`--ok` 완료 = 글자색만·`--error` 실패) · `TransferRow.vue` | 부모 오른쪽 벽 묶음 — 부모(푸터 전송 팝업 `.TransferList`, 장비 타일 `.xfer`) 오른쪽 패딩 0 |
 - 유래: 파트(타일 머리 줄 버튼) `REF-tile-head.md` 조정-2(끝 블록 직각)의 정정(2026-10-24, C2a·C2b) → 파트(목록 아이콘 보기) `REF-dir-grid.md` "판 D 조율"(상태 박스)에서 같은 규칙을 칸에 적용
 
 ## 만들다 틀렸던 것 (재발 방지)
@@ -54,6 +58,7 @@
 | 4px 같은 작은 둥글기 | 반원(`999px`) | 2026-10-24 정정 때 한 번 더 틀림 |
 | 완전히 동그란 버튼 | 가로로 긴 알약(폭 38~42px) | 2026-10-24 "버튼 폭" |
 | 부모 쪽까지 직각 | 부모는 그대로, 직각은 알약 한정 | 2026-10-24 조정-2 답 |
+| `.tile-btn-end`만 붙임(양끝 반원 그대로) | 줄에 `.tile-btn-row-end`도 붙여야 벽 쪽 끝이 곧음(끝 블록 기본 = `999px` 전부) | 2026-11-12 알림 drawer "비우기", 사용자 지적 |
 
 ## 새 요소를 만들 때
 1. 기본은 양끝 반원 알약

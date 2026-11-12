@@ -8,6 +8,7 @@
 ---
 
 ## ⚠️ 다음 세션 시작 시
+- **(2026-11-12) 알림 drawer·토스트·전송 찰떡화 — 마감**(사용자 "확인했어"), `feat/notice-chaltteok` 커밋·master `--no-ff` 머지 → `history/design-chaltteok.md` "11-12" · `REF-design-chaltteok.md` 표. 프론트만 바뀜(web만 교체). 확인용 5051·8011 = 마감 때 Claude가 끔. 개발 DB에 계정 `ntc-*` 4개 남음
 - **(2026-11-12) 계정 빌드 — test3·집 서버 교체 끝**(사용자가 교체, Claude 확인): test3(8013) = `build/261112-account`(되돌림 = `261111-column-flow`, `nexus_build` `00021`) · 집 서버 = 묶음 `build/home-update/261112-account` 배포(배포 전 확인 SAFE), 공개 `index-Ca04n1MO.js`(nexus·direct) · 둘 다 전원 재로그인. rollback엔 DB 복원 필요 → `REF-home-deploy-updater.md` "11-12 계정 묶음"
 - **(2026-11-12) 파트(계정) — 마감**(사용자 test1 화면 확인 "확인했어"), `feat/account` 커밋·master `--no-ff` 머지. 개발 DB `nexus` 마이그레이션 `00021`까지(11-12 test1 확인 때 적용). **test3·집 서버 배포 전**: 전원 재로그인 + 집 서버 아이디 빌 계정 먼저 조회 → `REF-account.md` "배포 때". test1·test2는 확인 뒤 끔
 - **(2026-11-12) 푸터 배지 잘림 — 수정·커밋·master `--no-ff` 머지**(사용자 "머지커밋") — `fix/footer-badge`. 원인 = 푸터 오른쪽 알약 `overflow: hidden`, `styles/global.scss` `.foot-badge`로 배지를 작게 해 아이콘에 겹침(알림 + 전송) → `history/board-chrome.md` "11-12"

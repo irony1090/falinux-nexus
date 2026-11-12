@@ -26,7 +26,7 @@ const onClick = (t: NoticeToast) => {
                 <div v-for="it in t.items.slice(0, 3)" :key="it.id" class="line">{{ it.text }}</div>
             </template>
         </div>
-        <button class="x" title="닫기" @click.stop="dismiss(t.id)"><v-icon size="14" icon="mdi-close" /></button>
+        <button class="ct-seg ct-seg--icon toast-x" title="닫기" @click.stop="dismiss(t.id)"><v-icon size="14" icon="mdi-close" /></button>
     </div>
 </div>
 </template>
@@ -49,8 +49,9 @@ const onClick = (t: NoticeToast) => {
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: start;
     gap: vars.$spacing-xs;
-    padding: vars.$spacing-sm vars.$spacing-md;
+    padding: vars.$spacing-sm 0 vars.$spacing-sm vars.$spacing-md;
     border-radius: 8px;
+    overflow: hidden;   // 닫기 끝 블록의 모서리 곡선을 토스트가 자른다
     background: rgb(var(--v-theme-surface));
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
@@ -65,5 +66,11 @@ const onClick = (t: NoticeToast) => {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.x { opacity: 0.6; }
+// 찰떡 — 오른쪽 위 모서리에 붙는 끝 블록(REF-design-chaltteok.md)
+.toast-x {
+    height: 28px;
+    margin: calc(-1 * vars.$spacing-sm) 0 0 vars.$spacing-xs;
+    padding: 0 8px 0 11px;
+    border-radius: 999px 0 0 999px;
+}
 </style>

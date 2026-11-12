@@ -36,13 +36,13 @@ const icon = computed(() => running.value ? 'mdi-swap-vertical-bold' : 'mdi-swap
     width: min(360px, calc(100vw - 32px));
     max-height: 50vh;
     overflow: auto;
-    padding: vars.$spacing-sm vars.$spacing-md;
+    padding: vars.$spacing-sm 0 vars.$spacing-sm vars.$spacing-md;   // 오른쪽 0 = 행 상태 묶음이 벽에 붙음
     background: rgb(var(--v-theme-surface));
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     border-radius: 8px;
 }
 .head {
-    padding-bottom: 4px;
+    padding: 0 vars.$spacing-md 4px 0;
     @include vars.font('body-small');
     font-weight: vars.$weight-md;
     opacity: 0.7;

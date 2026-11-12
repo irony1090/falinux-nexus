@@ -15,12 +15,16 @@ const props = defineProps({
     showDest: Boolean,
 })
 
+// 상태 칸 색 — 완료는 글자색만(바탕 기본), 중단됨은 줄 전체를 흐리게(.aborted)
+const ST_CLS: Partial<Record<TransferInfo['state'], string>> = { running: 'ct-seg--accent', done: 'ct-seg--ok', failed: 'ct-seg--error' };
+
 const { abort } = useTransfers();
 const t = computed(() => props.item);
 const running = computed(() => t.value.state === 'running');
 const pct = computed(() => transferPercent(t.value));
 // 크기를 모르면(zip) 옮긴 양만
 const sizeLabel = computed(() => t.value.size < 0 ? sizeText(t.value.done) : sizeText(t.value.size));
+const stCls = computed(() => ST_CLS[t.value.state] ?? '');
 const dest = computed(() => t.value.fromKey ? `${t.value.fromKey} → ${t.value.instanceKey} : ${t.value.dir}` : `${t.value.instanceKey} : ${t.value.dir}`);
 </script>
 
@@ -29,9 +33,11 @@ const dest = computed(() => t.value.fromKey ? `${t.value.fromKey} → ${t.value.
     <div class="line">
         <v-icon size="13" :icon="KIND_ICON[t.kind]" class="kind" />
         <span class="nm" :title="t.fromPath ?? `${t.dir} / ${t.name}`">{{ t.name }}</span>
-        <span class="st" :title="t.reason">{{ transferLabel(t) }}{{ running && pct !== undefined ? ` ${pct}%` : '' }}</span>
         <span class="size">{{ sizeLabel }}</span>
-        <button v-if="running" class="x" title="중단" @click.stop="abort(t.id)"><v-icon size="13" icon="mdi-close" /></button>
+        <span class="ct-grp ct-grp--r ct-grp--sm">
+            <span class="ct-seg" :class="stCls" :title="t.reason">{{ transferLabel(t) }}{{ running && pct !== undefined ? ` ${pct}%` : '' }}</span>
+            <button v-if="running" class="ct-seg ct-seg--accent ct-seg--icon" title="중단" @click.stop="abort(t.id)"><v-icon size="13" icon="mdi-close" /></button>
+        </span>
     </div>
     <div v-if="showDest" class="dest" :title="dest">{{ dest }}</div>
     <v-progress-linear v-if="running" :model-value="pct" :indeterminate="pct === undefined" height="2" :color="transferColor(t)" />
@@ -42,17 +48,10 @@ const dest = computed(() => t.value.fromKey ? `${t.value.fromKey} → ${t.value.
 .TransferRow {
     padding: 3px 0;
     @include vars.font('body-small');
-    button {
-        padding: 0;
-        border: 0;
-        background: none;
-        color: inherit;
-        cursor: pointer;
-    }
 }
 .line {
     display: grid;
-    grid-template-columns: 14px minmax(0, 1fr) auto auto 14px;
+    grid-template-columns: 14px minmax(0, 1fr) auto auto;   // 상태 묶음 = 부모 오른쪽 벽에 붙음(부모 오른쪽 패딩 0)
     align-items: center;
     gap: 6px;
 }
@@ -63,18 +62,14 @@ const dest = computed(() => t.value.fromKey ? `${t.value.fromKey} → ${t.value.
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.st { white-space: nowrap; opacity: 0.8; }
 .size { font-family: monospace; @include vars.font('label-small'); opacity: 0.6; }
-.x { display: inline-flex; opacity: 0.7; }
 .dest {
-    padding-left: 20px;
+    padding: 0 vars.$spacing-md 0 20px;
     @include vars.font('label-small');
     opacity: 0.55;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.done .st { color: rgb(var(--v-theme-success)); }
-.failed .st { color: rgb(var(--v-theme-error)); }
 .aborted { opacity: 0.6; }
 </style>

@@ -29,3 +29,10 @@
 - 확인: headless 스크린샷(공용 = 3줄 122px, 빌드·Files = 한 줄 + `...`), 툴팁 마우스·터치 둘 다, `scripts/check/run.sh` 전부 통과
 - 이어서(사용자): 안내 글이 따로 한 줄이면 `...` 대신 줄바꿈 = 두 줄-1(버튼 옆일 땐 `...` + 툴팁 유지). 두 줄-2(안 들어가면 항상 위 줄 + 줄바꿈)는 빌드 1×1 높이가 빠듯해져 안 함. 판정 = `MbNote`가 `.mb-end` 위치로(ResizeObserver). 함정: `.mb-note` 기본 규칙이 파일 뒤쪽이라 `padding`이 덮음 -> `.mb-note.mb-note--wrap`로 올림. `run.sh` 전부 통과
 - 이어서: 벽에 붙은 입력칸 두 줄 선(칸 오른쪽 선 + 타일 테두리) — 처음에 "벽 밖으로 잘림"이라 잘못 보고했다가 확대해 정정, 사용자가 위치를 못 알아봐 표시 그림으로 다시 설명. 범위 = 벽-2(updater 설명·메모 + 관리 장비 `주인`). `ct-field.scss`에서 `.v-field__outline__end` 오른쪽 선 0. 측정 = 네 칸 0px·`API 키` 1px 유지, `run.sh` 통과
+
+## 2026-11-12 — 알림 drawer·토스트·전송 찰떡화 (`feat/notice-chaltteok`)
+- 요청(사용자): 알림 drawer를 찰떡 스타일로 → 시안 https://claude.ai/artifact/LsTpTHAP9cS7bTYNXo2hvi (drawer 전/후·2배 확대·토스트·전송 팝업) → "바꾸는김에 다 바꾸는게 좋지" = 네 곳 전부(장비 타일 전송 막대 포함), 코드 = Claude, 완료 칸 = 글자색만(바탕 칠하지 않음)
+- 구현: `NoticeCenter.vue`(비우기 끝 블록·시각 왼쪽 벽 라벨) · `NoticeToasts.vue`(닫기 = 오른쪽 위 모서리 끝 블록) · `TransferRow.vue`(상태 + ✕ = `.ct-grp--r` 한 묶음, 칸 클래스 표 `ST_CLS`) · `TransferButton.vue`·`DeviceTileBody.vue` 상자 오른쪽 패딩 0 · `jelly.scss` `.toast-x` 기준점
+- 덤으로 고침: drawer 행 `<button>`에 브라우저 기본 버튼 바탕(#efefef)·outset 테두리가 남아 있던 것(원래부터) — `background: none; border: 0`
+- 확인: 타입 검사 통과, headless(5051 + vite 8011, 알림 = store 모듈에 직접 push, 전송 = `/api/transfers` 응답을 가짜로) 토스트·drawer·전송 팝업 스크린샷. 장비 타일 전송 막대는 headless로 못 봄(worker·장비 타일 필요)
+- 이어서(사용자 "비우기 버튼 오른쪽이 라운드 졌는데?"): `.tile-btn-end` 기본이 양끝 반원이라 머리 줄에 `.tile-btn-row-end`가 필요했음 — 추가, 4배 확대 스크린샷으로 오른쪽 곧음 확인. 첫 확인 때 스크린샷 오른쪽 끝을 확대해 보지 않아 놓침
