@@ -27,3 +27,6 @@
 
 ## 2026-11-12 계정 묶음
 - 사용자 "test3용 빌드 + 집 서버 updater 빌드 파일" -> 태그 `ACCOUNT-261112` · `build/261112-account`(+ `swap.sh`, 되돌림 = `261111-column-flow`) · `build/261112-account_win` · 묶음 `build/home-update/261112-account`(65개) + 배포 전 확인 SQL `261112-account-check.sql` → `REF-home-deploy-updater.md` "11-12 계정 묶음"
+- test3 교체(사용자 swap.sh) 확인: 8013 = `261112-account`, `nexus_build` 마이그레이션 `00021`, 아이디 빈 계정 0/9, `/api/users/sessions` 401, rollback.log 없음
+- 집 서버 배포 전 확인(사용자가 `C:\Nexus`에서 `261112-account-check.ps1` 실행): users=1, 아이디 빌 계정 0 -> `RESULT: SAFE`. 배포 대기
+- 사용자 집 서버 배포 -> Claude 확인: nexus·direct 공개 `index-Ca04n1MO.js`, `/api/users/sessions` 401, 옛 js `text/html`
