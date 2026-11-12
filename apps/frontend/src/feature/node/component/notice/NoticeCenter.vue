@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { watch } from 'vue';
-import { VBtn, VNavigationDrawer } from 'vuetify/components';
+import { VNavigationDrawer } from 'vuetify/components';
 import { useNoticeGo, useTileNoticeFeed } from '../../hook/tileNotice.hook';
 import { useTileNotices, type NoticeItem } from '../../store/tileNotice.store';
 import NoticeToasts from './NoticeToasts.vue';
@@ -21,13 +21,13 @@ const onItem = (it: NoticeItem) => {
 
 <template>
 <v-navigation-drawer v-model="open" location="end" temporary width="320">
-    <div class="head">
-        <span>위치 알림</span>
-        <v-btn size="x-small" variant="text" :disabled="!history.length" @click="clear">비우기</v-btn>
+    <div class="head tile-btn-row-end">
+        <span class="ttl">위치 알림</span>
+        <div class="tile-btn-end"><button class="tile-btn tile-btn--text" :disabled="!history.length" @click="clear">비우기</button></div>
     </div>
     <p v-if="!history.length" class="empty">알림이 없습니다. 새로고침하면 비워집니다.</p>
     <button v-for="it in history" :key="it.id" class="item" @click="onItem(it)">
-        <span class="time">{{ timeText(it.at) }}</span>
+        <span class="ct-grp ct-grp--l ct-grp--sm"><span class="ct-seg ct-seg--txt time">{{ timeText(it.at) }}</span></span>
         <span class="text">{{ it.text }}</span>
     </button>
 </v-navigation-drawer>
@@ -35,26 +35,32 @@ const onItem = (it: NoticeItem) => {
 </template>
 
 <style scoped lang="scss">
+// 찰떡 — 비우기 = 오른쪽 벽 끝 블록, 시각 = 왼쪽 벽 라벨(REF-design-chaltteok.md)
 .head {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: vars.$spacing-sm vars.$spacing-md;
-    font-weight: vars.$weight-lg;
+    align-items: stretch;
+    height: 40px;
+    padding-left: vars.$spacing-lg;
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
+.ttl { flex: 1 1 auto; align-self: center; font-weight: vars.$weight-lg; }
 .empty { margin: vars.$spacing-md; opacity: 0.6; @include vars.font('body-medium'); }
 .item {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
-    gap: vars.$spacing-sm;
+    align-items: start;
+    gap: vars.$spacing-md;
     width: 100%;
     text-align: left;
-    padding: vars.$spacing-sm vars.$spacing-md;
+    padding: 6px vars.$spacing-md 6px 0;
     @include vars.font('body-medium');
+    color: inherit;
+    background: none;   // 브라우저 기본 버튼 바탕·테두리 지움
+    border: 0;
     border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
     &:hover { background: rgba(var(--v-theme-on-surface), 0.04); }
 }
-.time { opacity: 0.6; font-family: monospace; }
-.text { min-width: 0; }
+.item > .ct-grp { align-self: start; }
+.time { font-family: monospace; }
+.text { min-width: 0; padding-top: 2px; }
 </style>

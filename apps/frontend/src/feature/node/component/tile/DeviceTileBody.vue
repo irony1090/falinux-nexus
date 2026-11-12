@@ -543,7 +543,7 @@ watch(lastDone, d => {
 .xfer {
     position: sticky;
     bottom: var(--tile-bar-bottom, 0px);    // 아래 위치 메뉴 줄 바로 위(TileScroll)
-    padding: 2px vars.$spacing-md;
+    padding: 2px 0 2px vars.$spacing-md;    // 오른쪽 0 = 전송 상태 묶음이 타일 벽에 붙음
     background: rgb(var(--v-theme-surface));
     border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
 }
