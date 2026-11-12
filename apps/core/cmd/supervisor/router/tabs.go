@@ -21,6 +21,7 @@ const (
 
 type browserTab struct {
 	sid         string
+	login       string // 로그인 세션 id(쿠키 _nonce) — 세션을 끊을 때·접속 중 표시(loginSessions.go)
 	userID      int64
 	tabID       string
 	connectedAt time.Time // 처음 연결된 시각(같은 id로 다시 붙어도 유지) — 크기 우선권 다음 후보 순서
@@ -54,7 +55,7 @@ func newTabRegistry() *tabRegistry {
 
 // attach는 conn을 탭으로 등록한다. want가 같은 sid의 끊긴 탭 id면 재사용, 아니면 새로 발급한다
 // (탭 복제·세션 복원으로 sessionStorage가 복사돼 같은 id가 동시에 오는 경우 = 지금 쓰는 소켓이 있으니 새로 발급).
-func (t *tabRegistry) attach(conn *transport.Conn, sid string, userID int64, want, userAgent, nickname string) (browserTab, error) {
+func (t *tabRegistry) attach(conn *transport.Conn, sid, login string, userID int64, want, userAgent, nickname string) (browserTab, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -74,7 +75,7 @@ func (t *tabRegistry) attach(conn *transport.Conn, sid string, userID int64, wan
 	if err != nil {
 		return browserTab{}, err
 	}
-	tab := browserTab{sid: sid, userID: userID, tabID: id, connectedAt: time.Now(), userAgent: userAgent, nickname: nickname}
+	tab := browserTab{sid: sid, login: login, userID: userID, tabID: id, connectedAt: time.Now(), userAgent: userAgent, nickname: nickname}
 	t.conns[conn] = &tab
 	t.byTab[id] = conn
 	return tab, nil
@@ -185,6 +186,36 @@ func (t *tabRegistry) connsOfUser(userID int64) []*transport.Conn {
 		}
 	}
 	return conns
+}
+
+// connsOfLogins는 그 로그인 세션들의 연결된 소켓을 반환한다.
+func (t *tabRegistry) connsOfLogins(ids []string) []*transport.Conn {
+	set := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		set[id] = true
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	var conns []*transport.Conn
+	for conn, tab := range t.conns {
+		if set[tab.login] {
+			conns = append(conns, conn)
+		}
+	}
+	return conns
+}
+
+// onlineLogins는 계정의 연결된 탭이 있는 로그인 세션 id 모음이다.
+func (t *tabRegistry) onlineLogins(userID int64) map[string]bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	out := map[string]bool{}
+	for _, tab := range t.conns {
+		if tab.userID == userID {
+			out[tab.login] = true
+		}
+	}
+	return out
 }
 
 // tabsOfUser는 계정의 연결된 탭을 먼저 연결된 순서로 반환한다.

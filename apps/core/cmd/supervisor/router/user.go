@@ -17,15 +17,22 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const sessionNonceKey = "_nonce" // 로그인마다 새 값 → sid(쿠키 원본값)가 로그인마다 달라짐
+const sessionNonceKey = "_nonce" // 로그인마다 새 값 → sid(쿠키 원본값)가 로그인마다 달라짐 + user_sessions 행 id(loginSessions.go)
+
+// sessionLogin: 쿠키의 로그인 세션 id(옛 쿠키면 "")
+func sessionLogin(sess *session.SessionElement[superdb.User]) string {
+	id, _ := sess.Session.Values[sessionNonceKey].(string)
+	return id
+}
 
 // 구 PortBridge cmd/agent_v2 user 핸들러를 이식. echo 기본 핸들러(func(c) error)를 따르되
 // 에러는 panic(web.Err(...))로 던져 PanicMiddleware가 JSON으로 응답하고,
 // 트랜잭션은 txMiddleware가 깐 TxQueries(c)로 꺼낸다(롤백은 미들웨어 recover가 처리).
 
-// 닉네임 = 아이디(회원-Q12(닉네임)) — nickname 컬럼 VARCHAR(64)에 맞춰 아이디도 64자까지
+// 아이디·닉네임 분리(아이디-2(가입 분리)), 모양 검사 = loginIDProblem·nicknameProblem(account.go)
 type userCreateRequest struct {
-	Identification string `json:"identification" validate:"required,max=64"`
+	Identification string `json:"identification"`
+	Nickname       string `json:"nickname"`
 	Password       string `json:"password" validate:"required"`
 }
 
@@ -65,7 +72,7 @@ func newUserResponse(u superdb.User) userResponse {
 	return r
 }
 
-// toHash는 식별자를 sha256 hex로 변환한다(구 PortBridge와 동일 — 저장·조회 모두 해시). 비밀번호는 옛 계정 대조에만
+// toHash: sha256 hex — 옛 비밀번호 대조·장비 키(deviceKey.go)에만. 아이디는 평문(아이디-1(평문 이전))
 func toHash(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return fmt.Sprintf("%x", h)
@@ -98,6 +105,9 @@ func (router *supervisorRouter) requireSession(c echo.Context) *session.SessionE
 	if router.blocked.has(sess.Data.ID) { // 쿠키는 정지·삭제 전에 받은 것일 수 있다 — 회원-Q21
 		panic(web.Err(401, "사용할 수 없는 계정입니다"))
 	}
+	if !router.logins.valid(sessionLogin(sess), sess.Data.ID) { // 세션 행이 지워짐(다른 기기에서 로그아웃 등)·옛 쿠키
+		panic(web.Err(401, "로그인 절차가 필요합니다"))
+	}
 	return sess
 }
 
@@ -129,6 +139,7 @@ func (router *supervisorRouter) mountUsers(e *echo.Group) {
 	g.GET("/session", router.checkSession)
 	g.DELETE("/session", router.signOut)
 	g.GET("/lookup", router.lookupUser)
+	router.mountAccount(g) // account.go
 }
 
 // userLookupResponse: 공유 대상 조회 결과 — 닉네임 + 내부 id만(SH4(공유 대상 찾기))
@@ -137,14 +148,14 @@ type userLookupResponse struct {
 	Nickname string `json:"nickname"`
 }
 
-// lookupUser는 아이디(?identification=)가 정확히 일치하는 계정을 찾는다. 없으면 404, 자기 자신이면 400(SH4(공유 대상 찾기)).
+// lookupUser는 아이디(?identification=, 대소문자 무시)가 일치하는 계정을 찾는다. 없으면 404, 자기 자신이면 400(SH4(공유 대상 찾기)).
 func (router *supervisorRouter) lookupUser(c echo.Context) error {
 	sess := router.requireSession(c)
 	ident := c.QueryParam("identification")
 	if ident == "" {
 		panic(web.Err(400, "아이디를 입력하세요"))
 	}
-	user, err := TxQueries(c).GetUserByIdentification(c.Request().Context(), toHash(ident))
+	user, err := TxQueries(c).GetUserByIdentification(c.Request().Context(), strings.TrimSpace(ident))
 	if err != nil {
 		panic(web.Err(404, "계정을 찾을 수 없습니다"))
 	}
@@ -164,17 +175,17 @@ func (router *supervisorRouter) createUser(c echo.Context) error {
 		panic(web.Err(400, "%v", err))
 	}
 
+	ident := requireLoginID(body.Identification)
+	nick := requireNickname(body.Nickname)
 	q := TxQueries(c)
 	ctx := c.Request().Context()
-	idHash := toHash(body.Identification)
 
 	// 순서 의존: 잠금 -> 회원 수 -> INSERT 를 한 트랜잭션에서. 잠금이 없으면 동시 첫 가입 둘 다 관리자가 된다 — 회원-Q5(관리자 판정)
 	if err := q.LockUserCreate(ctx); err != nil {
 		panic(web.Err(500, "%v", err))
 	}
-	if _, err := q.GetUserByIdentification(ctx, idHash); err == nil {
-		panic(web.Err(400, "가입할 수 없는 ID입니다"))
-	}
+	requireFreeLoginID(c, ident)
+	requireFreeNickname(c, nick)
 	count, err := q.CountUsers(ctx)
 	if err != nil {
 		panic(web.Err(500, "%v", err))
@@ -185,13 +196,13 @@ func (router *supervisorRouter) createUser(c echo.Context) error {
 	}
 
 	user, err := q.CreateUser(ctx, superdb.CreateUserParams{
-		Identification: idHash,
+		Identification: ident,
 		Password:       hashPassword(body.Password),
-		Nickname:       body.Identification,
+		Nickname:       nick,
 		Perms:          perms,
 	})
 	if err != nil {
-		panic(web.Err(500, "%v", err)) // PanicMiddleware가 500 + txMiddleware가 롤백
+		panic(dbWriteErr(err)) // PanicMiddleware가 응답 + txMiddleware가 롤백
 	}
 
 	return c.JSON(200, newUserResponse(user))
@@ -210,7 +221,7 @@ func (router *supervisorRouter) signIn(c echo.Context) error {
 	q := TxQueries(c)
 	ctx := c.Request().Context()
 
-	user, err := q.GetUserByIdentification(ctx, toHash(body.Identification))
+	user, err := q.GetUserByIdentification(ctx, strings.TrimSpace(body.Identification))
 	ok, legacy := false, false
 	if err == nil {
 		ok, legacy = checkPassword(user.Password, body.Password)
@@ -237,6 +248,13 @@ func (router *supervisorRouter) signIn(c echo.Context) error {
 	sess.Data = &user
 	// 재발 방지: 쿠키 = date(초)|세션 값|mac 이라 같은 계정이 같은 초에 로그인하면 sid가 같아짐 — REF-process-sync-impl.md "발견"
 	sess.Session.Values[sessionNonceKey] = nonce
+	if err := q.CreateUserSession(ctx, superdb.CreateUserSessionParams{ID: nonce, UserID: user.ID, UserAgent: c.Request().UserAgent()}); err != nil {
+		panic(web.Err(500, "%v", err))
+	}
+	// 순서 의존: 메모리 등록은 커밋을 기다리지 않는다. 응답(쿠키)은 커밋 전에 나가므로
+	// AfterCommit으로 미루면 브라우저의 바로 다음 요청(GET /users/session)이 등록 전에 와서 401이 난다.
+	// 롤백되면 메모리에만 남지만 그 쿠키는 재시작 때 무효가 된다.
+	router.logins.add(nonce, user.ID)
 	if err := sess.Save(); err != nil {
 		panic(web.Err(500, "%v", err))
 	}
@@ -258,11 +276,17 @@ func (router *supervisorRouter) checkSession(c echo.Context) error {
 	return c.JSON(200, newUserResponse(user))
 }
 
-// signOut은 세션 쿠키를 만료시킨다. 로그인 상태였으면 그 세션 탭들의 크기 소유권을 먼저 넘긴다.
+// signOut은 세션 쿠키를 만료시키고 세션 행을 지운다. 로그인 상태였으면 그 세션 탭들의 크기 소유권을 먼저 넘긴다.
 func (router *supervisorRouter) signOut(c echo.Context) error {
 	sess := router.sessions.GetSession(c.Request(), c.Response())
 	if sess.Data != nil && sess.Data.ID != 0 && !sess.Session.IsNew {
 		router.sizeOwnerOnSignOut(sess.Name())
+		if login := sessionLogin(sess); login != "" {
+			if _, err := TxQueries(c).DeleteUserSession(c.Request().Context(), superdb.DeleteUserSessionParams{ID: login, UserID: sess.Data.ID}); err != nil {
+				panic(web.Err(500, "%v", err))
+			}
+			AfterCommit(c, func() { router.endLogins(login) }) // 같은 브라우저의 다른 탭도 로그아웃
+		}
 	}
 	sess.Session.Options.MaxAge = -1
 	if err := sess.Save(); err != nil {

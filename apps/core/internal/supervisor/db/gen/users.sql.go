@@ -127,9 +127,10 @@ func (q *Queries) GetUser(ctx context.Context, id int64) (User, error) {
 }
 
 const getUserByIdentification = `-- name: GetUserByIdentification :one
-SELECT id, identification, password, nickname, created_at, updated_at, perms, worker_limit, suspended_at FROM users WHERE identification = $1
+SELECT id, identification, password, nickname, created_at, updated_at, perms, worker_limit, suspended_at FROM users WHERE identification <> '' AND lower(identification) = lower($1::text)
 `
 
+// 대소문자 무시, ” = 아이디 없음은 찾지 않음
 func (q *Queries) GetUserByIdentification(ctx context.Context, identification string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserByIdentification, identification)
 	var i User
@@ -145,6 +146,18 @@ func (q *Queries) GetUserByIdentification(ctx context.Context, identification st
 		&i.SuspendedAt,
 	)
 	return i, err
+}
+
+const identificationTaken = `-- name: IdentificationTaken :one
+SELECT EXISTS (SELECT 1 FROM users WHERE identification <> '' AND lower(identification) = lower($1::text))
+`
+
+// 대소문자 무시(uq_users_identification과 같은 기준)
+func (q *Queries) IdentificationTaken(ctx context.Context, identification string) (bool, error) {
+	row := q.db.QueryRow(ctx, identificationTaken, identification)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const listSuspendedUserIDs = `-- name: ListSuspendedUserIDs :many
@@ -201,20 +214,21 @@ func (q *Queries) ListUserNicknames(ctx context.Context, ids []int64) ([]ListUse
 }
 
 const listUsersWithDevices = `-- name: ListUsersWithDevices :many
-SELECT u.id, u.nickname, u.perms, u.worker_limit, u.created_at, u.suspended_at,
+SELECT u.id, u.identification, u.nickname, u.perms, u.worker_limit, u.created_at, u.suspended_at,
        (SELECT COUNT(*) FROM devices d WHERE d.owner_user_id = u.id)::int AS device_count
 FROM users u
 ORDER BY u.id
 `
 
 type ListUsersWithDevicesRow struct {
-	ID          int64
-	Nickname    string
-	Perms       []string
-	WorkerLimit int32
-	CreatedAt   pgtype.Timestamptz
-	SuspendedAt pgtype.Timestamptz
-	DeviceCount int32
+	ID             int64
+	Identification string
+	Nickname       string
+	Perms          []string
+	WorkerLimit    int32
+	CreatedAt      pgtype.Timestamptz
+	SuspendedAt    pgtype.Timestamptz
+	DeviceCount    int32
 }
 
 // 관리자 페이지 — 회원과 등록한 장비 이름 수
@@ -229,6 +243,7 @@ func (q *Queries) ListUsersWithDevices(ctx context.Context) ([]ListUsersWithDevi
 		var i ListUsersWithDevicesRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Identification,
 			&i.Nickname,
 			&i.Perms,
 			&i.WorkerLimit,
@@ -254,6 +269,17 @@ SELECT pg_advisory_xact_lock(hashtext('users_create'))
 func (q *Queries) LockUserCreate(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, lockUserCreate)
 	return err
+}
+
+const nicknameTaken = `-- name: NicknameTaken :one
+SELECT EXISTS (SELECT 1 FROM users WHERE lower(nickname) = lower($1::text))
+`
+
+func (q *Queries) NicknameTaken(ctx context.Context, nickname string) (bool, error) {
+	row := q.db.QueryRow(ctx, nicknameTaken, nickname)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const reassignNodeCreatedBy = `-- name: ReassignNodeCreatedBy :exec
@@ -294,6 +320,20 @@ func (q *Queries) SetUserSuspended(ctx context.Context, arg SetUserSuspendedPara
 	return i, err
 }
 
+const updateUserIdentification = `-- name: UpdateUserIdentification :exec
+UPDATE users SET identification = $2, updated_at = NOW() WHERE id = $1
+`
+
+type UpdateUserIdentificationParams struct {
+	ID             int64
+	Identification string
+}
+
+func (q *Queries) UpdateUserIdentification(ctx context.Context, arg UpdateUserIdentificationParams) error {
+	_, err := q.db.Exec(ctx, updateUserIdentification, arg.ID, arg.Identification)
+	return err
+}
+
 const updateUserMember = `-- name: UpdateUserMember :one
 UPDATE users SET worker_limit = $2, perms = $3::text[], updated_at = NOW()
 WHERE id = $1
@@ -324,6 +364,20 @@ func (q *Queries) UpdateUserMember(ctx context.Context, arg UpdateUserMemberPara
 	return i, err
 }
 
+const updateUserNickname = `-- name: UpdateUserNickname :exec
+UPDATE users SET nickname = $2, updated_at = NOW() WHERE id = $1
+`
+
+type UpdateUserNicknameParams struct {
+	ID       int64
+	Nickname string
+}
+
+func (q *Queries) UpdateUserNickname(ctx context.Context, arg UpdateUserNicknameParams) error {
+	_, err := q.db.Exec(ctx, updateUserNickname, arg.ID, arg.Nickname)
+	return err
+}
+
 const updateUserPassword = `-- name: UpdateUserPassword :exec
 UPDATE users SET password = $2 WHERE id = $1
 `
@@ -333,7 +387,7 @@ type UpdateUserPasswordParams struct {
 	Password string
 }
 
-// 옛 sha256 -> bcrypt 다시 저장(회원-Q9(bcrypt 전환))
+// 옛 sha256 -> bcrypt 다시 저장(회원-Q9(bcrypt 전환)) · 비밀번호 변경·재설정(세션-4(비밀번호 API))
 func (q *Queries) UpdateUserPassword(ctx context.Context, arg UpdateUserPasswordParams) error {
 	_, err := q.db.Exec(ctx, updateUserPassword, arg.ID, arg.Password)
 	return err

@@ -48,7 +48,7 @@ func (r *supervisorRouter) emitTab(tabID string, kind protocol.MsgType, payload 
 func (r *supervisorRouter) handleSubscribeWS(c echo.Context) error {
 	req, res := c.Request(), c.Response()
 	sess := r.requireSession(c)
-	sid, userID := sess.Name(), sess.Data.ID
+	sid, login, userID := sess.Name(), sessionLogin(sess), sess.Data.ID
 	ws, err := upgrader.Upgrade(res, req, nil)
 	if err != nil {
 		log.Printf("supervisor: upgrade 실패 %v", err)
@@ -58,7 +58,11 @@ func (r *supervisorRouter) handleSubscribeWS(c echo.Context) error {
 	transport.KeepAlive(ws)
 	conn := transport.New(ws)
 
-	tab, err := r.tabs.attach(conn, sid, userID, c.QueryParam("tabId"), req.UserAgent(), sess.Data.Nickname)
+	nickname := sess.Data.Nickname // 쿠키 값은 로그인 때 것 — 닉네임 변경 뒤를 위해 DB 값 우선
+	if u, err := store.GetStorePool().Queries().GetUser(req.Context(), userID); err == nil {
+		nickname = u.Nickname
+	}
+	tab, err := r.tabs.attach(conn, sid, login, userID, c.QueryParam("tabId"), req.UserAgent(), nickname)
 	if err != nil {
 		log.Printf("supervisor: 탭 id 발급 실패 %v", err)
 		conn.Close(err)

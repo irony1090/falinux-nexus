@@ -195,6 +195,14 @@ type User struct {
 	SuspendedAt    pgtype.Timestamptz
 }
 
+type UserSession struct {
+	ID         string
+	UserID     int64
+	UserAgent  string
+	CreatedAt  pgtype.Timestamptz
+	LastSeenAt pgtype.Timestamptz
+}
+
 type UserSetting struct {
 	UserID    int64
 	Key       string

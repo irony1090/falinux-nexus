@@ -117,7 +117,7 @@ const loading = computed(() => (usersTab.value ? usersQuery?.isPending.value : d
     </div>
 
     <div class="tools">
-        <CtTextField v-model="qInput" size="sm" type="search" prepend-inner-icon="mdi-magnify" hide-details :placeholder="usersTab ? '닉네임 검색' : admin ? '이름·주인·라벨 검색' : '이름·라벨 검색'" aria-label="검색" />
+        <CtTextField v-model="qInput" size="sm" type="search" prepend-inner-icon="mdi-magnify" hide-details :placeholder="usersTab ? '아이디·닉네임 검색' : admin ? '이름·주인·라벨 검색' : '이름·라벨 검색'" aria-label="검색" />
         <div class="mb-grp mb-grp--sm chips" role="group" aria-label="필터">
             <button v-for="c in chips" :key="c.key" type="button" class="mb-btn" :class="{ 'mb-btn--on': filter === c.key }"
                 :aria-pressed="filter === c.key" @click="pickFilter(c.key)"
@@ -137,7 +137,7 @@ const loading = computed(() => (usersTab.value ? usersQuery?.isPending.value : d
             <button v-for="u in (items as AdminUserResponse[])" :key="u.id" type="button" class="mb-row" :class="{ open: openKeys.has(userKey(u.id)) }" @click="open(userKey(u.id))">
                 <span class="txt">
                     <span class="main">{{ u.nickname }}</span>
-                    <span class="sub">장비 {{ u.deviceCount }} / {{ u.workerLimit }} · 가입 {{ dayText(u.createdAt) }}</span>
+                    <span class="sub">{{ u.identification || '아이디 없음' }} · 장비 {{ u.deviceCount }} / {{ u.workerLimit }} · 가입 {{ dayText(u.createdAt) }}</span>
                 </span>
                 <span class="tags">
                     <span v-for="t in userTags(u)" :key="t.text" class="mb-tag wall" :class="t.cls">{{ t.text }}</span>

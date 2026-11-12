@@ -559,6 +559,9 @@ type SettingsUpdateEvent struct {
 	Rev      int64                      `json:"rev"`
 }
 
+// 로그인 세션 끝남(모든 기기 로그아웃·기기별 로그아웃·비밀번호 변경) — 그 세션 소켓에만 보내고 바로 끊는다. 브라우저는 세션을 다시 확인 → REF-account.md 세션-2(기기 API)
+const MsgSessionEnd MsgType = "SESSION:END" // sup→browser EVENT: 빈 객체
+
 // 전송 목록 — USER:<userId> 토픽, 파트(파일 전송 확장) 폴더-8(전송 상태) (REF-transfer-ext.md)
 const (
 	MsgTransferUpdate MsgType = "TRANSFER:UPDATE" // sup→browser EVENT: TransferInfo(새로 생김·진행·끝 모두)

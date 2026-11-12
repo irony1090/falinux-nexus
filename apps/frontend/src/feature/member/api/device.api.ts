@@ -18,6 +18,7 @@ export type DeviceKeyResponse = { mainKey: string, apiKey: string }
 
 export type AdminUserResponse = {
     id: number
+    identification: string  // '' = 아이디 없음(로그인 불가, REF-account.md 아이디-1(평문 이전))
     nickname: string
     perms: string[]
     workerLimit: number
@@ -67,6 +68,14 @@ export const adminListUsers = (params: ListParams = {}) => BaseAxios.get('/admin
 export const adminGetUser = (id: number) => BaseAxios.get(`/admin/users/${id}`).then(throwThen<AdminUserResponse>).catch(throwCatch)
 
 export const adminPatchUser = (id: number, patch: AdminUserPatch) => BaseAxios.patch(`/admin/users/${id}`, patch)
+.then(throwThen<Empty>).catch(throwCatch)
+
+// 아이디·닉네임 수정(보낸 것만), 로그인 유지
+export const adminPatchAccount = (id: number, p: { identification?: string, nickname?: string }) => BaseAxios.patch(`/admin/users/${id}/account`, p)
+.then(throwThen<Empty>).catch(throwCatch)
+
+// 비밀번호 재설정 — 그 회원 기기 전부 로그아웃
+export const adminResetPassword = (id: number, password: string) => BaseAxios.put(`/admin/users/${id}/password`, { password })
 .then(throwThen<Empty>).catch(throwCatch)
 
 export const adminSuspendUser = (id: number, suspended: boolean) => BaseAxios.post(`/admin/users/${id}/suspend`, { suspended })

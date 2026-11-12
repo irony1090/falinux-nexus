@@ -1,4 +1,5 @@
 import { onUnauthorized, type CatchErrorResponse } from '@/common/api/api.util';
+import type { SocketContext } from '@/common/websocket/websocket.hook';
 import { clearUserPrefs } from '@/common/util/userPrefs.util';
 import { readonly, ref } from 'vue';
 import { checkSession, signIn, signOut, type UserResponse } from '../api/user.api';
@@ -66,11 +67,17 @@ const logout = () => {
     });
 }
 
+// 서버 값 다시 읽기(닉네임 변경 뒤 등)
+const refresh = () => confirm();
+
+// 서버가 이미 이 기기 세션을 끝냄(모든 기기 로그아웃·이 기기 로그아웃) — 요청 없이 로그아웃 상태로
+const ended = () => expire();
+
 const ctx = {
     auth: readonly(auth),
     offline: readonly(offline),
     loading: readonly(loading),
-    login, logout,
+    login, logout, refresh, ended,
 }
 
 export const authState = ctx.auth;
@@ -82,3 +89,8 @@ export const provideAuthStore = () => {
 }
 
 export const useAuthStore = () => ctx;
+
+// 앱 루트에서 한 번 — 다른 기기에서 이 세션을 끝내면 서버가 SESSION:END 뒤 소켓을 끊는다. 세션을 다시 확인해 401이면 로그아웃(REF-account.md 세션-2(기기 API))
+export const bindSessionEnd = (socket: SocketContext) => {
+    socket.on('SESSION:END', () => { void confirm(); });
+}

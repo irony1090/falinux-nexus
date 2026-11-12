@@ -18,9 +18,10 @@ type UserResponseDto = Replace<UserResponse, {
     updatedAt: number | null
 }>
 
-// 닉네임 = 아이디(서버가 채움) — 회원-Q12(닉네임)
+// 로그인 아이디 · 공개 닉네임 따로(아이디-2(가입 분리)), 둘 다 대소문자 무시 중복 금지
 export type CreateUserRequest = {
     identification: string
+    nickname: string
     password: string
 }
 
@@ -63,7 +64,7 @@ export const checkSession = () => BaseAxios.get(
 .then(toUserResponse)
 .catch(throwCatch)
 
-// DELETE /users/session — 로그아웃(쿠키 만료)
+// DELETE /users/session — 로그아웃(쿠키 만료 + 세션 행 삭제)
 export const signOut = () => BaseAxios.delete(
     '/users/session'
 ).then(throwThen<Record<string, never>>)

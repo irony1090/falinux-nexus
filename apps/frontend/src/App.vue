@@ -17,7 +17,7 @@ import AppDialog from '@/feature/layout/component/AppDialog.vue';
 import { provideAppNav } from '@/feature/layout/store/appNav.store';
 import { provideAppWindow } from '@/feature/layout/store/appWindown.store';
 import { provideAppDialog } from '@/feature/layout/store/appDialog.store';
-import { provideAuthStore } from '@/feature/user/store/auth.store';
+import { bindSessionEnd, provideAuthStore } from '@/feature/user/store/auth.store';
 import { provideTestSocket } from '@/common/websocket/websocket.hook';
 import { bindTabId } from '@/common/util/tabId.util';
 import { bindSocketWake } from '@/common/websocket/socketWake.util';
@@ -39,6 +39,7 @@ bindTabId(socket);
 bindSocketWake(socket);
 bindDeviceChanges(socket);
 bindAccountSettings(socket);
+bindSessionEnd(socket);
 // 로그인 중이면 어느 페이지든 소켓 연결 — 내 장비·관리자 페이지도 장비 상태 push를 받게(REF-device-push.md)
 watch(auth, val => val ? socket.connect() : socket.disconnect(), { immediate: true });
 

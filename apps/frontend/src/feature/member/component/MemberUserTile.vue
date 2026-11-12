@@ -13,6 +13,7 @@ import { useMemberBoard } from '../store/memberBoard.store';
 import { deviceKey, userIdOf, type MemberTile } from '../util/memberGrid.util';
 import { dayText, deviceState, deviceStateText } from '../util/member.util';
 import MbNote from './MbNote.vue';
+import MemberAccountDialog from './MemberAccountDialog.vue';
 
 // 회원 타일(관리자) — 상태·상한·권한 + 그 회원 장비 줄(누르면 장비 타일, 화-8(회원 -> 장비)) + 정지·삭제 — 회원-5(관리자 화면)
 const props = defineProps<{ tile: MemberTile }>();
@@ -36,6 +37,7 @@ const note = computed(() => me.value ? '자기 자신은 정지·삭제·관리�
 // 지워진 대상(404) = 타일을 닫는다 — 주소-5(없는 대상)
 watch(() => (userQuery.error.value as { status?: number } | null)?.status, st => { if (st === 404) dropMissing(props.tile.key); }, { immediate: true });
 
+const accountOpen = ref(false);   // 아이디·닉네임·비밀번호 수정 창(REF-account.md "관리자 계정 수정")
 const busy = ref(false);
 const message = ref<string>();
 const run = (job: () => Promise<unknown>, done?: () => void) => {
@@ -85,6 +87,9 @@ const remove = () => {
         <div class="mb-fields mb-fields--wall">
             <span class="mb-lbl">상태</span>
             <span class="mb-tag" :class="state.cls">{{ state.text }}</span>
+            <span class="mb-lbl">아이디</span>
+            <span v-if="u.identification" class="val">{{ u.identification }}</span>
+            <span v-else class="mb-tag mb-tag--error">없음 · 로그인 불가</span>
             <span class="mb-lbl">가입</span>
             <span class="val">{{ dayText(u.createdAt) }}</span>
             <span class="mb-lbl">장비 상한</span>
@@ -103,8 +108,13 @@ const remove = () => {
                 <button type="button" class="mb-btn" :class="{ 'mb-btn--on': isAdmin }" :aria-pressed="isAdmin" :disabled="busy || me" @click="!isAdmin && patch({ admin: true })">예</button>
                 <button type="button" class="mb-btn" :class="{ 'mb-btn--on': !isAdmin }" :aria-pressed="!isAdmin" :disabled="busy || me" @click="isAdmin && patch({ admin: false })">아니오</button>
             </div>
+            <span class="mb-lbl">계정</span>
+            <div class="mb-grp" role="group" aria-label="계정 수정">
+                <button type="button" class="mb-btn" :disabled="busy" @click="accountOpen = true">아이디·닉네임·비밀번호</button>
+            </div>
             <p v-if="message" class="mb-err full">{{ message }}</p>
         </div>
+        <member-account-dialog v-model="accountOpen" :user="u" :me="me" @saved="invalidateMember(queryClient)" />
         <h3 class="mb-sec">장비 {{ devices.length }}</h3>
         <button v-for="d in devices" :key="d.mainKey" type="button" class="mb-row" @click="open(deviceKey(d.mainKey), tile.key)">
             <span class="mb-dot" :class="deviceState(d.instances)" />
