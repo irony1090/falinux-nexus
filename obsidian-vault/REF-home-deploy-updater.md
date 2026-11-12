@@ -8,6 +8,13 @@
 - 근거: 집 서버 updater `UPDATER-FILES-261104`가 갈아치우기 지원 · 두 폴더 모두 updater 거절 조건에 안 걸림 · 단계 스크립트는 staging 사본으로 실행(`cmd/updater/job.go` `script`)이라 copy 중 `nexus-steps/`를 비워도 됨 · 지운 파일은 backup -> restore로 되돌아옴 · `web/`에 쌓인 옛 해시 assets 정리. 설계 → `REF-update-replace.md`
 - 주의: 두 폴더에 묶음에 없는 파일을 손으로 넣었다면 지워짐(백업은 남음, `*.old-*`는 남김)
 
+## 11-12 계정 묶음 (Claude가 만듦, 업로드·배포 = 사용자)
+- `build/home-update/261112-account/`(파일 65개): `build/261112-account_win`의 `supervisor.exe`(`SUPERVISOR-ACCOUNT-261112`)·`worker.exe`(`WORKER-ACCOUNT-261112`, 코드 변경 없음·묶음 규칙상 포함)·`web/`(`index-Ca04n1MO.js` = test3용 `build/261112-account`와 같음) + 261111 묶음의 `steps.json`(`replace` 이미 있음)·`nexus-steps/` 그대로(diff 같음). updater 제외
+- 내용 = 파트(계정)(`REF-account.md`) + 푸터 배지 잘림. **새 마이그레이션 `00020`(아이디 평문 이전)·`00021`(`user_sessions`)** — start 때 적용, **전원 한 번 재로그인**
+- **배포 전 확인**: `build/home-update/261112-account-check.sql`(묶음 밖, 읽기만)을 집 서버 DB에서 실행 -> 0행이면 안전. 관리자가 나오면 배포하지 말 것(아이디가 비어 아무도 못 고침)
+- **rollback 주의**: `00020`이 아이디를 평문으로 바꿔서 **파일 복원(rollback)만으로는 옛 빌드에서 로그인이 안 됨**(옛 코드는 입력을 해시해서 비교) -> 되돌리려면 `01-dbdump` 덤프로 DB도 복원
+- 배포 뒤 확인 = 공개 `index.html`이 `index-Ca04n1MO.js`를 가리키는지(nexus·direct) + `/api/users/sessions` = 401(새 API)
+
 ## 11-11 칼럼 흐름 묶음 (Claude가 만듦, 업로드·배포 = 사용자)
 - `build/home-update/261111-column-flow/`(파일 67개): `build/261111-column-flow_win`의 `supervisor.exe`(`SUPERVISOR-COLUMN-FLOW-261111`)·`worker.exe`(`WORKER-COLUMN-FLOW-261111`, 코드 변경 없음·묶음 규칙상 포함)·`web/`(`index-DYuchPlR.js` = test3용 빌드 `build/261111-column-flow`와 같음) + 261108 묶음의 `nexus-steps/` 그대로(diff 같음) + `steps.json`은 261108 것에 **`"replace": ["nexus-steps", "web"]`를 Claude가 넣음**(묶음 규칙: 갈아치우기 첫 적용). updater 제외
 - 내용 = 칼럼 흐름(`REF-column-flow.md`, 프론트만). 11-08 이후 Go 코드 변경 없음·새 마이그레이션 없음(`00019` 그대로) -> rollback DB 복원 불필요

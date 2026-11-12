@@ -70,4 +70,5 @@
 
 ### 배포 때
 - 마이그레이션 `00020`·`00021` → **배포하면 전원 재로그인**
-- **집 서버**: 배포 전에 `SELECT id, nickname FROM users WHERE identification <> ALL(ARRAY[...후보 해시...])` 식으로 아이디가 빌 계정 확인 — 관리자가 비면 아무도 못 고침(MEMORY "배포 전 필수"와 같이 묻기)
+- **집 서버**: 배포 전에 `build/home-update/261112-account-check.sql`로 아이디가 빌 계정 확인 — 관리자가 비면 아무도 못 고침(MEMORY "배포 전 필수"와 같이 묻기)
+- rollback = 파일 복원만으로는 옛 빌드 로그인 불가(아이디 평문화) → DB도 덤프로 복원
