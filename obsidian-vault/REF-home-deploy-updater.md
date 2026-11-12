@@ -12,6 +12,7 @@
 - `build/home-update/261112-notice/`(파일 63개): `web/`(`index-DjIbCsCR.js`, `build/261112-notice/web` = test3에 넣은 것과 같음) + 261112 계정 묶음의 `nexus-steps/` 그대로 + **web 전용 `steps.json`**(아래). **supervisor.exe·worker.exe 없음** — 사용자 "홈서버용 역시 web만"(11-12), 묶음 규칙 "worker 항상 포함"의 예외(그 규칙의 근거였던 옛 `update.ps1`과 달리 updater `copy`는 묶음에 있는 파일만 덮으므로 exe는 서버 것이 그대로 남음)
 - 내용 = 알림 drawer·토스트·전송 찰떡(`history/design-chaltteok.md` "11-12", 프론트만). Go 변경·새 마이그레이션 없음(`00021` 그대로) -> rollback DB 복원 불필요
 - **web 전용 단계(사용자 "web 파일만 교체되는데 supervisor를 재시작해?" → 바꿈)**: deploy = `backup` → `copy` → `prune`(stop·dbdump·start 뺌), rollback = `restore`만. 근거 = supervisor가 `web/`을 요청 때 디스크에서 읽음(`REF-build.md` "웹만 교체"), `updstore/steps.go`에 stop·start 필수 조건 없음(임시 테스트로 `Check` = 오류·경고 0). **집 서버에서 처음 쓰는 구성** — 배포 결과를 여기 적을 것. 다음에 web만 바꿀 때 이 `steps.json`을 승계
+- **결과(11-12)**: 사용자가 web 전용 단계로 배포 — 처음 쓴 구성, 문제 없음. 공개 `index.html` = `index-DjIbCsCR.js`(nexus·direct 둘 다) · 새 CSS `index-CT-pJBCN.css`에 `toast-x` 있음 · 직전 `index-Ca04n1MO.js` = `text/html`(갈아치우기 동작) · `/api/users/sessions` = 401(supervisor 응답 정상). Claude가 curl로 확인
 - 배포 뒤 확인 = 공개 `index.html`이 `index-DjIbCsCR.js`를 가리키는지(nexus·direct), 직전 `index-Ca04n1MO.js`는 `text/html`
 
 ## 11-12 계정 묶음 (Claude가 만듦, 업로드·배포 = 사용자)
