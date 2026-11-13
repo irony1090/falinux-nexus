@@ -8,6 +8,11 @@
 - 근거: 집 서버 updater `UPDATER-FILES-261104`가 갈아치우기 지원 · 두 폴더 모두 updater 거절 조건에 안 걸림 · 단계 스크립트는 staging 사본으로 실행(`cmd/updater/job.go` `script`)이라 copy 중 `nexus-steps/`를 비워도 됨 · 지운 파일은 backup -> restore로 되돌아옴 · `web/`에 쌓인 옛 해시 assets 정리. 설계 → `REF-update-replace.md`
 - 주의: 두 폴더에 묶음에 없는 파일을 손으로 넣었다면 지워짐(백업은 남음, `*.old-*`는 남김)
 
+## 11-13 로그인 자동완성 묶음 — web만 (Claude가 만듦, 업로드·배포 = 사용자)
+- `build/home-update/261113-login-autocomplete/`(파일 63개): `web/`(`index-C_I6HIQo.js`, `build/261113-login-autocomplete/web` = test3에 넣은 것과 같음) + 11-12 알림 찰떡 묶음의 `steps.json`(web 전용, `replace` 있음)·`nexus-steps/` 그대로(diff 같음). exe 없음 — 사용자 "web만"(11-13 선택)
+- 내용 = 로그인·가입·비밀번호 변경 칸 `autocomplete="off"`(`REF-account.md` "로그인 자동완성 끄기"). Go 변경·새 마이그레이션 없음(`00021` 그대로) -> rollback = restore만
+- 배포 뒤 확인 = 공개 `index.html`이 `index-C_I6HIQo.js`를 가리키는지(nexus·direct), 직전 `index-DjIbCsCR.js`는 `text/html`
+
 ## 11-12 알림 찰떡 묶음 — web만 (Claude가 만듦, 업로드·배포 = 사용자)
 - `build/home-update/261112-notice/`(파일 63개): `web/`(`index-DjIbCsCR.js`, `build/261112-notice/web` = test3에 넣은 것과 같음) + 261112 계정 묶음의 `nexus-steps/` 그대로 + **web 전용 `steps.json`**(아래). **supervisor.exe·worker.exe 없음** — 사용자 "홈서버용 역시 web만"(11-12), 묶음 규칙 "worker 항상 포함"의 예외(그 규칙의 근거였던 옛 `update.ps1`과 달리 updater `copy`는 묶음에 있는 파일만 덮으므로 exe는 서버 것이 그대로 남음)
 - 내용 = 알림 drawer·토스트·전송 찰떡(`history/design-chaltteok.md` "11-12", 프론트만). Go 변경·새 마이그레이션 없음(`00021` 그대로) -> rollback DB 복원 불필요
