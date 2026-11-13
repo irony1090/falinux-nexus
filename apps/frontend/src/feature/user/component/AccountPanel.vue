@@ -113,12 +113,10 @@ const logoutAll = () => openDialog({
 
     <p class="sec">비밀번호<span class="sub">바꾸면 다른 기기는 로그아웃</span></p>
     <form class="row top" novalidate @submit.prevent="savePw">
-        <!-- 비밀번호 관리자가 계정을 알게 하는 숨은 칸 -->
-        <input type="text" class="hidden-user" autocomplete="username" :value="auth?.identification" readonly tabindex="-1" aria-hidden="true">
         <div class="lb fields">
-            <CtTextField v-model="cur" size="sm" type="password" autocomplete="current-password" placeholder="현재 비밀번호" aria-label="현재 비밀번호" :disabled="pwBusy" />
-            <CtTextField v-model="next" size="sm" type="password" autocomplete="new-password" placeholder="새 비밀번호" aria-label="새 비밀번호" :disabled="pwBusy" />
-            <CtTextField v-model="next2" size="sm" type="password" autocomplete="new-password" placeholder="새 비밀번호 확인" aria-label="새 비밀번호 확인" :disabled="pwBusy"
+            <CtTextField v-model="cur" size="sm" type="password" autocomplete="off" placeholder="현재 비밀번호" aria-label="현재 비밀번호" :disabled="pwBusy" />
+            <CtTextField v-model="next" size="sm" type="password" autocomplete="off" placeholder="새 비밀번호" aria-label="새 비밀번호" :disabled="pwBusy" />
+            <CtTextField v-model="next2" size="sm" type="password" autocomplete="off" placeholder="새 비밀번호 확인" aria-label="새 비밀번호 확인" :disabled="pwBusy"
                 :error-messages="mismatch ? '새 비밀번호가 서로 다릅니다' : undefined" />
             <span v-if="pwMsg" class="hint" :class="{ err: pwMsg.err }" role="status">{{ pwMsg.text }}</span>
         </div>
@@ -177,5 +175,4 @@ const logoutAll = () => openDialog({
 .dot { opacity: 0.8; }
 .hint { @include vars.font('body-small'); opacity: 0.7; &.err { color: rgb(var(--v-theme-error)); opacity: 1; } }
 .pick { height: 32px; flex: none; }
-.hidden-user { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 </style>
