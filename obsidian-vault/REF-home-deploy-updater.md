@@ -12,6 +12,7 @@
 - `build/home-update/261113-login-autocomplete/`(파일 63개): `web/`(`index-C_I6HIQo.js`, `build/261113-login-autocomplete/web` = test3에 넣은 것과 같음) + 11-12 알림 찰떡 묶음의 `steps.json`(web 전용, `replace` 있음)·`nexus-steps/` 그대로(diff 같음). exe 없음 — 사용자 "web만"(11-13 선택)
 - 내용 = 로그인·가입·비밀번호 변경 칸 `autocomplete="off"`(`REF-account.md` "로그인 자동완성 끄기"). Go 변경·새 마이그레이션 없음(`00021` 그대로) -> rollback = restore만
 - 배포 뒤 확인 = 공개 `index.html`이 `index-C_I6HIQo.js`를 가리키는지(nexus·direct), 직전 `index-DjIbCsCR.js`는 `text/html`
+- **결과(11-13)**: 사용자가 배포. 공개 `index.html` = `index-C_I6HIQo.js`(nexus·direct 둘 다) · 직전 `index-DjIbCsCR.js` = `text/html`(갈아치우기 동작) · `/api/users/session` = 401. Claude가 curl로 확인
 
 ## 11-12 알림 찰떡 묶음 — web만 (Claude가 만듦, 업로드·배포 = 사용자)
 - `build/home-update/261112-notice/`(파일 63개): `web/`(`index-DjIbCsCR.js`, `build/261112-notice/web` = test3에 넣은 것과 같음) + 261112 계정 묶음의 `nexus-steps/` 그대로 + **web 전용 `steps.json`**(아래). **supervisor.exe·worker.exe 없음** — 사용자 "홈서버용 역시 web만"(11-12), 묶음 규칙 "worker 항상 포함"의 예외(그 규칙의 근거였던 옛 `update.ps1`과 달리 updater `copy`는 묶음에 있는 파일만 덮으므로 exe는 서버 것이 그대로 남음)

@@ -28,4 +28,4 @@
 - HISTORY: | `history/home-server.md` | 집 Windows 서버 PC 구성 + Cloudflare Tunnel(2026-10-25 신설) | 10-28 원인 = 엣지 LAX -> 직통 전환 계획·회사 준비 |
 - HISTORY: | `history/home-direct.md` | 집 서버 직통 접속 iptime + Caddy(2026-10-28 home-server에서 분할) ↔ `REF-home-direct.md` | 10-28 밤 직통 전환 끝, cloudflared 정지 |
 - HISTORY: | `history/home-deploy.md` | 집 서버 배포·업데이트(2026-10-28 home-server에서 분할) | 10-29 저녁 drag 묶음 배포 완료(worker 항상 포함 규칙) |
-- HISTORY: | `history/home-deploy-updater.md` | 집 서버 배포: updater 이후(2026-11-03 신설) ↔ `REF-home-deploy-updater.md` | 11-04 최신 배포 #2 · 11-05 보드 닫기 묶음(11-06 사용자 배포) · 11-06 소켓 재연결 묶음(업로드 대기) · 11-08 test3 교체·설정 두 겹 묶음 배포 끝(갈아치우기 첫 사용) · 11-12 web 전용 묶음 배포 끝 · 11-13 로그인 자동완성 web 전용 묶음(배포 대기) |
+- HISTORY: | `history/home-deploy-updater.md` | 집 서버 배포: updater 이후(2026-11-03 신설) ↔ `REF-home-deploy-updater.md` | 11-04 최신 배포 #2 · 11-05 보드 닫기 묶음(11-06 사용자 배포) · 11-06 소켓 재연결 묶음(업로드 대기) · 11-08 test3 교체·설정 두 겹 묶음 배포 끝(갈아치우기 첫 사용) · 11-12 web 전용 묶음 배포 끝 · 11-13 로그인 자동완성 web 전용 묶음 배포 끝 |
