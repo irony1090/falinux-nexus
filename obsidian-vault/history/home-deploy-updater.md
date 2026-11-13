@@ -38,3 +38,4 @@
 
 ## 2026-11-13 로그인 자동완성 web만
 - 사용자 "test3 빌드, 집서버용 updater 빌드 구성" -> 물음에 test3 = 지금 web만 교체 · 집 서버 = web만 선택 -> `scripts/build.sh 261113-login-autocomplete frontend`(`index-C_I6HIQo.js`) · test3 = `build/261112-account/web` 교체(재시작 없음, `web.bak-1141`, 8013 응답 확인) · 묶음 `build/home-update/261113-login-autocomplete`(63개, 11-12 web 전용 steps 승계) → `REF-home-deploy-updater.md` "11-13 로그인 자동완성 묶음"
+- 사용자 배포 -> Claude 확인: nexus·direct 공개 `index-C_I6HIQo.js`, 옛 js `text/html`, `/api/users/session` 401
