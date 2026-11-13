@@ -34,3 +34,4 @@
 - 주의: 정품 인증 없는 Windows(테스트용, 워터마크 등) 또는 Enterprise Evaluation 90일. `dockurr/windows` 세부 옵션(버전 이름·호스트 주소)은 기억 기준 → 띄울 때 문서 확인
 - 띄울 때 사용자 승인 필요(이미지 pull·다운로드·디스크 사용)
 
+- 2026-11-12 MES 프로젝트(`/home/jh-bae/workspace/2611-0000-falinux_mes`)가 이 VM을 빌려 씀: `shared/mes/`(report.zip·setup.ps1·run.ps1), VM `C:\ShipReport`, 예약 작업 `ShipReport` → MES vault `REF-win-vm.md`
