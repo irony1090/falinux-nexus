@@ -17,3 +17,8 @@
 - 결정(구현 중): 아이디 없음 = NULL 대신 `''`(sqlc string 유지) · 로그인 세션 메모리 등록은 커밋 전(응답이 먼저 나가 다음 요청이 401 나는 것 방지) · 로그아웃도 같은 브라우저 다른 탭에 SESSION:END
 - 확인: API 44/44 · 화면 15/15·8/8 · 재시작 뒤 세션 유지 · 임시 DB·5051·3001 정리
 - 사용자 test1 화면 확인 "확인했어" → 마감. 개발 DB `nexus`에 `00020`·`00021` 적용(test1 띄울 때). test1·test2 끔
+
+## 2026-11-13 로그인 자동완성 끄기 (`fix/login-autocomplete`)
+- 사용자 요청: 로그인 관련 칸에서 Edge 자동완성·목록이 안 뜨게(공용 PC 목적). 조율 = ①②③ 구분표 → 범위 로그인·가입·비밀번호 변경 → 방법 A(`off`만) 선택
+- 고침: `Login.vue` 2칸 · `Signup.vue` 4칸 · `AccountPanel.vue` 3칸 = `autocomplete="off"`, `AccountPanel` 숨은 아이디 칸·CSS 삭제
+- 확인용 vite 8011 + dev supervisor 5051(8012 = community 프론트 점유) 띄움 → 사용자 "이정도로 마감" → 끔 · 커밋·master `--no-ff` 머지 → `REF-account.md` "로그인 자동완성 끄기"

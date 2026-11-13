@@ -1,13 +1,14 @@
 # CURRENT
 
 ## 현재 날짜
-2026-11-12
+2026-11-13
 
 > 완료·커밋된 작업의 상세는 `history/*.md`, 설계·재사용 지식은 `REF-*.md`, 마감 파트는 `INDEX-*.md`. 여기는 **현재 상태 + 다음 할 것 + 미해결**만.
 
 ---
 
 ## ⚠️ 다음 세션 시작 시
+- **(2026-11-13) 로그인 자동완성 끄기 — 마감**(사용자 "이정도로 마감"), `fix/login-autocomplete` 커밋·master `--no-ff` 머지. 로그인·가입·비밀번호 변경 칸 = `autocomplete="off"`(방법 A). 확인용 8011·5051 끔. B·C는 `BACKLOG.md` → `REF-account.md` "로그인 자동완성 끄기" · `history/account.md` "11-13". **빌드·배포 = 아래 줄**
 - **(2026-11-12 23:14) test3 worker 교체 — 끝**(사용자 확인): 옛 빌드 폴더 `261111-column-flow` 삭제로 새 process 실행 실패 -> Claude가 worker를 `build/261112-account/worker`로 다시 띄움(pid 514088, 로그 `261112-account/worker.log`) → `history/build.md` "11-12" · 재발 방지 `INDEX-deploy.md` "옛 빌드 폴더 정리"
 - **(2026-11-12) 알림 찰떡 빌드 — web만**: test3(8013) = `build/261112-account/web`을 새 web(`index-DjIbCsCR.js`, 원본 `build/261112-notice/web`)으로 Claude가 교체(재시작 없음, 옛 것 = `web.bak-1714`) · 집 서버 = 묶음 `build/home-update/261112-notice`(web + web 전용 steps, 재시작 없음) **사용자 배포 끝**, 공개 `index-DjIbCsCR.js` 확인(nexus·direct) → `REF-home-deploy-updater.md` "11-12 알림 찰떡 묶음"
 - **(2026-11-12) 알림 drawer·토스트·전송 찰떡화 — 마감**(사용자 "확인했어"), `feat/notice-chaltteok` 커밋·master `--no-ff` 머지 → `history/design-chaltteok.md` "11-12" · `REF-design-chaltteok.md` 표. 프론트만 바뀜(web만 교체). 확인용 5051·8011 = 마감 때 Claude가 끔. 개발 DB에 계정 `ntc-*` 4개 남음

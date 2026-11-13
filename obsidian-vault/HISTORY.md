@@ -76,7 +76,7 @@
 
 | 파일 | 주제 | 마지막 기록 |
 |---|---|---|
-| `history/account.md` | 계정: 로그인 기기·비밀번호 변경·평문 아이디(11-12 신설) ↔ `REF-account.md` | 11-12 조율 · 구현 · 확인(API 44·화면 23) · 사용자 확인 · 마감 |
+| `history/account.md` | 계정: 로그인 기기·비밀번호 변경·평문 아이디(11-12 신설) ↔ `REF-account.md` | 11-12 조율 · 구현 · 확인(API 44·화면 23) · 사용자 확인 · 마감 · 11-13 로그인 자동완성 끄기(`fix/login-autocomplete`) |
 | `history/column-flow.md` | 칼럼 흐름: Grid 경계 걸침(11-11 신설) ↔ `REF-column-flow.md` | 11-11 조율·보드 구현·URL focus·관리 페이지·헤드리스 확인 · 사용자 확인 · 마감 |
 | `history/settings-account.md` | 설정 두 겹: 계정 + 이 브라우저(11-08 신설) ↔ `REF-settings-account.md` | 11-08 조율·구현·확인 24/24 · 사용자 확인 · 마감 · test3·집 서버 배포 |
 | `history/socket-reconnect.md` | 소켓 재연결 · 끊김 표시(11-06 신설) ↔ `REF-socket-reconnect.md` | 11-06 확인 14/14 · test3 교체 · 모바일 확인 · 마감 |

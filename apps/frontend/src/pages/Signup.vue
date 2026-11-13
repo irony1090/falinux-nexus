@@ -42,15 +42,15 @@ const submit = () => {
 <template>
 <auth-tile title="회원가입" submit-label="가입" back :busy="busy" @submit="submit" @back="router.push('/login')">
     <label for="au-id" class="mb-lbl">아이디</label>
-    <CtTextField id="au-id" v-model="id" size="sm" autocomplete="username" :disabled="busy"
+    <CtTextField id="au-id" v-model="id" size="sm" autocomplete="off" :disabled="busy"
         :error-messages="errorOf(idCheck)" :hint="hintOf(idCheck, '로그인할 때 씁니다(공백 없이)', '쓸 수 있는 아이디입니다')" persistent-hint />
     <label for="au-nick" class="mb-lbl">닉네임</label>
-    <CtTextField id="au-nick" v-model="nick" size="sm" autocomplete="nickname" :disabled="busy"
+    <CtTextField id="au-nick" v-model="nick" size="sm" autocomplete="off" :disabled="busy"
         :error-messages="errorOf(nickCheck)" :hint="hintOf(nickCheck, '화면에 이름으로 보입니다', '쓸 수 있는 닉네임입니다')" persistent-hint />
     <label for="au-pw" class="mb-lbl">비밀번호</label>
-    <CtTextField id="au-pw" v-model="pw" size="sm" type="password" autocomplete="new-password" :disabled="busy" />
+    <CtTextField id="au-pw" v-model="pw" size="sm" type="password" autocomplete="off" :disabled="busy" />
     <label for="au-pw2" class="mb-lbl">비밀번호 확인</label>
-    <CtTextField id="au-pw2" v-model="pw2" size="sm" type="password" autocomplete="new-password" :disabled="busy" :error-messages="mismatch ? '비밀번호가 서로 다릅니다' : undefined" />
+    <CtTextField id="au-pw2" v-model="pw2" size="sm" type="password" autocomplete="off" :disabled="busy" :error-messages="mismatch ? '비밀번호가 서로 다릅니다' : undefined" />
     <p v-if="error" role="alert" class="mb-err full">{{ error }}</p>
     <template #note>가입하면 바로 로그인됩니다</template>
 </auth-tile>
